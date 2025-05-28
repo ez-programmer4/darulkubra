@@ -1,0 +1,75 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model wpos_wpdatatable_24 {
+  ustazid        String                      @id @db.VarChar(32)
+  ustazname      String                      @db.VarChar(120)
+  schedule       String                      @db.Text
+  control        String                      @db.VarChar(64)
+  created_at     DateTime                    @default(now()) @db.Timestamp(0)
+  occupied_times wpos_ustaz_occupied_times[] @relation("fk_slot_ustaz")
+  students       wpos_wpdatatable_23[]       @relation("fk_student_ustaz")
+}
+
+model wpos_wpdatatable_23 {
+  id               Int                         @id @default(autoincrement()) @db.UnsignedInt
+  name             String                      @db.VarChar(120)
+  phoneno          String                      @db.VarChar(32)
+  classfee         Float?                      @db.Float
+  startdate        DateTime?                   @db.DateTime
+  control          String?                     @db.VarChar(64)
+  status           String                      @db.VarChar(32)
+  ustaz            String                      @db.VarChar(32)
+  package          String                      @db.VarChar(32)
+  subject          String                      @db.VarChar(32)
+  country          String?                     @db.VarChar(64)
+  rigistral        String?                     @db.VarChar(64)
+  daypackages      String?                     @db.VarChar(120)
+  refer            String?                     @db.VarChar(120)
+  registrationdate DateTime                    @default(now()) @db.DateTime(0)
+  selectedTime     String?                     @db.VarChar(16) // This field must be present
+  occupiedTimes    wpos_ustaz_occupied_times[] @relation("fk_student_occupied_times")
+isTrained  Boolean @default(false)          
+  teacher          wpos_wpdatatable_24         @relation("fk_student_ustaz", fields: [ustaz], references: [ustazid])
+
+  @@index([ustaz], map: "idx_ustaz")
+}
+
+model wpos_ustaz_occupied_times {
+  id          Int                 @id @default(autoincrement())
+  ustaz_id    String              @db.VarChar(32)
+  time_slot   String              @db.VarChar(16)
+  daypackage  String              @db.VarChar(32)
+  student_id  Int                 @db.UnsignedInt
+  occupied_at DateTime            @default(now()) @db.Timestamp(0)
+  student     wpos_wpdatatable_23 @relation("fk_student_occupied_times", fields: [student_id], references: [id], onDelete: Cascade)
+  teacher     wpos_wpdatatable_24 @relation("fk_slot_ustaz", fields: [ustaz_id], references: [ustazid], onDelete: Cascade)
+
+  @@unique([ustaz_id, time_slot, daypackage])
+  @@index([student_id], map: "idx_student")
+}
+
+model wpos_wpdatatable_33 {
+  id        Int    @id @default(autoincrement())
+  name String @unique @db.VarChar(120)
+  username  String @unique @db.VarChar(120)
+  password  String @db.VarChar(120)
+}
+
+model wpos_wpdatatable_28 {
+  id   Int     @id @default(autoincrement())
+  name String  @unique @db.VarChar(120)
+  code String? @db.VarChar(32)
+}
+
+model wpos_wpdatatable_30 {
+  id      Int     @id @default(autoincrement())
+  control String? @unique(map: "control") @db.VarChar(120)
+}
