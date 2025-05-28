@@ -3,28 +3,28 @@ import { NextResponse } from "next/server";
 
 const prisma = new PrismaClient();
 
-const parseTime = (time: string): [number, number] => {
-  const [hourStr, minuteStr = "00"] = time
-    .split(":")
-    .map((part) => part.trim());
-  const hour = parseInt(hourStr, 10);
-  const minute = parseInt(minuteStr, 10);
+// const parseTime = (time: string): [number, number] => {
+//   const [hourStr, minuteStr = "00"] = time
+//     .split(":")
+//     .map((part) => part.trim());
+//   const hour = parseInt(hourStr, 10);
+//   const minute = parseInt(minuteStr, 10);
 
-  if (
-    isNaN(hour) ||
-    hour < 0 ||
-    hour > 23 ||
-    isNaN(minute) ||
-    minute < 0 ||
-    minute > 59
-  ) {
-    throw new Error(
-      `Invalid time format: ${time}. Expected HH:MM (e.g., 14:30)`
-    );
-  }
+//   if (
+//     isNaN(hour) ||
+//     hour < 0 ||
+//     hour > 23 ||
+//     isNaN(minute) ||
+//     minute < 0 ||
+//     minute > 59
+//   ) {
+//     throw new Error(
+//       `Invalid time format: ${time}. Expected HH:MM (e.g., 14:30)`
+//     );
+//   }
 
-  return [hour, minute];
-};
+//   return [hour, minute];
+// };
 
 const convertTo12Hour = (time: string): string => {
   if (/AM|PM/i.test(time)) return time;
@@ -194,8 +194,6 @@ export async function GET(request: Request) {
         { status: 400 }
       );
     }
-
-    const timeToMatch = convertTimeTo24Hour(selectedTime);
 
     const teachers = await prisma.wpos_wpdatatable_24.findMany({
       select: { ustazid: true, ustazname: true, schedule: true },

@@ -8,20 +8,19 @@ export async function GET() {
     // Correct way to fetch distinct non-null registral values
     const registralOptions = await prisma.wpos_wpdatatable_33.findMany({
       select: {
-        registral: true,
+        name: true,
       },
-      distinct: ["registral"],
+      distinct: ["name"],
       where: {
-        registral: {
-          not: null, // Proper null check
-          not: "", // Optional: also exclude empty strings if needed
+        name: {
+          not: "",
         },
       },
     });
 
     // Additional client-side filtering for safety
     const options = registralOptions
-      .map((item) => item.registral)
+      .map((item) => item.name)
       .filter((registral): registral is string => !!registral); // Filters out null/undefined/empty
 
     return NextResponse.json({ registralOptions: options }, { status: 200 });

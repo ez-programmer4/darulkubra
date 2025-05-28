@@ -453,8 +453,8 @@ export async function PUT(request: NextRequest) {
           where: {
             student_id: id,
             ustaz_id: existingRegistration.ustaz,
-            time_slot: existingRegistration.selectedTime,
-            daypackage: existingRegistration.daypackages,
+            time_slot: existingRegistration.selectedTime ?? undefined,
+            daypackage: existingRegistration.daypackages ?? undefined,
           },
         });
 
@@ -559,8 +559,7 @@ export async function GET(request: NextRequest) {
       },
       where: {
         name: {
-          not: null,
-          not: "",
+          not: "", // Exclude empty names
         },
       },
       orderBy: {

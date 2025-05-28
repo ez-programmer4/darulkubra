@@ -51,6 +51,7 @@ interface Registration {
   selectedTime: string;
   registrationdate: string;
   isTrained?: boolean;
+  daypackages?: string;
 }
 
 type SortKey = keyof Registration;
@@ -59,7 +60,7 @@ type SortOrder = "asc" | "desc";
 function to24Hour(time12h: string): string {
   const match = time12h.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (!match) return "";
-  let [_, hour, minute, period] = match;
+  const [, hour, minute, period] = match;
   let h = parseInt(hour, 10);
   if (period.toUpperCase() === "PM" && h !== 12) h += 12;
   if (period.toUpperCase() === "AM" && h === 12) h = 0;
@@ -117,7 +118,7 @@ export default function Dashboard() {
           fetchRegistrations();
           setAuthChecked(true);
         }
-      } catch (err) {
+      } catch {
         router.replace("/login");
       }
     };
@@ -218,9 +219,7 @@ export default function Dashboard() {
     () =>
       Array.from(
         new Set(
-          registrations.map(
-            (reg) => (reg as any).daypackages?.toLowerCase() || ""
-          )
+          registrations.map((reg) => reg.daypackages?.toLowerCase() || "")
         )
       ).filter((pkg) => pkg),
     [registrations]
@@ -385,11 +384,10 @@ export default function Dashboard() {
         (filterTrained === "nottrained" && !reg.isTrained);
       const matchesDayPackage =
         filterDayPackage === "all" ||
-        (reg as any).daypackages?.toLowerCase() ===
-          filterDayPackage.toLowerCase();
+        reg.daypackages?.toLowerCase() === filterDayPackage.toLowerCase();
       const matchesUstaz =
         filterUstaz === "all" ||
-        (reg.ustazname || reg.ustaz || "").toLowerCase() ===
+        (reg.ustazname || reg.ustazname || "").toLowerCase() ===
           filterUstaz.toLowerCase();
       const matchesSubject =
         filterSubject === "all" ||
@@ -417,15 +415,15 @@ export default function Dashboard() {
 
   const sortedRegistrations = useMemo(() => {
     return [...filteredRegistrations].sort((a, b) => {
-      let valueA: any = a[sortKey];
-      let valueB: any = b[sortKey];
+      let valueA = a[sortKey] as string | number | undefined;
+      let valueB = b[sortKey] as string | number | undefined;
 
       if (sortKey === "startdate" || sortKey === "registrationdate") {
-        valueA = new Date(valueA).getTime();
-        valueB = new Date(valueB).getTime();
+        valueA = new Date(valueA ?? "").getTime();
+        valueB = new Date(valueB ?? "").getTime();
       } else if (sortKey === "classfee") {
-        valueA = Number(valueA);
-        valueB = Number(valueB);
+        valueA = Number(valueA ?? 0);
+        valueB = Number(valueB ?? 0);
       } else {
         valueA = valueA?.toString().toLowerCase() || "";
         valueB = valueB?.toString().toLowerCase() || "";
@@ -439,18 +437,19 @@ export default function Dashboard() {
   const uniqueUstaz = useMemo(
     () =>
       Array.from(
-        new Set(registrations.map((reg) => reg.ustazname || reg.ustaz || ""))
+        new Set(
+          registrations.map((reg) => reg.ustazname || reg.ustazname || "")
+        )
       ).filter((u) => u && u !== "Not assigned"),
     [registrations]
   );
 
   const {
     activeStudents,
-    totalRevenue,
+
     packages,
     subjects,
     statusCounts,
-    avgFee,
   } = useMemo(() => {
     const active = registrations.filter(
       (reg) => reg.status.toLowerCase() === "active"
@@ -468,8 +467,8 @@ export default function Dashboard() {
 
     const counts = registrations.reduce(
       (acc, reg) => {
-        acc[reg.status.toLowerCase()] =
-          (acc[reg.status.toLowerCase()] || 0) + 1;
+        const key = reg.status.toLowerCase();
+        acc[key] = (acc[key] || 0) + 1;
         return acc;
       },
       {
@@ -478,7 +477,7 @@ export default function Dashboard() {
         "remadan leave": 0,
         notyet: 0,
         fresh: 0,
-      }
+      } as Record<string, number>
     );
     const avg = registrations.length ? revenue / registrations.length : 0;
 
@@ -505,7 +504,7 @@ export default function Dashboard() {
         type: "success",
       });
       fetchRegistrations(); // <-- This will update the UI
-    } catch (error) {
+    } catch {
       setNotification({ message: "Failed to update status", type: "error" });
     }
   };
@@ -581,7 +580,7 @@ export default function Dashboard() {
         Package: reg.package,
         Subject: reg.subject,
         "Class Fee": `$${Number(reg.classfee).toLocaleString()}`,
-        Teacher: reg.ustaz,
+        Teacher: reg.ustazname,
         "Start Date": new Date(reg.startdate).toLocaleDateString(),
         "Time Slot": reg.selectedTime
           ? new Date(`1970-01-01T${reg.selectedTime}`).toLocaleTimeString([], {
@@ -639,7 +638,7 @@ export default function Dashboard() {
         </div>
         <div class="student-details">
           <div><span>Phone:</span> ${reg.phoneno}</div>
-          <div><span>Teacher:</span> ${reg.ustaz}</div>
+          <div><span>Teacher:</span> ${reg.ustazname}</div>
           <div><span>Package:</span> ${reg.package}</div>
           <div><span>Subject:</span> ${reg.subject}</div>
           <div><span>Class Fee:</span> $${Number(
@@ -860,7 +859,7 @@ export default function Dashboard() {
                 Student Management Dashboard
               </h1>
               <p className="text-gray-600 mt-2 text-sm">
-                Welcome, {user.name}! Efficiently manage student registrations
+                Welcome, {user?.name}! Efficiently manage student registrations
                 and monitor performance.
               </p>
             </div>
@@ -1532,8 +1531,9 @@ export default function Dashboard() {
                                   />
                                   <DetailItem
                                     icon={<FiBook className="text-blue-600" />}
-                                    label="Day Package"
-                                    value={(reg as any).daypackages || "-"}
+                                    label="Day Packages"
+                                    value={reg.daypackages || "-"}
+                                    // value={(reg as any).daypackages || "-"}
                                   />
                                   <DetailItem
                                     icon={<FiBook className="text-blue-600" />}
@@ -1622,7 +1622,7 @@ export default function Dashboard() {
                     <FiChevronLeft size={18} />
                   </motion.button>
                   {(() => {
-                    const pages = [];
+                    const pages: React.ReactNode[] = [];
                     const pageNumbers = Array.from(
                       { length: totalPages },
                       (_, i) => i + 1

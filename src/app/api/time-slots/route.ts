@@ -4,11 +4,11 @@ import { NextResponse } from "next/server";
 
 const prisma = new PrismaClient();
 
-interface TimeSlot {
-  id: number;
-  time: string;
-  category: string;
-}
+// interface TimeSlot {
+//   id: number;
+//   time: string;
+//   category: string;
+// }
 
 export async function GET() {
   try {
