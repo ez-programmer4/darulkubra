@@ -5,29 +5,30 @@ const prisma = new PrismaClient();
 
 export async function GET() {
   try {
-    // Fetch distinct control values from wpos_wpdatatable_30
-    const controls = await prisma.wpos_wpdatatable_30.findMany({
+    const controllers = await prisma.wpos_wpdatatable_28.findMany({
       select: {
-        control: true,
+        username: true,
+        name: true,
       },
-      distinct: ["control"],
       where: {
-        control: {
-          not: null, // Ensure only non-null values
+        username: {
+          not: "",
         },
       },
     });
 
-    // Extract control values and filter out nulls
-    const controlOptions = controls
-      .map((item) => item.control)
-      .filter((control): control is string => control !== null);
+    console.log("Fetched controllers:", controllers);
 
-    return NextResponse.json({ controlOptions }, { status: 200 });
+    const controlOptions = controllers.map((controller) => ({
+      id: controller.username,
+      name: controller.name,
+    }));
+
+    return NextResponse.json(controlOptions);
   } catch (error) {
     console.error("Error fetching control options:", error);
     return NextResponse.json(
-      { message: "Error fetching control options" },
+      { error: "Failed to fetch control options" },
       { status: 500 }
     );
   } finally {

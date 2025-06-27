@@ -33,6 +33,7 @@ import { useRouter } from "next/navigation";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import ConfirmModal from "../components/ConfirmModal";
+import Cookies from "js-cookie"; // Added for cookie handling
 
 interface Registration {
   id: number;
@@ -89,7 +90,7 @@ export default function Dashboard() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<
     (() => Promise<void>) | null
-  >(null); // Updated to handle async actions
+  >(null);
   const [confirmMessage, setConfirmMessage] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -102,29 +103,59 @@ export default function Dashboard() {
   } | null>(null);
   const router = useRouter();
 
-  // Check authentication on mount
+  // Check authentication with token
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const response = await fetch("/api/auth/me", {
           credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
         });
-        if (!response.ok) throw new Error();
-        const data = await response.json();
-        if (!data.user) {
-          router.replace("/login");
-        } else {
-          setUser(data.user);
-          fetchRegistrations();
-          setAuthChecked(true);
+        console.log("Auth check response status:", response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Auth check error response:", errorText);
+          throw new Error(`HTTP error! Status: ${response.status}`);
         }
-      } catch {
-        router.replace("/login");
+
+        const data = await response.json();
+        console.log("Auth check data:", data);
+
+        if (!data.user) {
+          throw new Error("No user data received");
+        }
+
+        if (data.user.role !== "registral") {
+          console.log(
+            "User role is not registral, redirecting to controller..."
+          );
+          router.push("/controller");
+          return;
+        }
+
+        setUser(data.user);
+        await fetchRegistrations();
+      } catch (error) {
+        console.error("Auth check error:", error);
+        setError(
+          error instanceof Error ? error.message : "Authentication failed"
+        );
+        setNotification({
+          message: "Authentication failed",
+          type: "error",
+        });
+        router.push("/login");
+      } finally {
+        setAuthChecked(true);
       }
     };
 
     checkAuth();
   }, [router]);
+
   // Auto-dismiss notifications after 5 seconds
   useEffect(() => {
     if (notification) {
@@ -137,14 +168,21 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch("/api/registrations");
+      console.log("Fetching registrations...");
+      const response = await fetch("/api/registrations", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      console.log("Response status:", response.status);
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! Status: ${response.status}`
-        );
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+        throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
+      console.log("Received data:", data);
       if (!Array.isArray(data)) {
         throw new Error("Expected an array of registrations");
       }
@@ -168,7 +206,6 @@ export default function Dashboard() {
     }
   };
 
-  // Updated showConfirm to handle async actions
   const showConfirm = (message: string, action: () => Promise<void>) => {
     setConfirmMessage(message);
     setConfirmAction(() => action);
@@ -180,8 +217,13 @@ export default function Dashboard() {
       "Are you sure you want to delete this registration?",
       async () => {
         try {
+          const token = Cookies.get("authToken");
           const response = await fetch(`/api/registrations?id=${id}`, {
             method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: token ? `Bearer ${token}` : "",
+            },
           });
 
           if (!response.ok) {
@@ -207,7 +249,7 @@ export default function Dashboard() {
                 : "Failed to delete registration",
             type: "error",
           });
-          throw error; // Re-throw to let the modal handle the error state
+          throw error;
         } finally {
           setConfirmOpen(false);
         }
@@ -238,9 +280,13 @@ export default function Dashboard() {
       `Are you sure you want to delete ${selectedRows.length} registration(s)?`,
       async () => {
         try {
+          const token = Cookies.get("authToken");
           const response = await fetch("/api/registrations?endpoint=bulk", {
             method: "DELETE",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: token ? `Bearer ${token}` : "",
+            },
             body: JSON.stringify({ ids: selectedRows }),
           });
 
@@ -292,11 +338,15 @@ export default function Dashboard() {
       `Are you sure you want to update the status of ${selectedRows.length} registration(s) to "${newStatus}"?`,
       async () => {
         try {
+          const token = Cookies.get("authToken");
           const response = await fetch(
             "/api/registrations?endpoint=bulk-status",
             {
               method: "PATCH",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: token ? `Bearer ${token}` : "",
+              },
               body: JSON.stringify({ ids: selectedRows, status: newStatus }),
             }
           );
@@ -409,7 +459,7 @@ export default function Dashboard() {
     filterPackage,
     filterDayPackage,
     filterSubject,
-    filterUstaz, // <-- Add this!
+    filterUstaz,
     filterTrained,
   ]);
 
@@ -444,13 +494,7 @@ export default function Dashboard() {
     [registrations]
   );
 
-  const {
-    activeStudents,
-
-    packages,
-    subjects,
-    statusCounts,
-  } = useMemo(() => {
+  const { activeStudents, packages, subjects, statusCounts } = useMemo(() => {
     const active = registrations.filter(
       (reg) => reg.status.toLowerCase() === "active"
     ).length;
@@ -493,9 +537,13 @@ export default function Dashboard() {
 
   const markAsTrained = async (id: number) => {
     try {
+      const token = Cookies.get("authToken");
       const response = await fetch(`/api/registrations?id=${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+        },
         body: JSON.stringify({ isTrained: true }),
       });
       if (!response.ok) throw new Error("Failed to update status");
@@ -503,7 +551,7 @@ export default function Dashboard() {
         message: "Student marked as trained",
         type: "success",
       });
-      fetchRegistrations(); // <-- This will update the UI
+      fetchRegistrations();
     } catch {
       setNotification({ message: "Failed to update status", type: "error" });
     }
@@ -793,8 +841,20 @@ export default function Dashboard() {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/login";
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      Cookies.remove("authToken"); // Clear the token on logout
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout error:", error);
+      setNotification({
+        message: "Failed to logout",
+        type: "error",
+      });
+    }
   };
 
   if (!authChecked) {
@@ -1533,7 +1593,6 @@ export default function Dashboard() {
                                     icon={<FiBook className="text-blue-600" />}
                                     label="Day Packages"
                                     value={reg.daypackages || "-"}
-                                    // value={(reg as any).daypackages || "-"}
                                   />
                                   <DetailItem
                                     icon={<FiBook className="text-blue-600" />}

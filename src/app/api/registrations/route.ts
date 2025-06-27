@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import { NextResponse, NextRequest } from "next/server";
-import { verifyToken } from "../../../../lib/auth";
-const prisma = new PrismaClient();
+import { verifyToken } from "@/lib/server-auth";
+import { prisma as globalPrisma } from "@/lib/prisma"; // Reuse global Prisma instance
+const prismaClient = globalPrisma;
 
 const parseTime = (time: string): [number, number] => {
   const [hourStr, minuteStr = "00"] = time
@@ -25,9 +26,6 @@ const parseTime = (time: string): [number, number] => {
 
   return [hour, minute];
 };
-
-// const session = await auth();
-// session?.user?.id;
 
 const convertTo12Hour = (time: string): string => {
   try {
@@ -93,13 +91,9 @@ const checkTeacherAvailability = async (
   const timeToMatch = convertTimeTo24Hour(selectedTime);
   const timeSlot = convertTo12Hour(timeToMatch);
 
-  const teacher = await prisma.wpos_wpdatatable_24.findUnique({
+  const teacher = await prismaClient.wpos_wpdatatable_24.findUnique({
     where: { ustazid: teacherId },
-    select: {
-      ustazid: true,
-      ustazname: true,
-      schedule: true,
-    },
+    select: { ustazid: true, ustazname: true, schedule: true },
   });
 
   if (!teacher) {
@@ -119,7 +113,7 @@ const checkTeacherAvailability = async (
     };
   }
 
-  const allBookings = await prisma.wpos_ustaz_occupied_times.findMany({
+  const allBookings = await prismaClient.wpos_ustaz_occupied_times.findMany({
     where: { time_slot: timeSlot },
     select: { ustaz_id: true, daypackage: true, student_id: true },
   });
@@ -184,25 +178,35 @@ const checkTeacherAvailability = async (
 export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get("authToken")?.value;
-    const user = token ? verifyToken(token) : null;
+    if (!token) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await verifyToken(token);
     if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const rigistral = user?.username;
+    const { control } = body;
+    if (user.role === "controller" && control !== user.username) {
+      return NextResponse.json(
+        { message: "Unauthorized to assign to another controller" },
+        { status: 403 }
+      );
+    }
+
+    const rigistral = user.role === "registral" ? user.username : null;
     const {
       fullName,
       phoneNumber,
       classfee,
       startdate,
-      control,
       status,
       ustaz,
       package: regionPackage,
       subject,
       country,
-
       daypackages: selectedDayPackage,
       refer,
       selectedTime,
@@ -250,19 +254,19 @@ export async function POST(request: NextRequest) {
     );
     if (!availability.isAvailable) {
       return NextResponse.json(
-        { message: availability.message || "Teacher is not available" },
+        { message: availability.message },
         { status: 400 }
       );
     }
 
-    const newRegistration = await prisma.$transaction(async (tx) => {
+    const newRegistration = await prismaClient.$transaction(async (tx) => {
       const registration = await tx.wpos_wpdatatable_23.create({
         data: {
           name: fullName,
           phoneno: phoneNumber,
           classfee: classfee ? parseFloat(classfee) : null,
           startdate: startdate ? new Date(startdate) : null,
-          control: control || null,
+          control: user.role === "controller" ? user.username : control || null,
           status: status?.toLowerCase() || "pending",
           ustaz,
           package: regionPackage || null,
@@ -288,6 +292,9 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      console.log(
+        `Registration created for ${fullName} by ${user.username} - Notification triggered`
+      );
       return registration;
     });
 
@@ -305,7 +312,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    await prismaClient.$disconnect();
   }
 }
 
@@ -315,11 +322,13 @@ export async function PUT(request: NextRequest) {
 
   try {
     const token = request.cookies.get("authToken")?.value;
-    const user = token ? verifyToken(token) : null;
+    if (!token) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    const user = await verifyToken(token);
     if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
-    // Validate ID
     if (!id || id <= 0) {
       return NextResponse.json(
         { message: "Invalid or missing registration ID" },
@@ -327,27 +336,52 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Parse request body
     const body = await request.json();
+    const { control } = body;
+    if (user.role === "controller" && control && control !== user.username) {
+      return NextResponse.json(
+        { message: "Unauthorized to reassign to another controller" },
+        { status: 403 }
+      );
+    }
+
+    const existingRegistration =
+      await prismaClient.wpos_wpdatatable_23.findUnique({
+        where: { id },
+        select: { control: true, rigistral: true },
+      });
+    if (!existingRegistration) {
+      return NextResponse.json(
+        { message: "Registration not found" },
+        { status: 404 }
+      );
+    }
+    if (
+      user.role === "controller" &&
+      existingRegistration.control !== user.username
+    ) {
+      return NextResponse.json(
+        { message: "Unauthorized to update this registration" },
+        { status: 403 }
+      );
+    }
+
     const {
       fullName,
       phoneNumber,
       classfee,
       startdate,
-      control,
       status,
       ustaz,
       package: regionPackage,
       subject,
       country,
-      rigistral,
       daypackages: selectedDayPackage,
       refer,
       selectedTime,
       registrationdate,
     } = body;
 
-    // Validate required fields
     if (!fullName || fullName.trim() === "") {
       return NextResponse.json(
         { message: "Full name is required" },
@@ -379,7 +413,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Convert and validate time
     const timeToMatch = convertTimeTo24Hour(selectedTime);
     const timeSlot = convertTo12Hour(timeToMatch);
     if (timeSlot === "Invalid Time") {
@@ -389,24 +422,20 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Check existing registration
-    const existingRegistration = await prisma.wpos_wpdatatable_23.findUnique({
+    const existing = await prismaClient.wpos_wpdatatable_23.findUnique({
       where: { id },
-      select: { ustaz: true, selectedTime: true, daypackages: true },
+      select: {
+        ustaz: true,
+        selectedTime: true,
+        daypackages: true,
+        rigistral: true,
+      },
     });
 
-    if (!existingRegistration) {
-      return NextResponse.json(
-        { message: "Registration not found" },
-        { status: 404 }
-      );
-    }
-
-    // Determine if changes require availability check
     const hasNotChanged =
-      existingRegistration.ustaz === ustaz &&
-      existingRegistration.selectedTime === timeSlot &&
-      existingRegistration.daypackages === selectedDayPackage;
+      existing.ustaz === ustaz &&
+      existing.selectedTime === timeSlot &&
+      existing.daypackages === selectedDayPackage;
 
     if (!hasNotChanged) {
       const availability = await checkTeacherAvailability(
@@ -417,14 +446,13 @@ export async function PUT(request: NextRequest) {
       );
       if (!availability.isAvailable) {
         return NextResponse.json(
-          { message: availability.message || "Teacher is not available" },
+          { message: availability.message },
           { status: 400 }
         );
       }
     }
 
-    // Perform transaction for update
-    const updatedRegistration = await prisma.$transaction(async (tx) => {
+    const updatedRegistration = await prismaClient.$transaction(async (tx) => {
       const registration = await tx.wpos_wpdatatable_23.update({
         where: { id },
         data: {
@@ -432,13 +460,14 @@ export async function PUT(request: NextRequest) {
           phoneno: phoneNumber,
           classfee: classfee ? parseFloat(classfee) : null,
           startdate: startdate ? new Date(startdate) : null,
-          control: control || null,
+          control: user.role === "controller" ? user.username : control || null,
           status: status?.toLowerCase() || "pending",
           ustaz,
           package: regionPackage || null,
           subject: subject || null,
           country: country || null,
-          rigistral: rigistral || null,
+          rigistral:
+            user.role === "registral" ? user.username : existing.rigistral, // Preserve original rigistral for controllers
           daypackages: selectedDayPackage,
           refer: refer || null,
           selectedTime: timeSlot,
@@ -452,9 +481,9 @@ export async function PUT(request: NextRequest) {
         await tx.wpos_ustaz_occupied_times.deleteMany({
           where: {
             student_id: id,
-            ustaz_id: existingRegistration.ustaz,
-            time_slot: existingRegistration.selectedTime ?? undefined,
-            daypackage: existingRegistration.daypackages ?? undefined,
+            ustaz_id: existing.ustaz,
+            time_slot: existing.selectedTime,
+            daypackage: existing.daypackages,
           },
         });
 
@@ -469,6 +498,9 @@ export async function PUT(request: NextRequest) {
         });
       }
 
+      console.log(
+        `Registration updated for ${fullName} by ${user.username} - Notification triggered`
+      );
       return registration;
     });
 
@@ -489,16 +521,27 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    await prismaClient.$disconnect();
   }
 }
+
 export async function GET(request: NextRequest) {
   try {
+    const token = request.cookies.get("authToken")?.value;
+    if (!token) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await verifyToken(token);
+    if (!user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
     if (id) {
-      const registration = await prisma.wpos_wpdatatable_23.findUnique({
+      const registration = await prismaClient.wpos_wpdatatable_23.findUnique({
         where: { id: parseInt(id) },
         select: {
           id: true,
@@ -518,6 +561,7 @@ export async function GET(request: NextRequest) {
           registrationdate: true,
           selectedTime: true,
           isTrained: true,
+          teacher: { select: { ustazname: true } },
         },
       });
 
@@ -527,11 +571,28 @@ export async function GET(request: NextRequest) {
           { status: 404 }
         );
       }
+      if (
+        user.role === "controller" &&
+        registration.control !== user.username
+      ) {
+        return NextResponse.json(
+          { message: "Unauthorized to view this registration" },
+          { status: 403 }
+        );
+      }
 
-      return NextResponse.json(registration, { status: 200 });
+      return NextResponse.json({
+        ...registration,
+        ustazname: registration.teacher?.ustazname || "Not assigned",
+      });
     }
 
-    const registrations = await prisma.wpos_wpdatatable_23.findMany({
+    const whereClause =
+      user.role === "controller"
+        ? { control: user.username, name: { not: "" } }
+        : { name: { not: "" } };
+
+    const registrations = await prismaClient.wpos_wpdatatable_23.findMany({
       select: {
         id: true,
         name: true,
@@ -550,21 +611,10 @@ export async function GET(request: NextRequest) {
         registrationdate: true,
         selectedTime: true,
         isTrained: true,
-        teacher: {
-          // <-- correct relation name
-          select: {
-            ustazname: true,
-          },
-        },
+        teacher: { select: { ustazname: true } },
       },
-      where: {
-        name: {
-          not: "", // Exclude empty names
-        },
-      },
-      orderBy: {
-        registrationdate: "desc",
-      },
+      where: whereClause,
+      orderBy: { registrationdate: "desc" },
     });
 
     const flatRegistrations = registrations.map((reg) => ({
@@ -572,18 +622,13 @@ export async function GET(request: NextRequest) {
       ustazname: reg.teacher?.ustazname || "Not assigned",
     }));
 
-    return NextResponse.json(flatRegistrations, { status: 200 });
+    return NextResponse.json(flatRegistrations);
   } catch (error) {
-    console.error("GET error:", error);
+    console.error("Error fetching registrations:", error);
     return NextResponse.json(
-      {
-        message: "Error fetching registrations",
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
+      { message: "Internal server error" },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -593,7 +638,10 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get("id");
     const endpoint = searchParams.get("endpoint");
     const token = request.cookies.get("authToken")?.value;
-    const user = token ? verifyToken(token) : null;
+    if (!token) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    const user = await verifyToken(token);
     if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -606,26 +654,57 @@ export async function DELETE(request: NextRequest) {
         );
       }
 
-      const existingRegistration = await prisma.wpos_wpdatatable_23.findUnique({
-        where: { id: parsedId },
-      });
+      const existingRegistration =
+        await prismaClient.wpos_wpdatatable_23.findUnique({
+          where: { id: parsedId },
+          select: { control: true },
+        });
       if (!existingRegistration) {
         return NextResponse.json(
           { message: "Registration not found" },
           { status: 404 }
         );
       }
+      if (
+        user.role === "controller" &&
+        existingRegistration.control !== user.username
+      ) {
+        return NextResponse.json(
+          { message: "Unauthorized to delete this registration" },
+          { status: 403 }
+        );
+      }
 
-      await prisma.$transaction(async (tx) => {
-        await tx.wpos_ustaz_occupied_times.deleteMany({
+      await prismaClient.$transaction(async (tx) => {
+        const occupiedTimes = await tx.wpos_ustaz_occupied_times.findMany({
           where: { student_id: parsedId },
         });
-
-        await tx.wpos_wpdatatable_23.delete({
-          where: { id: parsedId },
+        const paymentRecords = await tx.payment.findMany({
+          where: { studentid: parsedId },
         });
+        console.log(
+          `Found ${occupiedTimes.length} occupied time records for student ${parsedId}:`,
+          occupiedTimes
+        );
+
+        const deletedOccupiedTimes =
+          await tx.wpos_ustaz_occupied_times.deleteMany({
+            where: { student_id: parsedId },
+          });
+
+        const deletedpayments = await tx.payment.deleteMany({
+          where: { studentid: parsedId },
+        });
+        console.log(
+          `Deleted ${deletedOccupiedTimes.count} occupied time records for student ${parsedId}`
+        );
+
+        await tx.wpos_wpdatatable_23.delete({ where: { id: parsedId } });
       });
 
+      console.log(
+        `Registration ${parsedId} deleted by ${user.username} - Notification triggered`
+      );
       return NextResponse.json(
         { message: "Registration deleted successfully" },
         { status: 200 }
@@ -642,22 +721,22 @@ export async function DELETE(request: NextRequest) {
         );
       }
 
-      const existingRegistrations = await prisma.wpos_wpdatatable_23.findMany({
-        where: {
-          id: { in: ids.map((id: number) => parseInt(id.toString())) },
-        },
-      });
+      const existingRegistrations =
+        await prismaClient.wpos_wpdatatable_23.findMany({
+          where: {
+            id: { in: ids.map((id: number) => parseInt(id.toString())) },
+            control: user.role === "controller" ? user.username : undefined,
+          },
+        });
 
       if (existingRegistrations.length !== ids.length) {
         return NextResponse.json(
-          {
-            message: "One or more registrations not found",
-          },
+          { message: "One or more registrations not found" },
           { status: 404 }
         );
       }
 
-      await prisma.$transaction(async (tx) => {
+      await prismaClient.$transaction(async (tx) => {
         await tx.wpos_ustaz_occupied_times.deleteMany({
           where: {
             student_id: {
@@ -665,14 +744,17 @@ export async function DELETE(request: NextRequest) {
             },
           },
         });
-
         await tx.wpos_wpdatatable_23.deleteMany({
           where: {
             id: { in: ids.map((id: number) => parseInt(id.toString())) },
+            control: user.role === "controller" ? user.username : undefined,
           },
         });
       });
 
+      console.log(
+        `Bulk deletion of ${ids.length} registrations by ${user.username} - Notification triggered`
+      );
       return NextResponse.json(
         { message: "Registrations deleted successfully" },
         { status: 200 }
@@ -695,7 +777,7 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    await prismaClient.$disconnect();
   }
 }
 
@@ -705,7 +787,16 @@ export async function PATCH(request: NextRequest) {
     const endpoint = searchParams.get("endpoint");
     const id = searchParams.get("id");
 
-    // Single student: update isTrained
+    // Token verification
+    const token = request.cookies.get("authToken")?.value;
+    if (!token) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    const user = await verifyToken(token);
+    if (!user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
     if (id) {
       const { isTrained } = await request.json();
       if (typeof isTrained !== "boolean") {
@@ -714,17 +805,35 @@ export async function PATCH(request: NextRequest) {
           { status: 400 }
         );
       }
-      const updated = await prisma.wpos_wpdatatable_23.update({
+      const existing = await prismaClient.wpos_wpdatatable_23.findUnique({
+        where: { id: parseInt(id) },
+        select: { control: true },
+      });
+      if (!existing) {
+        return NextResponse.json(
+          { message: "Registration not found" },
+          { status: 404 }
+        );
+      }
+      if (user.role === "controller" && existing.control !== user.username) {
+        return NextResponse.json(
+          { message: "Unauthorized to update this registration" },
+          { status: 403 }
+        );
+      }
+      const updated = await prismaClient.wpos_wpdatatable_23.update({
         where: { id: parseInt(id) },
         data: { isTrained },
       });
+      console.log(
+        `Trained status updated for registration ${id} by ${user.username} - Notification triggered`
+      );
       return NextResponse.json(
         { message: "Trained status updated", registration: updated },
         { status: 200 }
       );
     }
 
-    // Bulk status update
     if (endpoint === "bulk-status") {
       const { ids, status } = await request.json();
 
@@ -756,30 +865,32 @@ export async function PATCH(request: NextRequest) {
         );
       }
 
-      const existingRegistrations = await prisma.wpos_wpdatatable_23.findMany({
-        where: {
-          id: { in: ids.map((id: string) => parseInt(id)) },
-        },
-      });
+      const existingRegistrations =
+        await prismaClient.wpos_wpdatatable_23.findMany({
+          where: {
+            id: { in: ids.map((id: string) => parseInt(id)) },
+            control: user.role === "controller" ? user.username : undefined,
+          },
+        });
 
       if (existingRegistrations.length !== ids.length) {
         return NextResponse.json(
-          {
-            message: "One or more registrations not found",
-          },
+          { message: "One or more registrations not found" },
           { status: 404 }
         );
       }
 
-      await prisma.wpos_wpdatatable_23.updateMany({
+      await prismaClient.wpos_wpdatatable_23.updateMany({
         where: {
           id: { in: ids.map((id: string) => parseInt(id)) },
+          control: user.role === "controller" ? user.username : undefined,
         },
-        data: {
-          status: status.toLowerCase(),
-        },
+        data: { status: status.toLowerCase() },
       });
 
+      console.log(
+        `Bulk status updated for ${ids.length} registrations by ${user.username} - Notification triggered`
+      );
       return NextResponse.json(
         { message: "Statuses updated successfully" },
         { status: 200 }
@@ -797,6 +908,6 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    await prismaClient.$disconnect();
   }
 }

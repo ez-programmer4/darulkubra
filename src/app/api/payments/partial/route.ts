@@ -1,0 +1,158 @@
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { verifyToken } from "@/lib/server-auth";
+import { prisma } from "@/lib/prisma";
+import { format, endOfMonth, differenceInDays } from "date-fns";
+
+export async function POST(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("authToken")?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await verifyToken(token);
+    if (!user) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { studentId } = body;
+
+    if (!studentId) {
+      return NextResponse.json(
+        { error: "Student ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Get student information including registration date
+    const student = await prisma.wpos_wpdatatable_23.findUnique({
+      where: { id: parseInt(studentId) },
+      select: {
+        id: true,
+        classfee: true,
+        registrationdate: true,
+      },
+    });
+
+    if (!student) {
+      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+    }
+
+    // Get registration date
+    const registrationDate = new Date(student.registrationdate);
+    const registrationMonth = format(registrationDate, "yyyy-MM");
+
+    // Check if there's already a payment for the registration month
+    const existingPayment = await prisma.months_table.findFirst({
+      where: {
+        studentid: parseInt(studentId),
+        month: registrationMonth,
+      },
+    });
+
+    // Calculate partial payment
+    const startDate = registrationDate;
+    const endDate = endOfMonth(registrationDate);
+    const totalDays = differenceInDays(endDate, startDate) + 1;
+    const monthlyFee = Number(student.classfee);
+    const dailyRate = monthlyFee / 30; // Assuming 30 days in a month
+    const partialAmount = Number((dailyRate * totalDays).toFixed(2));
+
+    let paymentRecord;
+
+    if (existingPayment) {
+      // Update existing payment
+      paymentRecord = await prisma.months_table.update({
+        where: { id: existingPayment.id },
+        data: {
+          paid_amount: partialAmount,
+          payment_status: "pending",
+          payment_type: "partial",
+          start_date: startDate,
+          end_date: endDate,
+        },
+      });
+    } else {
+      // Create new payment record
+      paymentRecord = await prisma.months_table.create({
+        data: {
+          studentid: parseInt(studentId),
+          month: registrationMonth,
+          paid_amount: partialAmount,
+          payment_status: "pending",
+          payment_type: "partial",
+          start_date: startDate,
+          end_date: endDate,
+        },
+      });
+    }
+
+    return NextResponse.json({
+      ...paymentRecord,
+      calculatedAmount: partialAmount,
+      daysInMonth: totalDays,
+      dailyRate: dailyRate,
+    });
+  } catch (error) {
+    console.error("Error creating partial payment:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("authToken")?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await verifyToken(token);
+    if (!user) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const studentId = searchParams.get("studentId");
+
+    if (!studentId) {
+      return NextResponse.json(
+        { error: "Student ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const partialPayments = await prisma.months_table.findMany({
+      where: {
+        studentid: parseInt(studentId),
+        payment_type: "partial",
+      },
+      select: {
+        id: true,
+        studentid: true,
+        month: true,
+        paid_amount: true,
+        payment_status: true,
+        start_date: true,
+        end_date: true,
+      },
+      orderBy: { month: "desc" },
+    });
+
+    return NextResponse.json(partialPayments);
+  } catch (error) {
+    console.error("Error fetching partial payments:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}

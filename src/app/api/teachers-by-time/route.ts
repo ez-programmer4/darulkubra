@@ -3,29 +3,6 @@ import { NextResponse } from "next/server";
 
 const prisma = new PrismaClient();
 
-// const parseTime = (time: string): [number, number] => {
-//   const [hourStr, minuteStr = "00"] = time
-//     .split(":")
-//     .map((part) => part.trim());
-//   const hour = parseInt(hourStr, 10);
-//   const minute = parseInt(minuteStr, 10);
-
-//   if (
-//     isNaN(hour) ||
-//     hour < 0 ||
-//     hour > 23 ||
-//     isNaN(minute) ||
-//     minute < 0 ||
-//     minute > 59
-//   ) {
-//     throw new Error(
-//       `Invalid time format: ${time}. Expected HH:MM (e.g., 14:30)`
-//     );
-//   }
-
-//   return [hour, minute];
-// };
-
 const convertTo12Hour = (time: string): string => {
   if (/AM|PM/i.test(time)) return time;
 
@@ -86,17 +63,25 @@ const checkTeacherAvailability = async (
 ) => {
   const timeToMatch = convertTimeTo24Hour(selectedTime);
   const timeSlot = convertTo12Hour(timeToMatch);
+  console.log("Checking availability:", {
+    teacherId,
+    timeToMatch,
+    timeSlot,
+    selectedDayPackage,
+  });
 
   const teacher = await prisma.wpos_wpdatatable_24.findUnique({
     where: { ustazid: teacherId },
-    select: {
-      ustazid: true,
-      ustazname: true,
-      schedule: true,
+    include: {
+      control: {
+        select: { id: true, username: true },
+      },
     },
   });
+  console.log("Teacher data:", teacher);
 
   if (!teacher) {
+    console.log(`Teacher with ID ${teacherId} does not exist`);
     return {
       isAvailable: false,
       message: `Teacher with ID ${teacherId} does not exist`,
@@ -109,6 +94,9 @@ const checkTeacherAvailability = async (
       .map((t) => t.trim())
       .includes(timeToMatch)
   ) {
+    console.log(
+      `Schedule check failed for ${teacher.ustazname}: ${teacher.schedule}`
+    );
     return {
       isAvailable: false,
       message: `Teacher ${teacher.ustazname} is not available at ${selectedTime}`,
@@ -119,20 +107,20 @@ const checkTeacherAvailability = async (
     where: { time_slot: timeSlot },
     select: { ustaz_id: true, daypackage: true },
   });
+  console.log("All bookings:", allBookings);
 
   const teacherBookings = allBookings.filter(
     (booking) => booking.ustaz_id === teacherId
   );
 
-  // --- CORRECTED CONFLICT LOGIC ---
   const hasConflict = (
     teacherBookings: { daypackage: string }[],
     selectedPackage: string
   ) => {
     const normalize = (pkg: string) => pkg.trim().toLowerCase();
     const sel = normalize(selectedPackage);
+    console.log("Conflict check:", { teacherBookings, selectedPackage, sel });
 
-    // If any booking is "all day package" or selected is "all day package", conflict
     if (
       teacherBookings.some(
         (booking) =>
@@ -143,14 +131,12 @@ const checkTeacherAvailability = async (
       return true;
     }
 
-    // If any booking is the same as selected, conflict
     if (
       teacherBookings.some((booking) => normalize(booking.daypackage) === sel)
     ) {
       return true;
     }
 
-    // If ALL bookings are MWF vs TTS (or vice versa), NO conflict
     if (
       teacherBookings.length > 0 &&
       teacherBookings.every((booking) => {
@@ -163,10 +149,9 @@ const checkTeacherAvailability = async (
         );
       })
     ) {
-      return false; // No conflict
+      return false;
     }
 
-    // Otherwise, conflict if there are any bookings
     return teacherBookings.length > 0;
   };
 
@@ -179,7 +164,14 @@ const checkTeacherAvailability = async (
     };
   }
 
-  return { isAvailable: true };
+  return {
+    isAvailable: true,
+    teacher: {
+      ustazid: teacher.ustazid,
+      ustazname: teacher.ustazname,
+      control: teacher.control,
+    },
+  };
 };
 
 export async function GET(request: Request) {
@@ -196,7 +188,11 @@ export async function GET(request: Request) {
     }
 
     const teachers = await prisma.wpos_wpdatatable_24.findMany({
-      select: { ustazid: true, ustazname: true, schedule: true },
+      include: {
+        control: {
+          select: { id: true, username: true },
+        },
+      },
     });
 
     if (!teachers || teachers.length === 0) {
@@ -210,9 +206,7 @@ export async function GET(request: Request) {
           selectedDayPackage,
           teacher.ustazid
         );
-        return availability.isAvailable
-          ? { id: teacher.ustazid, name: teacher.ustazname }
-          : null;
+        return availability.isAvailable ? availability.teacher : null;
       })
     ).then((results) => results.filter((teacher) => teacher !== null));
 

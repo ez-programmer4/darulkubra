@@ -1,65 +1,74 @@
-//api/auth/login/route.ts
-
-import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { comparePassword, generateToken } from "../../../../../lib/auth";
-
-const prisma = new PrismaClient();
+import { authenticateUser, generateToken } from "@/lib/server-auth";
 
 export async function POST(request: Request) {
   try {
-    const { username, password } = await request.json();
+    const { username, password, role } = await request.json();
 
-    if (!username || !password) {
+    if (!username || !password || !role) {
       return NextResponse.json(
-        { message: "Username and password are required" },
+        { error: "Username, password, and role are required" },
         { status: 400 }
       );
     }
 
-    const user = await prisma.wpos_wpdatatable_33.findUnique({
-      where: { username },
-    });
+    if (role !== "controller" && role !== "registral" && role !== "admin") {
+      return NextResponse.json(
+        {
+          error: "Invalid role. Must be 'controller', 'registral', or 'admin'",
+        },
+        { status: 400 }
+      );
+    }
+
+    const user = await authenticateUser(username, password);
 
     if (!user) {
       return NextResponse.json(
-        { message: "Invalid username or password" },
+        { error: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    const passwordMatch = await comparePassword(password, user.password);
-    if (!passwordMatch) {
+    if (user.role !== role) {
       return NextResponse.json(
-        { message: "Invalid username or password" },
-        { status: 401 }
+        { error: "Invalid role for this user" },
+        { status: 403 }
       );
     }
 
-    const token = generateToken({
-      id: user.id,
-      name: user.name,
-      username: user.username,
-    });
+    const token = await generateToken(user);
 
     const response = NextResponse.json(
-      { message: "Login successful" },
+      {
+        success: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role,
+          code: user.code,
+        },
+      },
       { status: 200 }
     );
-    response.cookies.set("authToken", token, {
+
+    // Set the auth token cookie
+    response.cookies.set({
+      name: "authToken",
+      value: token,
       httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       path: "/",
-      maxAge: 3600,
+      maxAge: 60 * 60 * 24, // 24 hours
     });
 
     return response;
   } catch (error) {
-    console.error("Login error:", error);
     return NextResponse.json(
-      { message: "Error during login" },
+      { error: "An error occurred during login" },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

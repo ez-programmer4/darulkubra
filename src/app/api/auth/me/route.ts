@@ -1,15 +1,38 @@
-//api/auth/me/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "../../../../../lib/auth";
+import { NextResponse } from "next/server";
+import { verifyToken } from "@/lib/server-auth";
+import { cookies } from "next/headers";
 
-export async function GET(request: NextRequest) {
-  const token = request.cookies.get("authToken")?.value;
-  if (!token) {
-    return NextResponse.json({ user: null }, { status: 401 });
+export async function GET() {
+  try {
+    const cookieStore = cookies();
+    const token = cookieStore.get("authToken")?.value;
+
+    if (!token) {
+      console.log("No auth token found");
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    console.log("Verifying token...");
+    const user = await verifyToken(token);
+    if (!user) {
+      console.log("Invalid token");
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    console.log("Token verified, user:", user);
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting current user:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
-  const user = verifyToken(token);
-  if (!user) {
-    return NextResponse.json({ user: null }, { status: 401 });
-  }
-  return NextResponse.json({ user });
 }
