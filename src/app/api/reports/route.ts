@@ -1,12 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/server-auth";
+import { getToken } from "next-auth/jwt";
 
 const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "controller" || !user.username) {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "controller" || !session.username) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const students = await prisma.wpos_wpdatatable_23.findMany({
-      where: { control: { equals: user.username } },
+      where: { control: { equals: session.username } },
       include: {
         teacher: true,
         attendance_progress: {
@@ -39,13 +39,13 @@ export async function GET(req: NextRequest) {
       where: {
         students: {
           some: {
-            control: { equals: user.username },
+            control: { equals: session.username },
           },
         },
       },
       include: {
         students: {
-          where: { control: { equals: user.username } },
+          where: { control: { equals: session.username } },
           include: {
             attendance_progress: {
               where: {

@@ -106,7 +106,7 @@ export default function StudentList({
       paymentStatus: {
         currentMonthPaid: false,
         hasOverdue: false,
-        lastPayment: null,
+        lastPayment: undefined,
         paymentHistory: [],
       },
     }))
@@ -119,9 +119,27 @@ export default function StudentList({
       try {
         const updatedStudents = await Promise.all(
           students.map(async (student) => {
+            // Remove reference to wdt_ID on Student type, only use id
+            // Defensive: ensure student.id is defined
+            const studentId = student.id;
+            if (!studentId) {
+              console.warn(
+                "Skipping payment fetch for student with undefined id:",
+                student
+              );
+              return {
+                ...student,
+                paymentStatus: {
+                  currentMonthPaid: false,
+                  hasOverdue: false,
+                  lastPayment: undefined,
+                  paymentHistory: [],
+                },
+              };
+            }
             try {
               const response = await fetch(
-                `/api/students?studentId=${student.id}`,
+                `/api/students?studentId=${studentId}`,
                 {
                   credentials: "include", // This handles cookies automatically if needed
                   headers: {
@@ -132,14 +150,14 @@ export default function StudentList({
 
               if (!response.ok) {
                 console.error(
-                  `Failed to fetch payment history for student ${student.id}: ${response.statusText}`
+                  `Failed to fetch payment history for student ${studentId}: ${response.statusText}`
                 );
                 return {
                   ...student,
                   paymentStatus: {
                     currentMonthPaid: false,
                     hasOverdue: false,
-                    lastPayment: null,
+                    lastPayment: undefined,
                     paymentHistory: [],
                   },
                 };
@@ -153,7 +171,7 @@ export default function StudentList({
                         parseISO(b.end_date || "").getTime() -
                         parseISO(a.end_date || "").getTime()
                     )[0]
-                  : null;
+                  : undefined;
 
               const currentMonth = format(new Date(), "yyyy-MM");
               const hasOverdue = paymentHistory.some(
@@ -180,7 +198,7 @@ export default function StudentList({
               };
             } catch (error) {
               console.error(
-                `Error fetching payment history for student ${student.id}:`,
+                `Error fetching payment history for student ${studentId}:`,
                 error
               );
               return {
@@ -188,7 +206,7 @@ export default function StudentList({
                 paymentStatus: {
                   currentMonthPaid: false,
                   hasOverdue: false,
-                  lastPayment: null,
+                  lastPayment: undefined,
                   paymentHistory: [],
                 },
               };
@@ -290,7 +308,7 @@ export default function StudentList({
       const paymentStatus = student.paymentStatus || {
         currentMonthPaid: false,
         hasOverdue: false,
-        lastPayment: null,
+        lastPayment: undefined,
         paymentHistory: [],
       };
       const latestPayment = paymentStatus.lastPayment;
@@ -473,26 +491,26 @@ export default function StudentList({
   return (
     <div className="space-y-6">
       {/* Search Section */}
-      <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
+      <div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 border border-gray-100">
         <div className="flex flex-col md:flex-row items-center gap-4">
           <div className="flex-1 relative w-full">
             <input
               type="text"
               placeholder="Search students by name or phone..."
               onChange={(e) => debouncedSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 shadow-sm text-gray-800 placeholder-gray-400"
+              className="w-full pl-12 pr-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 shadow-sm text-gray-800 placeholder-gray-400 text-sm sm:text-base"
               aria-label="Search students by name or phone number"
               value={searchQuery}
             />
             <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
 
-          <div className="flex gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl shadow-sm transition-all duration-300 ${
+              className={`flex items-center gap-2 px-4 py-2 sm:py-3 rounded-xl shadow-sm transition-all duration-300 text-sm sm:text-base w-full sm:w-auto ${
                 isFilterPanelOpen
                   ? "bg-blue-600 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -506,7 +524,7 @@ export default function StudentList({
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={resetFilters}
-              className="flex items-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl shadow-sm hover:bg-gray-200 transition-all duration-300"
+              className="flex items-center gap-2 px-4 py-2 sm:py-3 bg-gray-100 text-gray-700 rounded-xl shadow-sm hover:bg-gray-200 transition-all duration-300 text-sm sm:text-base w-full sm:w-auto"
             >
               <FiRefreshCw />
               <span className="font-medium">Reset</span>
@@ -1017,17 +1035,17 @@ export default function StudentList({
       </AnimatePresence>
 
       {/* Results Count and Timestamp */}
-      <div className="flex flex-col md:flex-row items-center justify-between bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+      <div className="flex flex-col md:flex-row items-center justify-between bg-white rounded-xl shadow-sm p-4 border border-gray-100 text-sm sm:text-base">
         <div className="flex items-center gap-2 mb-2 md:mb-0">
           <FiUsers className="text-blue-500" />
-          <span className="text-sm text-gray-600">
+          <span className="text-gray-600">
             Showing {paginatedStudents.length} of {filteredStudents.length}{" "}
             students
           </span>
         </div>
         <div className="flex items-center gap-2">
           <FiCalendar className="text-blue-500" />
-          <span className="text-sm text-gray-600">
+          <span className="text-gray-600">
             {format(new Date(), "EEEE, MMMM d, yyyy")} |{" "}
             {format(new Date(), "hh:mm a")} EAT
           </span>
@@ -1035,7 +1053,7 @@ export default function StudentList({
       </div>
 
       {/* Student List */}
-      <div className="space-y-4">
+      <div className="space-y-4 overflow-x-auto">
         {paginatedStudents.map((student, index) => (
           <StudentCard
             key={student.id}
@@ -1050,20 +1068,20 @@ export default function StudentList({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="flex flex-col sm:flex-row items-center justify-between bg-white rounded-xl shadow-sm p-4 border border-gray-100 text-sm sm:text-base">
           <div className="mb-4 sm:mb-0">
-            <span className="text-sm text-gray-600">
+            <span className="text-gray-600">
               Page {currentPage} of {totalPages}
             </span>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 w-full sm:w-auto">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 w-full sm:w-auto"
             >
               <FiChevronLeft className="mr-1" />
               Previous
@@ -1077,7 +1095,7 @@ export default function StudentList({
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-1 text-sm font-medium rounded-lg transition-all duration-200 ${
+                    className={`px-3 py-1 text-sm font-medium rounded-lg transition-all duration-200 w-full sm:w-auto ${
                       currentPage === page
                         ? "bg-blue-600 text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -1096,7 +1114,7 @@ export default function StudentList({
                 setCurrentPage((prev) => Math.min(prev + 1, totalPages))
               }
               disabled={currentPage === totalPages}
-              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 w-full sm:w-auto"
             >
               Next
               <FiChevronRight className="ml-1" />

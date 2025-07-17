@@ -1,24 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyToken } from "@/lib/server-auth";
-import { cookies } from "next/headers";
+import { getToken } from "next-auth/jwt";
+import { NextRequest } from "next/server";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get("authToken")?.value;
-
-    if (!token) {
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (
+      !session ||
+      (session.role !== "controller" &&
+        session.role !== "registral" &&
+        session.role !== "admin")
+    ) {
       return NextResponse.json(
         { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    const user = await verifyToken(token);
-    if (!user) {
-      return NextResponse.json(
-        { error: "Invalid authentication" },
         { status: 401 }
       );
     }
@@ -35,7 +33,7 @@ export async function GET(request: Request) {
 
     const student = await prisma.wpos_wpdatatable_23.findUnique({
       where: {
-        id: parseInt(studentId),
+        wdt_ID: parseInt(studentId),
       },
       select: {
         control: true,
@@ -47,7 +45,7 @@ export async function GET(request: Request) {
     }
 
     // Check if the student belongs to this controller
-    if (student.control !== user.username) {
+    if (student.control !== session.username) {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }

@@ -1,9 +1,18 @@
 import { PrismaClient } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 const prisma = new PrismaClient();
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const session = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");

@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../context/AuthContext";
+import { useSession } from "next-auth/react";
 import ConfirmModal from "../components/ConfirmModal";
 import { Toaster, toast } from "react-hot-toast";
+import AttendanceListSkeleton from "./AttendanceListSkeleton";
 import {
   FiArrowLeft,
   FiUser,
@@ -34,11 +35,16 @@ interface IntegratedRecord {
   student_id: number;
   studentName: string;
   ustazName: string;
-  link: string;
   scheduledAt: string;
-  sentTime: string;
-  clickedTime: string;
-  timeDifference: string;
+  links: Array<{
+    id: number;
+    link: string;
+    sent_time: string | null;
+    clicked_at: string | null;
+    expiration_date?: string | null;
+    report?: string | null;
+    tracking_token?: string | null;
+  }>;
   attendance_status: string;
   absentDaysCount?: number;
   scheduledDateObj?: Date | null;
@@ -55,7 +61,7 @@ interface Stats {
 }
 
 export default function AttendanceList() {
-  const { user } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [data, setData] = useState<IntegratedRecord[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -75,47 +81,29 @@ export default function AttendanceList() {
   const [expandedStudentId, setExpandedStudentId] = useState<number | null>(
     null
   );
-  const [studentToNotify, setStudentToNotify] = useState<number | null>(null);
-  const [notifiedStudentIds, setNotifiedStudentIds] = useState<number[]>(() => {
-    // Load notified IDs from localStorage on initial render
+  const [studentToNotify, setStudentToNotify] = useState<string | null>(null);
+  const [notifiedStudentDateKeys, setNotifiedStudentDateKeys] = useState<
+    string[]
+  >(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("notifiedStudentIds");
+      const saved = localStorage.getItem("notifiedStudentDateKeys");
       return saved ? JSON.parse(saved) : [];
     }
     return [];
   });
+  const [selectedLinks, setSelectedLinks] = useState<{
+    [studentId: number]: number;
+  }>({});
 
   useEffect(() => {
-    // Save notified IDs to localStorage whenever they change
+    // Save notified student-date keys to localStorage whenever they change
     if (typeof window !== "undefined") {
       localStorage.setItem(
-        "notifiedStudentIds",
-        JSON.stringify(notifiedStudentIds)
+        "notifiedStudentDateKeys",
+        JSON.stringify(notifiedStudentDateKeys)
       );
     }
-  }, [notifiedStudentIds]);
-
-  // Quick-select for days
-  const daysOfWeek = [
-    { label: "Today", getDate: () => format(new Date(), "yyyy-MM-dd") },
-    ...[
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-      "Sunday",
-    ].map((day, idx) => ({
-      label: day,
-      getDate: () => {
-        const now = new Date();
-        // startOfWeek with { weekStartsOn: 1 } for Monday
-        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-        return format(addDays(weekStart, idx), "yyyy-MM-dd");
-      },
-    })),
-  ];
+  }, [notifiedStudentDateKeys]);
 
   const fetchData = async (notifyStudentId?: number) => {
     setLoading(true);
@@ -139,13 +127,24 @@ export default function AttendanceList() {
       );
       console.log("API Response Status:", response.status);
       const result = await response.json();
-      console.log("API Data:", result);
+      console.log("API Data for date:", date, result);
+      console.log(
+        "Attendance stats from API:",
+        result.integratedData?.map((r: any) => ({
+          student: r.studentName,
+          status: r.attendance_status,
+          date: date,
+        }))
+      );
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
       if (notifyStudentId) {
         if (result.message === "Notification sent to teacher") {
           toast.success("SMS notification sent to teacher!");
-          setNotifiedStudentIds((prev) => [...prev, notifyStudentId]);
+          setNotifiedStudentDateKeys((prev) => [
+            ...prev,
+            `${notifyStudentId}|${date}`,
+          ]);
         } else {
           toast.error(`Failed to send SMS: ${result.error || "Unknown error"}`);
         }
@@ -157,70 +156,25 @@ export default function AttendanceList() {
         setTotal(0);
       } else {
         const updatedData = result.integratedData.map((record: any) => {
-          const scheduledRaw = record.scheduledAt;
-          const sentRaw = record.sentTime;
-          const clickedRaw = record.clickedTime;
+          // Default to the latest link (by sent_time desc)
+          let selectedLink = null;
+          if (record.links && record.links.length > 0) {
+            selectedLink = [...record.links].sort((a, b) => {
+              if (!a.sent_time) return 1;
+              if (!b.sent_time) return -1;
+              return (
+                new Date(b.sent_time).getTime() -
+                new Date(a.sent_time).getTime()
+              );
+            })[0];
+          }
           // Parse scheduledAt
-          let scheduled = parseISO(
-            scheduledRaw.replace(/(\d+:\d+)\s+(AM|PM)/i, "$1:00 $2")
-          );
-          if (!isValid(scheduled)) {
-            const [datePart, timePart] = scheduledRaw.split("T");
-            const [time, period] = timePart.replace(":00.000Z", "").split(" ");
-            const [hours, minutes] = time.split(":");
-            const hour =
-              parseInt(hours, 10) +
-              (period === "PM" && hours !== "12" ? 12 : 0) -
-              (period === "AM" && hours === "12" ? 12 : 0);
-            scheduled = new Date(datePart);
-            scheduled.setHours(hour, parseInt(minutes, 10), 0, 0);
-          }
-
-          // Parse sentTime
-          let sent = null;
-          if (sentRaw && sentRaw !== "Not Sent" && sentRaw !== "N/A") {
-            sent = parseISO(
-              sentRaw.replace(/(\d+:\d+)\s+(AM|PM)/i, "$1:00 $2")
-            );
-            if (!isValid(sent)) {
-              const [datePart, timePart] = sentRaw.split("T");
-              if (datePart && timePart) {
-                const [time, period] = timePart
-                  .replace(":00.000Z", "")
-                  .split(" ");
-                const [hours, minutes] = time.split(":");
-                const hour =
-                  parseInt(hours, 10) +
-                  (period === "PM" && hours !== "12" ? 12 : 0) -
-                  (period === "AM" && hours === "12" ? 12 : 0);
-                sent = new Date(datePart);
-                sent.setHours(hour, parseInt(minutes, 10), 0, 0);
-              }
-            }
-          }
-
-          // Calculate time difference (in minutes) between scheduledAt and sentTime
-          let diff: number | null = null;
-          let diffLabel = "N/A";
-          if (sent && isValid(scheduled) && isValid(sent)) {
-            diff = Math.round((sent.getTime() - scheduled.getTime()) / 60000);
-            if (diff < 0) {
-              diffLabel = `${Math.abs(diff)} min early`;
-            } else if (diff <= 3) {
-              diffLabel = `Early`;
-            } else if (diff <= 5) {
-              diffLabel = `On Time`;
-            } else {
-              diffLabel = `Very Late`;
-            }
-          }
-
+          let scheduled: Date | null = parseISO(record.scheduledAt);
+          if (!isValid(scheduled)) scheduled = null;
           return {
             ...record,
-            timeDifference: diffLabel,
             scheduledDateObj: scheduled,
-            clickedDateObj: null,
-            sentRaw,
+            selectedLink, // for convenience
           };
         });
         setData(updatedData);
@@ -238,8 +192,37 @@ export default function AttendanceList() {
   };
 
   useEffect(() => {
+    console.log("Date changed to:", date);
     fetchData();
   }, [date, ustaz, attendanceStatus, sentStatus, clickedStatus, page, limit]);
+
+  // Early returns after all hooks
+  if (status === "loading") return <div>Loading...</div>;
+  if (status === "unauthenticated") return <div>Unauthorized</div>;
+
+  const user = session?.user;
+
+  // Quick-select for days
+  const daysOfWeek = [
+    { label: "Today", getDate: () => format(new Date(), "yyyy-MM-dd") },
+    ...[
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ].map((day, idx) => ({
+      label: day,
+      getDate: () => {
+        const now = new Date();
+        // startOfWeek with { weekStartsOn: 1 } for Monday
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+        return format(addDays(weekStart, idx), "yyyy-MM-dd");
+      },
+    })),
+  ];
 
   const handleRefresh = () => {
     fetchData();
@@ -253,18 +236,48 @@ export default function AttendanceList() {
       .filter((record) =>
         record.studentName.toLowerCase().includes(searchQuery.toLowerCase())
       )
-      .map((record) =>
-        [
+      .map((record) => {
+        const sortedLinks = [...record.links].sort((a, b) => {
+          if (!a.sent_time) return 1;
+          if (!b.sent_time) return -1;
+          return (
+            new Date(b.sent_time).getTime() - new Date(a.sent_time).getTime()
+          );
+        });
+        let link =
+          sortedLinks &&
+          sortedLinks.length > 1 &&
+          selectedLinks[record.student_id]
+            ? sortedLinks.find((l) => l.id === selectedLinks[record.student_id])
+            : sortedLinks && sortedLinks.length === 1
+            ? sortedLinks[0]
+            : null;
+        // Calculate time difference
+        let diffLabel = "N/A";
+        if (link && link.sent_time && record.scheduledAt) {
+          const scheduled = parseISO(record.scheduledAt);
+          const sent = parseISO(link.sent_time);
+          if (isValid(scheduled) && isValid(sent)) {
+            const diff = Math.round(
+              (sent.getTime() - scheduled.getTime()) / 60000
+            );
+            if (diff < 0) diffLabel = `${Math.abs(diff)} min early`;
+            else if (diff <= 3) diffLabel = "Early";
+            else if (diff <= 5) diffLabel = "On Time";
+            else diffLabel = "Very Late";
+          }
+        }
+        return [
           record.studentName,
           record.ustazName,
-          record.link || "N/A",
+          link ? link.link : "N/A",
           formatDateSafely(record.scheduledAt),
-          record.sentTime || "N/A",
-          record.clickedTime || "N/A",
-          record.timeDifference || "N/A",
+          link && link.sent_time ? formatDateSafely(link.sent_time) : "N/A",
+          link && link.clicked_at ? formatDateSafely(link.clicked_at) : "N/A",
+          diffLabel,
           record.attendance_status || "N/A",
-        ].join(",")
-      );
+        ].join(",");
+      });
     const csvContent = [headers, ...rows].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -285,25 +298,22 @@ export default function AttendanceList() {
     setPage(1);
   };
 
-  const handleNotifyClick = (studentId: number) => {
-    setStudentToNotify(studentId);
+  const handleNotifyClick = (studentId: number, scheduledDate: string) => {
+    setStudentToNotify(`${studentId}|${scheduledDate}`);
   };
 
   const confirmNotify = async () => {
     if (!studentToNotify) return;
-
+    const [studentId, scheduledDate] = studentToNotify.split("|");
     try {
-      const response = await fetch(
-        `/api/attendance-list?notify=${studentToNotify}`,
-        {
-          method: "GET",
-          credentials: "include",
-        }
-      );
+      const response = await fetch(`/api/attendance-list?notify=${studentId}`, {
+        method: "GET",
+        credentials: "include",
+      });
       const result = await response.json();
       if (response.ok && result.message === "Notification sent to teacher") {
         toast.success("SMS notification sent successfully!");
-        setNotifiedStudentIds((prev) => [...prev, studentToNotify]);
+        setNotifiedStudentDateKeys((prev) => [...prev, studentToNotify]);
       } else {
         toast.error(
           `Failed to send notification: ${
@@ -341,7 +351,16 @@ export default function AttendanceList() {
     record.studentName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Attendance statistics calculation
+  // Attendance statistics calculation based on selected date
+  console.log("Calculating stats for date:", date);
+  console.log(
+    "Filtered data:",
+    filteredData.map((r) => ({
+      name: r.studentName,
+      status: r.attendance_status,
+    }))
+  );
+
   const attendanceStats = filteredData.reduce(
     (
       acc: {
@@ -360,6 +379,8 @@ export default function AttendanceList() {
     },
     { total: 0, present: 0, absent: 0, permission: 0, "not-taken": 0 }
   );
+
+  console.log("Calculated attendance stats:", attendanceStats);
   const attendanceRate =
     attendanceStats.total > 0
       ? ((attendanceStats.present / attendanceStats.total) * 100).toFixed(1) +
@@ -368,57 +389,7 @@ export default function AttendanceList() {
 
   if (loading) {
     // Table skeleton loader
-    return (
-      <div className="max-w-7xl mx-auto p-6 bg-white min-h-screen">
-        <div className="mb-8 h-8 w-1/2 bg-gray-200 rounded animate-pulse" />
-        <div className="mb-6 flex flex-wrap gap-2 items-center">
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={i}
-              className="h-8 w-20 bg-gray-200 rounded-lg animate-pulse"
-            />
-          ))}
-        </div>
-        <div className="overflow-x-auto rounded-lg shadow-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gradient-to-r from-indigo-100 to-white sticky top-0 z-10">
-              <tr>
-                {[
-                  "Student Name",
-                  "Ustadz Name",
-                  "Link",
-                  "Scheduled At",
-                  "Sent Time",
-                  "Clicked Time",
-                  "Time Difference",
-                  "Attendance Status",
-                  "Absent Days",
-                  "Actions",
-                ].map((col) => (
-                  <th
-                    key={col}
-                    className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider"
-                  >
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {[...Array(10)].map((_, i) => (
-                <tr key={i}>
-                  {[...Array(10)].map((_, j) => (
-                    <td key={j} className="px-6 py-4">
-                      <div className="h-5 w-full bg-gray-200 rounded animate-pulse" />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
+    return <AttendanceListSkeleton />;
   }
 
   if (error) {
@@ -448,9 +419,9 @@ export default function AttendanceList() {
       : "N/A";
 
   return (
-    <div className="max-w-7xl mx-auto p-6 bg-white min-h-screen">
+    <div className="max-w-7xl mx-auto p-2 sm:p-6 bg-white min-h-screen">
       <Toaster position="top-center" reverseOrder={false} />
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-8">
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <button
             onClick={() => router.push("/controller")}
@@ -479,12 +450,12 @@ export default function AttendanceList() {
         <div className="flex items-center gap-3 bg-blue-50/60 border border-blue-100 px-4 py-2 rounded-lg shadow-sm">
           <FiCalendar className="text-blue-400" />
           <span className="text-sm font-medium text-blue-600">
-            {format(parseISO(date), "MMMM dd, yyyy")}
+            Selected Date: {format(parseISO(date), "MMMM dd, yyyy")}
           </span>
         </div>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2 items-center">
+      <div className="mb-6 flex flex-wrap gap-1 sm:gap-2 items-center">
         {daysOfWeek.map((d) => (
           <button
             key={d.label}
@@ -503,7 +474,7 @@ export default function AttendanceList() {
       </div>
 
       {/* Search and Actions Row */}
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
         <div className="flex-1">
           <div className="relative max-w-xs">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
@@ -539,7 +510,7 @@ export default function AttendanceList() {
       </div>
 
       {/* Advanced Filter Bar */}
-      <div className="mb-6 p-4 rounded-2xl shadow-lg bg-gradient-to-br from-gray-50 to-white border border-gray-200">
+      <div className="mb-6 p-2 sm:p-4 rounded-2xl shadow-lg bg-gradient-to-br from-gray-50 to-white border border-gray-200">
         <div className="flex items-center gap-2 mb-4">
           <FiFilter className="text-indigo-500 text-xl" />
           <span className="text-lg font-semibold text-indigo-700">Filters</span>
@@ -675,51 +646,64 @@ export default function AttendanceList() {
       )}
 
       {/* Attendance Analytics Section */}
-      <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-4 shadow flex flex-col items-center">
-          <span className="text-2xl font-bold text-blue-700">
-            {attendanceStats.total}
-          </span>
-          <span className="text-xs text-blue-800 mt-1">Total Students</span>
+      <div className="mb-8">
+        <div className="mb-4 p-2 sm:p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+          <h3 className="text-sm font-semibold text-indigo-800 mb-2">
+            📊 Analytics for {format(parseISO(date), "MMMM dd, yyyy")}
+          </h3>
+          <p className="text-xs text-indigo-600">
+            Showing attendance statistics for the selected date
+          </p>
         </div>
-        <div className="bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-4 shadow flex flex-col items-center">
-          <span className="text-2xl font-bold text-green-700">
-            {attendanceStats.present}
-          </span>
-          <span className="text-xs text-green-800 mt-1">Present</span>
-        </div>
-        <div className="bg-gradient-to-br from-red-100 to-red-200 rounded-xl p-4 shadow flex flex-col items-center">
-          <span className="text-2xl font-bold text-red-700">
-            {attendanceStats.absent}
-          </span>
-          <span className="text-xs text-red-800 mt-1">Absent</span>
-        </div>
-        <div className="bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-xl p-4 shadow flex flex-col items-center">
-          <span className="text-2xl font-bold text-yellow-700">
-            {attendanceStats.permission}
-          </span>
-          <span className="text-xs text-yellow-800 mt-1">Permission</span>
-        </div>
-        <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-4 shadow flex flex-col items-center">
-          <span className="text-2xl font-bold text-gray-700">
-            {attendanceStats["not-taken"]}
-          </span>
-          <span className="text-xs text-gray-800 mt-1">Not Taken</span>
-        </div>
-        <div className="bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-xl p-4 shadow flex flex-col items-center">
-          <span className="text-2xl font-bold text-indigo-700">
-            {attendanceRate}
-          </span>
-          <span className="text-xs text-indigo-800 mt-1">Attendance Rate</span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4">
+          <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-blue-700">
+              {attendanceStats.total}
+            </span>
+            <span className="text-xs text-blue-800 mt-1">Total Students</span>
+          </div>
+          <div className="bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-green-700">
+              {attendanceStats.present}
+            </span>
+            <span className="text-xs text-green-800 mt-1">Present</span>
+          </div>
+          <div className="bg-gradient-to-br from-red-100 to-red-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-red-700">
+              {attendanceStats.absent}
+            </span>
+            <span className="text-xs text-red-800 mt-1">Absent</span>
+          </div>
+          <div className="bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-yellow-700">
+              {attendanceStats.permission}
+            </span>
+            <span className="text-xs text-yellow-800 mt-1">Permission</span>
+          </div>
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-gray-700">
+              {attendanceStats["not-taken"]}
+            </span>
+            <span className="text-xs text-gray-800 mt-1">Not Taken</span>
+          </div>
+          <div className="bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-indigo-700">
+              {attendanceRate}
+            </span>
+            <span className="text-xs text-indigo-800 mt-1">
+              Attendance Rate
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Quick Analytics Insights */}
-      <div className="mb-6 p-4 rounded-xl shadow-lg bg-gradient-to-br from-indigo-50 to-white border border-indigo-200">
+      <div className="mb-6 p-2 sm:p-4 rounded-xl shadow-lg bg-gradient-to-br from-indigo-50 to-white border border-indigo-200">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold text-indigo-800 flex items-center">
             <FiBarChart className="mr-2" />
-            Quick Analytics Insights
+            Quick Analytics Insights for{" "}
+            {format(parseISO(date), "MMMM dd, yyyy")}
           </h3>
           <button
             onClick={() => router.push("/analytics")}
@@ -732,7 +716,7 @@ export default function AttendanceList() {
           <div className="bg-white rounded-lg p-3 border border-indigo-100">
             <div className="flex items-center justify-between">
               <span className="text-indigo-600 font-medium">
-                Today's Performance
+                {format(parseISO(date), "MMM dd")} Performance
               </span>
               <span
                 className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -784,13 +768,14 @@ export default function AttendanceList() {
           </div>
         </div>
         <div className="mt-3 text-xs text-indigo-600">
-          💡 <strong>Tip:</strong> Use the full Analytics Dashboard for detailed
-          trends, teacher performance, and comprehensive reports.
+          💡 <strong>Tip:</strong> Change the date above to see analytics for
+          different days. Use the full Analytics Dashboard for detailed trends,
+          teacher performance, and comprehensive reports.
         </div>
       </div>
 
       <div className="overflow-x-auto rounded-lg shadow-lg">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-[900px] w-full divide-y divide-gray-200 text-xs sm:text-sm">
           <thead className="bg-gradient-to-r from-indigo-100 to-white sticky top-0 z-10">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider">
@@ -833,151 +818,275 @@ export default function AttendanceList() {
                     scheduledDateObj?: Date | null;
                     clickedDateObj?: Date | null;
                   }
-                ) => (
-                  <tr
-                    key={record.student_id}
-                    className="hover:bg-gray-50 transition-all duration-200"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {record.studentName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {record.ustazName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {record.link ? (
-                        <a
-                          href={record.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          Link
-                        </a>
-                      ) : (
-                        "N/A"
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {formatDateSafely(record.scheduledAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {formatDateSafely(record.sentTime)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {formatDateSafely(record.clickedTime)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      <span
-                        className={`px-3 py-1 inline-flex text-xs font-medium rounded-full shadow-sm ${
-                          record.timeDifference.includes("early") ||
-                          record.timeDifference === "Early"
-                            ? "bg-green-100 text-green-800"
-                            : record.timeDifference === "On Time"
-                            ? "bg-blue-100 text-blue-800"
-                            : record.timeDifference.includes("Late")
-                            ? "bg-red-100 text-red-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {record.timeDifference}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      <span
-                        className={`px-3 py-1 inline-flex text-xs font-medium rounded-full shadow-sm
-                          ${
-                            record.attendance_status === "present"
-                              ? "bg-green-100 text-green-800"
-                              : record.attendance_status === "absent"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-800"
-                          }
-                        `}
-                      >
-                        {record.attendance_status
-                          .replace("-", " ")
-                          .replace(/\b\w/g, (c) => c.toUpperCase())}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {startDate && endDate ? (
-                        <div className="flex flex-col items-start">
-                          <span
-                            className={`px-3 py-1 inline-flex text-xs font-medium rounded-full shadow-sm ${
-                              record.absentDaysCount === 0
-                                ? "bg-green-100 text-green-800"
-                                : record.absentDaysCount &&
-                                  record.absentDaysCount <= 3
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
+                ) => {
+                  const sortedLinks = [...record.links].sort((a, b) => {
+                    if (!a.sent_time) return 1;
+                    if (!b.sent_time) return -1;
+                    return (
+                      new Date(b.sent_time).getTime() -
+                      new Date(a.sent_time).getTime()
+                    );
+                  });
+                  let link =
+                    sortedLinks &&
+                    sortedLinks.length > 1 &&
+                    selectedLinks[record.student_id]
+                      ? sortedLinks.find(
+                          (l) => l.id === selectedLinks[record.student_id]
+                        )
+                      : sortedLinks && sortedLinks.length === 1
+                      ? sortedLinks[0]
+                      : null;
+                  const scheduledDateStr = record.scheduledAt
+                    ? record.scheduledAt.substring(0, 10)
+                    : "";
+                  const notifyKey = `${record.student_id}|${scheduledDateStr}`;
+                  return (
+                    <tr
+                      key={record.student_id}
+                      className="hover:bg-gray-50 transition-all duration-200"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {record.studentName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {record.ustazName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {sortedLinks && sortedLinks.length > 1 ? (
+                          <select
+                            value={
+                              selectedLinks[record.student_id] ??
+                              sortedLinks[0]?.id
+                            }
+                            onChange={(e) =>
+                              setSelectedLinks((prev) => ({
+                                ...prev,
+                                [record.student_id]: Number(e.target.value),
+                              }))
+                            }
+                            className="border rounded px-2 py-1 text-blue-700 bg-white"
                           >
-                            {record.absentDaysCount || 0} absent
-                          </span>
-                          <span className="text-xs text-gray-500 mt-1">
-                            {format(parseISO(startDate), "MMM dd")} -{" "}
-                            {format(parseISO(endDate), "MMM dd")}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-start">
-                          <span className="text-gray-400 text-xs">
-                            No date range set
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            Set range above to see absent count
-                          </span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {(() => {
-                        const isNotified = notifiedStudentIds.includes(
-                          record.student_id
-                        );
-                        const canNotify =
-                          record.sentTime === "Not Sent" &&
-                          record.scheduledDateObj &&
-                          new Date() >
-                            new Date(
-                              record.scheduledDateObj.getTime() + 5 * 60000
-                            );
-
-                        if (isNotified) {
-                          return (
-                            <button
-                              disabled
-                              className="px-3 py-1 bg-green-200 text-green-800 rounded-lg flex items-center shadow-sm cursor-not-allowed"
-                            >
-                              <FiCheckSquare className="mr-1" /> Notified
-                            </button>
-                          );
-                        }
-
-                        if (canNotify) {
-                          return (
-                            <button
-                              onClick={() =>
-                                handleNotifyClick(record.student_id)
+                            {sortedLinks.map((l) => (
+                              <option key={l.id} value={l.id}>
+                                {l.sent_time
+                                  ? formatDateSafely(l.sent_time)
+                                  : "No Sent Time"}
+                              </option>
+                            ))}
+                          </select>
+                        ) : sortedLinks && sortedLinks.length === 1 ? (
+                          <a
+                            href={sortedLinks[0].link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            Link
+                          </a>
+                        ) : (
+                          "N/A"
+                        )}
+                        {sortedLinks && sortedLinks.length > 1 && (
+                          <a
+                            href={
+                              sortedLinks.find(
+                                (l) =>
+                                  l.id ===
+                                  (selectedLinks[record.student_id] ??
+                                    sortedLinks[0]?.id)
+                              )?.link
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 text-blue-600 hover:underline"
+                          >
+                            Open
+                          </a>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {formatDateSafely(record.scheduledAt)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {(() => {
+                          let link =
+                            sortedLinks && sortedLinks.length > 1
+                              ? sortedLinks.find(
+                                  (l) =>
+                                    l.id ===
+                                    (selectedLinks[record.student_id] ??
+                                      sortedLinks[0]?.id)
+                                )
+                              : sortedLinks && sortedLinks.length === 1
+                              ? sortedLinks[0]
+                              : null;
+                          return link && link.sent_time
+                            ? formatDateSafely(link.sent_time)
+                            : "N/A";
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {(() => {
+                          let link =
+                            sortedLinks && sortedLinks.length > 1
+                              ? sortedLinks.find(
+                                  (l) =>
+                                    l.id ===
+                                    (selectedLinks[record.student_id] ??
+                                      sortedLinks[0]?.id)
+                                )
+                              : sortedLinks && sortedLinks.length === 1
+                              ? sortedLinks[0]
+                              : null;
+                          return link && link.clicked_at
+                            ? formatDateSafely(link.clicked_at)
+                            : "N/A";
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {(() => {
+                          let link =
+                            sortedLinks && sortedLinks.length > 1
+                              ? sortedLinks.find(
+                                  (l) =>
+                                    l.id ===
+                                    (selectedLinks[record.student_id] ??
+                                      sortedLinks[0]?.id)
+                                )
+                              : sortedLinks && sortedLinks.length === 1
+                              ? sortedLinks[0]
+                              : null;
+                          let colorClass = "bg-gray-100 text-gray-800";
+                          let diffLabel = "N/A";
+                          if (link && link.sent_time && record.scheduledAt) {
+                            const scheduled = parseISO(record.scheduledAt);
+                            const sent = parseISO(link.sent_time);
+                            if (isValid(scheduled) && isValid(sent)) {
+                              const diff = Math.round(
+                                (sent.getTime() - scheduled.getTime()) / 60000
+                              );
+                              if (diff < 0) {
+                                diffLabel = `${Math.abs(diff)} min early`;
+                                colorClass = "bg-green-100 text-green-800";
+                              } else if (diff <= 3) {
+                                diffLabel = `Early (${diff} min)`;
+                                colorClass = "bg-green-100 text-green-800";
+                              } else if (diff <= 5) {
+                                diffLabel = `On Time (${diff} min)`;
+                                colorClass = "bg-blue-100 text-blue-800";
+                              } else {
+                                diffLabel = `Very Late (${diff} min)`;
+                                colorClass = "bg-red-100 text-red-800";
                               }
-                              className="px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 flex items-center shadow-md transition-transform hover:scale-105"
-                              title="Notify the teacher that the link was not sent after 5 minutes past scheduled time"
+                            }
+                          }
+                          return (
+                            <span
+                              className={`px-3 py-1 inline-flex text-xs font-medium rounded-full shadow-sm ${colorClass}`}
                             >
-                              <FiBell className="mr-1" /> Notify Teacher
-                            </button>
+                              {diffLabel}
+                            </span>
                           );
-                        }
-
-                        return (
-                          <span className="px-3 py-1 text-xs text-gray-500">
-                            No Action
-                          </span>
-                        );
-                      })()}
-                    </td>
-                  </tr>
-                )
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        <span
+                          className={`px-3 py-1 inline-flex text-xs font-medium rounded-full shadow-sm
+                            ${
+                              record.attendance_status === "present"
+                                ? "bg-green-100 text-green-800"
+                                : record.attendance_status === "absent"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
+                            }
+                          `}
+                        >
+                          {record.attendance_status
+                            .replace("-", " ")
+                            .replace(/\b\w/g, (c) => c.toUpperCase())}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {startDate && endDate ? (
+                          <div className="flex flex-col items-start">
+                            <span
+                              className={`px-3 py-1 inline-flex text-xs font-medium rounded-full shadow-sm ${
+                                record.absentDaysCount === 0
+                                  ? "bg-green-100 text-green-800"
+                                  : record.absentDaysCount &&
+                                    record.absentDaysCount <= 3
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {record.absentDaysCount || 0} absent
+                            </span>
+                            <span className="text-xs text-gray-500 mt-1">
+                              {format(parseISO(startDate), "MMM dd")} -{" "}
+                              {format(parseISO(endDate), "MMM dd")}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-start">
+                            <span className="text-gray-400 text-xs">
+                              No date range set
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              Set range above to see absent count
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {(() => {
+                          const isNotified =
+                            notifiedStudentDateKeys.includes(notifyKey);
+                          const canNotify =
+                            (!record.links ||
+                              record.links.length === 0 ||
+                              !record.links.some((l) => l.sent_time)) &&
+                            record.scheduledDateObj &&
+                            new Date() >
+                              new Date(
+                                record.scheduledDateObj.getTime() + 5 * 60000
+                              );
+                          if (isNotified) {
+                            return (
+                              <button
+                                disabled
+                                className="px-3 py-1 bg-green-200 text-green-800 rounded-lg flex items-center shadow-sm cursor-not-allowed"
+                              >
+                                <FiCheckSquare className="mr-1" /> Notified
+                              </button>
+                            );
+                          }
+                          if (canNotify) {
+                            return (
+                              <button
+                                onClick={() =>
+                                  handleNotifyClick(
+                                    record.student_id,
+                                    scheduledDateStr
+                                  )
+                                }
+                                className="px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 flex items-center shadow-md transition-transform hover:scale-105"
+                                title="Notify the teacher that the link was not sent after 5 minutes past scheduled time"
+                              >
+                                <FiBell className="mr-1" /> Notify Teacher
+                              </button>
+                            );
+                          }
+                          return (
+                            <span className="px-3 py-1 text-xs text-gray-500">
+                              No Action
+                            </span>
+                          );
+                        })()}
+                      </td>
+                    </tr>
+                  );
+                }
               )
             ) : (
               <tr>
@@ -994,7 +1103,7 @@ export default function AttendanceList() {
       </div>
 
       {total > limit && (
-        <div className="mt-6 flex justify-between items-center">
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-2">
           <button
             onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
             disabled={page === 1}
@@ -1028,7 +1137,7 @@ export default function AttendanceList() {
       {/* Attendance Details Modal/Expandable Row */}
       {typeof window !== "undefined" && expandedStudentId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full relative">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 max-w-md w-full relative">
             <button
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
               onClick={() => setExpandedStudentId(null)}
@@ -1041,6 +1150,16 @@ export default function AttendanceList() {
                 (r) => r.student_id === expandedStudentId
               );
               if (!student) return <div>Not found</div>;
+              let link =
+                student.links &&
+                student.links.length > 1 &&
+                selectedLinks[student.student_id]
+                  ? student.links.find(
+                      (l) => l.id === selectedLinks[student.student_id]
+                    )
+                  : student.links && student.links.length === 1
+                  ? student.links[0]
+                  : null;
               return (
                 <div className="space-y-2">
                   <div>
@@ -1053,22 +1172,42 @@ export default function AttendanceList() {
                     <b>Scheduled At:</b> {formatDateSafely(student.scheduledAt)}
                   </div>
                   <div>
-                    <b>Sent Time:</b> {formatDateSafely(student.sentTime)}
+                    <b>Sent Time:</b>{" "}
+                    {link && link.sent_time
+                      ? formatDateSafely(link.sent_time)
+                      : "N/A"}
                   </div>
                   <div>
-                    <b>Clicked Time:</b> {formatDateSafely(student.clickedTime)}
+                    <b>Clicked Time:</b>{" "}
+                    {link && link.clicked_at
+                      ? formatDateSafely(link.clicked_at)
+                      : "N/A"}
                   </div>
                   <div>
-                    <b>Time Difference:</b> {student.timeDifference}
+                    <b>Time Difference:</b>{" "}
+                    {(() => {
+                      if (!link || !link.sent_time || !student.scheduledAt)
+                        return "N/A";
+                      const scheduled = parseISO(student.scheduledAt);
+                      const sent = parseISO(link.sent_time);
+                      if (!isValid(scheduled) || !isValid(sent)) return "N/A";
+                      const diff = Math.round(
+                        (sent.getTime() - scheduled.getTime()) / 60000
+                      );
+                      if (diff < 0) return `${Math.abs(diff)} min early`;
+                      if (diff <= 3) return `Early (${diff} min)`;
+                      if (diff <= 5) return `On Time (${diff} min)`;
+                      return `Very Late (${diff} min)`;
+                    })()}
                   </div>
                   <div>
                     <b>Status:</b> {student.attendance_status}
                   </div>
                   <div>
                     <b>Link:</b>{" "}
-                    {student.link ? (
+                    {link ? (
                       <a
-                        href={student.link}
+                        href={link.link}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 underline"

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../context/AuthContext";
+import { useSession, signIn } from "next-auth/react";
 import Image from "next/image";
 
 export default function LoginPage() {
@@ -12,44 +12,19 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { login } = useAuth();
+  const { data: session, status } = useSession();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        const contentType = response.headers.get("content-type");
-        const text = await response.text(); // Read once as text
-        console.log("Response status:", response.status);
-        console.log("Response text:", text);
-
-        if (response.ok && contentType?.includes("application/json")) {
-          const data = JSON.parse(text); // Parse only if JSON
-          if (data.user) {
-            if (data.user.role === "controller") {
-              router.push("/controller");
-            } else if (data.user.role === "registral") {
-              router.push("/dashboard");
-            } else if (data.user.role === "admin") {
-              router.push("/admin");
-            }
-          }
-        } else {
-          console.warn("Non-JSON or non-ok response:", text);
-        }
-      } catch (error) {
-        console.error("Auth check error:", error);
+    if (status === "authenticated" && session?.user) {
+      if (session.user.role === "controller") {
+        router.push("/controller");
+      } else if (session.user.role === "registral") {
+        router.push("/dashboard");
+      } else if (session.user.role === "admin") {
+        router.push("/admin");
       }
-    };
-
-    checkAuth();
-  }, [router]);
+    }
+  }, [status, session, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,36 +32,18 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password, role }),
-        credentials: "include",
+      const res = await signIn("credentials", {
+        redirect: false,
+        username,
+        password,
+        role,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-
-      if (data.user) {
-        if (data.user.role === "controller") {
-          router.push("/controller");
-        } else if (data.user.role === "registral") {
-          router.push("/dashboard");
-        } else if (data.user.role === "admin") {
-          router.push("/admin");
-        } else {
-          throw new Error("Invalid user role");
-        }
+      if (res?.error) {
+        setError(res.error);
       } else {
-        throw new Error("No user data received");
+        // The useEffect above will handle redirect after session is updated
       }
     } catch (error) {
-      console.error("Login error:", error);
       setError(
         error instanceof Error ? error.message : "Authentication failed"
       );

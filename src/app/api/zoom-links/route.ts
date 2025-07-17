@@ -1,16 +1,14 @@
-import { NextResponse, NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyToken } from "@/lib/server-auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get("authToken")?.value;
-    if (!token) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await verifyToken(token);
-    if (!user || user.role !== "controller") {
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!session || session.role !== "controller") {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 

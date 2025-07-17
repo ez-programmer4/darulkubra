@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../context/AuthContext";
+import { useSession } from "next-auth/react";
 import { Toaster, toast } from "react-hot-toast";
 import {
   FiArrowLeft,
@@ -28,6 +28,18 @@ import {
   subWeeks,
   subMonths,
 } from "date-fns";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+} from "recharts";
 
 interface AnalyticsData {
   period: {
@@ -72,7 +84,7 @@ interface AnalyticsData {
 }
 
 export default function AnalyticsDashboard() {
-  const { user } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,6 +94,14 @@ export default function AnalyticsDashboard() {
   );
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [period, setPeriod] = useState("monthly");
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+  const [studentDetails, setStudentDetails] = useState<any>(null);
+  const [loadingStudentDetails, setLoadingStudentDetails] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
+  const [teacherDetails, setTeacherDetails] = useState<any>(null);
+  const [loadingTeacherDetails, setLoadingTeacherDetails] = useState(false);
 
   // Quick date range presets
   const datePresets = [
@@ -183,9 +203,167 @@ export default function AnalyticsDashboard() {
     window.URL.revokeObjectURL(url);
   };
 
+  const exportStudentReport = (studentId: number) => {
+    if (!studentDetails || !selectedStudent) return;
+
+    const reportData = {
+      student: {
+        id: studentId,
+        name: selectedStudent.studentName,
+        teacher: selectedStudent.teacherName,
+        attendanceRate: selectedStudent.attendanceRate,
+        totalSessions: selectedStudent.totalSessions,
+      },
+      period: {
+        startDate,
+        endDate,
+      },
+      details: studentDetails,
+    };
+
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], {
+      type: "application/json",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `student_report_${selectedStudent.studentName.replace(
+      /\s+/g,
+      "_"
+    )}_${format(parseISO(startDate), "yyyyMMdd")}_${format(
+      parseISO(endDate),
+      "yyyyMMdd"
+    )}.json`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const fetchStudentDetails = async (studentId: number) => {
+    setLoadingStudentDetails(true);
+    try {
+      const params = new URLSearchParams({
+        startDate,
+        endDate,
+      });
+      const response = await fetch(
+        `/api/students/${studentId}/details?${params.toString()}`,
+        {
+          credentials: "include",
+        }
+      );
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to fetch student details");
+      }
+
+      console.log("Student Details API Response:", result);
+      setStudentDetails(result);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load student details"
+      );
+      console.error("Student Details Error:", err);
+    } finally {
+      setLoadingStudentDetails(false);
+    }
+  };
+
+  const fetchTeacherDetails = async (teacherId: string) => {
+    setLoadingTeacherDetails(true);
+    try {
+      const params = new URLSearchParams({
+        startDate,
+        endDate,
+      });
+      const response = await fetch(
+        `/api/teachers/${teacherId}/details?${params.toString()}`,
+        {
+          credentials: "include",
+        }
+      );
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to fetch teacher details");
+      }
+
+      setTeacherDetails(result);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load teacher details"
+      );
+      console.error("Teacher Details Error:", err);
+    } finally {
+      setLoadingTeacherDetails(false);
+    }
+  };
+
+  const generateStudentCSV = (studentData: any) => {
+    const headers = [
+      "Date",
+      "Status",
+      "Time Difference",
+      "Link Sent",
+      "Link Clicked",
+    ];
+    const rows = studentData.attendanceRecords.map((record: any) => [
+      format(parseISO(record.date), "yyyy-MM-dd"),
+      record.attendance_status,
+      record.time_difference || "N/A",
+      record.link_sent ? "Yes" : "No",
+      record.link_clicked ? "Yes" : "No",
+    ]);
+    return [headers, ...rows]
+      .map((row: any[]) => row.map((cell: any) => `"${cell}"`).join(","))
+      .join("\n");
+  };
+
+  const generateTeacherCSV = (teacherData: any) => {
+    const headers = [
+      "Student Name",
+      "Total Sessions",
+      "Present Sessions",
+      "Absent Sessions",
+      "Permission Sessions",
+      "Attendance Rate (%)",
+      "Links Sent",
+      "Links Clicked",
+      "Status",
+    ];
+    const rows = teacherData.studentPerformance.map((student: any) => [
+      student.studentName,
+      student.totalSessions,
+      student.presentSessions,
+      student.absentSessions,
+      student.permissionSessions,
+      student.attendanceRate,
+      student.linksSent,
+      student.linksClicked,
+      student.isAtRisk ? "At Risk" : "Good",
+    ]);
+    return [headers, ...rows]
+      .map((row) => row.map((cell: any) => `"${cell}"`).join(","))
+      .join("\n");
+  };
+
+  const downloadCSV = (csvContent: string, filename: string) => {
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  if (status === "loading") return <div>Loading...</div>;
+  if (status === "unauthenticated") return <div>Unauthorized</div>;
+  const user = session?.user;
+
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto p-6 bg-white min-h-screen">
+      <div className="max-w-7xl mx-auto p-2 sm:p-6 bg-white min-h-screen">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/3 mb-8"></div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -205,7 +383,7 @@ export default function AnalyticsDashboard() {
 
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto p-6 bg-white min-h-screen">
+      <div className="max-w-7xl mx-auto p-2 sm:p-6 bg-white min-h-screen">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 shadow-md">
           <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
           <p className="text-red-700">{error}</p>
@@ -222,7 +400,7 @@ export default function AnalyticsDashboard() {
 
   if (!data) {
     return (
-      <div className="max-w-7xl mx-auto p-6 bg-white min-h-screen">
+      <div className="max-w-7xl mx-auto p-2 sm:p-6 bg-white min-h-screen">
         <div className="text-center text-gray-500">
           No analytics data available
         </div>
@@ -231,11 +409,11 @@ export default function AnalyticsDashboard() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 bg-white min-h-screen">
+    <div className="max-w-7xl mx-auto p-2 sm:p-6 bg-white min-h-screen">
       <Toaster position="top-center" reverseOrder={false} />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-8">
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <button
             onClick={() => router.push("/attendance-list")}
@@ -273,7 +451,7 @@ export default function AnalyticsDashboard() {
       </div>
 
       {/* Filters */}
-      <div className="mb-8 p-4 rounded-2xl shadow-lg bg-gradient-to-br from-gray-50 to-white border border-gray-200">
+      <div className="mb-8 p-2 sm:p-4 rounded-2xl shadow-lg bg-gradient-to-br from-gray-50 to-white border border-gray-200">
         <div className="flex items-center gap-2 mb-4">
           <FiFilter className="text-indigo-500 text-xl" />
           <span className="text-lg font-semibold text-indigo-700">
@@ -340,7 +518,7 @@ export default function AnalyticsDashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-6 mb-8">
         <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-6 shadow-lg">
           <div className="flex items-center justify-between">
             <div>
@@ -399,135 +577,725 @@ export default function AnalyticsDashboard() {
       </div>
 
       {/* Charts and Rankings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
         {/* Student Rankings */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="bg-white rounded-xl shadow-lg p-2 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
             <FiAward className="mr-2 text-yellow-500" />
             Top Student Rankings
           </h3>
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {data.studentRankings.map((student, index) => (
-              <div
-                key={student.studentId}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      index === 0
-                        ? "bg-yellow-100 text-yellow-800"
-                        : index === 1
-                        ? "bg-gray-100 text-gray-800"
-                        : index === 2
-                        ? "bg-orange-100 text-orange-800"
-                        : "bg-blue-100 text-blue-800"
-                    }`}
-                  >
-                    {index + 1}
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-800">
-                      {student.studentName}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {student.teacherName}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-gray-800">
-                    {student.attendanceRate}%
+
+          {/* Needs Attention Section */}
+          {data.studentRankings.filter((student) => student.attendanceRate < 80)
+            .length > 0 && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <h4 className="text-sm font-semibold text-red-800 mb-2 flex items-center">
+                ⚠️ Students Needing Attention
+              </h4>
+              <div className="space-y-1">
+                {data.studentRankings
+                  .filter((student) => student.attendanceRate < 80)
+                  .slice(0, 3)
+                  .map((student) => (
+                    <div
+                      key={student.studentId}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <span className="text-red-700">
+                        {student.studentName}
+                      </span>
+                      <span className="text-red-600 font-medium">
+                        {student.attendanceRate}%
+                      </span>
+                    </div>
+                  ))}
+                {data.studentRankings.filter(
+                  (student) => student.attendanceRate < 80
+                ).length > 3 && (
+                  <p className="text-xs text-red-600">
+                    +
+                    {data.studentRankings.filter(
+                      (student) => student.attendanceRate < 80
+                    ).length - 3}{" "}
+                    more students below 80%
                   </p>
-                  <p className="text-xs text-gray-500">
-                    {student.presentSessions}/{student.totalSessions} sessions
-                  </p>
-                </div>
+                )}
               </div>
-            ))}
+            </div>
+          )}
+
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {data.studentRankings.map((student, index) => {
+              const isAtRisk = student.attendanceRate < 80;
+              return (
+                <div
+                  key={student.studentId}
+                  className={`flex items-center justify-between p-3 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors duration-200 ${
+                    isAtRisk ? "bg-red-50 border border-red-200" : "bg-gray-50"
+                  }`}
+                  onClick={() => {
+                    setSelectedStudent(student);
+                    setIsStudentModalOpen(true);
+                    fetchStudentDetails(student.studentId);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        index === 0
+                          ? "bg-yellow-100 text-yellow-800"
+                          : index === 1
+                          ? "bg-gray-100 text-gray-800"
+                          : index === 2
+                          ? "bg-orange-100 text-orange-800"
+                          : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
+                      {index + 1}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <p className="font-medium text-gray-800">
+                          {student.studentName}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {student.teacherName}
+                        </p>
+                      </div>
+                      {isAtRisk && (
+                        <span
+                          className="text-red-500 text-lg"
+                          title="Low attendance rate"
+                        >
+                          ⚠️
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p
+                      className={`font-bold ${
+                        isAtRisk ? "text-red-700" : "text-gray-800"
+                      }`}
+                    >
+                      {student.attendanceRate}%
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {student.presentSessions}/{student.totalSessions} sessions
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* Teacher Performance */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="bg-white rounded-xl shadow-lg p-2 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
             <FiUsers className="mr-2 text-blue-500" />
             Teacher Performance
           </h3>
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {data.teacherPerformance.map((teacher, index) => (
-              <div
-                key={teacher.teacherId}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      index === 0
-                        ? "bg-yellow-100 text-yellow-800"
-                        : index === 1
-                        ? "bg-gray-100 text-gray-800"
-                        : index === 2
-                        ? "bg-orange-100 text-orange-800"
-                        : "bg-blue-100 text-blue-800"
-                    }`}
-                  >
-                    {index + 1}
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-800">
-                      {teacher.teacherName}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {teacher.totalStudents} students
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-gray-800">
-                    {teacher.attendanceRate}%
+
+          {/* Needs Attention Section for Teachers */}
+          {data.teacherPerformance.filter(
+            (teacher) => teacher.attendanceRate < 80
+          ).length > 0 && (
+            <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <h4 className="text-sm font-semibold text-orange-800 mb-2 flex items-center">
+                ⚠️ Teachers Needing Attention
+              </h4>
+              <div className="space-y-1">
+                {data.teacherPerformance
+                  .filter((teacher) => teacher.attendanceRate < 80)
+                  .slice(0, 3)
+                  .map((teacher) => (
+                    <div
+                      key={teacher.teacherId}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <span className="text-orange-700">
+                        {teacher.teacherName}
+                      </span>
+                      <span className="text-orange-600 font-medium">
+                        {teacher.attendanceRate}%
+                      </span>
+                    </div>
+                  ))}
+                {data.teacherPerformance.filter(
+                  (teacher) => teacher.attendanceRate < 80
+                ).length > 3 && (
+                  <p className="text-xs text-orange-600">
+                    +
+                    {data.teacherPerformance.filter(
+                      (teacher) => teacher.attendanceRate < 80
+                    ).length - 3}{" "}
+                    more teachers below 80%
                   </p>
-                  <p className="text-xs text-gray-500">
-                    {teacher.presentSessions}/{teacher.totalSessions} sessions
-                  </p>
-                </div>
+                )}
               </div>
-            ))}
+            </div>
+          )}
+
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {data.teacherPerformance.map((teacher, index) => {
+              const isAtRisk = teacher.attendanceRate < 80;
+              return (
+                <div
+                  key={teacher.teacherId}
+                  className={`flex items-center justify-between p-3 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors duration-200 ${
+                    isAtRisk
+                      ? "bg-orange-50 border border-orange-200"
+                      : "bg-gray-50"
+                  }`}
+                  onClick={() => {
+                    setSelectedTeacher(teacher);
+                    setIsTeacherModalOpen(true);
+                    fetchTeacherDetails(teacher.teacherId);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        index === 0
+                          ? "bg-yellow-100 text-yellow-800"
+                          : index === 1
+                          ? "bg-gray-100 text-gray-800"
+                          : index === 2
+                          ? "bg-orange-100 text-orange-800"
+                          : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
+                      {index + 1}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <p className="font-medium text-gray-800">
+                          {teacher.teacherName}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {teacher.totalStudents} students
+                        </p>
+                      </div>
+                      {isAtRisk && (
+                        <span
+                          className="text-orange-500 text-lg"
+                          title="Low attendance rate"
+                        >
+                          ⚠️
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p
+                      className={`font-bold ${
+                        isAtRisk ? "text-orange-700" : "text-gray-800"
+                      }`}
+                    >
+                      {teacher.attendanceRate}%
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {teacher.presentSessions}/{teacher.totalSessions} sessions
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* Attendance Trends Chart */}
-        <div className="bg-white rounded-xl shadow-lg p-6 lg:col-span-2">
+        <div className="bg-white rounded-xl shadow-lg p-2 sm:p-6 lg:col-span-2">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
             <FiTrendingUp className="mr-2 text-green-500" />
             Attendance Trends
           </h3>
-          <div className="h-64 flex items-end justify-between gap-1">
-            {data.attendanceTrends.slice(-14).map((trend, index) => (
-              <div
-                key={trend.date}
-                className="flex-1 flex flex-col items-center"
+          <div className="h-64 sm:h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={data.attendanceTrends.slice(-14)}
+                margin={{
+                  top: 5,
+                  right: 30,
+                  left: 20,
+                  bottom: 5,
+                }}
               >
-                <div
-                  className="w-full bg-gray-200 rounded-t"
-                  style={{ height: `${trend.attendanceRate}%` }}
-                >
-                  <div
-                    className="w-full bg-green-500 rounded-t"
-                    style={{ height: `${trend.attendanceRate}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2 transform -rotate-45 origin-left">
-                  {format(parseISO(trend.date), "MM/dd")}
-                </p>
-              </div>
-            ))}
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(value) => format(parseISO(value), "MM/dd")}
+                  stroke="#6b7280"
+                  fontSize={12}
+                />
+                <YAxis
+                  stroke="#6b7280"
+                  fontSize={12}
+                  domain={[0, 100]}
+                  tickFormatter={(value) => `${value}%`}
+                />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (
+                      active &&
+                      payload &&
+                      payload.length &&
+                      typeof label === "string"
+                    ) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                          <p className="font-medium text-gray-800">
+                            {format(parseISO(label), "MMM dd, yyyy")}
+                          </p>
+                          <p className="text-sm text-green-600">
+                            Attendance Rate: {data.attendanceRate}%
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Present: {data.present} | Absent: {data.absent} |
+                            Permission: {data.permission}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Total: {data.total} students
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="attendanceRate"
+                  stroke="#10b981"
+                  strokeWidth={3}
+                  dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, stroke: "#10b981", strokeWidth: 2 }}
+                  name="Attendance Rate (%)"
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
           <div className="mt-4 text-center text-sm text-gray-500">
-            Last 14 days attendance rate trend
+            Last 14 days attendance rate trend - Hover for details
           </div>
         </div>
       </div>
+
+      {/* Student Drilldown Modal */}
+      {isStudentModalOpen && selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl p-2 sm:p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">
+                Student Details: {selectedStudent.studentName}
+              </h2>
+              <button
+                onClick={() => {
+                  setIsStudentModalOpen(false);
+                  setSelectedStudent(null);
+                  setStudentDetails(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {loadingStudentDetails ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <span className="ml-2 text-gray-600">
+                  Loading student details...
+                </span>
+              </div>
+            ) : studentDetails ? (
+              <div className="space-y-6">
+                {/* Student Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4 p-2 sm:p-4 bg-blue-50 rounded-lg">
+                  <div>
+                    <p className="text-sm text-blue-600 font-medium">Teacher</p>
+                    <p className="text-lg font-semibold text-blue-800">
+                      {selectedStudent.teacherName}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-600 font-medium">
+                      Attendance Rate
+                    </p>
+                    <p className="text-lg font-semibold text-blue-800">
+                      {selectedStudent.attendanceRate}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-600 font-medium">
+                      Total Sessions
+                    </p>
+                    <p className="text-lg font-semibold text-blue-800">
+                      {selectedStudent.totalSessions}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Attendance Breakdown */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+                  <div className="bg-green-100 p-4 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-green-800">
+                      {studentDetails.attendanceBreakdown?.presentSessions || 0}
+                    </p>
+                    <p className="text-sm text-green-600">Present</p>
+                  </div>
+                  <div className="bg-red-100 p-4 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-red-800">
+                      {studentDetails.attendanceBreakdown?.absentSessions || 0}
+                    </p>
+                    <p className="text-sm text-red-600">Absent</p>
+                  </div>
+                  <div className="bg-yellow-100 p-4 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-yellow-800">
+                      {studentDetails.attendanceBreakdown?.permissionSessions ||
+                        0}
+                    </p>
+                    <p className="text-sm text-yellow-600">Permission</p>
+                  </div>
+                  <div className="bg-gray-100 p-4 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-gray-800">
+                      {studentDetails.attendanceBreakdown?.notTakenSessions ||
+                        0}
+                    </p>
+                    <p className="text-sm text-gray-600">Not Taken</p>
+                  </div>
+                </div>
+
+                {/* Attendance History */}
+                {studentDetails.attendanceHistory &&
+                studentDetails.attendanceHistory.length > 0 ? (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                      Attendance History
+                    </h3>
+                    <div className="bg-gray-50 rounded-lg p-2 sm:p-4 max-h-64 overflow-y-auto">
+                      <div className="grid grid-cols-1 gap-1 sm:gap-2">
+                        {studentDetails.attendanceHistory.map(
+                          (session: any, index: number) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-2 bg-white rounded border"
+                            >
+                              <div>
+                                <p className="font-medium text-gray-800">
+                                  {format(
+                                    parseISO(session.date),
+                                    "MMM dd, yyyy"
+                                  )}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  {session.scheduledTime || "No time recorded"}
+                                </p>
+                              </div>
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  session.status === "present"
+                                    ? "bg-green-100 text-green-800"
+                                    : session.status === "absent"
+                                    ? "bg-red-100 text-red-800"
+                                    : session.status === "permission"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {session.status
+                                  ?.replace("-", " ")
+                                  .replace(/\b\w/g, (c: string) =>
+                                    c.toUpperCase()
+                                  ) || "Not Taken"}
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    No detailed attendance history available for this period.
+                  </div>
+                )}
+
+                {/* Export Button */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={() =>
+                      exportStudentReport(selectedStudent.studentId)
+                    }
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center"
+                  >
+                    <FiDownload className="mr-2" />
+                    Export Student Report
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                Failed to load student details. Please try again.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Teacher Drilldown Modal */}
+      {isTeacherModalOpen && selectedTeacher && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl p-2 sm:p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">
+                Teacher Details: {selectedTeacher.teacherName}
+              </h2>
+              <button
+                onClick={() => {
+                  setIsTeacherModalOpen(false);
+                  setSelectedTeacher(null);
+                  setTeacherDetails(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {loadingTeacherDetails ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <span className="ml-2 text-gray-600">
+                  Loading teacher details...
+                </span>
+              </div>
+            ) : teacherDetails ? (
+              <div className="space-y-6">
+                {/* Teacher Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4 p-2 sm:p-4 bg-blue-50 rounded-lg">
+                  <div>
+                    <p className="text-sm text-blue-600 font-medium">
+                      Total Students
+                    </p>
+                    <p className="text-lg font-semibold text-blue-800">
+                      {selectedTeacher.totalStudents}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-600 font-medium">
+                      Total Sessions
+                    </p>
+                    <p className="text-lg font-semibold text-blue-800">
+                      {selectedTeacher.totalSessions}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-600 font-medium">
+                      Attendance Rate
+                    </p>
+                    <p className="text-lg font-semibold text-blue-800">
+                      {selectedTeacher.attendanceRate}%
+                    </p>
+                  </div>
+                </div>
+
+                {/* Teacher Details */}
+                <div className="space-y-6">
+                  {/* Attendance Breakdown */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-2 sm:p-4">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                      Attendance Breakdown
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <p className="text-2xl font-bold text-green-600">
+                          {teacherDetails.summary.totalPresent}
+                        </p>
+                        <p className="text-sm text-green-700">Present</p>
+                      </div>
+                      <div className="text-center p-3 bg-red-50 rounded-lg">
+                        <p className="text-2xl font-bold text-red-600">
+                          {teacherDetails.summary.totalAbsent}
+                        </p>
+                        <p className="text-sm text-red-700">Absent</p>
+                      </div>
+                      <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                        <p className="text-2xl font-bold text-yellow-600">
+                          {teacherDetails.summary.totalPermission}
+                        </p>
+                        <p className="text-sm text-yellow-700">Permission</p>
+                      </div>
+                      <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <p className="text-2xl font-bold text-gray-600">
+                          {teacherDetails.summary.totalNotTaken}
+                        </p>
+                        <p className="text-sm text-gray-700">Not Taken</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Link Response Rate */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-2 sm:p-4">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                      Zoom Link Response Rate
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                        <p className="text-2xl font-bold text-blue-600">
+                          {teacherDetails.summary.totalLinksSent}
+                        </p>
+                        <p className="text-sm text-blue-700">Links Sent</p>
+                      </div>
+                      <div className="text-center p-3 bg-purple-50 rounded-lg">
+                        <p className="text-2xl font-bold text-purple-600">
+                          {teacherDetails.summary.linkResponseRate}%
+                        </p>
+                        <p className="text-sm text-purple-700">Response Rate</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Student Performance Table */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-2 sm:p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-800">
+                        Student Performance
+                      </h3>
+                      <button
+                        onClick={() => {
+                          const csvContent = generateTeacherCSV(teacherDetails);
+                          downloadCSV(
+                            csvContent,
+                            `${selectedTeacher.teacherName}_students_${startDate}_to_${endDate}.csv`
+                          );
+                        }}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center gap-2"
+                      >
+                        <FiDownload className="w-4 h-4" />
+                        Export CSV
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-[700px] w-full text-xs sm:text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-2 font-medium text-gray-700">
+                              Student Name
+                            </th>
+                            <th className="text-center py-2 font-medium text-gray-700">
+                              Sessions
+                            </th>
+                            <th className="text-center py-2 font-medium text-gray-700">
+                              Present
+                            </th>
+                            <th className="text-center py-2 font-medium text-gray-700">
+                              Absent
+                            </th>
+                            <th className="text-center py-2 font-medium text-gray-700">
+                              Permission
+                            </th>
+                            <th className="text-center py-2 font-medium text-gray-700">
+                              Rate
+                            </th>
+                            <th className="text-center py-2 font-medium text-gray-700">
+                              Status
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {teacherDetails.studentPerformance.map(
+                            (student: any, index: number) => (
+                              <tr
+                                key={student.studentId}
+                                className={`border-b border-gray-100 ${
+                                  index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                                }`}
+                              >
+                                <td className="py-2 font-medium text-gray-800">
+                                  {student.studentName}
+                                </td>
+                                <td className="py-2 text-center text-gray-600">
+                                  {student.totalSessions}
+                                </td>
+                                <td className="py-2 text-center text-green-600 font-medium">
+                                  {student.presentSessions}
+                                </td>
+                                <td className="py-2 text-center text-red-600 font-medium">
+                                  {student.absentSessions}
+                                </td>
+                                <td className="py-2 text-center text-yellow-600 font-medium">
+                                  {student.permissionSessions}
+                                </td>
+                                <td className="py-2 text-center font-medium">
+                                  <span
+                                    className={`${
+                                      student.attendanceRate >= 80
+                                        ? "text-green-600"
+                                        : student.attendanceRate >= 60
+                                        ? "text-yellow-600"
+                                        : "text-red-600"
+                                    }`}
+                                  >
+                                    {student.attendanceRate}%
+                                  </span>
+                                </td>
+                                <td className="py-2 text-center">
+                                  {student.isAtRisk ? (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                      ⚠️ At Risk
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      ✓ Good
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* At-Risk Students Summary */}
+                  {teacherDetails.atRiskStudents.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-2 sm:p-4">
+                      <h3 className="text-lg font-semibold text-red-800 mb-3 flex items-center">
+                        ⚠️ Students Needing Attention (
+                        {teacherDetails.atRiskStudents.length})
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {teacherDetails.atRiskStudents.map((student: any) => (
+                          <div
+                            key={student.studentId}
+                            className="flex items-center justify-between p-2 bg-white rounded border border-red-200"
+                          >
+                            <span className="text-red-700 font-medium">
+                              {student.studentName}
+                            </span>
+                            <span className="text-red-600 font-bold">
+                              {student.attendanceRate}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                Failed to load teacher details. Please try again.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

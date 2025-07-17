@@ -1,14 +1,15 @@
-import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/server-auth";
+import { NextResponse, NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { startOfMonth, endOfMonth } from "date-fns";
 
 // GET /api/payments?studentId=123&calculate=true
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     if (calculate) {
       // Get student's class fee
       const student = await prisma.wpos_wpdatatable_23.findUnique({
-        where: { id: parseInt(studentId) },
+        where: { wdt_ID: parseInt(studentId) },
         select: { classfee: true },
       });
 
@@ -98,7 +99,10 @@ export async function GET(request: Request) {
 // POST /api/payments
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -139,7 +143,10 @@ export async function POST(request: Request) {
 // PUT /api/payments/:id
 export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

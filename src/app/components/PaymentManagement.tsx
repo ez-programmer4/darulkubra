@@ -545,8 +545,22 @@ export default function PaymentManagement({
     }
   };
 
+  // Add a helper to check if a month is already paid (full or partial)
+  const isMonthPaid = (month: string): boolean => {
+    return monthlyPayments.some(
+      (payment) =>
+        payment.month === month &&
+        ["full", "partial"].includes(payment.payment_type) &&
+        payment.payment_status === "approved"
+    );
+  };
+
   const handlePrizeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (newPrize.month && isMonthPaid(newPrize.month)) {
+      toast.error("Cannot add a prize for a paid month.");
+      return;
+    }
     setShowPrizeModal(true);
   };
 
@@ -596,6 +610,10 @@ export default function PaymentManagement({
 
   const handlePrizeSubmit = async () => {
     if (!student) return;
+    if (newPrize.month && isMonthPaid(newPrize.month)) {
+      toast.error("Cannot add a prize for a paid month.");
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -936,20 +954,20 @@ export default function PaymentManagement({
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 sm:gap-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             Payment Management
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">
             Manage payments for {student.name}
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
           <button
             onClick={() => router.push("/controller")}
-            className="group flex items-center gap-1 px-4 py-2 bg-blue-600  text-white hover:text-gray-900 transition-colors duration-200 rounded-md hover:bg-gray-300"
+            className="group flex items-center gap-1 px-4 py-2 bg-blue-600 text-white hover:text-gray-900 transition-colors duration-200 rounded-md hover:bg-gray-300 w-full sm:w-auto"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -971,7 +989,7 @@ export default function PaymentManagement({
             onClick={() => {
               toast.success("Export functionality coming soon!");
             }}
-            className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
             aria-label="Download payment report as PDF"
           >
             <FiDownload size={18} />
@@ -979,15 +997,15 @@ export default function PaymentManagement({
           </motion.button>
         </div>
       </div>
-      <main className="space-y-8">
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-8">
-            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-3">
+      <main className="space-y-6 sm:space-y-8">
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+          <div className="space-y-6 sm:space-y-8">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-3">
                 <FiDollarSign className="text-blue-500" size={20} />
                 Payment Summary
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                 <div className="p-5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
                   <p className="text-sm text-gray-600">Total Deposits</p>
                   <p className="text-2xl font-bold text-blue-700">
@@ -1092,7 +1110,7 @@ export default function PaymentManagement({
                   </p>
                 </div>
               </div>
-              <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 rounded-xl border border-gray-200">
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-gray-600">Monthly Fee</p>
                   <p className="font-semibold text-gray-900">
@@ -1108,11 +1126,11 @@ export default function PaymentManagement({
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-3">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-3">
                 <FiPlus className="text-indigo-500" size={20} /> Quick Actions
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -1167,12 +1185,12 @@ export default function PaymentManagement({
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-3">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-3">
               <FiCalendar className="text-indigo-500" size={20} />
               Payment Overview
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div className="p-5 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200 flex items-center gap-4">
                 <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
                   <FiCheckCircle className="text-green-600" size={20} />
@@ -1219,8 +1237,8 @@ export default function PaymentManagement({
           </div>
         </section>
 
-        <section className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-gray-200">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-6">
+        <section className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-4 sm:p-8 border border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4 sm:gap-6">
             <div className="flex border-b border-gray-200 w-full sm:w-auto">
               <button
                 onClick={() => setActiveTab("deposits")}
@@ -1272,7 +1290,7 @@ export default function PaymentManagement({
               </button>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <div className="text-sm text-gray-600">
                 Total Records:{" "}
                 {activeTab === "deposits"
@@ -1342,7 +1360,7 @@ export default function PaymentManagement({
             {activeTab === "monthly" && (
               <div className="max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-gray-50">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="min-w-[600px] w-full divide-y divide-gray-200 text-xs sm:text-sm">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1435,15 +1453,15 @@ export default function PaymentManagement({
 
         <AnimatePresence>
           {showDepositModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100]">
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-2 sm:p-0">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-3xl p-8 max-w-2xl w-full mx-4 shadow-2xl border border-gray-200"
+                className="bg-white rounded-3xl p-2 sm:p-8 max-w-full sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl border border-gray-200 overflow-y-auto max-h-[90vh]"
               >
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 gap-4 sm:gap-0">
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl">
                       <FiDollarSign className="text-blue-600" size={24} />
@@ -1474,7 +1492,7 @@ export default function PaymentManagement({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
                   <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1727,7 +1745,7 @@ export default function PaymentManagement({
                   </div>
                 </div>
 
-                <div className="mt-8 flex justify-end gap-4">
+                <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 w-full">
                   <button
                     onClick={() => {
                       setShowDepositModal(false);
@@ -1765,15 +1783,15 @@ export default function PaymentManagement({
           )}
 
           {showMonthlyModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100]">
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-2 sm:p-0">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-3xl p-8 max-w-2xl w-full mx-4 shadow-2xl border border-gray-200"
+                className="bg-white rounded-3xl p-2 sm:p-8 max-w-full sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl border border-gray-200 overflow-y-auto max-h-[90vh]"
               >
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 gap-4 sm:gap-0">
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl">
                       <FiCalendar className="text-green-600" size={24} />
@@ -1804,7 +1822,7 @@ export default function PaymentManagement({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
                   <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2027,7 +2045,7 @@ export default function PaymentManagement({
                   </div>
                 </div>
 
-                <div className="mt-8 flex justify-end gap-4">
+                <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 w-full">
                   <button
                     onClick={() => {
                       setShowMonthlyModal(false);
@@ -2066,15 +2084,15 @@ export default function PaymentManagement({
           )}
 
           {showPrizeModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100]">
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-2 sm:p-0">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-3xl p-8 max-w-2xl w-full mx-4 shadow-2xl border border-gray-200"
+                className="bg-white rounded-3xl p-2 sm:p-8 max-w-full sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl border border-gray-200 overflow-y-auto max-h-[90vh]"
               >
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 gap-4 sm:gap-0">
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl">
                       <FiGift className="text-purple-600" size={24} />
@@ -2096,7 +2114,7 @@ export default function PaymentManagement({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
                   <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2112,13 +2130,17 @@ export default function PaymentManagement({
                             const minMonth = `${startDate.getFullYear()}-${String(
                               startDate.getMonth() + 1
                             ).padStart(2, "0")}`;
-
                             const selectedDate = new Date(
                               selectedMonth + "-01"
                             );
                             const minDate = new Date(minMonth + "-01");
-
                             if (selectedDate >= minDate) {
+                              if (isMonthPaid(selectedMonth)) {
+                                toast.error(
+                                  "Cannot add a prize for a paid month."
+                                );
+                                return;
+                              }
                               setNewPrize((prev) => ({
                                 ...prev,
                                 month: selectedMonth,
@@ -2143,6 +2165,7 @@ export default function PaymentManagement({
                               ).padStart(2, "0")}`
                             : undefined
                         }
+                        disabled={isMonthPaid(newPrize.month)}
                       />
                     </div>
 
@@ -2259,7 +2282,7 @@ export default function PaymentManagement({
                   </div>
                 </div>
 
-                <div className="mt-8 flex justify-end gap-4">
+                <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 w-full">
                   <button
                     onClick={handleClosePrize}
                     className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all"
@@ -2289,15 +2312,15 @@ export default function PaymentManagement({
           )}
 
           {selectedDeposit && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100]">
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-2 sm:p-0">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-3xl p-8 max-w-2xl w-full mx-4 shadow-2xl border border-gray-200"
+                className="bg-white rounded-3xl p-4 sm:p-8 max-w-lg sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl border border-gray-200"
               >
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4 sm:gap-0">
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl">
                       <FiDollarSign className="text-blue-600" size={24} />
@@ -2323,7 +2346,7 @@ export default function PaymentManagement({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
                   <div className="space-y-6">
                     <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
                       <h4 className="text-sm font-medium text-gray-700 mb-4">
@@ -2473,7 +2496,7 @@ export default function PaymentManagement({
                   </div>
                 </div>
 
-                <div className="mt-8 flex justify-end gap-4">
+                <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 w-full">
                   <button
                     onClick={() => setSelectedDeposit(null)}
                     className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all"

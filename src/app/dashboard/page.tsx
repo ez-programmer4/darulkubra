@@ -33,7 +33,7 @@ import { useRouter } from "next/navigation";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import ConfirmModal from "../components/ConfirmModal";
-import Cookies from "js-cookie"; // Added for cookie handling
+import { useSession, signOut } from "next-auth/react";
 
 interface Registration {
   id: number;
@@ -96,65 +96,23 @@ export default function Dashboard() {
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [filterUstaz, setFilterUstaz] = useState<string>("all");
-  const [user, setUser] = useState<{
-    id: number;
-    name: string;
-    username: string;
-  } | null>(null);
+  const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Check authentication with token
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        console.log("Auth check response status:", response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Auth check error response:", errorText);
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("Auth check data:", data);
-
-        if (!data.user) {
-          throw new Error("No user data received");
-        }
-
-        if (data.user.role !== "registral") {
-          console.log(
-            "User role is not registral, redirecting to controller..."
-          );
-          router.push("/controller");
-          return;
-        }
-
-        setUser(data.user);
-        await fetchRegistrations();
-      } catch (error) {
-        console.error("Auth check error:", error);
-        setError(
-          error instanceof Error ? error.message : "Authentication failed"
-        );
-        setNotification({
-          message: "Authentication failed",
-          type: "error",
-        });
-        router.push("/login");
-      } finally {
-        setAuthChecked(true);
-      }
-    };
-
-    checkAuth();
-  }, [router]);
+    if (status === "loading") return;
+    if (status === "unauthenticated" || !session?.user) {
+      router.push("/login");
+      return;
+    }
+    if (session.user.role !== "registral") {
+      router.push("/controller");
+      return;
+    }
+    setAuthChecked(true);
+    fetchRegistrations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session, router]);
 
   // Auto-dismiss notifications after 5 seconds
   useEffect(() => {
@@ -217,17 +175,20 @@ export default function Dashboard() {
       "Are you sure you want to delete this registration?",
       async () => {
         try {
-          const token = Cookies.get("authToken");
           const response = await fetch(`/api/registrations?id=${id}`, {
             method: "DELETE",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: token ? `Bearer ${token}` : "",
-            },
           });
 
           if (!response.ok) {
             const errorData = await response.json();
+            if (
+              errorData.message &&
+              errorData.message.toLowerCase().includes("foreign key constraint")
+            ) {
+              throw new Error(
+                "Cannot delete: student has related payment or other records. Please contact admin for further action."
+              );
+            }
             throw new Error(
               errorData.message || "Failed to delete registration"
             );
@@ -280,13 +241,8 @@ export default function Dashboard() {
       `Are you sure you want to delete ${selectedRows.length} registration(s)?`,
       async () => {
         try {
-          const token = Cookies.get("authToken");
           const response = await fetch("/api/registrations?endpoint=bulk", {
             method: "DELETE",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: token ? `Bearer ${token}` : "",
-            },
             body: JSON.stringify({ ids: selectedRows }),
           });
 
@@ -338,15 +294,10 @@ export default function Dashboard() {
       `Are you sure you want to update the status of ${selectedRows.length} registration(s) to "${newStatus}"?`,
       async () => {
         try {
-          const token = Cookies.get("authToken");
           const response = await fetch(
             "/api/registrations?endpoint=bulk-status",
             {
               method: "PATCH",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: token ? `Bearer ${token}` : "",
-              },
               body: JSON.stringify({ ids: selectedRows, status: newStatus }),
             }
           );
@@ -537,13 +488,8 @@ export default function Dashboard() {
 
   const markAsTrained = async (id: number) => {
     try {
-      const token = Cookies.get("authToken");
       const response = await fetch(`/api/registrations?id=${id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
         body: JSON.stringify({ isTrained: true }),
       });
       if (!response.ok) throw new Error("Failed to update status");
@@ -842,14 +788,8 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-      Cookies.remove("authToken"); // Clear the token on logout
-      window.location.href = "/login";
+      await signOut({ callbackUrl: "/login" });
     } catch (error) {
-      console.error("Logout error:", error);
       setNotification({
         message: "Failed to logout",
         type: "error",
@@ -919,8 +859,8 @@ export default function Dashboard() {
                 Student Management Dashboard
               </h1>
               <p className="text-gray-600 mt-2 text-sm">
-                Welcome, {user?.name}! Efficiently manage student registrations
-                and monitor performance.
+                Welcome, {session?.user?.name}! Efficiently manage student
+                registrations.
               </p>
             </div>
             <div className="flex flex-col md:flex-row gap-4">

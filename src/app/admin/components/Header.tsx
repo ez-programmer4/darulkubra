@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { FiLogOut, FiUser, FiMenu } from "react-icons/fi";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
+import { useSession, signOut } from "next-auth/react";
 
 interface User {
   name: string;
@@ -20,29 +20,12 @@ export default function Header({
   userName,
   onMenuClick,
 }: HeaderProps) {
-  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        if (response.ok) {
-          const data = await response.json();
-          setUser(data.user);
-        }
-      } catch (error) {
-        console.error("Failed to fetch user", error);
-      }
-    };
-    fetchUser();
-  }, []);
+  const { data: session } = useSession();
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      Cookies.remove("authToken");
-      router.push("/login");
+      await signOut({ callbackUrl: "/login" });
     } catch (error) {
       console.error("Logout failed", error);
     }
@@ -62,7 +45,7 @@ export default function Header({
         </div>
         <div className="flex items-center">
           <span className="text-sm font-medium text-gray-600">
-            Welcome, {userName}
+            Welcome, {session?.user?.name || userName}
           </span>
         </div>
       </div>

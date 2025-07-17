@@ -1,28 +1,23 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyToken } from "../../../../../lib/server-auth";
+import { getToken } from "next-auth/jwt";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../../lib/prisma";
 
 // GET - Get a specific student
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("authToken")?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await verifyToken(token);
-    if (!user || user.role !== "controller") {
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!session || session.role !== "controller") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const student = await prisma.wpos_wpdatatable_23.findUnique({
-      where: { id: parseInt(params.id) },
+      where: { wdt_ID: parseInt(params.id) },
       include: {
         teacher: {
           select: {
@@ -38,7 +33,7 @@ export async function GET(
 
     // Verify the student belongs to this controller
     const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { id: user.id },
+      where: { wdt_ID: session.id },
       select: { username: true },
     });
 
@@ -58,19 +53,15 @@ export async function GET(
 
 // PUT - Update a student
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("authToken")?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await verifyToken(token);
-    if (!user || user.role !== "controller") {
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!session || session.role !== "controller") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -86,7 +77,7 @@ export async function PUT(
 
     // Verify the student belongs to this controller
     const student = await prisma.wpos_wpdatatable_23.findUnique({
-      where: { id: parseInt(params.id) },
+      where: { wdt_ID: parseInt(params.id) },
     });
 
     if (!student) {
@@ -94,7 +85,7 @@ export async function PUT(
     }
 
     const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { id: user.id },
+      where: { wdt_ID: session.id },
       select: { username: true },
     });
 
@@ -104,7 +95,7 @@ export async function PUT(
 
     // Update the student
     const updatedStudent = await prisma.wpos_wpdatatable_23.update({
-      where: { id: parseInt(params.id) },
+      where: { wdt_ID: parseInt(params.id) },
       data: {
         status,
         classfee,
@@ -134,25 +125,21 @@ export async function PUT(
 
 // DELETE - Delete a student
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("authToken")?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await verifyToken(token);
-    if (!user || user.role !== "controller") {
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!session || session.role !== "controller") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Verify the student belongs to this controller
     const student = await prisma.wpos_wpdatatable_23.findUnique({
-      where: { id: parseInt(params.id) },
+      where: { wdt_ID: parseInt(params.id) },
     });
 
     if (!student) {
@@ -160,7 +147,7 @@ export async function DELETE(
     }
 
     const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { id: user.id },
+      where: { wdt_ID: session.id },
       select: { username: true },
     });
 
@@ -198,7 +185,7 @@ export async function DELETE(
 
       // Finally delete the student
       await tx.wpos_wpdatatable_23.delete({
-        where: { id: parseInt(params.id) },
+        where: { wdt_ID: parseInt(params.id) },
       });
     });
 

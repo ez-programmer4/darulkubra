@@ -3,7 +3,7 @@ import {
   student_attendance_progress as StudentAttendanceProgress,
 } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/server-auth";
+import { getToken } from "next-auth/jwt";
 import { subDays, startOfDay, endOfDay } from "date-fns";
 
 const prisma = new PrismaClient();
@@ -27,8 +27,8 @@ interface PerformanceAccumulator {
 }
 
 export async function GET(req: NextRequest) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -71,6 +71,22 @@ export async function GET(req: NextRequest) {
       }
     );
 
+    console.log("Analytics Debug:", {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      controllerId,
+      totalRecords: attendanceRecords.length,
+      whereClause,
+      sampleRecords: attendanceRecords.slice(0, 3).map((r) => ({
+        date: r.date,
+        status: r.attendance_status,
+        studentName: r.wpos_wpdatatable_23?.name,
+        studentControl: r.wpos_wpdatatable_23?.control,
+        teacherName: r.wpos_wpdatatable_23?.teacher?.ustazname,
+        controllerName: r.wpos_wpdatatable_23?.controller?.name,
+      })),
+    });
+
     type AttendanceRecordWithRelations = (typeof attendanceRecords)[0];
 
     // 1. Attendance Trend Over Time
@@ -81,9 +97,9 @@ export async function GET(req: NextRequest) {
           acc[dateStr] = { date: dateStr, Present: 0, Absent: 0, Total: 0 };
         }
         acc[dateStr].Total++;
-        if (record.attendance_status === "Present") {
+        if (record.attendance_status === "present") {
           acc[dateStr].Present++;
-        } else if (record.attendance_status === "Absent") {
+        } else if (record.attendance_status === "absent") {
           acc[dateStr].Absent++;
         }
         return acc;
@@ -115,9 +131,9 @@ export async function GET(req: NextRequest) {
           };
         }
         acc[controllerName].Total++;
-        if (record.attendance_status === "Present")
+        if (record.attendance_status === "present")
           acc[controllerName].Present++;
-        else if (record.attendance_status === "Absent")
+        else if (record.attendance_status === "absent")
           acc[controllerName].Absent++;
         return acc;
       },
@@ -138,7 +154,7 @@ export async function GET(req: NextRequest) {
     const teacherPerformance = attendanceRecords.reduce(
       (acc: PerformanceAccumulator, record: AttendanceRecordWithRelations) => {
         const teacherName =
-          record.wpos_wpdatatable_23?.teacher?.ustazid || "Unassigned";
+          record.wpos_wpdatatable_23?.teacher?.ustazname || "Unassigned";
         if (!acc[teacherName]) {
           acc[teacherName] = {
             name: teacherName,
@@ -148,8 +164,8 @@ export async function GET(req: NextRequest) {
           };
         }
         acc[teacherName].Total++;
-        if (record.attendance_status === "Present") acc[teacherName].Present++;
-        else if (record.attendance_status === "Absent")
+        if (record.attendance_status === "present") acc[teacherName].Present++;
+        else if (record.attendance_status === "absent")
           acc[teacherName].Absent++;
         return acc;
       },
@@ -166,7 +182,7 @@ export async function GET(req: NextRequest) {
       }))
       .sort((a, b) => b["Attendance Rate"] - a["Attendance Rate"]);
 
-    return NextResponse.json({
+    const result = {
       dailyTrend,
       controllerData,
       teacherData,
@@ -174,7 +190,18 @@ export async function GET(req: NextRequest) {
         from: startDate.toISOString(),
         to: endDate.toISOString(),
       },
+    };
+
+    console.log("Analytics Result:", {
+      dailyTrendLength: dailyTrend.length,
+      controllerDataLength: controllerData.length,
+      teacherDataLength: teacherData.length,
+      sampleDailyTrend: dailyTrend.slice(0, 3),
+      sampleControllerData: controllerData.slice(0, 3),
+      sampleTeacherData: teacherData.slice(0, 3),
     });
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Failed to fetch attendance analytics:", error);
     return NextResponse.json(

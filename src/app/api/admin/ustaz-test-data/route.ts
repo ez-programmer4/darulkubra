@@ -1,0 +1,119 @@
+import { NextRequest, NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+
+    if (!from || !to) {
+      return NextResponse.json(
+        { error: "Date range is required" },
+        { status: 400 }
+      );
+    }
+
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+
+    // Get sample zoom links with student data
+    const sampleZoomLinks = await prisma.wpos_zoom_links.findMany({
+      where: {
+        sent_time: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      include: {
+        wpos_wpdatatable_23: {
+          select: {
+            wdt_ID: true,
+            name: true,
+            selectedTime: true,
+            control: true,
+          },
+        },
+        wpos_wpdatatable_24: {
+          select: {
+            ustazid: true,
+            ustazname: true,
+          },
+        },
+      },
+      take: 10,
+      orderBy: {
+        sent_time: "desc",
+      },
+    });
+
+    // Get teachers with their zoom links count
+    const teachersWithLinks = await prisma.wpos_wpdatatable_24.findMany({
+      select: {
+        ustazid: true,
+        ustazname: true,
+        _count: {
+          select: {
+            zoom_links: {
+              where: {
+                sent_time: {
+                  gte: fromDate,
+                  lte: toDate,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Get students with their scheduled times
+    const studentsWithTimes = await prisma.wpos_wpdatatable_23.findMany({
+      where: {
+        selectedTime: {
+          not: null,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        selectedTime: true,
+        control: true,
+        ustaz: true,
+      },
+      take: 10,
+    });
+
+    return NextResponse.json({
+      dateRange: {
+        from: fromDate.toISOString(),
+        to: toDate.toISOString(),
+      },
+      sampleZoomLinks: sampleZoomLinks.map((link) => ({
+        id: link.id,
+        sent_time: link.sent_time?.toISOString(),
+        student: {
+          id: link.wpos_wpdatatable_23.wdt_ID,
+          name: link.wpos_wpdatatable_23.name,
+          selectedTime: link.wpos_wpdatatable_23.selectedTime,
+          control: link.wpos_wpdatatable_23.control,
+        },
+        teacher: {
+          ustazid: link.wpos_wpdatatable_24.ustazid,
+          ustazname: link.wpos_wpdatatable_24.ustazname,
+        },
+      })),
+      teachersWithLinks,
+      studentsWithTimes,
+    });
+  } catch (error) {
+    console.error("Error fetching ustaz test data:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch ustaz test data" },
+      { status: 500 }
+    );
+  }
+}

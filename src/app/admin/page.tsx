@@ -43,8 +43,14 @@ interface Stats {
   teachers: number;
   registrars: number;
   students: number;
-  totalRevenue: number;
+  totalRevenue: {
+    approved: number;
+    pending: number;
+    rejected: number;
+  };
   paymentCount: number;
+  pendingPaymentCount: number;
+  pendingPaymentAmount: number;
 }
 
 interface AnalyticsData {
@@ -121,6 +127,8 @@ export default function AdminDashboardPage() {
   if (!stats || !analytics)
     return <div className="text-center">No data available.</div>;
 
+  console.log(stats);
+
   const totalUsers =
     stats.admins + stats.controllers + stats.teachers + stats.registrars;
 
@@ -178,12 +186,6 @@ export default function AdminDashboardPage() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          icon={<FiUsers />}
-          title="Total Users"
-          value={totalUsers}
-          color="border-blue-500"
-        />
-        <StatCard
           icon={<FiBookOpen />}
           title="Students"
           value={stats.students}
@@ -192,7 +194,7 @@ export default function AdminDashboardPage() {
         <StatCard
           icon={<FiDollarSign />}
           title="Total Revenue"
-          value={`$${stats.totalRevenue.toFixed(2)}`}
+          value={`$${stats.totalRevenue.approved}`}
           color="border-pink-500"
         />
         <StatCard
@@ -200,6 +202,12 @@ export default function AdminDashboardPage() {
           title="Total Payments"
           value={stats.paymentCount}
           color="border-teal-500"
+        />
+        <StatCard
+          icon={<FiDollarSign />}
+          title="Pending Payments"
+          value={`${stats.pendingPaymentCount} ($${stats.pendingPaymentAmount})`}
+          color="border-yellow-500"
         />
       </div>
 

@@ -56,7 +56,7 @@ interface StudentCardProps {
   student: Student;
   index: number;
   onEdit: (student: Student) => void;
-  onDelete: (studentId: number) => void;
+
   user: { name: string; username: string; role: string } | null;
 }
 
@@ -64,7 +64,7 @@ export default function StudentCard({
   student,
   index,
   onEdit,
-  onDelete,
+
   user,
 }: StudentCardProps) {
   const router = useRouter();
@@ -77,17 +77,6 @@ export default function StudentCard({
     chatId: student.chatId,
     name: student.name,
   });
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await onDelete(student.id);
-    } catch (error) {
-      console.error("Error deleting student:", error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const handlePaymentClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -119,98 +108,105 @@ export default function StudentCard({
     >
       {/* Main Content */}
       <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <div className="h-12 w-12 bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0 shadow-sm">
-              {student.name.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                {student.name}
-              </h3>
-              <div className="flex items-center space-x-2 mt-1">
-                <FiPhone className="text-gray-400" size={14} />
-                <span className="text-sm text-gray-600">{student.phoneno}</span>
+        <div className="mb-4 overflow-x-auto">
+          <div className="flex items-center min-w-[520px] sm:min-w-0 justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="h-12 w-12 bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0 shadow-sm">
+                {student.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {student.name}
+                </h3>
+                <div className="flex items-center space-x-2 mt-1">
+                  <FiPhone className="text-gray-400" size={14} />
+                  <span className="text-sm text-gray-600">
+                    {student.phoneno}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <span
-              className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                student.status
-              )} border`}
-            >
-              {student.status}
-            </span>
-            <div className="flex items-center space-x-2">
-              <Link
-                href={`/registration?id=${student.id}&step=3`}
-                className="p-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-all duration-300 shadow-sm"
-                title="Edit"
-                aria-label="Edit student"
+            <div className="flex items-center space-x-3">
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                  student.status
+                )} border`}
               >
-                <FiEdit size={16} />
-              </Link>
-              <button
-                onClick={handlePaymentClick}
-                className="p-2 bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-all duration-300 shadow-sm"
-                title="Payments"
-                aria-label="Manage payments"
-              >
-                <FiDollarSign size={16} />
-              </button>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="p-2 bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition-all duration-300 shadow-sm disabled:opacity-50"
-                aria-label="Delete student"
-              >
-                <FiTrash2 size={16} />
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="p-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-all duration-300 shadow-sm"
-                aria-label={isExpanded ? "Collapse details" : "Expand details"}
-              >
-                {isExpanded ? (
-                  <FiChevronUp size={16} />
-                ) : (
-                  <FiChevronDown size={16} />
-                )}
-              </motion.button>
+                {student.status}
+              </span>
+              <div className="flex items-center space-x-2">
+                <Link
+                  href={
+                    student.id ? `/registration?id=${student.id}&step=3` : "#"
+                  }
+                  onClick={(e) => {
+                    if (!student.id) {
+                      e.preventDefault();
+                      toast.error(
+                        "Student ID is missing. Cannot edit this student."
+                      );
+                    }
+                  }}
+                  className="p-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-all duration-300 shadow-sm"
+                  title="Edit"
+                  aria-label="Edit student"
+                >
+                  <FiEdit size={16} />
+                </Link>
+                <button
+                  onClick={handlePaymentClick}
+                  className="p-2 bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-all duration-300 shadow-sm"
+                  title="Payments"
+                  aria-label="Manage payments"
+                >
+                  <FiDollarSign size={16} />
+                </button>
+
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="p-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-all duration-300 shadow-sm"
+                  aria-label={
+                    isExpanded ? "Collapse details" : "Expand details"
+                  }
+                >
+                  {isExpanded ? (
+                    <FiChevronUp size={16} />
+                  ) : (
+                    <FiChevronDown size={16} />
+                  )}
+                </motion.button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Quick Info */}
-        <div className="mt-4">
-          <table className="w-full border-collapse">
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[600px] border-collapse text-xs sm:text-sm">
             <thead>
               <tr className="bg-gray-50">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap">
                   Progress
                 </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap">
                   Teacher
                 </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap">
                   Registral
                 </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap">
                   Start Date
                 </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap">
                   Telegram
                 </th>
               </tr>
             </thead>
             <tbody>
               <tr className="hover:bg-gray-50 transition-colors">
-                <td className="py-3 px-4 border-b border-gray-200">
+                <td className="py-2 sm:py-3 px-2 sm:px-4 border-b border-gray-200 whitespace-nowrap">
                   <div className="flex items-center space-x-2">
                     <div className="p-2 bg-indigo-50 rounded-lg">
                       <FiBarChart2 className="text-indigo-600" size={16} />
@@ -220,7 +216,7 @@ export default function StudentCard({
                     </span>
                   </div>
                 </td>
-                <td className="py-3 px-4 border-b border-gray-200">
+                <td className="py-2 sm:py-3 px-2 sm:px-4 border-b border-gray-200 whitespace-nowrap">
                   <div className="flex items-center space-x-2">
                     <div className="p-2 bg-purple-50 rounded-lg">
                       <FiUser className="text-purple-600" size={16} />
@@ -230,7 +226,7 @@ export default function StudentCard({
                     </span>
                   </div>
                 </td>
-                <td className="py-3 px-4 border-b border-gray-200">
+                <td className="py-2 sm:py-3 px-2 sm:px-4 border-b border-gray-200 whitespace-nowrap">
                   <div className="flex items-center space-x-2">
                     <div className="p-2 bg-indigo-50 rounded-lg">
                       <FiFlag className="text-indigo-600" size={16} />
@@ -240,7 +236,7 @@ export default function StudentCard({
                     </span>
                   </div>
                 </td>
-                <td className="py-3 px-4 border-b border-gray-200">
+                <td className="py-2 sm:py-3 px-2 sm:px-4 border-b border-gray-200 whitespace-nowrap">
                   <div className="flex items-center space-x-2">
                     <div className="p-2 bg-pink-50 rounded-lg">
                       <FiCalendar className="text-pink-600" size={16} />
@@ -250,7 +246,7 @@ export default function StudentCard({
                     </span>
                   </div>
                 </td>
-                <td className="py-3 px-4 border-b border-gray-200">
+                <td className="py-2 sm:py-3 px-2 sm:px-4 border-b border-gray-200 whitespace-nowrap">
                   <div className="flex items-center space-x-2">
                     {student.chatId ? (
                       <>

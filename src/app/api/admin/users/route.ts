@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getAuthUser } from "@/lib/server-auth";
+import { getToken } from "next-auth/jwt";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-export async function GET(req: Request) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+export async function GET(req: NextRequest) {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -49,12 +49,18 @@ export async function GET(req: Request) {
             ...baseQueryArgs,
             where: whereClause,
           })
-        : prisma.wpos_wpdatatable_28.findMany({ where: { id: -1 } }),
+        : prisma.wpos_wpdatatable_28.findMany({ where: { wdt_ID: -1 } }),
       roleFilter === "teacher" || !roleFilter
         ? prisma.wpos_wpdatatable_24.findMany({
             ...baseQueryArgs,
             where: whereClauseTeacher,
-            select: { ustazid: true, ustazname: true },
+            select: {
+              ustazid: true,
+              ustazname: true,
+              phone: true,
+              controlId: true,
+              schedule: true,
+            },
           })
         : prisma.wpos_wpdatatable_24.findMany({ where: { ustazid: "-1" } }),
       roleFilter === "registral" || !roleFilter
@@ -62,7 +68,7 @@ export async function GET(req: Request) {
             ...baseQueryArgs,
             where: whereClause,
           })
-        : prisma.wpos_wpdatatable_33.findMany({ where: { id: -1 } }),
+        : prisma.wpos_wpdatatable_33.findMany({ where: { wdt_ID: -1 } }),
     ];
 
     const countQueries = [
@@ -87,9 +93,9 @@ export async function GET(req: Request) {
       await Promise.all(countQueries);
 
     type Admin = { id: number; name: string; username: string };
-    type Controller = { id: number; name: string; username: string };
-    type Teacher = { ustazid: string; ustazname: string };
-    type Registral = { id: number; name: string; username: string };
+    type Controller = { wdt_ID: number; name: string; username: string };
+    type Teacher = { ustazid: string; ustazname: string; phone?: string };
+    type Registral = { wdt_ID: number; name: string; username: string };
 
     const users = [
       ...(admins as Admin[]).map((u) => ({
@@ -99,17 +105,20 @@ export async function GET(req: Request) {
       })),
       ...(controllers as Controller[]).map((u) => ({
         ...u,
-        id: u.id.toString(),
+        id: u.wdt_ID.toString(),
         role: "controller" as const,
       })),
-      ...(teachers as Teacher[]).map((u) => ({
+      ...(teachers as any[]).map((u) => ({
         id: u.ustazid,
         name: u.ustazname,
+        phone: u.phone || "",
+        controlId: u.controlId ? String(u.controlId) : "",
+        schedule: u.schedule || "",
         role: "teacher" as const,
       })),
       ...(registrars as Registral[]).map((u) => ({
         ...u,
-        id: u.id.toString(),
+        id: u.wdt_ID.toString(),
         role: "registral" as const,
       })),
     ];
@@ -131,14 +140,23 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+export async function POST(req: NextRequest) {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const { role, name, username, password } = await req.json();
+    const reqBody = await req.json();
+    const {
+      role,
+      name,
+      username,
+      password,
+      controlId,
+      schedule = "",
+      phone = "",
+    } = reqBody;
 
     if (!role || !name || (role !== "teacher" && !username) || !password) {
       return NextResponse.json(
@@ -153,7 +171,7 @@ export async function POST(req: Request) {
     switch (role) {
       case "admin":
         newUser = await prisma.admin.create({
-          data: { name, username, password: hashedPassword },
+          data: { name, username, passcode: hashedPassword },
         });
         break;
       case "controller":
@@ -164,10 +182,31 @@ export async function POST(req: Request) {
         });
         break;
       case "teacher":
-        // Teachers have ustazid and ustazname, no username
+        if (!controlId) {
+          return NextResponse.json(
+            { error: "Controller is required" },
+            { status: 400 }
+          );
+        }
+        // Validate controller exists
+        const controller = await prisma.wpos_wpdatatable_28.findUnique({
+          where: { wdt_ID: Number(controlId) },
+        });
+        if (!controller) {
+          return NextResponse.json(
+            { error: "Controller not found" },
+            { status: 404 }
+          );
+        }
         const ustazid = name.toLowerCase().replace(/\s+/g, "") + Date.now();
         newUser = await prisma.wpos_wpdatatable_24.create({
-          data: { ustazid, ustazname: name, schedule: "", controlId: user.id },
+          data: {
+            ustazid,
+            ustazname: name,
+            schedule,
+            controlId: Number(controlId),
+            phone,
+          },
         });
         break;
       case "registral":
@@ -192,14 +231,24 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PUT(req: Request) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+export async function PUT(req: NextRequest) {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const { id, role, name, username, password } = await req.json();
+    const reqBody = await req.json();
+    const {
+      id,
+      role,
+      name,
+      username,
+      password,
+      controlId,
+      schedule = "",
+      phone = "",
+    } = reqBody;
 
     if (!id || !role || !name || (role !== "teacher" && !username)) {
       return NextResponse.json(
@@ -208,11 +257,25 @@ export async function PUT(req: Request) {
       );
     }
 
-    const data: { name: string; username?: string; password?: string } = {
+    const data: {
+      name: string;
+      username?: string;
+      passcode?: string;
+      password?: string;
+      schedule?: string;
+      controlId?: number;
+      phone?: string;
+    } = {
       name,
     };
     if (username) data.username = username;
-    if (password) data.password = await bcrypt.hash(password, 10);
+    if (password) {
+      if (role === "admin") {
+        data.passcode = await bcrypt.hash(password, 10);
+      } else {
+        data.password = await bcrypt.hash(password, 10);
+      }
+    }
 
     let updatedUser;
 
@@ -225,19 +288,40 @@ export async function PUT(req: Request) {
         break;
       case "controller":
         updatedUser = await prisma.wpos_wpdatatable_28.update({
-          where: { id: Number(id) },
+          where: { wdt_ID: Number(id) },
           data,
         });
         break;
       case "teacher":
+        if (!controlId) {
+          return NextResponse.json(
+            { error: "Controller is required" },
+            { status: 400 }
+          );
+        }
+        // Validate controller exists
+        const controller = await prisma.wpos_wpdatatable_28.findUnique({
+          where: { wdt_ID: Number(controlId) },
+        });
+        if (!controller) {
+          return NextResponse.json(
+            { error: "Controller not found" },
+            { status: 404 }
+          );
+        }
         updatedUser = await prisma.wpos_wpdatatable_24.update({
           where: { ustazid: String(id) },
-          data: { ustazname: name },
+          data: {
+            ustazname: name,
+            schedule,
+            controlId: Number(controlId),
+            phone,
+          },
         });
         break;
       case "registral":
         updatedUser = await prisma.wpos_wpdatatable_33.update({
-          where: { id: Number(id) },
+          where: { wdt_ID: Number(id) },
           data,
         });
         break;
@@ -258,9 +342,9 @@ export async function PUT(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+export async function DELETE(req: NextRequest) {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -279,7 +363,9 @@ export async function DELETE(req: Request) {
         await prisma.admin.delete({ where: { id: Number(id) } });
         break;
       case "controller":
-        await prisma.wpos_wpdatatable_28.delete({ where: { id: Number(id) } });
+        await prisma.wpos_wpdatatable_28.delete({
+          where: { wdt_ID: Number(id) },
+        });
         break;
       case "teacher":
         await prisma.wpos_wpdatatable_24.delete({
@@ -287,7 +373,9 @@ export async function DELETE(req: Request) {
         });
         break;
       case "registral":
-        await prisma.wpos_wpdatatable_33.delete({ where: { id: Number(id) } });
+        await prisma.wpos_wpdatatable_33.delete({
+          where: { wdt_ID: Number(id) },
+        });
         break;
       default:
         return NextResponse.json(

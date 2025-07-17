@@ -1,12 +1,15 @@
 import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/server-auth";
+import { getToken } from "next-auth/jwt";
 
 const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+  const session = await getToken({
+    req: req,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -120,7 +123,7 @@ export async function GET(req: NextRequest) {
       const attendance_status = dailyAttendance?.attendance_status || "Pending";
 
       return {
-        student_id: record.id,
+        student_id: record.wdt_ID,
         studentName: record.name,
         ustazName: record.teacher?.ustazid || "N/A",
         controllerName: record.controller?.name || "N/A",

@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getAuthUser } from "@/lib/server-auth";
+import { getToken } from "next-auth/jwt";
 
 const prisma = new PrismaClient();
 
-export async function GET(req: Request) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+export async function GET(req: NextRequest) {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -28,13 +28,20 @@ export async function GET(req: Request) {
       registrationdate: hasDateFilter ? dateFilter : undefined,
     };
 
-    const [studentCount, payments] = await prisma.$transaction([
-      prisma.wpos_wpdatatable_23.count({ where: studentWhere }),
-      prisma.payment.findMany({
-        where: paymentWhere,
-        select: { paidamount: true },
-      }),
-    ]);
+    const [studentCount, payments, pendingPaymentCount] =
+      await prisma.$transaction([
+        prisma.wpos_wpdatatable_23.count({ where: studentWhere }),
+        prisma.payment.findMany({
+          where: paymentWhere,
+          select: { status: true, paidamount: true },
+        }),
+        prisma.payment.count({
+          where: {
+            status: "pending",
+            ...(hasDateFilter && { paymentdate: dateFilter }),
+          },
+        }),
+      ]);
 
     const adminCount = hasDateFilter ? 0 : await prisma.admin.count();
     const controllerCount = hasDateFilter
@@ -47,11 +54,19 @@ export async function GET(req: Request) {
       ? 0
       : await prisma.wpos_wpdatatable_33.count();
 
-    const totalRevenue = payments.reduce(
-      (sum, p) => sum + p.paidamount.toNumber(),
-      0
+    const revenueByStatus = payments.reduce(
+      (acc, p) => {
+        const amount = p.paidamount?.toNumber?.() ?? 0;
+        if (p.status === "approved") acc.approved += amount;
+        else if (p.status === "pending") acc.pending += amount;
+        else if (p.status === "rejected") acc.rejected += amount;
+        return acc;
+      },
+      { approved: 0, pending: 0, rejected: 0 }
     );
-    const paymentCount = payments.length;
+
+    // Calculate total pending payment amount
+    const pendingPaymentAmount = revenueByStatus.pending;
 
     return NextResponse.json({
       admins: adminCount,
@@ -59,8 +74,10 @@ export async function GET(req: Request) {
       teachers: teacherCount,
       registrars: registralCount,
       students: studentCount,
-      totalRevenue,
-      paymentCount,
+      totalRevenue: revenueByStatus,
+      paymentCount: payments.length,
+      pendingPaymentCount,
+      pendingPaymentAmount,
     });
   } catch (error) {
     console.error("Error fetching stats:", error);

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyToken, getAuthUser } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
 import { Decimal } from "@prisma/client/runtime/library";
 import { differenceInDays } from "date-fns";
+import { getToken } from "next-auth/jwt";
+import { NextRequest } from "next/server";
 
 interface MonthlyPayment {
   id: number;
@@ -16,17 +16,20 @@ interface MonthlyPayment {
   end_date: string | null;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser();
-    console.log("Authenticated user:", user);
-    if (!user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (
+      !session ||
+      (session.role !== "controller" &&
+        session.role !== "registral" &&
+        session.role !== "admin")
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
     console.log("Request studentId:", studentId);
@@ -40,7 +43,7 @@ export async function GET(request: Request) {
 
     const student = await prisma.wpos_wpdatatable_23.findUnique({
       where: {
-        id: parseInt(studentId),
+        wdt_ID: parseInt(studentId),
       },
       select: {
         control: true,
@@ -54,11 +57,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    if (student.control !== user.username) {
-      console.log("Authorization check failed:", {
-        studentControl: student.control,
-        userUsername: user.username,
-      });
+    if (session.role === "controller" && student.control !== session.username) {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
@@ -94,16 +93,21 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
-  try {
-    const user = await getAuthUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
+export async function POST(request: NextRequest) {
+  const session = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+  if (
+    !session ||
+    (session.role !== "controller" &&
+      session.role !== "registral" &&
+      session.role !== "admin")
+  ) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
+  try {
     const body = await request.json();
     const {
       studentId,
@@ -174,12 +178,13 @@ export async function POST(request: Request) {
     // Get the student to verify ownership
     const student = await prisma.wpos_wpdatatable_23.findUnique({
       where: {
-        id: parseInt(studentId),
+        wdt_ID: parseInt(studentId),
       },
       select: {
         control: true,
         startdate: true,
         classfee: true,
+        refer: true, // <-- Add refer field
       },
     });
 
@@ -189,7 +194,7 @@ export async function POST(request: Request) {
 
     if (!student.classfee) {
       return NextResponse.json(
-        { error: "Student class fee is not set" },
+        { error: "Student has no class fee set" },
         { status: 400 }
       );
     }
@@ -201,10 +206,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if the student belongs to this controller
-    if (student.control !== user.username) {
+    // Check if the student belongs to this controller (for controller role)
+    if (session.role === "controller" && student.control !== session.username) {
       return NextResponse.json(
-        { error: "Unauthorized access" },
+        { error: "You are not authorized to add payments for this student" },
         { status: 403 }
       );
     }
@@ -418,6 +423,32 @@ export async function POST(request: Request) {
         free_month_reason: payment_type === "free" ? free_month_reason : null,
       },
     });
+
+    // Controller Earnings Logic
+    if (
+      paymentStatus === "approved" &&
+      student.refer &&
+      Number(paidAmount) > 0 &&
+      ["full", "partial", "prizepartial"].includes(payment_type)
+    ) {
+      // Only one earning per student per month
+      const existingEarning = await prisma.controllerEarning.findFirst({
+        where: {
+          controllerUsername: student.refer,
+          studentId: parseInt(studentId),
+        },
+      });
+      if (!existingEarning) {
+        await prisma.controllerEarning.create({
+          data: {
+            controllerUsername: student.refer,
+            studentId: parseInt(studentId),
+            paymentId: monthlyPayment.id,
+            amount: (Number(paidAmount) * 0.1).toFixed(2), // 10% commission
+          },
+        });
+      }
+    }
 
     return NextResponse.json(monthlyPayment);
   } catch (error) {

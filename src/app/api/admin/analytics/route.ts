@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getAuthUser } from "@/lib/server-auth";
+import { getToken } from "next-auth/jwt";
 
 const prisma = new PrismaClient();
 
-export async function GET(req: Request) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+export async function GET(req: NextRequest) {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     const registrationData = await prisma.wpos_wpdatatable_23.groupBy({
       by: ["registrationdate"],
       _count: {
-        id: true,
+        wdt_ID: true,
       },
       where: {
         registrationdate: hasDateFilter ? dateFilter : undefined,
@@ -58,8 +58,9 @@ export async function GET(req: Request) {
     });
 
     const monthlyRegistrations = registrationData.reduce((acc, reg) => {
+      if (!reg.registrationdate) return acc;
       const month = new Date(reg.registrationdate).toISOString().slice(0, 7); // YYYY-MM
-      const count = reg._count.id;
+      const count = reg._count.wdt_ID;
       acc[month] = (acc[month] || 0) + count;
       return acc;
     }, {} as Record<string, number>);

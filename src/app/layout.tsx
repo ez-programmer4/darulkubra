@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
-import { AuthProvider } from "./context/AuthContext";
+import { SessionProvider } from "next-auth/react";
 import { Inter } from "next/font/google";
 
 // const inter = Inter({ subsets: ["latin"] });
@@ -20,10 +20,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <AuthProvider>
+        <SessionProvider>
           <Toaster position="top-center" />
           {children}
-        </AuthProvider>
+        </SessionProvider>
       </body>
     </html>
   );

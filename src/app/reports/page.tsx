@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../context/AuthContext";
+import { useSession } from "next-auth/react";
 import { Toaster, toast } from "react-hot-toast";
+import ReportsSkeleton from "./ReportsSkeleton";
 import {
   FiArrowLeft,
   FiDownload,
@@ -17,6 +18,7 @@ import {
   FiAlertTriangle,
   FiCheckCircle,
   FiInfo,
+  FiPieChart,
 } from "react-icons/fi";
 import {
   format,
@@ -29,6 +31,23 @@ import {
   subWeeks,
   subMonths,
 } from "date-fns";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+} from "recharts";
 
 interface ReportData {
   reportType: string;
@@ -51,8 +70,10 @@ interface ReportData {
 }
 
 export default function ReportsPage() {
-  const { user } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
+
+  // Move all hooks to the top before any conditional returns
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [startDate, setStartDate] = useState(
@@ -60,6 +81,20 @@ export default function ReportsPage() {
   );
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [reportType, setReportType] = useState("comprehensive");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [attendanceFilter, setAttendanceFilter] = useState("all");
+  const [teacherFilter, setTeacherFilter] = useState("all");
+  const [packageFilter, setPackageFilter] = useState("all");
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [scheduledReports, setScheduledReports] = useState<any[]>([]);
+  const [scheduleFrequency, setScheduleFrequency] = useState("weekly");
+  const [scheduleDay, setScheduleDay] = useState("monday");
+  const [scheduleTime, setScheduleTime] = useState("09:00");
+
+  // Now add the conditional returns after all hooks
+  if (status === "loading") return <ReportsSkeleton />;
+  if (status === "unauthenticated") return <div>Unauthorized</div>;
+  const user = session?.user;
 
   const datePresets = [
     {
@@ -160,24 +195,6 @@ export default function ReportsPage() {
     setEndDate(dates.end);
   };
 
-  const exportReport = () => {
-    if (!reportData) return;
-
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], {
-      type: "application/json",
-    });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance_report_${reportType}_${format(
-      parseISO(startDate),
-      "yyyyMMdd"
-    )}_${format(parseISO(endDate), "yyyyMMdd")}.json`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    toast.success("Report exported successfully!");
-  };
-
   const exportCSV = () => {
     if (!reportData) return;
 
@@ -221,6 +238,301 @@ export default function ReportsPage() {
     a.click();
     window.URL.revokeObjectURL(url);
     toast.success("CSV exported successfully!");
+  };
+
+  const exportPDF = () => {
+    if (!reportData) return;
+
+    // Create a formatted PDF report
+    const pdfContent = `
+Attendance Report - ${reportData.reportType.toUpperCase()}
+Period: ${format(
+      parseISO(reportData.period.startDate),
+      "MMM dd, yyyy"
+    )} - ${format(parseISO(reportData.period.endDate), "MMM dd, yyyy")}
+
+${
+  reportData.summary
+    ? `
+SUMMARY:
+- Total Students: ${reportData.summary.totalStudents}
+- Total Sessions: ${reportData.summary.totalSessions}
+- Overall Attendance Rate: ${reportData.summary.overallAttendanceRate}%
+- Present Sessions: ${reportData.summary.totalPresent}
+- Absent Sessions: ${reportData.summary.totalAbsent}
+- Permission Sessions: ${reportData.summary.totalPermission}
+`
+    : ""
+}
+
+${
+  reportData.recommendations && reportData.recommendations.length > 0
+    ? `
+RECOMMENDATIONS:
+${reportData.recommendations
+  .map((rec, index) => `${index + 1}. ${rec.message}`)
+  .join("\n")}
+`
+    : ""
+}
+
+${
+  reportData.studentDetails
+    ? `
+TOP STUDENTS (First 10):
+${reportData.studentDetails
+  .slice(0, 10)
+  .map(
+    (student, index) =>
+      `${index + 1}. ${student.studentName} - ${student.attendanceRate}% (${
+        student.presentSessions
+      }/${student.totalSessions})`
+  )
+  .join("\n")}
+`
+    : ""
+}
+
+${
+  reportData.teacherDetails
+    ? `
+TEACHER PERFORMANCE (First 10):
+${reportData.teacherDetails
+  .slice(0, 10)
+  .map(
+    (teacher, index) =>
+      `${index + 1}. ${teacher.teacherName} - ${teacher.attendanceRate}% (${
+        teacher.totalStudents
+      } students)`
+  )
+  .join("\n")}
+`
+    : ""
+}
+
+Generated on: ${new Date().toLocaleString()}
+    `;
+
+    const blob = new Blob([pdfContent], { type: "text/plain" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `attendance_report_${reportType}_${format(
+      parseISO(startDate),
+      "yyyyMMdd"
+    )}_${format(parseISO(endDate), "yyyyMMdd")}.txt`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success("Report exported as text file!");
+  };
+
+  const exportExcel = () => {
+    if (!reportData) return;
+
+    // Create a more detailed Excel-like format
+    let excelContent = "";
+
+    // Summary Sheet
+    excelContent += "SUMMARY SHEET\n";
+    excelContent +=
+      "Report Type,Period Start,Period End,Total Students,Total Sessions,Overall Attendance Rate,Present Sessions,Absent Sessions,Permission Sessions\n";
+    excelContent += `"${reportData.reportType}","${reportData.period.startDate}","${reportData.period.endDate}"`;
+
+    if (reportData.summary) {
+      excelContent += `,${reportData.summary.totalStudents},${reportData.summary.totalSessions},${reportData.summary.overallAttendanceRate},${reportData.summary.totalPresent},${reportData.summary.totalAbsent},${reportData.summary.totalPermission}`;
+    }
+    excelContent += "\n\n";
+
+    // Student Details Sheet
+    if (reportData.studentDetails) {
+      excelContent += "STUDENT DETAILS SHEET\n";
+      excelContent +=
+        "Student Name,Teacher Name,Phone Number,Attendance Rate,Total Sessions,Present Sessions,Absent Sessions,Permission Sessions,Max Consecutive Absences,Last Attendance,Status,Package,Subject\n";
+      reportData.studentDetails.forEach((student: any) => {
+        excelContent += `"${student.studentName}","${student.teacherName}","${
+          student.phoneNumber || ""
+        }",${student.attendanceRate},${student.totalSessions},${
+          student.presentSessions
+        },${student.absentSessions},${student.permissionSessions},${
+          student.maxConsecutiveAbsences || 0
+        },"${student.lastAttendance || ""}","${student.status || ""}","${
+          student.package || ""
+        }","${student.subject || ""}"\n`;
+      });
+      excelContent += "\n";
+    }
+
+    // Teacher Details Sheet
+    if (reportData.teacherDetails) {
+      excelContent += "TEACHER DETAILS SHEET\n";
+      excelContent +=
+        "Teacher Name,Total Students,Attendance Rate,Total Sessions,Present Sessions,Absent Sessions,Permission Sessions\n";
+      reportData.teacherDetails.forEach((teacher: any) => {
+        excelContent += `"${teacher.teacherName}",${teacher.totalStudents},${teacher.attendanceRate},${teacher.totalSessions},${teacher.presentSessions},${teacher.absentSessions},${teacher.permissionSessions}\n`;
+      });
+      excelContent += "\n";
+    }
+
+    // Daily Data Sheet
+    if (reportData.dailyData) {
+      excelContent += "DAILY DATA SHEET\n";
+      excelContent += "Date,Total,Present,Absent,Permission,Attendance Rate\n";
+      reportData.dailyData.forEach((day: any) => {
+        excelContent += `${day.date},${day.total},${day.present},${day.absent},${day.permission},${day.attendanceRate}\n`;
+      });
+      excelContent += "\n";
+    }
+
+    // Recommendations Sheet
+    if (reportData.recommendations) {
+      excelContent += "RECOMMENDATIONS SHEET\n";
+      excelContent += "Priority,Type,Message,Students,Teachers\n";
+      reportData.recommendations.forEach((rec: any) => {
+        excelContent += `"${rec.priority}","${rec.type}","${rec.message}","${
+          rec.students ? rec.students.join("; ") : ""
+        }","${rec.teachers ? rec.teachers.join("; ") : ""}"\n`;
+      });
+    }
+
+    const blob = new Blob([excelContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `detailed_report_${reportType}_${format(
+      parseISO(startDate),
+      "yyyyMMdd"
+    )}_${format(parseISO(endDate), "yyyyMMdd")}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success("Detailed Excel report exported successfully!");
+  };
+
+  // Filtering logic
+  const getFilteredStudents = () => {
+    if (!reportData?.studentDetails) return [];
+
+    let filtered = reportData.studentDetails;
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (student: any) =>
+          student.studentName
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          student.teacherName
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          (student.phoneNumber && student.phoneNumber.includes(searchTerm))
+      );
+    }
+
+    // Attendance rate filter
+    if (attendanceFilter !== "all") {
+      switch (attendanceFilter) {
+        case "excellent":
+          filtered = filtered.filter(
+            (student: any) => student.attendanceRate >= 90
+          );
+          break;
+        case "good":
+          filtered = filtered.filter(
+            (student: any) =>
+              student.attendanceRate >= 80 && student.attendanceRate < 90
+          );
+          break;
+        case "fair":
+          filtered = filtered.filter(
+            (student: any) =>
+              student.attendanceRate >= 70 && student.attendanceRate < 80
+          );
+          break;
+        case "poor":
+          filtered = filtered.filter(
+            (student: any) => student.attendanceRate < 70
+          );
+          break;
+      }
+    }
+
+    // Teacher filter
+    if (teacherFilter !== "all") {
+      filtered = filtered.filter(
+        (student: any) => student.teacherName === teacherFilter
+      );
+    }
+
+    // Package filter
+    if (packageFilter !== "all") {
+      filtered = filtered.filter(
+        (student: any) => student.package === packageFilter
+      );
+    }
+
+    return filtered;
+  };
+
+  const getFilteredTeachers = () => {
+    if (!reportData?.teacherDetails) return [];
+
+    let filtered = reportData.teacherDetails;
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter((teacher: any) =>
+        teacher.teacherName.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Attendance rate filter
+    if (attendanceFilter !== "all") {
+      switch (attendanceFilter) {
+        case "excellent":
+          filtered = filtered.filter(
+            (teacher: any) => teacher.attendanceRate >= 90
+          );
+          break;
+        case "good":
+          filtered = filtered.filter(
+            (teacher: any) =>
+              teacher.attendanceRate >= 80 && teacher.attendanceRate < 90
+          );
+          break;
+        case "fair":
+          filtered = filtered.filter(
+            (teacher: any) =>
+              teacher.attendanceRate >= 70 && teacher.attendanceRate < 80
+          );
+          break;
+        case "poor":
+          filtered = filtered.filter(
+            (teacher: any) => teacher.attendanceRate < 70
+          );
+          break;
+      }
+    }
+
+    return filtered;
+  };
+
+  const getUniqueTeachers = () => {
+    if (!reportData?.studentDetails) return [];
+    return [
+      ...new Set(
+        reportData.studentDetails.map((student: any) => student.teacherName)
+      ),
+    ];
+  };
+
+  const getUniquePackages = () => {
+    if (!reportData?.studentDetails) return [];
+    return [
+      ...new Set(
+        reportData.studentDetails
+          .map((student: any) => student.package)
+          .filter(Boolean)
+      ),
+    ];
   };
 
   return (
@@ -334,8 +646,8 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Generate Button */}
-        <div className="mt-6 flex justify-center">
+        {/* Generate Button and Scheduling */}
+        <div className="mt-6 flex flex-col sm:flex-row justify-center gap-4">
           <button
             onClick={generateReport}
             disabled={loading}
@@ -371,12 +683,6 @@ export default function ReportsPage() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={exportReport}
-                  className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-lg hover:from-green-600 hover:to-green-800 flex items-center shadow-md transition-transform hover:scale-105"
-                >
-                  <FiDownload className="mr-2" /> Export JSON
-                </button>
                 <button
                   onClick={exportCSV}
                   className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-lg hover:from-blue-600 hover:to-blue-800 flex items-center shadow-md transition-transform hover:scale-105"
@@ -448,6 +754,339 @@ export default function ReportsPage() {
             </div>
           )}
 
+          {/* Interactive Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Attendance Trends Chart */}
+            {reportData.dailyData && reportData.dailyData.length > 0 && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <FiBarChart className="mr-2 text-blue-500" />
+                  Attendance Trends
+                </h3>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={reportData.dailyData.slice(-14)}
+                      margin={{
+                        top: 5,
+                        right: 30,
+                        left: 20,
+                        bottom: 5,
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(value) =>
+                          format(parseISO(value), "MM/dd")
+                        }
+                        stroke="#6b7280"
+                        fontSize={12}
+                      />
+                      <YAxis
+                        stroke="#6b7280"
+                        fontSize={12}
+                        domain={[0, 100]}
+                        tickFormatter={(value) => `${value}%`}
+                      />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (
+                            active &&
+                            payload &&
+                            payload.length &&
+                            typeof label === "string"
+                          ) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                <p className="font-medium text-gray-800">
+                                  {format(parseISO(label), "MMM dd, yyyy")}
+                                </p>
+                                <p className="text-sm text-green-600">
+                                  Attendance Rate: {data.attendanceRate}%
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Present: {data.present} | Absent:{" "}
+                                  {data.absent} | Permission: {data.permission}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Total: {data.total} students
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="attendanceRate"
+                        stroke="#10b981"
+                        strokeWidth={3}
+                        dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
+                        activeDot={{ r: 6, stroke: "#10b981", strokeWidth: 2 }}
+                        name="Attendance Rate (%)"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Student Performance Distribution */}
+            {reportData.studentDetails &&
+              reportData.studentDetails.length > 0 && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <FiUsers className="mr-2 text-purple-500" />
+                    Student Performance Distribution
+                  </h3>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={[
+                          {
+                            range: "90-100%",
+                            count: reportData.studentDetails.filter(
+                              (s: any) => s.attendanceRate >= 90
+                            ).length,
+                            color: "#10b981",
+                          },
+                          {
+                            range: "80-89%",
+                            count: reportData.studentDetails.filter(
+                              (s: any) =>
+                                s.attendanceRate >= 80 && s.attendanceRate < 90
+                            ).length,
+                            color: "#3b82f6",
+                          },
+                          {
+                            range: "70-79%",
+                            count: reportData.studentDetails.filter(
+                              (s: any) =>
+                                s.attendanceRate >= 70 && s.attendanceRate < 80
+                            ).length,
+                            color: "#f59e0b",
+                          },
+                          {
+                            range: "60-69%",
+                            count: reportData.studentDetails.filter(
+                              (s: any) =>
+                                s.attendanceRate >= 60 && s.attendanceRate < 70
+                            ).length,
+                            color: "#ef4444",
+                          },
+                          {
+                            range: "< 60%",
+                            count: reportData.studentDetails.filter(
+                              (s: any) => s.attendanceRate < 60
+                            ).length,
+                            color: "#dc2626",
+                          },
+                        ]}
+                        margin={{
+                          top: 5,
+                          right: 30,
+                          left: 20,
+                          bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="range" stroke="#6b7280" fontSize={12} />
+                        <YAxis stroke="#6b7280" fontSize={12} />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                  <p className="font-medium text-gray-800">
+                                    {data.range} Attendance Rate
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    Students: {data.count}
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar
+                          dataKey="count"
+                          fill="#8884d8"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+            {/* Teacher Performance Comparison */}
+            {reportData.teacherDetails &&
+              reportData.teacherDetails.length > 0 && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <FiUser className="mr-2 text-indigo-500" />
+                    Teacher Performance Comparison
+                  </h3>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={reportData.teacherDetails
+                          .slice(0, 10)
+                          .map((teacher: any) => ({
+                            name: teacher.teacherName,
+                            attendanceRate: teacher.attendanceRate,
+                            students: teacher.totalStudents,
+                            color:
+                              teacher.attendanceRate >= 90
+                                ? "#10b981"
+                                : teacher.attendanceRate >= 75
+                                ? "#3b82f6"
+                                : teacher.attendanceRate >= 60
+                                ? "#f59e0b"
+                                : "#ef4444",
+                          }))}
+                        margin={{
+                          top: 5,
+                          right: 30,
+                          left: 20,
+                          bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis
+                          dataKey="name"
+                          stroke="#6b7280"
+                          fontSize={10}
+                          angle={-45}
+                          textAnchor="end"
+                        />
+                        <YAxis
+                          stroke="#6b7280"
+                          fontSize={12}
+                          domain={[0, 100]}
+                          tickFormatter={(value) => `${value}%`}
+                        />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                  <p className="font-medium text-gray-800">
+                                    {data.name}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    Attendance Rate: {data.attendanceRate}%
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    Students: {data.students}
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar
+                          dataKey="attendanceRate"
+                          fill="#8884d8"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+            {/* Attendance Status Distribution */}
+            {reportData.summary && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <FiPieChart className="mr-2 text-green-500" />
+                  Attendance Status Distribution
+                </h3>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          {
+                            name: "Present",
+                            value: reportData.summary.totalPresent,
+                            color: "#10b981",
+                          },
+                          {
+                            name: "Absent",
+                            value: reportData.summary.totalAbsent,
+                            color: "#ef4444",
+                          },
+                          {
+                            name: "Permission",
+                            value: reportData.summary.totalPermission,
+                            color: "#f59e0b",
+                          },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) =>
+                          `${name} ${((percent || 0) * 100).toFixed(0)}%`
+                        }
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {[
+                          {
+                            name: "Present",
+                            value: reportData.summary.totalPresent,
+                            color: "#10b981",
+                          },
+                          {
+                            name: "Absent",
+                            value: reportData.summary.totalAbsent,
+                            color: "#ef4444",
+                          },
+                          {
+                            name: "Permission",
+                            value: reportData.summary.totalPermission,
+                            color: "#f59e0b",
+                          },
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                <p className="font-medium text-gray-800">
+                                  {data.name}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Count: {data.value}
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Recommendations */}
           {reportData.recommendations &&
             reportData.recommendations.length > 0 && (
@@ -500,11 +1139,149 @@ export default function ReportsPage() {
               </div>
             )}
 
+          {/* Enhanced Export Options */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <FiDownload className="mr-2 text-green-500" />
+              Export Options
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <button
+                onClick={exportCSV}
+                className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 flex flex-col items-center shadow-md transition-transform hover:scale-105"
+              >
+                <FiDownload className="text-2xl mb-2" />
+                <span className="font-medium">CSV Export</span>
+                <span className="text-xs opacity-75">Spreadsheet format</span>
+              </button>
+
+              <button
+                onClick={() => exportPDF()}
+                className="p-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 flex flex-col items-center shadow-md transition-transform hover:scale-105"
+              >
+                <FiDownload className="text-2xl mb-2" />
+                <span className="font-medium">PDF Export</span>
+                <span className="text-xs opacity-75">Printable format</span>
+              </button>
+
+              <button
+                onClick={() => exportExcel()}
+                className="p-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 flex flex-col items-center shadow-md transition-transform hover:scale-105"
+              >
+                <FiDownload className="text-2xl mb-2" />
+                <span className="font-medium">Excel Export</span>
+                <span className="text-xs opacity-75">Advanced format</span>
+              </button>
+            </div>
+          </div>
+
           {/* Detailed Data Tables */}
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
               Detailed Data
             </h3>
+
+            {/* Search and Filter Controls */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Search Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Search
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Search students, teachers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                  />
+                </div>
+
+                {/* Attendance Rate Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Attendance Rate
+                  </label>
+                  <select
+                    value={attendanceFilter}
+                    onChange={(e) => setAttendanceFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                  >
+                    <option value="all">All Rates</option>
+                    <option value="excellent">Excellent (90%+)</option>
+                    <option value="good">Good (80-89%)</option>
+                    <option value="fair">Fair (70-79%)</option>
+                    <option value="poor">Poor (&lt;70%)</option>
+                  </select>
+                </div>
+
+                {/* Teacher Filter */}
+                {reportType === "student" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Teacher
+                    </label>
+                    <select
+                      value={teacherFilter}
+                      onChange={(e) => setTeacherFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                    >
+                      <option value="all">All Teachers</option>
+                      {getUniqueTeachers().map((teacher) => (
+                        <option key={teacher} value={teacher}>
+                          {teacher}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Package Filter */}
+                {reportType === "student" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Package
+                    </label>
+                    <select
+                      value={packageFilter}
+                      onChange={(e) => setPackageFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                    >
+                      <option value="all">All Packages</option>
+                      {getUniquePackages().map((pkg) => (
+                        <option key={pkg} value={pkg}>
+                          {pkg}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Results Summary */}
+              <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+                <span>
+                  Showing{" "}
+                  {reportType === "student"
+                    ? getFilteredStudents().length
+                    : getFilteredTeachers().length}{" "}
+                  results
+                  {searchTerm && ` for "${searchTerm}"`}
+                </span>
+                <button
+                  onClick={() => {
+                    setSearchTerm("");
+                    setAttendanceFilter("all");
+                    setTeacherFilter("all");
+                    setPackageFilter("all");
+                  }}
+                  className="text-indigo-600 hover:text-indigo-800 font-medium"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
 
             {reportType === "student" && reportData.studentDetails && (
               <div className="overflow-x-auto">
@@ -529,7 +1306,7 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {reportData.studentDetails
+                    {getFilteredStudents()
                       .slice(0, 20)
                       .map((student: any) => (
                         <tr key={student.studentId}>
@@ -592,7 +1369,7 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {reportData.teacherDetails
+                    {getFilteredTeachers()
                       .slice(0, 20)
                       .map((teacher: any) => (
                         <tr key={teacher.teacherId}>

@@ -14,9 +14,18 @@ import {
   Line,
   BarChart,
   Bar,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import { DatePickerWithRange } from "./DateRangePicker";
-import { FiStar, FiUserCheck } from "react-icons/fi";
+import {
+  FiStar,
+  FiUserCheck,
+  FiTrendingUp,
+  FiTrendingDown,
+  FiPercent,
+} from "react-icons/fi";
 
 interface ChartContainerProps {
   title: string;
@@ -130,13 +139,82 @@ export function AttendanceAnalytics({
         });
         if (controllerId) {
           params.append("controllerId", controllerId);
+          console.log("Fetching data for controllerId:", controllerId); // Debug controller selection
         }
         const response = await fetch(
           `/api/admin/attendance/analytics?${params.toString()}`
         );
         if (!response.ok) throw new Error("Failed to fetch analytics data");
         const result: AnalyticsData = await response.json();
-        setData(result);
+        console.log(
+          "Raw API Data for controllerId:",
+          controllerId,
+          JSON.stringify(result, null, 2)
+        ); // Debug with formatted JSON
+        // Validate and sanitize API data
+        const sanitizedResult = {
+          dailyTrend: Array.isArray(result.dailyTrend)
+            ? result.dailyTrend.map((d) => ({
+                date: d.date || "",
+                "Attendance Rate":
+                  typeof d["Attendance Rate"] === "number" &&
+                  !isNaN(d["Attendance Rate"])
+                    ? d["Attendance Rate"]
+                    : 0,
+                Present:
+                  typeof d.Present === "number" && !isNaN(d.Present)
+                    ? d.Present
+                    : 0,
+                Absent:
+                  typeof d.Absent === "number" && !isNaN(d.Absent)
+                    ? d.Absent
+                    : 0,
+                Total:
+                  typeof d.Total === "number" && !isNaN(d.Total) ? d.Total : 0,
+              }))
+            : [],
+          controllerData: Array.isArray(result.controllerData)
+            ? result.controllerData.map((d) => ({
+                name: d.name || "Unknown",
+                "Attendance Rate":
+                  typeof d["Attendance Rate"] === "number" &&
+                  !isNaN(d["Attendance Rate"])
+                    ? d["Attendance Rate"]
+                    : 0,
+                Present:
+                  typeof d.Present === "number" && !isNaN(d.Present)
+                    ? d.Present
+                    : 0,
+                Absent:
+                  typeof d.Absent === "number" && !isNaN(d.Absent)
+                    ? d.Absent
+                    : 0,
+                Total:
+                  typeof d.Total === "number" && !isNaN(d.Total) ? d.Total : 0,
+              }))
+            : [],
+          teacherData: Array.isArray(result.teacherData)
+            ? result.teacherData.map((d) => ({
+                name: d.name || "Unknown",
+                "Attendance Rate":
+                  typeof d["Attendance Rate"] === "number" &&
+                  !isNaN(d["Attendance Rate"])
+                    ? d["Attendance Rate"]
+                    : 0,
+                Present:
+                  typeof d.Present === "number" && !isNaN(d.Present)
+                    ? d.Present
+                    : 0,
+                Absent:
+                  typeof d.Absent === "number" && !isNaN(d.Absent)
+                    ? d.Absent
+                    : 0,
+                Total:
+                  typeof d.Total === "number" && !isNaN(d.Total) ? d.Total : 0,
+              }))
+            : [],
+        };
+        setData(sanitizedResult);
       } catch (err: unknown) {
         if (err instanceof Error) {
           setError(err.message);
@@ -151,13 +229,182 @@ export function AttendanceAnalytics({
     fetchData();
   }, [date, controllerId]);
 
+  // Filter out invalid data points for charts
+  function isValidDataPoint(d: any) {
+    return (
+      d &&
+      typeof d["Attendance Rate"] === "number" &&
+      !isNaN(d["Attendance Rate"]) &&
+      typeof d.Present === "number" &&
+      !isNaN(d.Present) &&
+      typeof d.Absent === "number" &&
+      !isNaN(d.Absent) &&
+      typeof d.Total === "number" &&
+      !isNaN(d.Total) &&
+      (d.date || d.name) // Ensure date or name exists for chart keys
+    );
+  }
+  const filteredDailyTrend = (data?.dailyTrend || []).filter(isValidDataPoint);
+  const filteredControllerData = (data?.controllerData || [])
+    .filter(isValidDataPoint)
+    .slice(0, 10); // Limit to top 10
+  const filteredTeacherData = (data?.teacherData || [])
+    .filter(isValidDataPoint)
+    .slice(0, 10); // Limit to top 10
+
+  console.log(
+    "Filtered Daily Trend for controllerId:",
+    controllerId,
+    filteredDailyTrend
+  ); // Debug filtered data
+  console.log(
+    "Filtered Controller Data for controllerId:",
+    controllerId,
+    filteredControllerData
+  ); // Debug filtered data
+  console.log(
+    "Filtered Teacher Data for controllerId:",
+    controllerId,
+    filteredTeacherData
+  ); // Debug filtered data
+
+  const hasValidDailyTrend = filteredDailyTrend.length > 0;
+  const hasValidControllerData = filteredControllerData.length > 0;
+  const hasValidTeacherData = filteredTeacherData.length > 0;
+
   const topController = data?.controllerData?.[0];
   const topTeacher = data?.teacherData?.[0];
+
+  // --- New: Calculate summary stats and moving average ---
+  const presentTotal = filteredDailyTrend.reduce(
+    (sum, d) => sum + d.Present,
+    0
+  );
+  const absentTotal = filteredDailyTrend.reduce((sum, d) => sum + d.Absent, 0);
+  const totalSessions = filteredDailyTrend.reduce((sum, d) => sum + d.Total, 0);
+  const avgAttendanceRate =
+    filteredDailyTrend.length > 0
+      ? Math.round(
+          (filteredDailyTrend.reduce(
+            (sum, d) => sum + d["Attendance Rate"],
+            0
+          ) /
+            filteredDailyTrend.length) *
+            10
+        ) / 10
+      : 0;
+  const bestDay = filteredDailyTrend.reduce(
+    (best, d) =>
+      d["Attendance Rate"] > (best?.["Attendance Rate"] ?? -1) ? d : best,
+    null as null | (typeof filteredDailyTrend)[0]
+  );
+  const worstDay = filteredDailyTrend.reduce(
+    (worst, d) =>
+      d["Attendance Rate"] < (worst?.["Attendance Rate"] ?? 101) ? d : worst,
+    null as null | (typeof filteredDailyTrend)[0]
+  );
+  // 7-day moving average
+  const movingAvg = filteredDailyTrend.map((d, i, arr) => {
+    const window = arr.slice(Math.max(0, i - 6), i + 1);
+    const avg =
+      window.reduce((sum, w) => sum + w["Attendance Rate"], 0) / window.length;
+    return { ...d, movingAvg: Math.round(avg * 10) / 10 };
+  });
+  // Pie chart data
+  const pieData = [
+    { name: "Present", value: presentTotal },
+    { name: "Absent", value: absentTotal },
+  ];
+  const PIE_COLORS = ["#34d399", "#6366f1"];
 
   return (
     <>
       <div className="flex justify-end mb-6">
         <DatePickerWithRange date={date} setDate={setDate} />
+      </div>
+
+      {/* Summary Cards */}
+      <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-indigo-500 flex items-center gap-4">
+          <FiPercent className="text-2xl text-indigo-500" />
+          <div>
+            <div className="text-gray-500">Avg. Attendance Rate</div>
+            <div className="text-2xl font-bold">{avgAttendanceRate}%</div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500 flex items-center gap-4">
+          <FiTrendingUp className="text-2xl text-green-500" />
+          <div>
+            <div className="text-gray-500">Best Day</div>
+            <div className="text-lg font-bold">
+              {bestDay
+                ? `${bestDay.date} (${bestDay["Attendance Rate"]}%)`
+                : "-"}
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500 flex items-center gap-4">
+          <FiTrendingDown className="text-2xl text-red-500" />
+          <div>
+            <div className="text-gray-500">Worst Day</div>
+            <div className="text-lg font-bold">
+              {worstDay
+                ? `${worstDay.date} (${worstDay["Attendance Rate"]}%)`
+                : "-"}
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-teal-500 flex items-center gap-4">
+          <FiUserCheck className="text-2xl text-teal-500" />
+          <div>
+            <div className="text-gray-500">Total Sessions</div>
+            <div className="text-2xl font-bold">{totalSessions}</div>
+          </div>
+        </div>
+      </div>
+      {/* New: Pie and Stacked Bar Charts */}
+      <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <ChartContainer title="Present vs Absent (Pie)">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                fill="#8884d8"
+                label
+              >
+                {pieData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={PIE_COLORS[index % PIE_COLORS.length]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+        <ChartContainer title="Daily Present/Absent (Stacked Bar)">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={filteredDailyTrend}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="date"
+                tickFormatter={(str) => format(new Date(str), "MMM d")}
+              />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="Present" stackId="a" fill="#34d399" />
+              <Bar dataKey="Absent" stackId="a" fill="#6366f1" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartContainer>
       </div>
 
       {loading ? (
@@ -169,109 +416,138 @@ export function AttendanceAnalytics({
         <div className="text-center text-red-500 col-span-full">
           Error: {error}
         </div>
+      ) : hasValidControllerData && hasValidTeacherData ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <PerformerCard
+            title="Top Performing Controller"
+            name={topController?.name || "-"}
+            rate={topController?.["Attendance Rate"] ?? 0}
+            present={topController?.Present ?? 0}
+            total={topController?.Total ?? 0}
+            icon={<FiStar />}
+            borderColor="border-green-500"
+            textColor="text-green-600"
+          />
+          <PerformerCard
+            title="Top Performing Teacher"
+            name={topTeacher?.name || "-"}
+            rate={topTeacher?.["Attendance Rate"] ?? 0}
+            present={topTeacher?.Present ?? 0}
+            total={topTeacher?.Total ?? 0}
+            icon={<FiUserCheck />}
+            borderColor="border-blue-500"
+            textColor="text-blue-500"
+          />
+        </div>
       ) : (
-        topController &&
-        topTeacher && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <PerformerCard
-              title="Top Performing Controller"
-              name={topController.name}
-              rate={topController["Attendance Rate"]}
-              present={topController.Present}
-              total={topController.Total}
-              icon={<FiStar />}
-              borderColor="border-green-500"
-              textColor="text-green-600"
-            />
-            <PerformerCard
-              title="Top Performing Teacher"
-              name={topTeacher.name}
-              rate={topTeacher["Attendance Rate"]}
-              present={topTeacher.Present}
-              total={topTeacher.Total}
-              icon={<FiUserCheck />}
-              borderColor="border-blue-500"
-              textColor="text-blue-600"
-            />
-          </div>
-        )
+        <div className="col-span-full text-center text-blue-500 py-8">
+          No attendance data available for the selected controller and date
+          range.
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {loading ? (
-          <>
-            <ChartSkeleton />
-            <ChartSkeleton />
-            <ChartSkeleton />
-          </>
-        ) : (
-          data && (
-            <>
-              <ChartContainer title="Daily Attendance Rate Trend">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.dailyTrend}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={(str) => format(new Date(str), "MMM d")}
-                    />
-                    <YAxis
-                      yAxisId="left"
-                      label={{
-                        value: "Rate (%)",
-                        angle: -90,
-                        position: "insideLeft",
-                      }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="Attendance Rate"
-                      stroke="#8884d8"
-                      activeDot={{ r: 8 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+        {/* Enhanced: Line chart with moving average */}
+        <ChartContainer title="Daily Attendance Rate Trend (with 7-day Moving Avg)">
+          <ResponsiveContainer width="100%" height="100%">
+            {hasValidDailyTrend ? (
+              <LineChart data={movingAvg}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(str) => format(new Date(str), "MMM d")}
+                  type="category"
+                />
+                <YAxis
+                  yAxisId="left"
+                  label={{
+                    value: "Rate (%)",
+                    angle: -90,
+                    position: "insideLeft",
+                  }}
+                  domain={[0, 100]}
+                  type="number"
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="Attendance Rate"
+                  stroke="#6366f1"
+                  activeDot={{ r: 8 }}
+                  isAnimationActive={false}
+                />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="movingAvg"
+                  stroke="#34d399"
+                  strokeDasharray="5 5"
+                  dot={false}
+                  name="7-day Moving Avg"
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            ) : (
+              <div className="flex items-center justify-center h-full text-blue-400">
+                No data available.
+              </div>
+            )}
+          </ResponsiveContainer>
+        </ChartContainer>
 
-              <ChartContainer title="Controller Performance (Top 10)">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={data.controllerData.slice(0, 10)}
-                    layout="vertical"
-                    margin={{ left: 20, right: 20 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" domain={[0, 100]} />
-                    <YAxis dataKey="name" type="category" width={80} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    <Bar dataKey="Attendance Rate" fill="#82ca9d" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+        <ChartContainer title="Controller Performance (Top 10)">
+          <ResponsiveContainer width="100%" height="100%">
+            {hasValidControllerData ? (
+              <BarChart
+                data={filteredControllerData}
+                margin={{ left: 20, right: 20 }} // Removed layout="vertical" for simplicity
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" domain={[0, 100]} />
+                <YAxis dataKey="name" type="category" width={80} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+                <Bar
+                  dataKey="Attendance Rate"
+                  fill="#82ca9d"
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            ) : (
+              <div className="flex items-center justify-center h-full text-blue-400">
+                No data available.
+              </div>
+            )}
+          </ResponsiveContainer>
+        </ChartContainer>
 
-              <ChartContainer title="Teacher Performance (Top 10)">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={data.teacherData.slice(0, 10)}
-                    layout="vertical"
-                    margin={{ left: 20, right: 20 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" domain={[0, 100]} />
-                    <YAxis dataKey="name" type="category" width={80} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    <Bar dataKey="Attendance Rate" fill="#ffc658" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </>
-          )
-        )}
+        <ChartContainer title="Teacher Performance (Top 10)">
+          <ResponsiveContainer width="100%" height="100%">
+            {hasValidTeacherData ? (
+              <BarChart
+                data={filteredTeacherData}
+                margin={{ left: 20, right: 20 }} // Removed layout="vertical" for simplicity
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" domain={[0, 100]} />
+                <YAxis dataKey="name" type="category" width={80} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+                <Bar
+                  dataKey="Attendance Rate"
+                  fill="#ffc658"
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            ) : (
+              <div className="flex items-center justify-center h-full text-blue-400">
+                No data available.
+              </div>
+            )}
+          </ResponsiveContainer>
+        </ChartContainer>
       </div>
     </>
   );

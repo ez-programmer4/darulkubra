@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyToken } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Prisma } from "@prisma/client";
+import { getToken } from "next-auth/jwt";
+import { NextRequest } from "next/server";
 
 interface Payment {
   id: number;
@@ -17,31 +17,20 @@ interface Payment {
   status: string;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    console.log("GET /api/payments/deposit - Request received");
-
-    // Check authentication
-    const cookieStore = cookies();
-    const token = cookieStore.get("authToken")?.value;
-
-    if (!token) {
-      console.error("No authentication token found");
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (
+      !session ||
+      (session.role !== "controller" &&
+        session.role !== "registral" &&
+        session.role !== "admin")
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const user = await verifyToken(token);
-    if (!user) {
-      console.error("Invalid authentication token");
-      return NextResponse.json(
-        { error: "Invalid authentication" },
-        { status: 401 }
-      );
-    }
-
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
 
@@ -216,26 +205,21 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const session = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+  if (
+    !session ||
+    (session.role !== "controller" &&
+      session.role !== "registral" &&
+      session.role !== "admin")
+  ) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get("authToken")?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    const user = await verifyToken(token);
-    if (!user) {
-      return NextResponse.json(
-        { error: "Invalid authentication" },
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
     const {
       studentId,
@@ -262,7 +246,7 @@ export async function POST(request: Request) {
     try {
       // Get the student to verify ownership
       const student = await prisma.wpos_wpdatatable_23.findUnique({
-        where: { id: parseInt(studentId) },
+        where: { wdt_ID: parseInt(studentId) },
         select: { control: true, name: true },
       });
 
@@ -275,10 +259,10 @@ export async function POST(request: Request) {
       }
 
       // Check if the student belongs to this controller
-      if (student.control !== user.username) {
+      if (student.control !== session.username) {
         console.error("Student does not belong to controller:", {
           studentControl: student.control,
-          userControl: user.username,
+          userControl: session.username,
         });
         return NextResponse.json(
           { error: "You are not authorized to add deposits for this student" },
@@ -291,7 +275,7 @@ export async function POST(request: Request) {
         studentName: student.name,
         amount,
         status,
-        controller: user.username,
+        controller: session.username,
       });
 
       // Create the deposit payment
@@ -304,7 +288,7 @@ export async function POST(request: Request) {
           paymentdate: new Date(),
           transactionid: transactionId || `DEP-${Date.now()}`,
           status: status || "pending",
-          sendername: user.username,
+          sendername: session.username,
         },
       });
 
@@ -334,18 +318,19 @@ export async function POST(request: Request) {
 }
 
 // Add new endpoint for approving/rejecting deposits
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get("authToken")?.value;
-
-    if (!token) {
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (
+      !session ||
+      (session.role !== "controller" &&
+        session.role !== "registral" &&
+        session.role !== "admin")
+    ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await verifyToken(token);
-    if (!user) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();

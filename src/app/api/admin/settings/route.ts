@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/server-auth";
+import { getToken } from "next-auth/jwt";
 
 // GET all settings
 export async function GET(req: NextRequest) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
@@ -26,8 +26,8 @@ export async function GET(req: NextRequest) {
 
 // PUT to update or create a setting
 export async function PUT(req: NextRequest) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {

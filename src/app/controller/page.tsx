@@ -5,9 +5,10 @@ import ControllerHeader from "@/app/components/ControllerHeader";
 import StatsCards from "@/app/components/StatsCards";
 // import StudentCard from "@/app/components/StudentCard";
 // import StudentManagement from "@/app/components/StudentManagement";
-import AttendanceManager from "@/app/components/AttendanceManager";
 import toast from "react-hot-toast";
 import StudentList from "@/app/components/StudentList";
+import { useSession } from "next-auth/react";
+import StudentPayment from "@/app/components/StudentPayment";
 
 interface Student {
   id: number;
@@ -27,61 +28,42 @@ interface Student {
   refer: string;
   registrationdate: string;
   selectedTime: string;
-  progress: string;
-  chatId: string | null;
   teacher: {
     ustazname: string;
   };
+  progress: string;
+  chatId: string | null;
 }
 
 export default function Controller() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<{
-    name: string;
-    username: string;
-    role: string;
-  } | null>(null);
+  const { data: session, status } = useSession();
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (status === "authenticated" && session?.user?.role === "controller") {
+      fetchData();
+    } else if (status === "unauthenticated") {
+      setError("Unauthorized access");
+      setLoading(false);
+    }
+  }, [status, session]);
 
   const fetchData = async () => {
     try {
-      const [studentsRes, userRes] = await Promise.all([
-        fetch("/api/controller/students", {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }),
-        fetch("/api/auth/me", {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }),
-      ]);
-
+      const studentsRes = await fetch("/api/controller/students", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
       if (!studentsRes.ok) {
         const errorData = await studentsRes.json();
         throw new Error(errorData.error || "Failed to fetch students");
       }
-      if (!userRes.ok) {
-        const errorData = await userRes.json();
-        throw new Error(errorData.error || "Failed to fetch user data");
-      }
-
       const studentsData = await studentsRes.json();
-      const userData = await userRes.json();
-
-      if (!userData.user || userData.user.role !== "controller") {
-        throw new Error("Unauthorized access");
-      }
-
       const processedStudents = studentsData.map((student: any) => ({
         ...student,
         teacher: student.teacher || { ustazname: student.ustaz || "N/A" },
@@ -89,16 +71,9 @@ export default function Controller() {
         progress: student.progress || "",
         chatId: student.chatId || null,
       }));
-
       setStudents(processedStudents);
-      setUser(userData.user);
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      setError(err instanceof Error ? err.message : "An error occurred");
-      // Redirect to login if unauthorized
-      if (err instanceof Error && err.message.includes("Unauthorized")) {
-        window.location.href = "/login";
-      }
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch data");
     } finally {
       setLoading(false);
     }
@@ -110,19 +85,22 @@ export default function Controller() {
 
   const handleUpdate = (updatedStudent: Student) => {
     setStudents(
-      students.map((s) =>
-        s.id === updatedStudent.id
+      students.map((s) => {
+        const safeStudent = {
+          ...updatedStudent,
+          progress: updatedStudent.progress ?? "",
+          chatId: updatedStudent.chatId ?? null,
+        };
+        return s.id === updatedStudent.id
           ? {
-              ...updatedStudent,
-              teacher: updatedStudent.teacher || {
-                ustazname: updatedStudent.ustaz || "N/A",
+              ...safeStudent,
+              teacher: safeStudent.teacher || {
+                ustazname: safeStudent.ustaz || "N/A",
               },
-              isTrained: Boolean(updatedStudent.isTrained),
-              progress: updatedStudent.progress || "",
-              chatId: updatedStudent.chatId || null,
+              isTrained: Boolean(safeStudent.isTrained),
             }
-          : s
-      )
+          : s;
+      })
     );
     toast.success("Student information updated successfully");
   };
@@ -156,7 +134,7 @@ export default function Controller() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center p-2 sm:p-0">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your dashboard...</p>
@@ -167,7 +145,7 @@ export default function Controller() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center p-2 sm:p-0">
         <div className="text-center">
           <div className="text-red-600 text-xl mb-4">Error</div>
           <p className="text-gray-600">{error}</p>
@@ -183,8 +161,8 @@ export default function Controller() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-8">
-      <ControllerHeader userName={user?.name || "User"} />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-2 sm:p-4 md:p-8">
+      <ControllerHeader userName={session?.user?.name || "User"} />
       <StatsCards
         totalStudents={totalStudents}
         activeStudents={activeStudents}
@@ -195,14 +173,28 @@ export default function Controller() {
           students={students}
           onEdit={handleEdit}
           onDelete={handleDelete}
-          user={user}
+          user={
+            session?.user
+              ? {
+                  name: session.user.name,
+                  username: session.user.username,
+                  role: session.user.role,
+                }
+              : null
+          }
         />
       </div>
       {editingStudent && (
         <StudentPayment
           student={editingStudent}
           onClose={() => setEditingStudent(null)}
-          onUpdate={handleUpdate}
+          onUpdate={(student: any) =>
+            handleUpdate({
+              ...student,
+              progress: student.progress ?? "",
+              chatId: student.chatId ?? null,
+            })
+          }
         />
       )}
     </div>

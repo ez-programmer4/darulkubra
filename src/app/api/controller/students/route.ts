@@ -1,33 +1,32 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyToken } from "../../../../lib/server-auth";
+import { getToken } from "next-auth/jwt";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("authToken")?.value;
-    console.log("Auth token:", token);
-
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await verifyToken(token);
-    console.log("Verified user:", user);
-
-    if (!user || user.role !== "controller") {
-      console.log("User role check failed:", { user });
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!session || session.role !== "controller") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get controller's username from the database
+    const controllerId =
+      typeof session.id === "string" ? parseInt(session.id, 10) : session.id;
+    if (!controllerId || isNaN(controllerId)) {
+      return NextResponse.json(
+        { error: "Invalid controller session id" },
+        { status: 400 }
+      );
+    }
     const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { id: user.id },
+      where: { wdt_ID: controllerId },
       select: { username: true },
     });
     console.log("Found controller:", controller);
-    console.log("Looking for controller with ID:", user.id);
+    console.log("Looking for controller with ID:", session.id);
 
     if (!controller) {
       console.log("Controller not found in database");
@@ -54,7 +53,12 @@ export async function GET() {
     console.log("Found students:", students);
 
     // Return all student data
-    return NextResponse.json(students);
+    return NextResponse.json(
+      students.map((student) => ({
+        ...student,
+        id: student.wdt_ID,
+      }))
+    );
   } catch (error) {
     console.error("Error fetching students:", error);
     return NextResponse.json(

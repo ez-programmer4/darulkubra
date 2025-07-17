@@ -25,6 +25,7 @@ import {
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import Cookies from "js-cookie";
+import { useSession } from "next-auth/react";
 
 interface FormData {
   fullName?: string;
@@ -91,7 +92,7 @@ export default function Registration() {
   const editId = searchParams.get("id");
   const initialStep = parseInt(searchParams.get("step") || "1", 10);
   const [editTimeTeacher, setEditTimeTeacher] = useState(false);
-  const [userSession, setUserSession] = useState<any>(null);
+  const { data: session, status } = useSession();
 
   const [step, setStep] = useState<number>(
     editId ? 3 : Math.min(Math.max(initialStep, 1), 3)
@@ -130,6 +131,19 @@ export default function Registration() {
   const [error, setError] = useState<string | null>(null);
   const [editingTeacherName, setEditingTeacherName] = useState<string>("");
 
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<{
+    [time: string]: boolean;
+  }>({});
+  const [loadingAvailability, setLoadingAvailability] =
+    useState<boolean>(false);
+
+  // Add state for controllers
+  const [controllers, setControllers] = useState<
+    { username: string; name: string }[]
+  >([]);
+  const [loadingControllers, setLoadingControllers] = useState(false);
+  const [controllersError, setControllersError] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchCountries = async () => {
       setLoadingCountries(true);
@@ -144,7 +158,7 @@ export default function Registration() {
         setFetchError(
           "Failed to load countries from API. Using fallback list."
         );
-        const fallbackCountries = ["Ethiopia", "USA", "UK"];
+        const fallbackCountries = ["Ethiopia", "KSA", "UAE"];
         setCountries(fallbackCountries);
       } finally {
         setLoadingCountries(false);
@@ -221,6 +235,7 @@ export default function Registration() {
 
   useEffect(() => {
     const fetchStudentData = async () => {
+      if (!editId) return;
       if (editId) {
         try {
           const response = await fetch(`/api/registrations?id=${editId}`);
@@ -286,6 +301,14 @@ export default function Registration() {
     fetchStudentData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId, setValue]);
+
+  // --- ENHANCEMENT: Always re-check teachers when day package changes in edit mode ---
+  useEffect(() => {
+    if (editId && editTimeTeacher && selectedTime && selectedDayPackage) {
+      fetchTeachers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDayPackage, selectedTime, editId, editTimeTeacher]);
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     setIsSubmitting(true);
@@ -385,43 +408,66 @@ export default function Registration() {
   }, {} as { [key: string]: string[] });
 
   const router = useRouter();
-  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+    if (status === "unauthenticated") {
+      router.replace("/login");
+    }
+  }, [status, session, router]);
 
-        if (!response.ok) {
-          console.error("Auth check failed:", response.status);
-          router.replace("/login");
-          return;
-        }
-
-        const data = await response.json();
-        if (!data.user) {
-          console.error("No user data in response");
-          router.replace("/login");
-          return;
-        }
-
-        setUserSession(data.user);
-        setAuthChecked(true);
-      } catch (error) {
-        console.error("Auth check error:", error);
-        router.replace("/login");
-      }
+  useEffect(() => {
+    const checkAvailability = async () => {
+      if (!selectedDayPackage) return;
+      setLoadingAvailability(true);
+      const availability: { [time: string]: boolean } = {};
+      await Promise.all(
+        timeSlots.map(async (slot) => {
+          try {
+            const res = await fetch(
+              `/api/teachers-by-time?selectedTime=${encodeURIComponent(
+                slot.time
+              )}&selectedDayPackage=${encodeURIComponent(selectedDayPackage)}`
+            );
+            if (!res.ok) {
+              availability[slot.time] = false;
+              return;
+            }
+            const data = await res.json();
+            const teachers = Array.isArray(data) ? data : data.teachers;
+            availability[slot.time] = teachers && teachers.length > 0;
+          } catch {
+            availability[slot.time] = false;
+          }
+        })
+      );
+      setAvailableTimeSlots(availability);
+      setLoadingAvailability(false);
     };
+    if (timeSlots.length > 0 && selectedDayPackage) {
+      checkAvailability();
+    }
+  }, [timeSlots, selectedDayPackage]);
 
-    checkAuth();
-  }, [router]);
+  useEffect(() => {
+    setSelectedTime("");
+  }, [selectedDayPackage]);
 
-  if (!authChecked) {
+  // Fetch controllers for refer dropdown
+  useEffect(() => {
+    if (session?.user?.role === "registral") {
+      setLoadingControllers(true);
+      setControllersError(null);
+      fetch("/api/control-options")
+        .then((res) => res.json())
+        .then((data) => {
+          setControllers(data.controllers || []);
+        })
+        .catch(() => setControllersError("Failed to load controllers"))
+        .finally(() => setLoadingControllers(false));
+    }
+  }, [session]);
+
+  if (status === "loading") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-teal-50 flex items-center justify-center">
         <div className="flex flex-col items-center">
@@ -438,7 +484,7 @@ export default function Registration() {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="w-full max-w-6xl"
+        className="w-full max-w-3xl md:max-w-5xl lg:max-w-6xl"
       >
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-t-4 border-teal-500">
           <div className="bg-gradient-to-r from-teal-600 to-indigo-600 p-6 text-white">
@@ -454,7 +500,7 @@ export default function Registration() {
                     Darulkubra Quran Academy
                   </h1>
                   <p className="text-sm text-teal-100 font-medium">
-                    Admin Registration Portal
+                    Registration Portal
                   </p>
                 </div>
               </div>
@@ -482,7 +528,7 @@ export default function Registration() {
             </div>
           </div>
 
-          <div className="p-6 md:p-10">
+          <div className="p-6 md:p-10 bg-gray-50">
             {editId && (
               <div className="mb-6 flex items-center space-x-3">
                 <input
@@ -503,38 +549,6 @@ export default function Registration() {
                 </label>
               </div>
             )}
-            <div className="flex justify-end mb-8">
-              <div className="flex flex-col md:flex-row items-start md:items-center bg-white rounded-2xl p-5 shadow-md border border-gray-100 w-full md:w-auto transition-all duration-300 hover:shadow-lg">
-                <label className="flex items-center text-sm font-semibold text-gray-800 mb-3 md:mb-0 md:mr-5">
-                  <FiCalendar className="mr-2 text-teal-600" />
-                  Day Package:
-                </label>
-                <select
-                  {...register("daypackages", {
-                    required: "Day package is required",
-                  })}
-                  className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-2.5 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium text-gray-800 w-full md:w-auto transition-all duration-200 hover:border-teal-500"
-                >
-                  {dayPackages.length > 0 ? (
-                    dayPackages.map((pkg, index) => (
-                      <option key={index} value={pkg} className="text-gray-800">
-                        {pkg}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled className="text-gray-400">
-                      No options available
-                    </option>
-                  )}
-                </select>
-                {dayPackages.length === 0 && (
-                  <p className="text-red-600 text-xs mt-2">
-                    Error: Day packages not loaded.
-                  </p>
-                )}
-              </div>
-            </div>
-
             <AnimatePresence mode="wait">
               {(!editId || (editId && editTimeTeacher)) && step === 1 && (
                 <motion.div
@@ -546,54 +560,163 @@ export default function Registration() {
                   className="space-y-8"
                 >
                   <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
-                    Select Your Preferred Time Slot
+                    Select Preferred Time Slot
                   </h2>
-                  <p className="text-gray-600 text-lg leading-relaxed">
-                    Choose a time that works best for your schedule
-                  </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {Object.keys(groupedTimeSlots).map((category) => (
-                      <div
-                        key={category}
-                        className="bg-white rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100"
-                      >
-                        <h3 className="text-xl font-semibold text-teal-600 mb-4 flex items-center">
-                          <span className="w-4 h-4 bg-teal-500 rounded-full mr-3 shadow-sm"></span>
-                          {category}
-                        </h3>
-                        <div className="space-y-3">
-                          {groupedTimeSlots[category].map((slot) => (
-                            <motion.button
-                              key={slot.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedTime(slot.time);
-                                setStep(2);
-                              }}
-                              whileHover={{ scale: 1.03 }}
-                              whileTap={{ scale: 0.97 }}
-                              className={`w-full text-left p-4 rounded-xl transition-all duration-200 text-sm font-semibold flex items-center shadow-sm ${
-                                selectedTime === slot.time
-                                  ? "bg-teal-600 text-white shadow-md"
-                                  : "bg-gray-50 text-gray-800 hover:bg-teal-50 border border-gray-200 hover:border-teal-300"
-                              }`}
-                            >
-                              <span className="flex-1">{slot.time}</span>
-                              <FiArrowRight
-                                className={`ml-2 ${
-                                  selectedTime === slot.time
-                                    ? "text-white"
-                                    : "text-gray-500"
-                                }`}
-                              />
-                            </motion.button>
-                          ))}
+                  {/* Day Package Dropdown (Step 1 only, restored) */}
+                  <div className="flex flex-col md:flex-row items-start md:items-center bg-white rounded-2xl p-5 shadow-md border border-gray-100 w-full md:w-auto transition-all duration-300 hover:shadow-lg mb-4">
+                    <label className="flex items-center text-sm font-semibold text-gray-800 mb-3 md:mb-0 md:mr-5">
+                      <FiCalendar className="mr-2 text-teal-600" />
+                      Day Package:
+                    </label>
+                    <select
+                      {...register("daypackages", {
+                        required: "Day package is required",
+                      })}
+                      className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-2.5 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium text-gray-800 w-full md:w-auto transition-all duration-200 hover:border-teal-500"
+                    >
+                      {dayPackages.length > 0 ? (
+                        dayPackages.map((pkg, index) => (
+                          <option
+                            key={index}
+                            value={pkg}
+                            className="text-gray-800"
+                          >
+                            {pkg}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="" disabled className="text-gray-400">
+                          No options available
+                        </option>
+                      )}
+                    </select>
+                    {dayPackages.length === 0 && (
+                      <p className="text-red-600 text-xs mt-2">
+                        Error: Day packages not loaded.
+                      </p>
+                    )}
+                  </div>
+                  {/* Analysis for availability */}
+                  {(() => {
+                    const totalSlots =
+                      Object.values(groupedTimeSlots).flat().length;
+                    const availableSlots =
+                      Object.values(availableTimeSlots).filter(Boolean).length;
+                    const unavailableSlots = totalSlots - availableSlots;
+                    // Find most/least available time(s) (optional, here just show counts)
+                    return (
+                      <div className="flex flex-wrap gap-4 mb-4">
+                        <div className="bg-teal-50 border-l-4 border-teal-400 rounded-xl px-6 py-3 text-teal-800 font-semibold shadow-sm">
+                          Total Time Slots: {totalSlots}
+                        </div>
+                        <div className="bg-green-50 border-l-4 border-green-400 rounded-xl px-6 py-3 text-green-800 font-semibold shadow-sm">
+                          Available: {availableSlots}
+                        </div>
+                        <div className="bg-gray-100 border-l-4 border-gray-400 rounded-xl px-6 py-3 text-gray-700 font-semibold shadow-sm">
+                          Unavailable: {unavailableSlots}
                         </div>
                       </div>
-                    ))}
+                    );
+                  })()}
+                  {/* Legend */}
+                  <div className="flex items-center space-x-6 mb-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="inline-block w-5 h-5 rounded bg-teal-600 border border-teal-600"></span>
+                      <span className="text-sm text-gray-700">Available</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="inline-block w-5 h-5 rounded bg-gray-200 border border-gray-300"></span>
+                      <span className="text-sm text-gray-700">Unavailable</span>
+                    </div>
                   </div>
-
+                  {/* Loading spinner */}
+                  {loadingAvailability && (
+                    <div className="flex justify-center items-center py-8">
+                      <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-b-4 border-teal-500"></div>
+                      <span className="ml-4 text-teal-600 font-medium">
+                        Checking availability...
+                      </span>
+                    </div>
+                  )}
+                  {/* Time slot grid */}
+                  {!loadingAvailability && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {Object.keys(groupedTimeSlots).map((category) => (
+                          <div
+                            key={category}
+                            className="bg-white rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100"
+                          >
+                            <h3 className="text-xl font-semibold text-teal-600 mb-4 flex items-center">
+                              <span className="w-4 h-4 bg-teal-500 rounded-full mr-3 shadow-sm"></span>
+                              {category}
+                            </h3>
+                            <div className="space-y-3">
+                              {groupedTimeSlots[category].map((slot) => (
+                                <motion.button
+                                  key={slot.id}
+                                  type="button"
+                                  onClick={() => {
+                                    if (availableTimeSlots[slot.time]) {
+                                      setSelectedTime(slot.time);
+                                      setStep(2);
+                                    }
+                                  }}
+                                  disabled={!availableTimeSlots[slot.time]}
+                                  whileHover={
+                                    availableTimeSlots[slot.time]
+                                      ? { scale: 1.03 }
+                                      : {}
+                                  }
+                                  whileTap={
+                                    availableTimeSlots[slot.time]
+                                      ? { scale: 0.97 }
+                                      : {}
+                                  }
+                                  className={`w-full text-left p-4 rounded-xl transition-all duration-200 text-sm font-semibold flex items-center shadow-sm ${
+                                    selectedTime === slot.time
+                                      ? "bg-teal-600 text-white shadow-md"
+                                      : availableTimeSlots[slot.time]
+                                      ? "bg-gray-50 text-gray-800 hover:bg-teal-50 border border-gray-200 hover:border-teal-300"
+                                      : "bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed"
+                                  }`}
+                                  title={
+                                    availableTimeSlots[slot.time]
+                                      ? ""
+                                      : "No teacher available for this time and package"
+                                  }
+                                >
+                                  <span className="flex-1">{slot.time}</span>
+                                  <FiArrowRight
+                                    className={`ml-2 ${
+                                      selectedTime === slot.time
+                                        ? "text-white"
+                                        : availableTimeSlots[slot.time]
+                                        ? "text-gray-500"
+                                        : "text-gray-400"
+                                    }`}
+                                  />
+                                </motion.button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* No available slots message */}
+                      {Object.values(availableTimeSlots).length > 0 &&
+                        Object.values(availableTimeSlots).every((v) => !v) && (
+                          <div className="text-center py-8">
+                            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-xl inline-block shadow-sm">
+                              <p className="text-yellow-700 font-medium text-lg">
+                                No available time slots for the selected day
+                                package. Please try a different package.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                    </>
+                  )}
                   {error && (
                     <motion.div
                       initial={{ opacity: 0 }}
@@ -623,7 +746,6 @@ export default function Registration() {
                     <FiArrowLeft className="mr-2" />
                     Back to Time Selection
                   </button>
-
                   <div>
                     <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
                       Available Teachers
@@ -639,7 +761,6 @@ export default function Registration() {
                       </span>
                     </p>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {error ? (
                       <div className="col-span-full py-10 text-center">
@@ -708,11 +829,29 @@ export default function Registration() {
                     <motion.button
                       type="button"
                       onClick={() => setStep(3)}
-                      disabled={!selectedTeacher}
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
+                      disabled={
+                        !selectedTeacher ||
+                        !selectedTime ||
+                        !availableTimeSlots[selectedTime]
+                      }
+                      whileHover={
+                        selectedTeacher &&
+                        selectedTime &&
+                        availableTimeSlots[selectedTime]
+                          ? { scale: 1.03 }
+                          : {}
+                      }
+                      whileTap={
+                        selectedTeacher &&
+                        selectedTime &&
+                        availableTimeSlots[selectedTime]
+                          ? { scale: 0.97 }
+                          : {}
+                      }
                       className={`px-6 py-3 rounded-xl font-semibold text-white shadow-lg transition-all duration-300 flex items-center ${
-                        !selectedTeacher
+                        !selectedTeacher ||
+                        !selectedTime ||
+                        !availableTimeSlots[selectedTime]
                           ? "bg-gray-300 cursor-not-allowed"
                           : "bg-teal-600 hover:bg-teal-700"
                       }`}
@@ -735,10 +874,22 @@ export default function Registration() {
                 >
                   <button
                     type="button"
-                    onClick={() =>
-                      !editId || (editId && editTimeTeacher) ? setStep(2) : null
+                    onClick={() => {
+                      if (!editId || (editId && editTimeTeacher)) {
+                        setStep(2);
+                      }
+                    }}
+                    disabled={!!editId && !editTimeTeacher}
+                    title={
+                      !!editId && !editTimeTeacher
+                        ? "Enable 'Edit Time Slot, Package, and Teacher' to change teacher/time."
+                        : ""
                     }
-                    className="flex items-center text-teal-600 hover:text-teal-800 text-sm font-semibold transition-colors duration-200"
+                    className={`flex items-center text-teal-600 hover:text-teal-800 text-sm font-semibold transition-colors duration-200 ${
+                      !!editId && !editTimeTeacher
+                        ? "opacity-60 cursor-not-allowed"
+                        : ""
+                    }`}
                   >
                     <FiArrowLeft className="mr-2" />
                     Back to Teacher Selection
@@ -1017,17 +1168,59 @@ export default function Registration() {
                       </select>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-gray-800 flex items-center">
-                        <FiStar className="mr-2 text-teal-600" />
-                        Refer
-                      </label>
-                      <input
-                        {...register("refer")}
-                        className="w-full px-5 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm hover:border-teal-300"
-                        placeholder="Enter refer info"
-                      />
-                    </div>
+                    {/* Referral Dropdown for Registral */}
+                    {session?.user?.role === "registral" && (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-800 flex items-center">
+                          <FiStar className="mr-2 text-teal-600" />
+                          Refer (Controller)
+                        </label>
+                        {loadingControllers ? (
+                          <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 text-sm">
+                            Loading controllers...
+                          </div>
+                        ) : controllersError ? (
+                          <div className="w-full px-5 py-3 rounded-xl border border-red-200 bg-red-50 text-red-500 text-sm">
+                            {controllersError}
+                          </div>
+                        ) : controllers.length > 0 ? (
+                          <select
+                            {...register("refer", {
+                              required:
+                                "Please select a controller for referral",
+                            })}
+                            className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
+                              errors.refer
+                                ? "border-red-500"
+                                : "border-gray-200 hover:border-teal-300"
+                            }`}
+                            defaultValue=""
+                          >
+                            <option value="" disabled>
+                              Select controller
+                            </option>
+                            {controllers.map((ctrl) => (
+                              <option key={ctrl.username} value={ctrl.username}>
+                                {ctrl.name} ({ctrl.username})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 text-sm">
+                            No controllers available
+                          </div>
+                        )}
+                        {errors.refer && (
+                          <p className="mt-1 text-xs text-red-600 font-medium">
+                            {errors.refer.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {/* For other roles, hide or auto-fill refer field */}
+                    {session?.user?.role !== "registral" && (
+                      <input type="hidden" {...register("refer")} />
+                    )}
                   </div>
 
                   <motion.button

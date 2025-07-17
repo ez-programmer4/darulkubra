@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/server-auth";
+import { getToken } from "next-auth/jwt";
 import { NextRequest } from "next/server";
 
 const prisma = new PrismaClient();
@@ -8,8 +8,11 @@ const prisma = new PrismaClient();
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const user = await getAuthUser();
-    if (!user) {
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!session) {
       return NextResponse.json(
         { message: "Authentication required" },
         { status: 401 }
@@ -17,7 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Restrict to registral or controller roles
-    if (user.role !== "registral" && user.role !== "controller") {
+    if (session.role !== "registral" && session.role !== "controller") {
       return NextResponse.json(
         { message: "Unauthorized role" },
         { status: 401 }
@@ -25,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     let ustazs;
-    if (user.role === "registral") {
+    if (session.role === "registral") {
       // For registral, get all ustaz schedules
       ustazs = await prisma.wpos_wpdatatable_24.findMany({
         select: { schedule: true },
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
           },
         },
       });
-    } else if (user.role === "controller") {
+    } else if (session.role === "controller") {
       // For controller, get ustazs assigned to this controller
       ustazs = await prisma.wpos_wpdatatable_24.findMany({
         select: { schedule: true },
@@ -43,10 +46,10 @@ export async function GET(request: NextRequest) {
           controlId: {
             in: await prisma.wpos_wpdatatable_28
               .findMany({
-                where: { username: user.username },
-                select: { id: true },
+                where: { username: session.username },
+                select: { wdt_ID: true },
               })
-              .then((controllers) => controllers.map((c) => c.id)),
+              .then((controllers) => controllers.map((c) => c.wdt_ID)),
           },
           schedule: {
             not: "",
@@ -56,7 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Extract and process time slots
-    const allTimeSlots = ustazs?.flatMap((ustaz) => {
+    const allTimeSlots = (ustazs || []).flatMap((ustaz) => {
       if (!ustaz.schedule) return [];
       return ustaz.schedule.split(",").map((time, index) => ({
         id: index + 1,

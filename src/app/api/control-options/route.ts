@@ -1,37 +1,28 @@
-import { PrismaClient } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { prisma } from "@/lib/prisma";
 
-const prisma = new PrismaClient();
-
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const session = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+  if (
+    !session ||
+    !["registral", "controller", "admin"].includes(session.role)
+  ) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const controllers = await prisma.wpos_wpdatatable_28.findMany({
-      select: {
-        username: true,
-        name: true,
-      },
-      where: {
-        username: {
-          not: "",
-        },
-      },
+      select: { username: true, name: true },
+      orderBy: { name: "asc" },
     });
-
-    console.log("Fetched controllers:", controllers);
-
-    const controlOptions = controllers.map((controller) => ({
-      id: controller.username,
-      name: controller.name,
-    }));
-
-    return NextResponse.json(controlOptions);
+    return NextResponse.json({ controllers });
   } catch (error) {
-    console.error("Error fetching control options:", error);
     return NextResponse.json(
-      { error: "Failed to fetch control options" },
+      { error: "Failed to fetch controllers" },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

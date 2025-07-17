@@ -3,52 +3,30 @@ import { useParams, useRouter } from "next/navigation";
 import PaymentManagement from "../../components/PaymentManagement";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useSession } from "next-auth/react";
 
 export default function PaymentManagementPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: session, status } = useSession();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await fetch("/api/auth/me", {
-          credentials: "include",
-        });
-        console.log("Auth/me response status:", res.status);
-        console.log(
-          "Auth/me response headers:",
-          Object.fromEntries(res.headers)
-        );
-        const userData = await res.json();
-        console.log("Auth/me response data:", userData);
+    if (status === "loading") return;
+    if (status === "unauthenticated" || !session?.user) {
+      toast.error("Authentication failed - redirecting to login");
+      router.push("/login");
+      return;
+    }
+    if (session.user.role !== "controller") {
+      toast.error("Unauthorized access");
+      router.push("/login");
+      return;
+    }
+  }, [status, session, router]);
 
-        if (!res.ok) throw new Error("Failed to fetch user");
-
-        // Access the role from userData.user
-        if (!userData.user || userData.user.role !== "controller") {
-          console.log("User data or role check failed:", userData.user);
-          throw new Error("Unauthorized access");
-        }
-
-        setUser(userData.user); // Set the nested user object
-      } catch (err) {
-        console.error("Error fetching user:", err);
-        setError(err.message);
-        toast.error("Authentication failed - redirecting to login");
-        router.push("/login");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, [router]);
-
-  if (loading) {
+  if (status === "loading") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
@@ -93,5 +71,12 @@ export default function PaymentManagementPage() {
     );
   }
 
-  return <PaymentManagement studentId={Number(id)} user={user} />;
+  const mappedUser = session?.user
+    ? {
+        name: session.user.name,
+        username: session.user.username,
+        role: session.user.role,
+      }
+    : null;
+  return <PaymentManagement studentId={Number(id)} user={mappedUser} />;
 }

@@ -9,10 +9,33 @@ import {
   FiSearch,
   FiEye,
   FiXCircle,
+  FiCalendar,
 } from "react-icons/fi";
 import { Decimal } from "@prisma/client/runtime/library";
 import { useDebounce } from "use-debounce";
 import Modal from "@/app/components/Modal";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { DateRange } from "react-day-picker";
+import { addDays, format } from "date-fns";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 
 interface Payment {
   id: number;
@@ -59,9 +82,17 @@ export default function PaymentManagementPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Filters and Search
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
+  const [date, setDate] = useState<DateRange | undefined>({
+    from: addDays(new Date(), -30),
+    to: new Date(),
+  });
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Modals
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -74,6 +105,8 @@ export default function PaymentManagementPage() {
         status: statusFilter,
         search: debouncedSearchQuery,
       });
+      if (date?.from) params.append("startDate", date.from.toISOString());
+      if (date?.to) params.append("endDate", date.to.toISOString());
       const res = await fetch(`/api/admin/payments?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch payments");
       const data = await res.json();
@@ -83,11 +116,55 @@ export default function PaymentManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, debouncedSearchQuery]);
+  }, [statusFilter, debouncedSearchQuery, date]);
 
   useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(payments.length / itemsPerPage);
+  const paginatedPayments = payments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Statistics for charts
+  const statusCounts = [
+    {
+      name: "Approved",
+      value: payments.filter((p) => p.status === "approved").length,
+    },
+    {
+      name: "Pending",
+      value: payments.filter((p) => p.status === "pending").length,
+    },
+    {
+      name: "Rejected",
+      value: payments.filter((p) => p.status === "rejected").length,
+    },
+  ];
+  const statusAmounts = [
+    {
+      name: "Approved",
+      value: payments
+        .filter((p) => p.status === "approved")
+        .reduce((sum, p) => sum + Number(p.paidamount), 0),
+    },
+    {
+      name: "Pending",
+      value: payments
+        .filter((p) => p.status === "pending")
+        .reduce((sum, p) => sum + Number(p.paidamount), 0),
+    },
+    {
+      name: "Rejected",
+      value: payments
+        .filter((p) => p.status === "rejected")
+        .reduce((sum, p) => sum + Number(p.paidamount), 0),
+    },
+  ];
+  const PIE_COLORS = ["#0088FE", "#FFBB28", "#FF8042"];
 
   const updatePaymentStatus = async (
     id: number,
@@ -115,25 +192,90 @@ export default function PaymentManagementPage() {
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
-          <div className="relative">
+    <div className="bg-white p-2 sm:p-6 rounded-lg shadow-md">
+      {/* Statistics Cards and Charts */}
+      <div className="mb-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6">
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-indigo-500">
+          <div className="text-gray-500">Total Payments</div>
+          <div className="text-2xl font-bold">{payments.length}</div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+          <div className="text-gray-500">Approved Amount</div>
+          <div className="text-2xl font-bold">${statusAmounts[0].value}</div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
+          <div className="text-gray-500">Pending Amount</div>
+          <div className="text-2xl font-bold">${statusAmounts[1].value}</div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
+          <div className="text-gray-500">Rejected Amount</div>
+          <div className="text-2xl font-bold">${statusAmounts[2].value}</div>
+        </div>
+      </div>
+      <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-8">
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="font-semibold text-gray-700 mb-4">
+            Payments by Status
+          </h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={statusCounts}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis allowDecimals={false} />
+              <RechartsTooltip />
+              <Legend />
+              <Bar dataKey="value" fill="#8884d8" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="font-semibold text-gray-700 mb-4">
+            Payments Amount by Status
+          </h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie
+                data={statusAmounts}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                fill="#8884d8"
+                label
+              >
+                {statusAmounts.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={PIE_COLORS[index % PIE_COLORS.length]}
+                  />
+                ))}
+              </Pie>
+              <RechartsTooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row flex-wrap justify-between items-center mb-6 gap-2 sm:gap-4">
+        <div className="flex flex-col sm:flex-row w-full gap-2 sm:gap-4">
+          <div className="relative w-full sm:w-auto">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Search payments..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 border rounded-lg"
+              className="pl-10 pr-4 py-2 border rounded-lg w-full sm:w-64 text-xs sm:text-base"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <FiFilter className="text-gray-500" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="p-2 border rounded-lg bg-gray-50"
+              className="p-2 border rounded-lg bg-gray-50 w-full sm:w-40 text-xs sm:text-base"
             >
               <option value="">All</option>
               <option value="pending">Pending</option>
@@ -141,11 +283,47 @@ export default function PaymentManagementPage() {
               <option value="rejected">Rejected</option>
             </select>
           </div>
+          {/* Date Range Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={"outline"}
+                className="w-[220px] justify-start text-left font-normal"
+              >
+                <FiCalendar className="mr-2 h-4 w-4" />
+                {date?.from ? (
+                  date.to ? (
+                    <>
+                      {format(date.from, "LLL dd, y")} -{" "}
+                      {format(date.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(date.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Pick a date</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={date?.from}
+                selected={date}
+                onSelect={setDate}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+          <Button variant="ghost" onClick={() => setDate(undefined)}>
+            Clear
+          </Button>
         </div>
       </div>
-
+      {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full">
+        <table className="min-w-[700px] w-full text-xs sm:text-sm">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -182,9 +360,11 @@ export default function PaymentManagementPage() {
                 </td>
               </tr>
             ) : (
-              payments.map((payment) => (
+              paginatedPayments.map((payment) => (
                 <tr key={payment.id}>
-                  <td className="px-6 py-4">{payment.studentname}</td>
+                  <td className="px-6 py-4 text-indigo-700 font-semibold hover:underline cursor-pointer">
+                    {payment.studentname}
+                  </td>
                   <td className="px-6 py-4">
                     ${payment.paidamount.toString()}
                   </td>
@@ -231,6 +411,28 @@ export default function PaymentManagementPage() {
             )}
           </tbody>
         </table>
+      </div>
+      {/* Pagination Controls */}
+      <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-2">
+        <p className="text-sm text-indigo-700 font-semibold">
+          Page {currentPage} of {totalPages}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 border-2 border-indigo-200 rounded-full bg-white text-indigo-600 hover:bg-indigo-100 disabled:opacity-50 shadow-sm transition-all"
+          >
+            &lt;
+          </button>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2 border-2 border-indigo-200 rounded-full bg-white text-indigo-600 hover:bg-indigo-100 disabled:opacity-50 shadow-sm transition-all"
+          >
+            &gt;
+          </button>
+        </div>
       </div>
 
       <Modal

@@ -1,5 +1,12 @@
-import { FiCalendar, FiLogOut, FiBarChart } from "react-icons/fi";
+import {
+  FiCalendar,
+  FiLogOut,
+  FiBarChart,
+  FiGift,
+  FiAward,
+} from "react-icons/fi";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 interface ControllerHeaderProps {
   userName: string;
@@ -10,8 +17,7 @@ export default function ControllerHeader({ userName }: ControllerHeaderProps) {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/login");
+      await signOut({ callbackUrl: "/login" });
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -46,6 +52,23 @@ export default function ControllerHeader({ userName }: ControllerHeaderProps) {
           >
             <FiBarChart className="mr-2" />
             Analytics
+          </button>
+
+          <button
+            onClick={() => router.push("/controller/ratings")}
+            className="bg-indigo-300 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-300 text-sm md:text-base"
+          >
+            <FiBarChart className="mr-2" />
+            ustaz rating
+          </button>
+
+          {/* Prize Button */}
+          <button
+            onClick={() => router.push("/controller/earnings")}
+            className="bg-pink-500 hover:bg-pink-500 text-white px-4 py-2.5 rounded-xl flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-300 text-sm md:text-base"
+          >
+            <FiAward className="mr-2" />
+            Earnings
           </button>
 
           <button

@@ -8,121 +8,118 @@ datasource db {
 }
 
 model wpos_wpdatatable_24 {
-  ustazid        String                      @id @db.VarChar(32)
-  ustazname      String                      @db.VarChar(120)
+  ustazid        String                      @id @db.VarChar(255)
+  ustazname      String?                     @db.VarChar(120)
   phone          String?                     @db.VarChar(32)
-  schedule       String                      @db.Text
-  control        wpos_wpdatatable_28         @relation(fields: [controlId], references: [id])
-  controlId      Int                         @db.Int // Should match controller's id type
-  created_at     DateTime                    @default(now()) @db.Timestamp(0)
-  occupied_times wpos_ustaz_occupied_times[] @relation("fk_slot_ustaz")
+  schedule       String?                     @db.Text
+  control        wpos_wpdatatable_28?        @relation(fields: [controlId], references: [wdt_ID])
+  controlId      Int?                        @db.Int // Should match controller's id type
+  created_at     DateTime?                   @default(now()) @db.Timestamp(0)
+  occupied_times wpos_ustaz_occupied_times[]
   students       wpos_wpdatatable_23[]       @relation("fk_student_ustaz")
-  zoom_links          wpos_zoom_links[]
+  zoom_links     wpos_zoom_links[]
 
   @@index([ustazid], map: "idx_ustazid")
 }
 
-model wpos_wpdatatable_28 {
-  id         Int                   @id @default(autoincrement())
-  name       String                @unique @db.VarChar(120)
-  username   String                @unique @db.VarChar(120)
-  password   String                @db.VarChar(120)
-  code       String                @unique @db.VarChar(32)
- 
-  payment    payment[]
-  students   wpos_wpdatatable_23[] @relation("StudentToController")
-  ustazs     wpos_wpdatatable_24[] // This will be populated automatically
-}
 model wpos_wpdatatable_23 {
-  id                 Int                         @id @default(autoincrement()) @db.UnsignedInt
-  name               String                      @db.VarChar(120)
-  phoneno            String                      @db.VarChar(32)
-  classfee           Float?                      @db.Float
-  startdate          DateTime?                   @db.DateTime(0)
-  control            String?                     @db.VarChar(32)
-  status             String                      @db.VarChar(32)
-  ustaz              String                      @db.VarChar(32)
-  package            String                      @db.VarChar(32)
-  subject            String                      @db.VarChar(32)
-  country            String?                     @db.VarChar(64)
-  rigistral          String?                     @db.VarChar(64)
-  daypackages        String?                     @db.VarChar(120)
-  refer              String?                     @db.VarChar(120)
-  registrationdate   DateTime                    @default(now()) @db.DateTime(0)
-  selectedTime       String?                     @db.VarChar(16)
-  isTrained          Boolean                     @default(false)
-  chatId             String?                     @db.VarChar(64)
-  progress           String?                     @db.VarChar(64)
-  
-  months_table       months_table[]
-  payment            payment[]
-  referrals_received student_referrals[]         @relation("Referred")
-  referrals_given    student_referrals[]         @relation("Referrer")
-  occupiedTimes      wpos_ustaz_occupied_times[] @relation("fk_student_occupied_times")
-  controller         wpos_wpdatatable_28?        @relation("StudentToController", fields: [control], references: [username])
-  teacher            wpos_wpdatatable_24         @relation("fk_student_ustaz", fields: [ustaz], references: [ustazid])
+  wdt_ID    Int       @id @default(autoincrement())
+  name      String?   @db.VarChar(255)
+  phoneno   String    @db.VarChar(32)
+  classfee  Float?    @db.Float
+  startdate DateTime? @db.DateTime(0)
+  control   String?   @db.VarChar(255)
+  status    String?   @db.VarChar(255)
+
+  ustaz            String?        @db.VarChar(255)
+  package          String?        @db.VarChar(255)
+  subject          String?        @db.VarChar(255)
+  country          String?        @db.VarChar(255)
+  rigistral        String?        @db.VarChar(255)
+  daypackages      String?        @db.VarChar(255)
+  refer            String?        @db.VarChar(255)
+  registrationdate DateTime?      @default(now()) @db.DateTime(0)
+  selectedTime     String?        @db.VarChar(255)
+  isTrained        Boolean?       @default(false)
+  chatId           String?        @db.VarChar(64)
+  progress         String?        @db.VarChar(64)
+  months_table     months_table[]
+  payment          Payment[]
+
+  occupiedTimes wpos_ustaz_occupied_times[] @relation("fk_student_occupied_times")
+  controller    wpos_wpdatatable_28?        @relation("StudentToController", fields: [control], references: [username])
+  teacher       wpos_wpdatatable_24?        @relation("fk_student_ustaz", fields: [ustaz], references: [ustazid])
 
   attendance_progress student_attendance_progress[]
   zoom_links          wpos_zoom_links[]
+  testResults         testResult[]
+  testAppointments    testAppointment[]
 
   @@index([ustaz], map: "idx_ustaz")
   @@index([control], map: "idx_controller")
 }
 
+model wpos_wpdatatable_28 {
+  wdt_ID   Int     @id @default(autoincrement())
+  name     String? @unique @db.VarChar(255)
+  username String? @unique @db.VarChar(255)
+  password String  @db.VarChar(255)
+  code     String? @unique @db.VarChar(32)
+
+  payment  Payment[]
+  students wpos_wpdatatable_23[] @relation("StudentToController")
+  ustazs   wpos_wpdatatable_24[] // This will be populated automatically
+}
+
 model wpos_ustaz_occupied_times {
   id          Int                 @id @default(autoincrement())
-  ustaz_id    String              @db.VarChar(32)
-  time_slot   String              @db.VarChar(16)
-  daypackage  String              @db.VarChar(32)
-  student_id  Int                 @db.UnsignedInt
-  occupied_at DateTime            @default(now()) @db.Timestamp(0)
-  student     wpos_wpdatatable_23 @relation("fk_student_occupied_times", fields: [student_id], references: [id], onDelete: Cascade)
-  teacher     wpos_wpdatatable_24 @relation("fk_slot_ustaz", fields: [ustaz_id], references: [ustazid], onDelete: Cascade)
+  ustaz_id    String              @db.VarChar(255)
+  time_slot   String              @db.VarChar(255)
+  daypackage  String              @db.VarChar(255)
+  student_id  Int
+  occupied_at DateTime?           @default(now()) @db.Timestamp(0)
+  student     wpos_wpdatatable_23 @relation("fk_student_occupied_times", fields: [student_id], references: [wdt_ID])
+  teacher     wpos_wpdatatable_24 @relation(fields: [ustaz_id], references: [ustazid])
 
   @@unique([ustaz_id, time_slot, daypackage])
   @@index([student_id], map: "idx_student")
 }
 
 model wpos_wpdatatable_33 {
-  id       Int    @id @default(autoincrement())
-  name     String @unique @db.VarChar(120)
-  username String @unique @db.VarChar(120)
-  password String @db.VarChar(120)
-}
-
-model wpos_wpdatatable_30 {
-  id      Int     @id @default(autoincrement())
-  control String? @unique(map: "control") @db.VarChar(120)
+  wdt_ID   Int     @id @default(autoincrement())
+  name     String? @unique @db.VarChar(120)
+  username String? @unique @db.VarChar(120)
+  password String? @db.VarChar(120)
 }
 
 model admin {
-  id       Int    @id @default(autoincrement())
-  name     String @unique @db.VarChar(120)
-  username String @unique @db.VarChar(120)
-  password String @db.VarChar(120)
-  role     String @default("admin") @db.VarChar(20)
+  id       Int     @id @default(autoincrement())
+  name     String  @unique @db.VarChar(120)
+  username String? @unique @db.VarChar(120)
+  passcode String  @db.VarChar(120)
+  role     String? @default("admin") @db.VarChar(20)
 }
 
 model months_table {
   id                  Int                 @id @default(autoincrement())
-  studentid           Int                 @db.UnsignedInt
-  month               String              @db.Char(7)
-  paid_amount         Decimal             @db.Decimal(12, 2)
+  studentid           Int
+  month               String?             @db.Char(7)
+  paid_amount         Int                 @db.Int()
   payment_status      String              @db.VarChar(50)
   end_date            DateTime?           @db.DateTime(0)
-  payment_type        String              @default("full") @db.VarChar(20)
+  payment_type        String?             @default("full") @db.VarChar(20)
   start_date          DateTime?           @db.DateTime(0)
   free_month_reason   String?             @db.VarChar(100)
-  is_free_month       Boolean             @default(false)
-  wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentid], references: [id])
+  is_free_month       Boolean?            @default(false)
+  wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentid], references: [wdt_ID], map: "month_studentid_fkey")
 
   @@index([studentid])
 }
 
-model payment {
+model Payment {
   id                  Int                 @id @default(autoincrement())
   sendername          String              @db.VarChar(120)
-  studentid           Int                 @db.UnsignedInt
+  studentid           Int
   studentname         String              @db.VarChar(255)
   paymentdate         DateTime            @db.DateTime(0)
   transactionid       String              @unique(map: "Payment_transactionid_key")
@@ -130,55 +127,42 @@ model payment {
   reason              String              @db.Text
   status              String              @default("pending") @db.VarChar(20)
   wpos_wpdatatable_28 wpos_wpdatatable_28 @relation(fields: [sendername], references: [username], map: "Payment_sendername_fkey")
-  wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentid], references: [id], map: "Payment_studentid_fkey")
+  wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentid], references: [wdt_ID], map: "Payment_studentid_fkey")
 
   @@index([paymentdate], map: "Payment_paymentdate_idx")
   @@index([sendername], map: "Payment_sendername_idx")
   @@index([studentid], map: "Payment_studentid_idx")
 }
 
-model student_referrals {
-  id                           Int                 @id @default(autoincrement())
-  referrer_id                  Int                 @db.UnsignedInt
-  referred_id                  Int                 @db.UnsignedInt
-  referral_date                DateTime            @default(now())
-  status                       String              @default("pending") @db.VarChar(20)
-  free_months_earned           Int                 @default(0)
-  wpos_wpdatatable_23_referred wpos_wpdatatable_23 @relation("Referred", fields: [referred_id], references: [id])
-  wpos_wpdatatable_23_referrer wpos_wpdatatable_23 @relation("Referrer", fields: [referrer_id], references: [id])
-
-  @@index([referred_id], map: "student_referrals_referred_id_fkey")
-  @@index([referrer_id], map: "student_referrals_referrer_id_fkey")
-}
-
-
 model student_attendance_progress {
   id                  Int                 @id @default(autoincrement())
-  student_id          Int                 @db.UnsignedInt
+  student_id          Int
   date                DateTime            @default(now()) @db.DateTime(0)
-  attendance_status   String              @db.VarChar(20)
-  surah               String?             @db.VarChar(50)
-  pages_read          Int?                @db.Int
-  level               String?             @db.VarChar(50)
-  lesson              String?             @db.VarChar(50)
+  attendance_status   String              @db.VarChar(255)
+  surah               String?             @db.VarChar(255)
+  pages_read          Int?                @db.Int()
+  level               String?             @db.VarChar(255)
+  lesson              String?             @db.VarChar(255)
   notes               String?             @db.Text // Added for additional context
-  wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [student_id], references: [wdt_ID])
+
   @@index([student_id], map: "idx_student_attendance_progress")
   @@index([date], map: "idx_date") // Added for date-based queries
 }
 
 model wpos_zoom_links {
-  id                  Int                 @id @default(autoincrement())
-  studentid           Int                 @db.UnsignedInt
-  ustazid             String              @db.VarChar(32)
-  link                String              @db.Text
-  tracking_token      String              @db.VarChar(64)
-  clicked_at          DateTime?           @db.DateTime(0)
-  sent_time           DateTime?           @db.DateTime(0)
-  report              String?             @db.Text
-  expiration_date     DateTime?           @db.DateTime(0) // Added to track link validity
-  wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentid], references: [id], onDelete: Cascade)
-  wpos_wpdatatable_24 wpos_wpdatatable_24 @relation(fields: [ustazid], references: [ustazid], onDelete: Cascade)
+  id                  Int                  @id @default(autoincrement())
+  studentid           Int
+  ustazid             String?              @db.VarChar(255)
+  link                String               @db.VarChar(255)
+  tracking_token      String               @db.VarChar(32)
+  clicked_at          DateTime?            @db.DateTime(0)
+  sent_time           DateTime?            @db.DateTime(0)
+  report              Int?                 @default(0)
+  expiration_date     DateTime?            @db.DateTime(0) // Added to track link validity
+  wpos_wpdatatable_23 wpos_wpdatatable_23  @relation(fields: [studentid], references: [wdt_ID])
+  wpos_wpdatatable_24 wpos_wpdatatable_24? @relation(fields: [ustazid], references: [ustazid])
+
   @@index([studentid], map: "idx_studentid")
   @@index([ustazid], map: "idx_ustazid")
   @@index([sent_time], map: "idx_sent_time") // Added for time-based queries
@@ -191,3 +175,57 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+model test {
+  id              String            @id @default(uuid())
+  name            String            @unique
+  passingResult   Int
+  question        testQuestion[]
+  testAppointment testAppointment[]
+  lastSubject     String            @default("")
+}
+
+model testQuestion {
+  id         String       @id @default(uuid())
+  test       test         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  testId     String
+  question   String
+  odd        Int
+  testResult testResult[]
+}
+
+model testResult {
+  id         String              @id @default(uuid())
+  studentId  Int
+  student    wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID])
+  question   testQuestion        @relation(fields: [questionId], references: [id])
+  questionId String
+  result     Int
+
+  @@index([studentId])
+  @@index([questionId])
+}
+
+model testAppointment {
+  id        String              @id @default(uuid())
+  studentId Int
+  student   wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID])
+  test      test                @relation(fields: [testId], references: [id])
+  testId    String
+  date      DateTime?
+
+  @@unique([studentId, testId])
+}
+
+model ControllerEarning {
+  id                 Int      @id @default(autoincrement())
+  controllerUsername String
+  studentId          Int
+  paymentId          Int
+  amount             Decimal  @db.Decimal(10, 2)
+  createdAt          DateTime @default(now())
+  paidOut            Boolean  @default(false)
+
+  // Relations (optional, for referential integrity)
+  // student         wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID])
+  // payment         payment             @relation(fields: [paymentId], references: [id])
+}

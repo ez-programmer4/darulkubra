@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getAuthUser } from "@/lib/server-auth";
+import { getToken } from "next-auth/jwt";
 
 const prisma = new PrismaClient();
 
 // GET all payments with filtering
-export async function GET(req: Request) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+export async function GET(req: NextRequest) {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -46,9 +46,9 @@ export async function GET(req: Request) {
 }
 
 // PUT to update a payment status
-export async function PUT(req: Request) {
-  const user = await getAuthUser();
-  if (!user || user.role !== "admin") {
+export async function PUT(req: NextRequest) {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,16 +1,26 @@
 import { PrismaClient } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 const prisma = new PrismaClient();
 
 const convertTo12Hour = (time: string): string => {
   if (/AM|PM/i.test(time)) return time;
 
-  if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/.test(time)) {
+  // Fix: If time has more than two colons, treat as invalid or parse only first two segments
+  const segments = time.split(":");
+  if (segments.length > 3) {
+    console.warn(`Skipping invalid time format: ${time}`);
+    return "Invalid Time";
+  }
+  // Use only first two segments for HH:MM
+  const [hourStr, minuteStr = "00"] = segments;
+  if (
+    !/^([0-1]?[0-9]|2[0-3])$/.test(hourStr) ||
+    !/^[0-5][0-9]$/.test(minuteStr)
+  ) {
     throw new Error(`Invalid time format: ${time}. Expected HH:MM or HH:MM:SS`);
   }
-
-  const [hourStr, minuteStr] = time.split(":");
   const hour = parseInt(hourStr, 10);
   const minute = parseInt(minuteStr, 10);
 
@@ -74,7 +84,7 @@ const checkTeacherAvailability = async (
     where: { ustazid: teacherId },
     include: {
       control: {
-        select: { id: true, username: true },
+        select: { wdt_ID: true, username: true },
       },
     },
   });
@@ -174,7 +184,15 @@ const checkTeacherAvailability = async (
   };
 };
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const session = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const selectedTime = searchParams.get("selectedTime");
@@ -190,7 +208,7 @@ export async function GET(request: Request) {
     const teachers = await prisma.wpos_wpdatatable_24.findMany({
       include: {
         control: {
-          select: { id: true, username: true },
+          select: { wdt_ID: true, username: true },
         },
       },
     });
