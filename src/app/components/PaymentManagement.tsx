@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { verifyToken } from "@/lib/server-auth";
+
 import { prisma } from "@/lib/prisma";
 import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
@@ -39,7 +39,7 @@ import {
 import { toast } from "react-hot-toast";
 import { jsPDF } from "jspdf";
 import { AnimatePresence } from "framer-motion";
-import { useAuth } from "@/app/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Payment {
   id: number;

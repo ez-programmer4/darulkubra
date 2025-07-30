@@ -97,12 +97,12 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/payments
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getToken({
+    const session = (await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
-    });
+    })) as any;
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -141,12 +141,12 @@ export async function POST(request: Request) {
 }
 
 // PUT /api/payments/:id
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
-    const session = await getToken({
+    const session = (await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
-    });
+    })) as any;
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

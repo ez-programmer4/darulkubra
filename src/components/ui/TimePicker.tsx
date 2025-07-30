@@ -79,7 +79,6 @@ const TimeSlotCard: React.FC<TimeSlotCardProps> = ({
         relative p-4 cursor-pointer transition-all duration-200 hover:shadow-md
         ${isSelected ? "ring-2 ring-green-500 bg-green-50" : "hover:bg-gray-50"}
         ${disabled ? "opacity-50 cursor-not-allowed" : ""}
-        ${slot.isAvailable ? "" : "bg-red-50 border-red-200"}
       `}
       onClick={() => !disabled && onSelect(slot.time)}
     >
@@ -87,7 +86,7 @@ const TimeSlotCard: React.FC<TimeSlotCardProps> = ({
         <div className="flex items-center space-x-3">
           <div className="text-2xl">{getCategoryIcon(slot.category)}</div>
           <div>
-            <div className="font-semibold text-lg">{slot.displayTime}</div>
+            <div className="font-semibold text-lg">{slot.time}</div>
             <div className="text-sm text-gray-600">{slot.category}</div>
           </div>
         </div>
@@ -95,14 +94,6 @@ const TimeSlotCard: React.FC<TimeSlotCardProps> = ({
         {isSelected && (
           <div className="text-green-600">
             <FiCheck className="w-5 h-5" />
-          </div>
-        )}
-
-        {showOccupied && slot.occupiedBy && (
-          <div className="absolute top-2 right-2">
-            <Badge variant="destructive" className="text-xs">
-              Occupied
-            </Badge>
           </div>
         )}
       </div>
@@ -214,14 +205,14 @@ export const TimePicker: React.FC<TimePickerProps> = ({
                   {slots.map((slot) => {
                     (() => {
                       console.log(
-                        `Rendering slot: ${slot.displayTime} (${slot.time})`
+                        `Rendering slot: ${slot.time} (${slot.time})`
                       );
                     })();
                     return (
                       <TimeSlotCard
                         key={slot.id}
                         slot={slot}
-                        isSelected={selectedTime === slot.displayTime}
+                        isSelected={selectedTime === slot.time}
                         onSelect={handleTimeSelect}
                         disabled={disabled}
                       />
@@ -239,7 +230,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({
             <TimeSlotCard
               key={slot.id}
               slot={slot}
-              isSelected={selectedTime === slot.displayTime}
+              isSelected={selectedTime === slot.time}
               onSelect={handleTimeSelect}
               disabled={disabled}
             />

@@ -42,10 +42,10 @@ export async function POST(
       students.map(async (student) => {
         await prisma.notification.create({
           data: {
-            userId: student.wdt_ID,
+            userId: String(student.wdt_ID),
             type: "absence",
             message,
-            read: false,
+            userRole: "student",
           },
         });
         if (student.phoneno) {

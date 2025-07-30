@@ -135,9 +135,10 @@ export async function POST(
         }
         await prisma.notification.create({
           data: {
-            userId: student.wdt_ID,
+            userId: String(student.wdt_ID),
             type: "absence_notice",
             message,
+            userRole: "student",
           },
         });
       }

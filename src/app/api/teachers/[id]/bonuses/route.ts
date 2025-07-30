@@ -84,32 +84,42 @@ export async function POST(
       );
     }
     const { period, amount, reason } = parseResult.data;
-    // Upsert: only one bonus per teacher per period
-    const record = await prisma.bonusRecord.upsert({
+    // Check if bonus record already exists for this teacher and period
+    const existingRecord = await prisma.bonusRecord.findFirst({
       where: {
-        teacherId_period: {
-          teacherId,
-          period,
-        },
-      },
-      update: {
-        amount,
-        reason,
-      },
-      create: {
         teacherId,
         period,
-        amount,
-        reason,
       },
     });
+
+    let record;
+    if (existingRecord) {
+      // Update existing record
+      record = await prisma.bonusRecord.update({
+        where: { id: existingRecord.id },
+        data: {
+          amount,
+          reason,
+        },
+      });
+    } else {
+      // Create new record
+      record = await prisma.bonusRecord.create({
+        data: {
+          teacherId,
+          period,
+          amount,
+          reason,
+        },
+      });
+    }
     // System notification
     await prisma.notification.create({
       data: {
-        userId: Number(teacherId),
+        userId: teacherId,
         type: "bonus_awarded",
         message: `You have been awarded a bonus of ${amount} ETB for ${period}. Reason: ${reason}`,
-        read: false,
+        userRole: "teacher",
       },
     });
     // SMS notification

@@ -87,7 +87,7 @@ export async function POST(
         status,
         reviewNotes,
         lateReviewReason,
-        reviewedBy: parseInt(user.id),
+        adminId: parseInt(user.id),
         reviewedAt: new Date(),
       },
     });
@@ -102,9 +102,10 @@ export async function POST(
         }
         await prisma.notification.create({
           data: {
-            userId: student.wdt_ID,
+            userId: String(student.wdt_ID),
             type: "absence_notice",
             message,
+            userRole: "student",
           },
         });
       }

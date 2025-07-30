@@ -24,7 +24,7 @@ export async function POST(
   }
   await prisma.notification.update({
     where: { id: notificationId },
-    data: { read: true },
+    data: { isRead: true },
   });
   return NextResponse.json({ message: "Marked as read" });
 }
