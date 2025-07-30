@@ -1,0 +1,413 @@
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+export interface ControllerEarnings {
+  controllerId: string;
+  controllerName: string;
+  teamId: number;
+  teamName: string;
+  teamLeader: string;
+  month: string;
+
+  // Student Counts
+  activeStudents: number;
+  notYetStudents: number;
+  leaveStudentsThisMonth: number;
+  ramadanLeaveStudents: number;
+  paidThisMonth: number;
+  unpaidActiveThisMonth: number;
+  referencedActiveStudents: number;
+  linkedStudents: number;
+
+  // Earnings Calculation
+  baseEarnings: number;
+  leavePenalty: number;
+  unpaidPenalty: number;
+  referencedBonus: number;
+  totalEarnings: number;
+
+  // Performance Metrics
+  targetEarnings: number;
+  achievementPercentage: number;
+  growthRate: number;
+
+  // Historical Data
+  previousMonthEarnings: number;
+  yearToDateEarnings: number;
+}
+
+export interface EarningsParams {
+  yearMonth?: string; // Format: '2025-07'
+  controllerId?: string;
+  teamId?: number;
+}
+
+export class EarningsCalculator {
+  private yearMonth: string;
+  private startDate: string;
+  private endDate: string;
+
+  constructor(yearMonth?: string) {
+    this.yearMonth = yearMonth || new Date().toISOString().slice(0, 7); // YYYY-MM
+    this.startDate = `${this.yearMonth}-01`;
+    this.endDate = new Date(
+      new Date(this.startDate).setMonth(new Date(this.startDate).getMonth() + 1)
+    )
+      .toISOString()
+      .slice(0, 10);
+  }
+
+  async calculateControllerEarnings(
+    params: EarningsParams = {}
+  ): Promise<ControllerEarnings[]> {
+    try {
+      console.log(`Calculating earnings for ${this.yearMonth}`);
+      console.log(`Date range: ${this.startDate} to ${this.endDate}`);
+
+      // Get all controllers from students table
+      const students = await prisma.wpos_wpdatatable_23.findMany({
+        where: {
+          control: {
+            not: null,
+          },
+        },
+        select: {
+          control: true,
+        },
+        distinct: ["control"],
+      });
+
+      const controllerIds = students
+        .map((s) => s.control)
+        .filter(Boolean) as string[];
+      console.log(`Found ${controllerIds.length} controllers:`, controllerIds);
+
+      // For each controller, calculate earnings
+      const earnings = await Promise.all(
+        controllerIds.map(async (controllerId) => {
+          // Get controller info
+          const controller = await prisma.wpos_wpdatatable_28.findFirst({
+            where: {
+              username: controllerId,
+            },
+            select: {
+              name: true,
+              username: true,
+            },
+          });
+
+          // Get student counts using Prisma's findMany instead of raw SQL
+          const students = await prisma.wpos_wpdatatable_23.findMany({
+            where: {
+              control: controllerId,
+            },
+            select: {
+              wdt_ID: true,
+              status: true,
+              startdate: true,
+              registrationdate: true,
+              chatId: true,
+              refer: true,
+              name: true,
+            },
+          });
+
+          const activeStudentsArr = students.filter(
+            (s) => s.status === "Active"
+          );
+          const notYetStudentsArr = students.filter(
+            (s) => s.status === "Not Yet"
+          );
+          const leaveStudentsArr = students.filter(
+            (s) =>
+              s.status === "Leave" &&
+              s.startdate &&
+              s.startdate >= new Date(this.startDate) &&
+              s.startdate <= new Date(this.endDate)
+          );
+          const ramadanLeaveStudentsArr = students.filter(
+            (s) => s.status === "Ramadan Leave"
+          );
+          const linkedStudentsArr = students.filter(
+            (s) =>
+              (s.status === "Active" || s.status === "Not Yet") &&
+              s.chatId &&
+              s.chatId !== ""
+          );
+
+          console.log(`\n[Controller: ${controllerId}]`);
+          console.log(
+            `Active students:`,
+            activeStudentsArr.map((s) => s.name)
+          );
+          console.log(
+            `Not Yet students:`,
+            notYetStudentsArr.map((s) => s.name)
+          );
+          console.log(
+            `Leave students (this month):`,
+            leaveStudentsArr.map((s) => s.name)
+          );
+          console.log(
+            `Ramadan Leave students:`,
+            ramadanLeaveStudentsArr.map((s) => s.name)
+          );
+          console.log(
+            `Linked students:`,
+            linkedStudentsArr.map((s) => s.name)
+          );
+
+          // Get payment data
+          const payments = await prisma.months_table.findMany({
+            where: {
+              studentid: {
+                in: students.map((s) => s.wdt_ID),
+              },
+              month: this.yearMonth,
+              payment_status: "approved",
+            },
+          });
+
+          const paidThisMonthArr = students.filter((s) =>
+            payments.some(
+              (p) => p.studentid === s.wdt_ID && p.payment_status === "approved"
+            )
+          );
+          const unpaidActiveArr = activeStudentsArr.filter(
+            (s) =>
+              !payments.some(
+                (p) =>
+                  p.studentid === s.wdt_ID && p.payment_status === "approved"
+              )
+          );
+
+          console.log(
+            `Paid this month:`,
+            paidThisMonthArr.map((s) => s.name)
+          );
+          console.log(
+            `Unpaid active students:`,
+            unpaidActiveArr.map((s) => s.name)
+          );
+
+          // Get referenced students
+          const referencedStudents = await prisma.wpos_wpdatatable_23.findMany({
+            where: {
+              refer: controllerId,
+              status: "Active",
+              startdate: {
+                gte: new Date(this.startDate),
+                lte: new Date(this.endDate),
+              },
+              registrationdate: {
+                gte: new Date(`${this.yearMonth}-01`),
+                lt: new Date(
+                  new Date(`${this.yearMonth}-01`).setMonth(
+                    new Date(`${this.yearMonth}-01`).getMonth() + 1
+                  )
+                ),
+              },
+            },
+            include: {
+              months_table: {
+                where: {
+                  month: this.yearMonth,
+                  payment_status: "approved",
+                },
+              },
+            },
+          });
+
+          const referencedActiveArr = referencedStudents.filter(
+            (s) => s.months_table.length > 0 && !s.rigistral
+          );
+          console.log(
+            `Referenced active students:`,
+            referencedActiveArr.map((s) => s.name)
+          );
+
+          // Calculate earnings
+          const baseEarnings = activeStudentsArr.length * 40;
+          const leavePenalty =
+            Math.max(leaveStudentsArr.length - 5, 0) * 3 * 40;
+          const unpaidPenalty = unpaidActiveArr.length * 2 * 40;
+          const referencedBonus = referencedActiveArr.length * 4 * 40;
+          const totalEarnings =
+            baseEarnings - leavePenalty - unpaidPenalty + referencedBonus;
+
+          console.log(`\nEarnings calculation for ${controllerId}:`);
+          console.log(`Base earnings: ${baseEarnings}`);
+          console.log(`Leave penalty: ${leavePenalty}`);
+          console.log(`Unpaid penalty: ${unpaidPenalty}`);
+          console.log(`Referenced bonus: ${referencedBonus}`);
+          console.log(`Total earnings: ${totalEarnings}`);
+
+          // Get previous month earnings
+          const previousMonth = new Date(this.startDate);
+          previousMonth.setMonth(previousMonth.getMonth() - 1);
+          const previousMonthStr = previousMonth.toISOString().slice(0, 7);
+
+          const previousEarnings = await this.getPreviousMonthEarnings(
+            controllerId,
+            previousMonthStr
+          );
+          const yearToDateEarnings = await this.getYearToDateEarnings(
+            controllerId
+          );
+
+          const growthRate =
+            previousEarnings > 0
+              ? ((totalEarnings - previousEarnings) / previousEarnings) * 100
+              : 0;
+
+          return {
+            controllerId: controllerId,
+            controllerName: controller?.name || controllerId,
+            teamId: 1, // Default team ID since we don't have team relationships
+            teamName: "Default Team",
+            teamLeader: "System",
+            month: this.yearMonth,
+
+            // Student Counts
+            activeStudents: activeStudentsArr.length,
+            notYetStudents: notYetStudentsArr.length,
+            leaveStudentsThisMonth: leaveStudentsArr.length,
+            ramadanLeaveStudents: ramadanLeaveStudentsArr.length,
+            paidThisMonth: paidThisMonthArr.length,
+            unpaidActiveThisMonth: unpaidActiveArr.length,
+            referencedActiveStudents: referencedActiveArr.length,
+            linkedStudents: linkedStudentsArr.length,
+
+            // Earnings Calculation
+            baseEarnings,
+            leavePenalty,
+            unpaidPenalty,
+            referencedBonus,
+            totalEarnings,
+
+            // Performance Metrics
+            targetEarnings: 3000,
+            achievementPercentage: (totalEarnings / 3000) * 100,
+            growthRate,
+
+            // Historical Data
+            previousMonthEarnings: previousEarnings,
+            yearToDateEarnings,
+          };
+        })
+      );
+
+      console.log(`Calculated earnings for ${earnings.length} controllers`);
+      return earnings;
+    } catch (error) {
+      console.error("Error calculating controller earnings:", error);
+      throw new Error("Failed to calculate controller earnings");
+    }
+  }
+
+  private async getPreviousMonthEarnings(
+    controllerId: string,
+    month: string
+  ): Promise<number> {
+    try {
+      const students = await prisma.wpos_wpdatatable_23.findMany({
+        where: {
+          control: controllerId,
+        },
+        select: {
+          wdt_ID: true,
+          status: true,
+          startdate: true,
+        },
+      });
+
+      const activeStudents = students.filter(
+        (s) => s.status === "Active"
+      ).length;
+      const leaveStudents = students.filter(
+        (s) =>
+          s.status === "Leave" &&
+          s.startdate &&
+          s.startdate >= new Date(`${month}-01`) &&
+          s.startdate <= new Date(`${month}-31`)
+      ).length;
+
+      const payments = await prisma.months_table.findMany({
+        where: {
+          studentid: {
+            in: students.map((s) => s.wdt_ID),
+          },
+          month: month,
+        },
+      });
+
+      const unpaidStudents = students.filter(
+        (s) =>
+          s.status === "Active" &&
+          !payments.some((p) => p.studentid === s.wdt_ID)
+      ).length;
+
+      return (
+        (activeStudents -
+          Math.max(leaveStudents - 5, 0) * 3 -
+          unpaidStudents * 2) *
+        40
+      );
+    } catch (error) {
+      console.error("Error getting previous month earnings:", error);
+      return 0;
+    }
+  }
+
+  private async getYearToDateEarnings(controllerId: string): Promise<number> {
+    try {
+      const currentYear = new Date().getFullYear();
+      const students = await prisma.wpos_wpdatatable_23.findMany({
+        where: {
+          control: controllerId,
+          registrationdate: {
+            gte: new Date(`${currentYear}-01-01`),
+            lt: new Date(`${currentYear + 1}-01-01`),
+          },
+        },
+        select: {
+          wdt_ID: true,
+          status: true,
+        },
+      });
+
+      const activeStudents = students.filter(
+        (s) => s.status === "Active"
+      ).length;
+      const leaveStudents = students.filter((s) => s.status === "Leave").length;
+
+      const payments = await prisma.months_table.findMany({
+        where: {
+          studentid: {
+            in: students.map((s) => s.wdt_ID),
+          },
+          month: {
+            startsWith: `${currentYear}-`,
+          },
+        },
+      });
+
+      const unpaidStudents = students.filter(
+        (s) =>
+          s.status === "Active" &&
+          !payments.some((p) => p.studentid === s.wdt_ID)
+      ).length;
+
+      return (
+        (activeStudents -
+          Math.max(leaveStudents - 5, 0) * 3 -
+          unpaidStudents * 2) *
+        40
+      );
+    } catch (error) {
+      console.error("Error getting year to date earnings:", error);
+      return 0;
+    }
+  }
+}

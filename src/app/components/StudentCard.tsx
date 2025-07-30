@@ -56,7 +56,7 @@ interface StudentCardProps {
   student: Student;
   index: number;
   onEdit: (student: Student) => void;
-
+  onDelete: (studentId: number) => void;
   user: { name: string; username: string; role: string } | null;
 }
 

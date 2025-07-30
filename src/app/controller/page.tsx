@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { FiUser } from "react-icons/fi";
-import ControllerHeader from "@/app/components/ControllerHeader";
 import StatsCards from "@/app/components/StatsCards";
 // import StudentCard from "@/app/components/StudentCard";
 // import StudentManagement from "@/app/components/StudentManagement";
@@ -9,6 +8,7 @@ import toast from "react-hot-toast";
 import StudentList from "@/app/components/StudentList";
 import { useSession } from "next-auth/react";
 import StudentPayment from "@/app/components/StudentPayment";
+import ControllerLayout from "@/app/components/ControllerLayout";
 
 interface Student {
   id: number;
@@ -134,35 +134,38 @@ export default function Controller() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center p-2 sm:p-0">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your dashboard...</p>
+      <ControllerLayout>
+        <div className="min-h-screen flex items-center justify-center p-2 sm:p-0">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading your dashboard...</p>
+          </div>
         </div>
-      </div>
+      </ControllerLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center p-2 sm:p-0">
-        <div className="text-center">
-          <div className="text-red-600 text-xl mb-4">Error</div>
-          <p className="text-gray-600">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Retry
-          </button>
+      <ControllerLayout>
+        <div className="min-h-screen flex items-center justify-center p-2 sm:p-0">
+          <div className="text-center">
+            <div className="text-red-600 text-xl mb-4">Error</div>
+            <p className="text-gray-600">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
         </div>
-      </div>
+      </ControllerLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-2 sm:p-4 md:p-8">
-      <ControllerHeader userName={session?.user?.name || "User"} />
+    <ControllerLayout>
       <StatsCards
         totalStudents={totalStudents}
         activeStudents={activeStudents}
@@ -197,6 +200,6 @@ export default function Controller() {
           }
         />
       )}
-    </div>
+    </ControllerLayout>
   );
 }

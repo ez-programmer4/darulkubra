@@ -1,86 +1,18 @@
 import { PrismaClient } from "@prisma/client";
 import { NextResponse, NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { prisma as globalPrisma } from "@/lib/prisma"; // Reuse global Prisma instance
+import { prisma as globalPrisma } from "@/lib/prisma";
+import {
+  to24Hour,
+  to12Hour,
+  validateTime,
+  isTimeConflict,
+} from "@/utils/timeUtils";
+
 const prismaClient = globalPrisma;
 
-const parseTime = (time: string): [number, number] => {
-  const [hourStr, minuteStr = "00"] = time
-    .split(":")
-    .map((part) => part.trim());
-  const hour = parseInt(hourStr, 10);
-  const minute = parseInt(minuteStr, 10);
-
-  if (
-    isNaN(hour) ||
-    hour < 0 ||
-    hour > 23 ||
-    isNaN(minute) ||
-    minute < 0 ||
-    minute > 59
-  ) {
-    throw new Error(
-      `Invalid time format: ${time}. Expected HH:MM (e.g., 14:30)`
-    );
-  }
-
-  return [hour, minute];
-};
-
-const convertTo12Hour = (time: string): string => {
-  try {
-    if (time.includes("AM") || time.includes("PM")) {
-      return time.trim();
-    }
-    if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/.test(time)) {
-      throw new Error(
-        `Invalid time format: ${time}. Expected HH:MM or HH:MM:SS`
-      );
-    }
-    const [hour, minute] = parseTime(time);
-    const period = hour >= 12 ? "PM" : "AM";
-    const adjustedHour = hour % 12 || 12;
-    return `${adjustedHour}:${minute.toString().padStart(2, "0")} ${period}`;
-  } catch (error) {
-    console.error("Error converting to 12-hour format:", error);
-    return "Invalid Time";
-  }
-};
-
-const convertTimeTo24Hour = (time: string): string => {
-  if (time.includes("AM") || time.includes("PM")) {
-    try {
-      const [timePart, period] = time.split(" ");
-      const [hourStr, minuteStr = "00"] = timePart
-        .split(":")
-        .map((part) => part.trim());
-      let hour = parseInt(hourStr, 10);
-      const minute = parseInt(minuteStr, 10);
-
-      if (period === "PM" && hour !== 12) hour += 12;
-      if (period === "AM" && hour === 12) hour = 0;
-
-      if (
-        isNaN(hour) ||
-        hour < 0 ||
-        hour > 23 ||
-        isNaN(minute) ||
-        minute < 0 ||
-        minute > 59
-      ) {
-        throw new Error(`Invalid 12-hour time format: ${time}`);
-      }
-
-      return `${hour.toString().padStart(2, "0")}:${minute
-        .toString()
-        .padStart(2, "0")}`;
-    } catch (error) {
-      console.error("Error converting to 24-hour format:", error);
-      return "00:00";
-    }
-  }
-  return time;
-};
+// Student slot limits per day package
+const MAX_SLOTS_PER_STUDENT = 2;
 
 const checkTeacherAvailability = async (
   selectedTime: string,
@@ -88,8 +20,16 @@ const checkTeacherAvailability = async (
   teacherId: string,
   excludeStudentId?: number
 ) => {
-  const timeToMatch = convertTimeTo24Hour(selectedTime);
-  const timeSlot = convertTo12Hour(timeToMatch);
+  // Validate time format
+  if (!validateTime(selectedTime)) {
+    return {
+      isAvailable: false,
+      message: `Invalid time format: ${selectedTime}`,
+    };
+  }
+
+  const timeToMatch = to24Hour(selectedTime);
+  const timeSlot = to12Hour(timeToMatch);
 
   const teacher = await prismaClient.wpos_wpdatatable_24.findUnique({
     where: { ustazid: teacherId },
@@ -106,13 +46,43 @@ const checkTeacherAvailability = async (
   const scheduleTimes = teacher.schedule
     ? teacher.schedule.split(",").map((t) => t.trim())
     : [];
-  if (!scheduleTimes.includes(timeToMatch)) {
+
+  // Normalize time formats for comparison - handle both 12-hour and 24-hour formats
+  const normalizedScheduleTimes = scheduleTimes.map((time) => {
+    try {
+      // If the time already has AM/PM, convert to 24-hour
+      if (time.includes("AM") || time.includes("PM")) {
+        return to24Hour(time);
+      }
+      // If it's already in 24-hour format, ensure proper formatting
+      const [hours, minutes] = time.split(":").map(Number);
+      return `${hours.toString().padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")}`;
+    } catch {
+      return time; // Keep original if conversion fails
+    }
+  });
+
+  console.log(`Teacher ${teacher.ustazname} schedule times:`, scheduleTimes);
+  console.log(`Normalized schedule times:`, normalizedScheduleTimes);
+  console.log(`Looking for time: ${timeToMatch}`);
+
+  // Check if teacher is available at this time
+  if (!normalizedScheduleTimes.includes(timeToMatch)) {
+    console.log(
+      `Schedule check failed for ${teacher.ustazname}: ${teacher.schedule}`
+    );
+    console.log(
+      `Looking for: ${timeToMatch}, Available: ${normalizedScheduleTimes}`
+    );
     return {
       isAvailable: false,
       message: `Teacher ${teacher.ustazname} is not available at ${selectedTime}`,
     };
   }
 
+  // Check for conflicts with existing bookings
   const allBookings = await prismaClient.wpos_ustaz_occupied_times.findMany({
     where: { time_slot: timeSlot },
     select: { ustaz_id: true, daypackage: true, student_id: true },
@@ -184,14 +154,18 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+
     const body = await request.json();
+    console.log("Registration API received body:", body);
     const { control } = body;
+
     if (session.role === "controller" && control !== session.username) {
       return NextResponse.json(
         { message: "Unauthorized to assign to another controller" },
         { status: 403 }
       );
     }
+
     const rigistral = session.role === "registral" ? session.username : null;
     const {
       fullName,
@@ -208,49 +182,76 @@ export async function POST(request: NextRequest) {
       selectedTime,
       registrationdate,
     } = body;
+
+    console.log("Extracted fields:");
+    console.log("- fullName:", fullName);
+    console.log("- phoneNumber:", phoneNumber);
+    console.log("- ustaz:", ustaz);
+    console.log("- selectedDayPackage:", selectedDayPackage);
+    console.log("- selectedTime:", selectedTime);
+
+    // Validation
     if (!fullName || fullName.trim() === "") {
+      console.log("Validation failed: fullName is empty");
       return NextResponse.json(
         { message: "Full name is required" },
         { status: 400 }
       );
     }
     if (!phoneNumber || phoneNumber.trim() === "") {
+      console.log("Validation failed: phoneNumber is empty");
       return NextResponse.json(
         { message: "Phone number is required" },
         { status: 400 }
       );
     }
     if (!ustaz || ustaz.trim() === "") {
+      console.log("Validation failed: ustaz is empty");
       return NextResponse.json(
         { message: "Teacher is required" },
         { status: 400 }
       );
     }
     if (!selectedDayPackage || selectedDayPackage.trim() === "") {
+      console.log("Validation failed: selectedDayPackage is empty");
       return NextResponse.json(
         { message: "Day package is required" },
         { status: 400 }
       );
     }
     if (!selectedTime || selectedTime.trim() === "") {
+      console.log("Validation failed: selectedTime is empty");
       return NextResponse.json(
         { message: "Selected time is required" },
         { status: 400 }
       );
     }
-    const timeToMatch = convertTimeTo24Hour(selectedTime);
-    const timeSlot = convertTo12Hour(timeToMatch);
+
+    // Validate time format
+    if (!validateTime(selectedTime)) {
+      return NextResponse.json(
+        { message: `Invalid time format: ${selectedTime}` },
+        { status: 400 }
+      );
+    }
+
+    const timeToMatch = to24Hour(selectedTime);
+    const timeSlot = to12Hour(timeToMatch);
+
+    // Check teacher availability
     const availability = await checkTeacherAvailability(
       timeToMatch,
       selectedDayPackage,
       ustaz
     );
+
     if (!availability.isAvailable) {
       return NextResponse.json(
         { message: availability.message },
         { status: 400 }
       );
     }
+
     const newRegistration = await prismaClient.$transaction(async (tx) => {
       const registration = await tx.wpos_wpdatatable_23.create({
         data: {
@@ -268,12 +269,14 @@ export async function POST(request: NextRequest) {
           rigistral,
           daypackages: selectedDayPackage,
           refer: refer || null,
-          selectedTime: timeSlot,
+          selectedTime: timeSlot, // Store in 12-hour format for display
           registrationdate: registrationdate
             ? new Date(registrationdate)
             : new Date(),
         },
       });
+
+      // Create occupied time record
       await tx.wpos_ustaz_occupied_times.create({
         data: {
           ustaz_id: ustaz,
@@ -283,33 +286,27 @@ export async function POST(request: NextRequest) {
           occupied_at: new Date(),
         },
       });
+
       console.log(
         `Registration created for ${fullName} by ${session.username} - Notification triggered`
       );
       return registration;
     });
+
     return NextResponse.json(
       { message: "Registration successful", id: newRegistration.wdt_ID },
       { status: 201 }
     );
   } catch (error) {
-    console.error("POST error:", error);
+    console.error("Registration error:", error);
     return NextResponse.json(
-      {
-        message: "Error creating registration",
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
+      { message: "Internal server error" },
       { status: 500 }
     );
-  } finally {
-    await prismaClient.$disconnect();
   }
 }
 
 export async function PUT(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const id = parseInt(searchParams.get("id") || "0");
-
   try {
     const session = await getToken({
       req: request,
@@ -318,45 +315,45 @@ export async function PUT(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
-    if (!id || id <= 0) {
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) {
       return NextResponse.json(
-        { message: "Invalid or missing registration ID" },
+        { message: "Registration ID is required" },
         { status: 400 }
       );
     }
 
     const body = await request.json();
+    console.log("PUT request body:", body);
     const { control } = body;
-    if (
-      session.role === "controller" &&
-      control &&
-      control !== session.username
-    ) {
-      return NextResponse.json(
-        { message: "Unauthorized to reassign to another controller" },
-        { status: 403 }
-      );
-    }
 
-    const existingRegistration =
-      await prismaClient.wpos_wpdatatable_23.findUnique({
-        where: { wdt_ID: id },
-        select: { control: true, rigistral: true },
-      });
-    if (!existingRegistration) {
-      return NextResponse.json(
-        { message: "Registration not found" },
-        { status: 404 }
-      );
-    }
-    if (
-      session.role === "controller" &&
-      existingRegistration.control !== session.username
-    ) {
-      return NextResponse.json(
-        { message: "Unauthorized to update this registration" },
-        { status: 403 }
-      );
+    // For controllers, check if they own the registration first
+    if (session.role === "controller") {
+      const existingRegistration =
+        await prismaClient.wpos_wpdatatable_23.findUnique({
+          where: { wdt_ID: parseInt(id) },
+          select: { control: true },
+        });
+
+      if (!existingRegistration) {
+        return NextResponse.json(
+          { message: "Registration not found" },
+          { status: 404 }
+        );
+      }
+
+      // Allow if controller owns the registration OR if they're not changing the control field
+      if (
+        existingRegistration.control !== session.username &&
+        control !== session.username
+      ) {
+        return NextResponse.json(
+          { message: "Unauthorized to assign to another controller" },
+          { status: 403 }
+        );
+      }
     }
 
     const {
@@ -375,48 +372,65 @@ export async function PUT(request: NextRequest) {
       registrationdate,
     } = body;
 
+    console.log("PUT validation check:");
+    console.log("- fullName:", fullName);
+    console.log("- phoneNumber:", phoneNumber);
+    console.log("- ustaz:", ustaz);
+    console.log("- selectedDayPackage:", selectedDayPackage);
+    console.log("- selectedTime:", selectedTime);
+
+    // Validation
     if (!fullName || fullName.trim() === "") {
+      console.log("Validation failed: fullName is empty");
       return NextResponse.json(
         { message: "Full name is required" },
         { status: 400 }
       );
     }
     if (!phoneNumber || phoneNumber.trim() === "") {
+      console.log("Validation failed: phoneNumber is empty");
       return NextResponse.json(
         { message: "Phone number is required" },
         { status: 400 }
       );
     }
     if (!ustaz || ustaz.trim() === "") {
+      console.log("Validation failed: ustaz is empty");
       return NextResponse.json(
         { message: "Teacher ID is required" },
         { status: 400 }
       );
     }
     if (!selectedDayPackage || selectedDayPackage.trim() === "") {
+      console.log("Validation failed: selectedDayPackage is empty");
       return NextResponse.json(
         { message: "Day package is required" },
         { status: 400 }
       );
     }
     if (!selectedTime || selectedTime.trim() === "") {
+      console.log("Validation failed: selectedTime is empty");
       return NextResponse.json(
         { message: "Selected time is required" },
         { status: 400 }
       );
     }
 
-    const timeToMatch = convertTimeTo24Hour(selectedTime);
-    const timeSlot = convertTo12Hour(timeToMatch);
-    if (timeSlot === "Invalid Time") {
+    // Validate time format
+    if (!validateTime(selectedTime)) {
+      console.log("Validation failed: invalid time format:", selectedTime);
       return NextResponse.json(
-        { message: "Invalid time format provided" },
+        { message: `Invalid time format: ${selectedTime}` },
         { status: 400 }
       );
     }
 
+    const timeToMatch = to24Hour(selectedTime);
+    const timeSlot = to12Hour(timeToMatch);
+    console.log("Time conversion:", { selectedTime, timeToMatch, timeSlot });
+
     const existing = await prismaClient.wpos_wpdatatable_23.findUnique({
-      where: { wdt_ID: id },
+      where: { wdt_ID: parseInt(id) },
       select: {
         ustaz: true,
         selectedTime: true,
@@ -426,24 +440,46 @@ export async function PUT(request: NextRequest) {
     });
 
     if (!existing) {
+      console.log("Registration not found for ID:", id);
       return NextResponse.json(
         { message: "Registration not found" },
         { status: 404 }
       );
     }
+
     const hasNotChanged =
       existing.ustaz === ustaz &&
       existing.selectedTime === timeSlot &&
       existing.daypackages === selectedDayPackage;
 
+    console.log("Change detection:", {
+      existing: {
+        ustaz: existing.ustaz,
+        selectedTime: existing.selectedTime,
+        daypackages: existing.daypackages,
+      },
+      new: {
+        ustaz,
+        selectedTime: timeSlot,
+        daypackages: selectedDayPackage,
+      },
+      hasNotChanged,
+    });
+
     if (!hasNotChanged) {
+      // Check teacher availability
+      console.log("Checking teacher availability for changes...");
       const availability = await checkTeacherAvailability(
         timeToMatch,
         selectedDayPackage,
         ustaz,
-        id
+        parseInt(id)
       );
+
+      console.log("Teacher availability result:", availability);
+
       if (!availability.isAvailable) {
+        console.log("Teacher availability check failed:", availability.message);
         return NextResponse.json(
           { message: availability.message },
           { status: 400 }
@@ -453,7 +489,7 @@ export async function PUT(request: NextRequest) {
 
     const updatedRegistration = await prismaClient.$transaction(async (tx) => {
       const registration = await tx.wpos_wpdatatable_23.update({
-        where: { wdt_ID: id },
+        where: { wdt_ID: parseInt(id) },
         data: {
           name: fullName,
           phoneno: phoneNumber,
@@ -469,7 +505,7 @@ export async function PUT(request: NextRequest) {
           rigistral:
             session.role === "registral"
               ? session.username
-              : existing.rigistral, // Preserve original rigistral for controllers
+              : existing.rigistral,
           daypackages: selectedDayPackage,
           refer: refer || null,
           selectedTime: timeSlot,
@@ -480,21 +516,23 @@ export async function PUT(request: NextRequest) {
       });
 
       if (!hasNotChanged) {
+        // Remove old occupied time
         await tx.wpos_ustaz_occupied_times.deleteMany({
           where: {
-            student_id: id,
+            student_id: parseInt(id),
             ustaz_id: existing.ustaz || "",
             time_slot: existing.selectedTime || "",
             daypackage: existing.daypackages || "",
           },
         });
 
+        // Create new occupied time
         await tx.wpos_ustaz_occupied_times.create({
           data: {
             ustaz_id: ustaz,
             time_slot: timeSlot,
             daypackage: selectedDayPackage,
-            student_id: id,
+            student_id: parseInt(id),
             occupied_at: new Date(),
           },
         });
@@ -507,23 +545,15 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json(
-      {
-        message: "Registration updated successfully",
-        id: updatedRegistration.wdt_ID,
-      },
+      { message: "Registration updated successfully" },
       { status: 200 }
     );
   } catch (error) {
-    console.error("PUT error:", error);
+    console.error("Update registration error:", error);
     return NextResponse.json(
-      {
-        message: "Error updating registration",
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
+      { message: "Internal server error" },
       { status: 500 }
     );
-  } finally {
-    await prismaClient.$disconnect();
   }
 }
 
@@ -538,6 +568,26 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
+  const student = searchParams.get("student");
+  const daypackage = searchParams.get("daypackage");
+
+  // Handle student slot count request
+  if (student && daypackage) {
+    try {
+      const studentId = student === "new" ? undefined : parseInt(student);
+      const slotCount = await prismaClient.wpos_ustaz_occupied_times.count({
+        where: {
+          student_id: studentId,
+          daypackage: daypackage,
+        },
+      });
+
+      return NextResponse.json({ slotCount });
+    } catch (error) {
+      console.error("Error fetching student slot count:", error);
+      return NextResponse.json({ slotCount: 0 });
+    }
+  }
 
   if (id) {
     const registration = await prismaClient.wpos_wpdatatable_23.findUnique({
@@ -570,6 +620,7 @@ export async function GET(request: NextRequest) {
         { status: 404 }
       );
     }
+
     if (
       session.role === "controller" &&
       registration.control !== session.username

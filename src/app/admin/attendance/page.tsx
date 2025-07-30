@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { AttendanceAnalytics } from "./components/AttendanceAnalytics";
-import UstazAttendanceRating from "./components/UstazAttendanceRating";
-import Header from "../components/Header";
+
 import { useSession } from "next-auth/react";
 
 interface Controller {
@@ -18,6 +17,12 @@ export default function AttendancePage() {
   const [activeTab, setActiveTab] = useState<"attendance" | "ustaz-rating">(
     "attendance"
   );
+
+  // Lateness records state for admin
+  const [latenessRecords, setLatenessRecords] = useState<any[]>([]);
+  const [latenessLoading, setLatenessLoading] = useState(false);
+  const [latenessError, setLatenessError] = useState<string | null>(null);
+  const [teacherFilter, setTeacherFilter] = useState("");
 
   const { data: session, status } = useSession();
 
@@ -40,13 +45,30 @@ export default function AttendancePage() {
     fetchControllers();
   }, []);
 
+  useEffect(() => {
+    if (session?.user?.role === "admin") {
+      fetchLatenessRecords();
+    }
+    // eslint-disable-next-line
+  }, [session]);
+
+  async function fetchLatenessRecords() {
+    setLatenessLoading(true);
+    setLatenessError(null);
+    try {
+      const res = await fetch("/api/admin/lateness");
+      if (!res.ok) throw new Error("Failed to fetch lateness records");
+      const data = await res.json();
+      setLatenessRecords(data.latenessData || []);
+    } catch (e: any) {
+      setLatenessError(e.message);
+    } finally {
+      setLatenessLoading(false);
+    }
+  }
+
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8 bg-gray-50">
-      <Header
-        pageTitle="Attendance Management"
-        userName={session?.user?.name || "Admin"}
-        onMenuClick={() => setSidebarOpen(!isSidebarOpen)}
-      />
       <div className="mt-6 mb-8">
         <p className="text-gray-600">
           Analyze attendance trends and ustaz performance ratings across the
@@ -78,37 +100,10 @@ export default function AttendancePage() {
                 ))}
             </select>
           </div>
-
-          <div className="flex border border-gray-200 rounded-lg overflow-hidden">
-            <button
-              onClick={() => setActiveTab("attendance")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === "attendance"
-                  ? "bg-indigo-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              Attendance Analytics
-            </button>
-            <button
-              onClick={() => setActiveTab("ustaz-rating")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === "ustaz-rating"
-                  ? "bg-indigo-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              Ustaz Rating
-            </button>
-          </div>
         </div>
       </div>
 
-      {activeTab === "attendance" ? (
-        <AttendanceAnalytics controllerId={selectedController} />
-      ) : (
-        <UstazAttendanceRating />
-      )}
+      <AttendanceAnalytics controllerId={selectedController} />
     </main>
   );
 }

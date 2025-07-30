@@ -77,11 +77,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return (
       <div className="p-2 bg-white border rounded-md shadow-md text-sm">
         <p className="font-bold">{label || data.name}</p>
-        <p className="font-semibold text-indigo-600">
+        <p className="font-semibold text-blue-600">
           Attendance Rate: {data["Attendance Rate"]}%
         </p>
-        <p className="text-green-600">Present: {data.Present}</p>
-        <p className="text-red-600">Absent: {data.Absent}</p>
+        <p className="text-blue-700">Present: {data.Present}</p>
+        <p className="text-blue-400">Absent: {data.Absent}</p>
         <p className="text-gray-500">Total: {data.Total}</p>
       </div>
     );
@@ -103,7 +103,7 @@ const PerformerCard: FC<any> = ({
   <div
     className={`bg-white p-6 rounded-lg shadow-md flex items-start border-l-4 ${borderColor}`}
   >
-    <div className="mr-4 text-3xl text-gray-600">{icon}</div>
+    <div className="mr-4 text-3xl text-blue-400">{icon}</div>
     <div>
       <h4 className="font-semibold text-gray-500">{title}</h4>
       <p className="text-2xl font-bold text-gray-800">{name}</p>
@@ -315,7 +315,8 @@ export function AttendanceAnalytics({
     { name: "Present", value: presentTotal },
     { name: "Absent", value: absentTotal },
   ];
-  const PIE_COLORS = ["#34d399", "#6366f1"];
+  // Update color constants for blue palette
+  const PIE_COLORS = ["#3b82f6", "#60a5fa"];
 
   return (
     <>
@@ -325,15 +326,15 @@ export function AttendanceAnalytics({
 
       {/* Summary Cards */}
       <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-indigo-500 flex items-center gap-4">
-          <FiPercent className="text-2xl text-indigo-500" />
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500 flex items-center gap-4">
+          <FiPercent className="text-2xl text-blue-500" />
           <div>
             <div className="text-gray-500">Avg. Attendance Rate</div>
             <div className="text-2xl font-bold">{avgAttendanceRate}%</div>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500 flex items-center gap-4">
-          <FiTrendingUp className="text-2xl text-green-500" />
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-400 flex items-center gap-4">
+          <FiTrendingUp className="text-2xl text-blue-400" />
           <div>
             <div className="text-gray-500">Best Day</div>
             <div className="text-lg font-bold">
@@ -343,8 +344,8 @@ export function AttendanceAnalytics({
             </div>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500 flex items-center gap-4">
-          <FiTrendingDown className="text-2xl text-red-500" />
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-300 flex items-center gap-4">
+          <FiTrendingDown className="text-2xl text-blue-300" />
           <div>
             <div className="text-gray-500">Worst Day</div>
             <div className="text-lg font-bold">
@@ -354,8 +355,8 @@ export function AttendanceAnalytics({
             </div>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-teal-500 flex items-center gap-4">
-          <FiUserCheck className="text-2xl text-teal-500" />
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-200 flex items-center gap-4">
+          <FiUserCheck className="text-2xl text-blue-200" />
           <div>
             <div className="text-gray-500">Total Sessions</div>
             <div className="text-2xl font-bold">{totalSessions}</div>
@@ -374,7 +375,7 @@ export function AttendanceAnalytics({
                 cx="50%"
                 cy="50%"
                 outerRadius={80}
-                fill="#8884d8"
+                fill="#3b82f6"
                 label
               >
                 {pieData.map((entry, index) => (
@@ -400,8 +401,8 @@ export function AttendanceAnalytics({
               <YAxis allowDecimals={false} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="Present" stackId="a" fill="#34d399" />
-              <Bar dataKey="Absent" stackId="a" fill="#6366f1" />
+              <Bar dataKey="Present" stackId="a" fill="#3b82f6" />
+              <Bar dataKey="Absent" stackId="a" fill="#60a5fa" />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>
@@ -425,8 +426,8 @@ export function AttendanceAnalytics({
             present={topController?.Present ?? 0}
             total={topController?.Total ?? 0}
             icon={<FiStar />}
-            borderColor="border-green-500"
-            textColor="text-green-600"
+            borderColor="border-blue-500"
+            textColor="text-blue-600"
           />
           <PerformerCard
             title="Top Performing Teacher"
@@ -435,8 +436,8 @@ export function AttendanceAnalytics({
             present={topTeacher?.Present ?? 0}
             total={topTeacher?.Total ?? 0}
             icon={<FiUserCheck />}
-            borderColor="border-blue-500"
-            textColor="text-blue-500"
+            borderColor="border-blue-400"
+            textColor="text-blue-400"
           />
         </div>
       ) : (
@@ -474,7 +475,7 @@ export function AttendanceAnalytics({
                   yAxisId="left"
                   type="monotone"
                   dataKey="Attendance Rate"
-                  stroke="#6366f1"
+                  stroke="#3b82f6"
                   activeDot={{ r: 8 }}
                   isAnimationActive={false}
                 />
@@ -482,7 +483,7 @@ export function AttendanceAnalytics({
                   yAxisId="left"
                   type="monotone"
                   dataKey="movingAvg"
-                  stroke="#34d399"
+                  stroke="#60a5fa"
                   strokeDasharray="5 5"
                   dot={false}
                   name="7-day Moving Avg"
@@ -511,7 +512,7 @@ export function AttendanceAnalytics({
                 <Legend />
                 <Bar
                   dataKey="Attendance Rate"
-                  fill="#82ca9d"
+                  fill="#3b82f6"
                   isAnimationActive={false}
                 />
               </BarChart>
@@ -537,7 +538,7 @@ export function AttendanceAnalytics({
                 <Legend />
                 <Bar
                   dataKey="Attendance Rate"
-                  fill="#ffc658"
+                  fill="#60a5fa"
                   isAnimationActive={false}
                 />
               </BarChart>

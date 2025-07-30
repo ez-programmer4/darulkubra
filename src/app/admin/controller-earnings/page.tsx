@@ -1,167 +1,520 @@
 "use client";
-
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { toast } from "react-hot-toast";
+import {
+  FiDollarSign,
+  FiTrendingUp,
+  FiTrendingDown,
+  FiUsers,
+  FiCalendar,
+  FiTarget,
+  FiAward,
+  FiBarChart,
+  FiPieChart,
+  FiActivity,
+  FiFilter,
+  FiDownload,
+  FiSearch,
+} from "react-icons/fi";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ControllerEarnings } from "@/lib/earningsCalculator";
 
-// Define the ControllerEarning type
-interface ControllerEarning {
-  id: string;
-  controllerUsername: string;
-  studentId: string;
-  amount: number;
-  createdAt: string;
-  paidOut: boolean;
+interface AdminEarningsData {
+  earnings: ControllerEarnings[];
+  summary: {
+    totalControllers: number;
+    totalEarnings: number;
+    totalActiveStudents: number;
+    totalPaidStudents: number;
+    averageEarnings: number;
+  };
+  teamStats: any[];
 }
 
-function ControllerEarningsAdmin() {
-  const [earnings, setEarnings] = useState<ControllerEarning[]>([]);
+export default function AdminControllerEarningsPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [earningsData, setEarningsData] = useState<AdminEarningsData | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState({ controller: "", paidOut: "" });
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState<string>("all");
+
+  // Check authentication and role
   useEffect(() => {
-    let url = "/api/admin/controller-earnings";
-    const params = [];
-    if (filter.controller)
-      params.push(`controllerUsername=${filter.controller}`);
-    if (filter.paidOut) params.push(`paidOut=${filter.paidOut}`);
-    if (params.length) url += "?" + params.join("&");
-    fetch(url)
-      .then((res) => res.json())
-      .then(setEarnings)
-      .catch((e) => setError(e.message || "Failed to fetch earnings"))
-      .finally(() => setLoading(false));
-  }, [filter]);
-  const markPaid = async () => {
-    await fetch("/api/admin/controller-earnings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: selected }),
-    });
-    setSelected([]);
-    setLoading(true);
-    // refetch
-    let url = "/api/admin/controller-earnings";
-    const params = [];
-    if (filter.controller)
-      params.push(`controllerUsername=${filter.controller}`);
-    if (filter.paidOut) params.push(`paidOut=${filter.paidOut}`);
-    if (params.length) url += "?" + params.join("&");
-    fetch(url)
-      .then((res) => res.json())
-      .then(setEarnings)
-      .catch((e) => setError(e.message || "Failed to fetch earnings"))
-      .finally(() => setLoading(false));
+    if (status === "unauthenticated") {
+      router.replace("/login");
+    } else if (status === "authenticated" && session?.user?.role !== "admin") {
+      router.replace("/dashboard");
+    }
+  }, [status, session, router]);
+
+  // Fetch earnings data
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.role === "admin") {
+      fetchEarnings();
+    }
+  }, [status, session, selectedMonth]);
+
+  const fetchEarnings = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `/api/admin/controller-earnings?month=${selectedMonth}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch earnings");
+      }
+
+      const data = await response.json();
+      setEarningsData(data);
+    } catch (error) {
+      console.error("Error fetching earnings:", error);
+      toast.error("Failed to load earnings data");
+    } finally {
+      setLoading(false);
+    }
   };
-  return (
-    <div className="bg-white p-8 rounded-2xl shadow-xl border border-indigo-100">
-      <div className="flex flex-wrap justify-between items-center mb-8 gap-4">
-        <h1 className="text-2xl font-bold text-indigo-800">
-          Controller Earnings
-        </h1>
-        <div className="flex gap-2 flex-wrap">
-          <input
-            placeholder="Controller username"
-            value={filter.controller}
-            onChange={(e) =>
-              setFilter((f) => ({ ...f, controller: e.target.value }))
-            }
-            className="pl-3 pr-4 py-2 border-2 border-indigo-200 rounded-lg bg-white text-indigo-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm"
-          />
-          <select
-            value={filter.paidOut}
-            onChange={(e) =>
-              setFilter((f) => ({ ...f, paidOut: e.target.value }))
-            }
-            className="p-2 border-2 border-indigo-200 rounded-lg bg-white text-indigo-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm"
-          >
-            <option value="">All</option>
-            <option value="true">Paid Out</option>
-            <option value="false">Not Paid</option>
-          </select>
-          <button
-            onClick={markPaid}
-            disabled={!selected.length}
-            className="bg-green-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-green-700 shadow disabled:opacity-50 transition-all"
-          >
-            Mark as Paid
-          </button>
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount);
+  };
+
+  const formatPercentage = (value: number) => {
+    return `${value.toFixed(1)}%`;
+  };
+
+  const filteredEarnings =
+    earningsData?.earnings.filter((earning) => {
+      const matchesSearch =
+        earning.controllerName
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (earning.teamName || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
+      const matchesTeam =
+        selectedTeam === "all" || earning.teamId.toString() === selectedTeam;
+      return matchesSearch && matchesTeam;
+    }) || [];
+
+  const exportToCSV = () => {
+    if (!earningsData) return;
+
+    const headers = [
+      "Controller Name",
+      "Team Name",
+      "Total Earnings",
+      "Active Students",
+      "Paid Students",
+      "Growth Rate",
+      "Achievement %",
+    ];
+
+    const rows = filteredEarnings.map((earning) => [
+      earning.controllerName,
+      earning.teamName,
+      earning.totalEarnings,
+      earning.activeStudents,
+      earning.paidThisMonth,
+      `${earning.growthRate.toFixed(1)}%`,
+      `${earning.achievementPercentage.toFixed(1)}%`,
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.join(","))
+      .join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `controller-earnings-${selectedMonth}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (status === "loading" || loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading earnings data...</p>
         </div>
       </div>
-      {loading ? (
-        <div>Loading...</div>
-      ) : error ? (
-        <div className="text-red-600">{error}</div>
-      ) : (
-        <div className="overflow-x-auto border border-indigo-100 rounded-xl">
-          <table className="min-w-full divide-y divide-indigo-200">
-            <thead className="bg-indigo-100">
-              <tr>
-                <th></th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                  Controller
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                  Student ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                  Paid Out
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {earnings.map((e) => (
-                <tr key={e.id} className="hover:bg-indigo-50 transition-colors">
-                  <td className="px-4 py-2">
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(e.id)}
-                      onChange={(ev) =>
-                        setSelected((sel) =>
-                          ev.target.checked
-                            ? [...sel, e.id]
-                            : sel.filter((id) => id !== e.id)
-                        )
-                      }
-                    />
-                  </td>
-                  <td className="px-6 py-2 text-indigo-900 font-medium">
-                    {e.controllerUsername}
-                  </td>
-                  <td className="px-6 py-2">{e.studentId}</td>
-                  <td className="px-6 py-2 font-semibold text-green-700">
-                    ${Number(e.amount).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-2">
-                    {new Date(e.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-2 font-semibold">
-                    {e.paidOut ? (
-                      <span className="text-green-600">Yes</span>
-                    ) : (
-                      <span className="text-yellow-600">No</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
+    );
+  }
 
-export default function ControllerEarningsPage() {
+  if (!earningsData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <FiBarChart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-600 mb-2">
+            No Earnings Data
+          </h2>
+          <p className="text-gray-500">
+            No earnings data found for the selected period.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-indigo-50 py-10 px-2">
-      <div className="max-w-5xl mx-auto">
-        <ControllerEarningsAdmin />
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Controller Earnings Analytics
+              </h1>
+              <p className="text-gray-600 mt-2">
+                Overview of all controllers' earnings for{" "}
+                {new Date(selectedMonth + "-01").toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                })}
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
+              <Button onClick={fetchEarnings} variant="outline">
+                Refresh
+              </Button>
+              <Button onClick={exportToCSV} variant="outline">
+                <FiDownload className="mr-2" />
+                Export CSV
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Card className="bg-gradient-to-r from-teal-500 to-teal-600 text-white">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center text-lg">
+                  <FiDollarSign className="mr-2" />
+                  Total Earnings
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">
+                  {formatCurrency(earningsData.summary.totalEarnings)}
+                </div>
+                <div className="text-sm mt-2">
+                  {earningsData.summary.totalControllers} controllers
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center text-lg">
+                  <FiUsers className="mr-2" />
+                  Active Students
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">
+                  {earningsData.summary.totalActiveStudents}
+                </div>
+                <div className="text-sm mt-2">Across all controllers</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center text-lg">
+                  <FiAward className="mr-2" />
+                  Paid Students
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">
+                  {earningsData.summary.totalPaidStudents}
+                </div>
+                <div className="text-sm mt-2">This month</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center text-lg">
+                  <FiTarget className="mr-2" />
+                  Average Earnings
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">
+                  {formatCurrency(earningsData.summary.averageEarnings)}
+                </div>
+                <div className="text-sm mt-2">Per controller</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Filters */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="mb-6"
+        >
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <Input
+                      placeholder="Search controllers or teams..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <FiFilter className="text-gray-400" />
+                  <select
+                    value={selectedTeam}
+                    onChange={(e) => setSelectedTeam(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  >
+                    <option value="all">All Teams</option>
+                    {earningsData.teamStats.map((team: any) => (
+                      <option key={team.teamId} value={team.teamId}>
+                        {team.teamName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Team Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="mb-8"
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <FiPieChart className="mr-2" />
+                Team Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {earningsData.teamStats.map((team: any) => (
+                  <div key={team.teamId} className="p-4 border rounded-lg">
+                    <h3 className="font-semibold text-gray-900">
+                      {team.teamName}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Leader: {team.teamLeader}
+                    </p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Earnings:</span>
+                        <span className="font-semibold">
+                          {formatCurrency(team.totalEarnings)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">
+                          Controllers:
+                        </span>
+                        <span className="font-semibold">
+                          {team.controllers.length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Students:</span>
+                        <span className="font-semibold">
+                          {team.totalActiveStudents}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Controllers Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <FiActivity className="mr-2" />
+                Controller Details ({filteredEarnings.length} controllers)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-4 font-semibold">
+                        Controller
+                      </th>
+                      <th className="text-left py-3 px-4 font-semibold">
+                        Team
+                      </th>
+                      <th className="text-left py-3 px-4 font-semibold">
+                        Earnings
+                      </th>
+                      <th className="text-left py-3 px-4 font-semibold">
+                        Students
+                      </th>
+                      <th className="text-left py-3 px-4 font-semibold">
+                        Growth
+                      </th>
+                      <th className="text-left py-3 px-4 font-semibold">
+                        Performance
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredEarnings.map((earning, index) => (
+                      <motion.tr
+                        key={earning.controllerId}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                        className="border-b hover:bg-gray-50"
+                      >
+                        <td className="py-3 px-4">
+                          <div>
+                            <div className="font-semibold">
+                              {earning.controllerName}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {earning.controllerId}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge variant="outline">{earning.teamName}</Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-semibold">
+                            {formatCurrency(earning.totalEarnings)}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {formatPercentage(earning.achievementPercentage)} of
+                            target
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-semibold">
+                            {earning.activeStudents}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {earning.paidThisMonth} paid
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center">
+                            {earning.growthRate >= 0 ? (
+                              <FiTrendingUp className="text-green-500 mr-1" />
+                            ) : (
+                              <FiTrendingDown className="text-red-500 mr-1" />
+                            )}
+                            <span
+                              className={
+                                earning.growthRate >= 0
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }
+                            >
+                              {formatPercentage(Math.abs(earning.growthRate))}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                earning.achievementPercentage >= 80
+                                  ? "bg-green-600"
+                                  : earning.achievementPercentage >= 60
+                                  ? "bg-yellow-600"
+                                  : "bg-red-600"
+                              }`}
+                              style={{
+                                width: `${Math.min(
+                                  earning.achievementPercentage,
+                                  100
+                                )}%`,
+                              }}
+                            ></div>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </div>
   );

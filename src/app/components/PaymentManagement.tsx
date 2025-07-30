@@ -77,6 +77,7 @@ interface Student {
   startdate: string;
   classfee: number;
   registrationdate: string;
+  wdt_ID?: number;
 }
 
 interface User {
@@ -351,7 +352,7 @@ export default function PaymentManagement({
 
   // Set current month as default when component mounts
   useEffect(() => {
-    if (student) {
+    if (student && student.classfee) {
       const currentDate = new Date();
       const currentMonth = `${currentDate.getFullYear()}-${String(
         currentDate.getMonth() + 1
@@ -368,7 +369,7 @@ export default function PaymentManagement({
         paymentType: calculatedAmount === student.classfee ? "full" : "partial",
       });
     }
-  }, [student]);
+  }, [student?.id, student?.classfee, student?.startdate]); // More specific dependencies
 
   const handleDepositSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -447,6 +448,12 @@ export default function PaymentManagement({
       toast.error("Please select a month");
       return;
     }
+    // Guard: Ensure student and student.wdt_ID are present
+    if (!student || (!student.id && !student.wdt_ID)) {
+      toast.error("Student not loaded. Please try again.");
+      console.log("Student object at submit:", student);
+      return;
+    }
 
     // Calculate current remaining balance
     const currentBalance = calculateRemainingBalance();
@@ -502,23 +509,23 @@ export default function PaymentManagement({
         paymentType = "partial";
       }
 
+      const studentId = student.wdt_ID || student.id;
+      const payload = {
+        studentId,
+        month: newMonthlyPayment.month,
+        paidAmount: amount.toFixed(2),
+        paymentStatus: "approved",
+        payment_type: paymentType,
+      };
+      console.log("Student object at submit:", student);
+      console.log("Monthly payment payload:", payload);
+
       const response = await fetch("/api/payments/monthly", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          studentId: student.id,
-          month: newMonthlyPayment.month,
-          paidAmount: amount.toFixed(2),
-          paymentStatus: "approved",
-          payment_type: paymentType,
-          reason: existingPartialPrize
-            ? `Monthly payment (with ${existingPartialPrize.percentage}% prize)`
-            : amount === student.classfee
-            ? "Monthly payment"
-            : "Prorated monthly payment",
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -687,9 +694,12 @@ export default function PaymentManagement({
       // Debug: Log calculated amounts
       console.log("Calculated amounts:", { baseAmount, prizeAmount });
 
+      // Use correct studentId
+      const studentId = student.wdt_ID || student.id;
+
       // Construct payload dynamically
       const payload = {
-        studentId: student.id,
+        studentId,
         month: newPrize.month,
         paidAmount: isFullPrize ? 0 : prizeAmount.toFixed(2),
         paymentStatus: "approved",
@@ -734,12 +744,12 @@ export default function PaymentManagement({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            studentId: student.id,
+            studentId,
             month: newPrize.month,
             paidAmount: remainingAmount.toFixed(2),
             paymentStatus: "approved",
             payment_type: "partial",
-            reason: `Remaining payment after ${newPrize.percentage}% prize`, // Kept for partial payments if needed by backend
+            reason: `Remaining payment after ${newPrize.percentage}% prize`,
           }),
         });
 
@@ -881,9 +891,10 @@ export default function PaymentManagement({
     if (!student) return;
     setIsLoading(true);
     try {
+      const studentId = student.wdt_ID || student.id;
       const [monthlyResponse, depositsResponse] = await Promise.all([
-        fetch(`/api/payments/monthly?studentId=${student.id}`),
-        fetch(`/api/payments/deposit?studentId=${student.id}`),
+        fetch(`/api/payments/monthly?studentId=${studentId}`),
+        fetch(`/api/payments/deposit?studentId=${studentId}`),
       ]);
 
       if (!monthlyResponse.ok || !depositsResponse.ok) {
@@ -961,7 +972,7 @@ export default function PaymentManagement({
             Payment Management
           </h1>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">
-            Manage payments for {student.name}
+            Manage payments for {student?.name || "Student"}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
@@ -1114,13 +1125,15 @@ export default function PaymentManagement({
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-gray-600">Monthly Fee</p>
                   <p className="font-semibold text-gray-900">
-                    ${student.classfee.toFixed(2)}
+                    ${student?.classfee ? student.classfee.toFixed(2) : "0.00"}
                   </p>
                 </div>
                 <div className="flex justify-between items-center mt-2">
                   <p className="text-sm text-gray-600">Start Date</p>
                   <p className="font-semibold text-gray-900">
-                    {format(new Date(student.startdate), "MMM d, yyyy")}
+                    {student?.startdate
+                      ? format(new Date(student.startdate), "MMM d, yyyy")
+                      : "N/A"}
                   </p>
                 </div>
               </div>
@@ -1635,7 +1648,7 @@ export default function PaymentManagement({
                             Student Name
                           </span>
                           <span className="font-medium text-gray-900">
-                            {student.name}
+                            {student?.name || "N/A"}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -1949,7 +1962,7 @@ export default function PaymentManagement({
                             Student Name
                           </span>
                           <span className="font-medium text-gray-900">
-                            {student.name}
+                            {student?.name || "N/A"}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -1957,7 +1970,10 @@ export default function PaymentManagement({
                             Monthly Fee
                           </span>
                           <span className="font-medium text-gray-900">
-                            ${student.classfee.toFixed(2)}
+                            $
+                            {student?.classfee
+                              ? student.classfee.toFixed(2)
+                              : "0.00"}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -2227,7 +2243,7 @@ export default function PaymentManagement({
                             Student Name
                           </span>
                           <span className="font-medium text-gray-900">
-                            {student.name}
+                            {student?.name || "N/A"}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -2235,7 +2251,10 @@ export default function PaymentManagement({
                             Monthly Fee
                           </span>
                           <span className="font-medium text-gray-900">
-                            ${student.classfee.toFixed(2)}
+                            $
+                            {student?.classfee
+                              ? student.classfee.toFixed(2)
+                              : "0.00"}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -2244,10 +2263,13 @@ export default function PaymentManagement({
                           </span>
                           <span className="font-medium text-purple-600">
                             $
-                            {(
-                              (student.classfee * (newPrize.percentage || 0)) /
-                              100
-                            ).toFixed(2)}
+                            {student?.classfee
+                              ? (
+                                  (student.classfee *
+                                    (newPrize.percentage || 0)) /
+                                  100
+                                ).toFixed(2)
+                              : "0.00"}
                           </span>
                         </div>
                       </div>
@@ -2412,7 +2434,7 @@ export default function PaymentManagement({
                             Student Name
                           </span>
                           <span className="font-medium text-gray-900">
-                            {student.name}
+                            {student?.name || "N/A"}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -2420,7 +2442,7 @@ export default function PaymentManagement({
                             Student ID
                           </span>
                           <span className="font-medium text-gray-900">
-                            {student.id}
+                            {student?.id || "N/A"}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -2428,7 +2450,10 @@ export default function PaymentManagement({
                             Monthly Fee
                           </span>
                           <span className="font-medium text-gray-900">
-                            ${student.classfee.toFixed(2)}
+                            $
+                            {student?.classfee
+                              ? student.classfee.toFixed(2)
+                              : "0.00"}
                           </span>
                         </div>
                       </div>

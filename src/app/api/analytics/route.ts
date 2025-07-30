@@ -5,25 +5,53 @@ import { getToken } from "next-auth/jwt";
 const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
-  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  if (!session || session.role !== "controller" || !session.username) {
-    console.error("Unauthorized: No valid controller user in session");
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const url = new URL(req.url);
-  const searchParams = url.searchParams;
-  const startDate =
-    searchParams.get("startDate") ||
-    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]; // Default to last 30 days
-  const endDate =
-    searchParams.get("endDate") || new Date().toISOString().split("T")[0];
-  const period = searchParams.get("period") || "monthly"; // monthly, weekly, daily
-
   try {
-    // Get all students for this controller
+    console.log(
+      "Analytics API: NEXTAUTH_SECRET exists:",
+      !!process.env.NEXTAUTH_SECRET
+    );
+
+    // Fallback secret for development if NEXTAUTH_SECRET is not set
+    const secret =
+      process.env.NEXTAUTH_SECRET || "fallback-secret-for-development";
+
+    const session = await getToken({ req, secret });
+
+    console.log("Analytics API: Session token:", session);
+
+    if (!session) {
+      console.log("Analytics API: No session token found");
+      return NextResponse.json({ error: "No session token" }, { status: 401 });
+    }
+
+    // Allow admin and controller roles
+    if (!["admin", "controller"].includes(session.role)) {
+      console.log("Analytics API: Unauthorized role:", session.role);
+      return NextResponse.json(
+        { error: "Admin or controller access required" },
+        { status: 401 }
+      );
+    }
+
+    console.log("Analytics API: Access granted for role:", session.role);
+
+    const url = new URL(req.url);
+    const searchParams = url.searchParams;
+    const startDate =
+      searchParams.get("startDate") ||
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0]; // Default to last 30 days
+    const endDate =
+      searchParams.get("endDate") || new Date().toISOString().split("T")[0];
+    const period = searchParams.get("period") || "monthly"; // monthly, weekly, daily
+
+    // Get all students - for admin, get all students; for controller, get only their students
     const students = await prisma.wpos_wpdatatable_23.findMany({
-      where: { control: { equals: session.username } },
+      where:
+        session.role === "admin"
+          ? {} // Admin can see all students
+          : { control: { equals: session.username } }, // Controller only sees their students
       include: {
         teacher: true,
         attendance_progress: {
@@ -66,16 +94,22 @@ export async function GET(req: NextRequest) {
 
     // Calculate teacher performance
     const teacherStats = await prisma.wpos_wpdatatable_24.findMany({
-      where: {
-        students: {
-          some: {
-            control: { equals: session.username },
-          },
-        },
-      },
+      where:
+        session.role === "admin"
+          ? {} // Admin can see all teachers
+          : {
+              students: {
+                some: {
+                  control: { equals: session.username },
+                },
+              },
+            },
       include: {
         students: {
-          where: { control: { equals: session.username } },
+          where:
+            session.role === "admin"
+              ? {} // Admin can see all students
+              : { control: { equals: session.username } }, // Controller only sees their students
           include: {
             attendance_progress: {
               where: {
@@ -105,13 +139,16 @@ export async function GET(req: NextRequest) {
         return {
           teacherId: teacher.ustazid,
           teacherName: teacher.ustazname,
-          totalStudents: teacher.students.length,
           totalSessions,
           presentSessions,
           absentSessions: allAttendance.filter(
             (ap) => ap.attendance_status === "absent"
           ).length,
+          permissionSessions: allAttendance.filter(
+            (ap) => ap.attendance_status === "permission"
+          ).length,
           attendanceRate: Math.round(attendanceRate * 100) / 100,
+          studentCount: teacher.students.length,
         };
       })
       .sort((a, b) => b.attendanceRate - a.attendanceRate);
@@ -210,5 +247,7 @@ export async function GET(req: NextRequest) {
       { error: "Failed to fetch analytics data", details: error.message },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

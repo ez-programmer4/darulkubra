@@ -131,7 +131,17 @@ export async function POST(request: NextRequest) {
       payment_type === null
     ) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        {
+          error: "Missing required fields",
+          debug: {
+            studentId,
+            month,
+            paidAmount,
+            paymentStatus,
+            payment_type,
+            body,
+          },
+        },
         { status: 400 }
       );
     }
@@ -374,6 +384,18 @@ export async function POST(request: NextRequest) {
     });
     console.log(payment_type, "payment type");
 
+    // Ensure paidAmount is a number for Prisma
+    const paidAmountNumber =
+      typeof paidAmount === "string" ? parseFloat(paidAmount) : paidAmount;
+    console.log(
+      "Type of paidAmount before create:",
+      typeof paidAmount,
+      paidAmount,
+      "->",
+      typeof paidAmountNumber,
+      paidAmountNumber
+    );
+
     // Skip exceeding check for free payments, allow paidAmount: 0
     if (payment_type !== "free" && newTotal > expectedAmount + 0.01) {
       // Add small tolerance for floating point arithmetic, only for non-free payments
@@ -414,7 +436,7 @@ export async function POST(request: NextRequest) {
       data: {
         studentid: parseInt(studentId),
         month: month,
-        paid_amount: paidAmount,
+        paid_amount: paidAmountNumber,
         payment_status: paymentStatus,
         payment_type: payment_type,
         start_date: startDate.toISOString(),

@@ -1,78 +1,26 @@
 import { PrismaClient } from "@prisma/client";
 import { NextResponse, NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { to24Hour, to12Hour, validateTime } from "@/utils/timeUtils";
 
 const prisma = new PrismaClient();
-
-const convertTo12Hour = (time: string): string => {
-  if (/AM|PM/i.test(time)) return time;
-
-  // Fix: If time has more than two colons, treat as invalid or parse only first two segments
-  const segments = time.split(":");
-  if (segments.length > 3) {
-    console.warn(`Skipping invalid time format: ${time}`);
-    return "Invalid Time";
-  }
-  // Use only first two segments for HH:MM
-  const [hourStr, minuteStr = "00"] = segments;
-  if (
-    !/^([0-1]?[0-9]|2[0-3])$/.test(hourStr) ||
-    !/^[0-5][0-9]$/.test(minuteStr)
-  ) {
-    throw new Error(`Invalid time format: ${time}. Expected HH:MM or HH:MM:SS`);
-  }
-  const hour = parseInt(hourStr, 10);
-  const minute = parseInt(minuteStr, 10);
-
-  const period = hour >= 12 ? "PM" : "AM";
-  const adjustedHour = hour % 12 || 12;
-  const formattedMinute = minute.toString().padStart(2, "0");
-
-  return `${adjustedHour}:${formattedMinute} ${period}`;
-};
-
-const convertTimeTo24Hour = (time: string): string => {
-  if (time.includes("AM") || time.includes("PM")) {
-    try {
-      const [timePart, period] = time.split(" ");
-      const [hourStr, minuteStr = "00"] = timePart
-        .split(":")
-        .map((part) => part.trim());
-      let hour = parseInt(hourStr, 10);
-      const minute = parseInt(minuteStr, 10);
-
-      if (period === "PM" && hour !== 12) hour += 12;
-      if (period === "AM" && hour === 12) hour = 0;
-
-      if (
-        isNaN(hour) ||
-        hour < 0 ||
-        hour > 23 ||
-        isNaN(minute) ||
-        minute < 0 ||
-        minute > 59
-      ) {
-        throw new Error(`Invalid 12-hour time format: ${time}`);
-      }
-
-      return `${hour.toString().padStart(2, "0")}:${minute
-        .toString()
-        .padStart(2, "0")}`;
-    } catch (error) {
-      console.error("Error converting to 24-hour format:", error);
-      return "00:00";
-    }
-  }
-  return time;
-};
 
 const checkTeacherAvailability = async (
   selectedTime: string,
   selectedDayPackage: string,
   teacherId: string
 ) => {
-  const timeToMatch = convertTimeTo24Hour(selectedTime);
-  const timeSlot = convertTo12Hour(timeToMatch);
+  // Validate time format
+  if (!validateTime(selectedTime)) {
+    return {
+      isAvailable: false,
+      message: `Invalid time format: ${selectedTime}`,
+    };
+  }
+
+  const timeToMatch = to24Hour(selectedTime);
+  const timeSlot = to12Hour(timeToMatch);
+
   console.log("Checking availability:", {
     teacherId,
     timeToMatch,
@@ -98,14 +46,40 @@ const checkTeacherAvailability = async (
     };
   }
 
-  if (
-    !teacher.schedule
+  // Check if teacher is available at this time
+  const scheduleTimes =
+    teacher.schedule
       ?.split(",")
       .map((t) => t.trim())
-      .includes(timeToMatch)
-  ) {
+      .filter((t) => t) || [];
+
+  // Normalize time formats for comparison - handle both 12-hour and 24-hour formats
+  const normalizedScheduleTimes = scheduleTimes.map((time) => {
+    try {
+      // If the time already has AM/PM, convert to 24-hour
+      if (time.includes("AM") || time.includes("PM")) {
+        return to24Hour(time);
+      }
+      // If it's already in 24-hour format, ensure proper formatting
+      const [hours, minutes] = time.split(":").map(Number);
+      return `${hours.toString().padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")}`;
+    } catch {
+      return time; // Keep original if conversion fails
+    }
+  });
+
+  console.log(`Teacher ${teacher.ustazname} schedule times:`, scheduleTimes);
+  console.log(`Normalized schedule times:`, normalizedScheduleTimes);
+  console.log(`Looking for time: ${timeToMatch}`);
+
+  if (!normalizedScheduleTimes.includes(timeToMatch)) {
     console.log(
       `Schedule check failed for ${teacher.ustazname}: ${teacher.schedule}`
+    );
+    console.log(
+      `Looking for: ${timeToMatch}, Available: ${normalizedScheduleTimes}`
     );
     return {
       isAvailable: false,
@@ -205,8 +179,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Validate time format
+    if (!validateTime(selectedTime)) {
+      return NextResponse.json(
+        { message: `Invalid time format: ${selectedTime}` },
+        { status: 400 }
+      );
+    }
+
     const teachers = await prisma.wpos_wpdatatable_24.findMany({
-      include: {
+      select: {
+        ustazid: true,
+        ustazname: true,
+        schedule: true,
         control: {
           select: { wdt_ID: true, username: true },
         },
@@ -219,6 +204,11 @@ export async function GET(request: NextRequest) {
 
     const availableTeachers = await Promise.all(
       teachers.map(async (teacher) => {
+        console.log(`Checking teacher ${teacher.ustazname}:`, {
+          ustazid: teacher.ustazid,
+          control: teacher.control,
+        });
+
         const availability = await checkTeacherAvailability(
           selectedTime,
           selectedDayPackage,
@@ -228,6 +218,7 @@ export async function GET(request: NextRequest) {
       })
     ).then((results) => results.filter((teacher) => teacher !== null));
 
+    console.log("Available teachers with controllers:", availableTeachers);
     return NextResponse.json(availableTeachers, { status: 200 });
   } catch (error) {
     console.error("Error fetching available teachers:", error);

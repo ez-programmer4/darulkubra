@@ -33,7 +33,7 @@ export async function GET(
 
     // Verify the student belongs to this controller
     const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { wdt_ID: session.id },
+      where: { wdt_ID: parseInt(session.id) },
       select: { username: true },
     });
 
@@ -85,7 +85,7 @@ export async function PUT(
     }
 
     const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { wdt_ID: session.id },
+      where: { wdt_ID: parseInt(session.id) },
       select: { username: true },
     });
 
@@ -147,7 +147,7 @@ export async function DELETE(
     }
 
     const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { wdt_ID: session.id },
+      where: { wdt_ID: parseInt(session.id) },
       select: { username: true },
     });
 
@@ -158,8 +158,8 @@ export async function DELETE(
     // Delete the student
     await prisma.$transaction(async (tx) => {
       // Delete related records first
-      await tx.attendance.deleteMany({
-        where: { studentId: parseInt(params.id) },
+      await tx.student_attendance_progress.deleteMany({
+        where: { student_id: parseInt(params.id) },
       });
 
       await tx.months_table.deleteMany({
@@ -168,15 +168,6 @@ export async function DELETE(
 
       await tx.payment.deleteMany({
         where: { studentid: parseInt(params.id) },
-      });
-
-      await tx.student_referrals.deleteMany({
-        where: {
-          OR: [
-            { referrer_id: parseInt(params.id) },
-            { referred_id: parseInt(params.id) },
-          ],
-        },
       });
 
       await tx.wpos_ustaz_occupied_times.deleteMany({

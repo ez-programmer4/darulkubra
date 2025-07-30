@@ -1,7 +1,7 @@
 "use client";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,10 +22,15 @@ import {
   FiFlag,
   FiUserCheck,
   FiStar,
+  FiClock,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import Cookies from "js-cookie";
 import { useSession } from "next-auth/react";
+import TimePicker from "@/components/ui/TimePicker";
+import { to24Hour, validateTime } from "@/utils/timeUtils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface FormData {
   fullName?: string;
@@ -50,7 +55,8 @@ interface TimeSlot {
 interface Teacher {
   ustazid: string;
   ustazname: string;
-  control: { id: number; username: string };
+  control?: { wdt_ID: number; username: string }; // Made optional
+  schedule?: string; // Added schedule field
 }
 
 interface TimeSlotResponse {
@@ -97,12 +103,19 @@ export default function Registration() {
   const [step, setStep] = useState<number>(
     editId ? 3 : Math.min(Math.max(initialStep, 1), 3)
   );
+
+  // Debug current step
+  useEffect(() => {
+    console.log("Current step:", step);
+  }, [step]);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [countries, setCountries] = useState<string[]>([]);
   const [loadingCountries, setLoadingCountries] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [selectedTeacherSchedule, setSelectedTeacherSchedule] =
+    useState<string>("");
 
   const {
     register,
@@ -144,6 +157,63 @@ export default function Registration() {
   const [loadingControllers, setLoadingControllers] = useState(false);
   const [controllersError, setControllersError] = useState<string | null>(null);
 
+  // --- ENHANCEMENT: Confirmation modal for unsaved changes ---
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<
+    null | (() => void)
+  >(null);
+  const [formTouched, setFormTouched] = useState(false);
+
+  // Mark form as touched on any change
+  useEffect(() => {
+    if (!formTouched) {
+      const handler = () => setFormTouched(true);
+      window.addEventListener("input", handler, true);
+      return () => window.removeEventListener("input", handler, true);
+    }
+  }, [formTouched]);
+
+  useEffect(() => {
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      if (formTouched) {
+        e.preventDefault();
+        e.returnValue =
+          "You have unsaved changes. Are you sure you want to leave?";
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [formTouched]);
+
+  const handleNavigateAway = (cb: () => void) => {
+    if (formTouched) {
+      setShowLeaveConfirm(true);
+      setPendingNavigation(() => cb);
+    } else {
+      cb();
+    }
+  };
+
+  const confirmLeave = () => {
+    setShowLeaveConfirm(false);
+    setFormTouched(false);
+    if (pendingNavigation) pendingNavigation();
+  };
+  const cancelLeave = () => {
+    setShowLeaveConfirm(false);
+    setPendingNavigation(null);
+  };
+
+  // --- ENHANCEMENT: ARIA live region for error/success messages ---
+  const [ariaMessage, setAriaMessage] = useState("");
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      setAriaMessage(
+        "There are errors in the form. Please review and correct them."
+      );
+    }
+  }, [errors]);
+
   useEffect(() => {
     const fetchCountries = async () => {
       setLoadingCountries(true);
@@ -170,6 +240,7 @@ export default function Registration() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log("Fetching time slots...");
         const [timeResponse] = await Promise.all([fetch("/api/time-slots")]);
 
         if (!timeResponse.ok)
@@ -178,13 +249,15 @@ export default function Registration() {
           );
 
         const timeData: TimeSlotResponse = await timeResponse.json();
-
+        console.log("Fetched time slots:", timeData.timeSlots);
+        console.log("Time slots count:", timeData.timeSlots?.length || 0);
         setTimeSlots(timeData.timeSlots);
         setError(null);
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Unknown error";
         setError(errorMessage);
+        console.error("Error fetching time slots:", errorMessage);
       }
     };
     fetchData();
@@ -227,11 +300,43 @@ export default function Registration() {
     }
   }, [selectedTime, selectedDayPackage, selectedTeacher]);
 
-  useEffect(() => {
-    if (step === 2) {
-      fetchTeachers();
+  const fetchAllTeachers = useCallback(async () => {
+    console.log("fetchAllTeachers called");
+    try {
+      const response = await fetch("/api/teachers");
+      console.log("API response status:", response.status);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log("API error response:", errorText);
+        throw new Error(`Failed to fetch teachers: ${response.statusText}`);
+      }
+      const data = await response.json();
+      console.log("Fetched teachers:", data);
+      console.log("Number of teachers fetched:", data.length);
+      setTeachers(data);
+      setError(null);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      console.log("fetchAllTeachers error:", errorMessage);
+      setError(errorMessage);
+      setTeachers([]);
     }
-  }, [step, fetchTeachers]);
+  }, []);
+
+  useEffect(() => {
+    if (status !== "authenticated") return; // Wait for session to load
+    console.log("Step changed to:", step);
+    console.log("User role:", (session as any)?.role);
+    if (step === 2) {
+      if ((session as any)?.role === "registral") {
+        console.log("Calling fetchAllTeachers for registral user");
+        fetchAllTeachers();
+      } else {
+        console.log("Calling fetchTeachers for regular user");
+        fetchTeachers();
+      }
+    }
+  }, [step, fetchTeachers, fetchAllTeachers, (session as any)?.role, status]);
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -246,23 +351,12 @@ export default function Registration() {
           }
           const data = await response.json();
 
-          const timeSlotResponse = await fetch(
-            `/api/occupied-times?studentId=${editId}`
-          );
-          if (!timeSlotResponse.ok) {
-            throw new Error(
-              `Failed to fetch time slot: ${timeSlotResponse.statusText}`
-            );
-          }
-          const timeSlotData = await timeSlotResponse.json();
-          const fetchedTimeSlot = timeSlotData.time_slot || "";
-
-          let fetchedSelectedTime = fetchedTimeSlot;
+          let fetchedSelectedTime = data.selectedTime || "";
           if (
-            fetchedTimeSlot &&
-            !/^\d{1,2}:\d{2}\s?(AM|PM)?$/.test(fetchedTimeSlot)
+            fetchedSelectedTime &&
+            !/^\d{1,2}:\d{2}\s?(AM|PM)?$/.test(fetchedSelectedTime)
           ) {
-            const [hour, minute] = fetchedTimeSlot.split(":").map(Number);
+            const [hour, minute] = fetchedSelectedTime.split(":").map(Number);
             if (!isNaN(hour) && minute !== undefined && !isNaN(minute)) {
               fetchedSelectedTime = `${hour % 12 || 12}:${minute
                 .toString()
@@ -310,6 +404,32 @@ export default function Registration() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDayPackage, selectedTime, editId, editTimeTeacher]);
 
+  // Update teacher schedule when teacher changes
+  useEffect(() => {
+    console.log("Teacher selection changed:", selectedTeacher);
+    console.log("Available teachers:", teachers);
+    if (selectedTeacher) {
+      const teacher = teachers.find((t) => t.ustazid === selectedTeacher);
+      console.log("Found teacher:", teacher);
+      const schedule = teacher?.schedule || "";
+      console.log("Setting teacher schedule:", schedule);
+      setSelectedTeacherSchedule(schedule);
+    } else {
+      console.log("No teacher selected, clearing schedule");
+      setSelectedTeacherSchedule("");
+    }
+  }, [selectedTeacher, teachers]);
+
+  // Add robust logging at the top of the Registration component
+  useEffect(() => {
+    console.log("[Registration] Teachers state:", teachers);
+    console.log("[Registration] Selected teacher:", selectedTeacher);
+    console.log(
+      "[Registration] Selected teacher schedule:",
+      selectedTeacherSchedule
+    );
+  }, [teachers, selectedTeacher, selectedTeacherSchedule]);
+
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     setIsSubmitting(true);
 
@@ -326,7 +446,7 @@ export default function Registration() {
         : undefined;
 
       const selectedUstaz = teachers.find((t) => t.ustazid === selectedTeacher);
-      const control = selectedUstaz ? selectedUstaz.control.username : null;
+      const control = selectedUstaz?.control?.username || null;
 
       const payload = {
         fullName: data.fullName,
@@ -352,6 +472,11 @@ export default function Registration() {
         registrationdate: editId ? undefined : new Date().toISOString(),
       };
 
+      console.log("Submitting payload:", payload);
+      console.log("Selected teacher:", selectedTeacher);
+      console.log("Selected time:", selectedTime);
+      console.log("Form data:", data);
+
       const url = editId
         ? `/api/registrations?id=${editId}`
         : "/api/registrations";
@@ -365,6 +490,10 @@ export default function Registration() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        setAriaMessage(
+          errorData.message ||
+            (editId ? "Update failed" : "Registration failed")
+        );
         throw new Error(
           errorData.message ||
             (editId ? "Update failed" : "Registration failed")
@@ -372,13 +501,30 @@ export default function Registration() {
       }
 
       const result = await response.json();
-      toast.success(
+      setAriaMessage(
         result.message ||
           (editId
             ? "Registration updated successfully"
             : "Registration successful")
       );
-      window.location.href = "/dashboard";
+      setSummaryData({
+        name: data.fullName,
+        phone: data.phoneNumber,
+        time: selectedTime,
+        teacher:
+          teachers.find((t) => t.ustazid === selectedTeacher)?.ustazname ||
+          editingTeacherName,
+        package: data.package,
+        daypackage: data.daypackages,
+        status: data.status,
+        subject: data.subject,
+        country: data.country,
+      });
+      setShowSummary(true);
+      setFormTouched(false);
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 1500);
     } catch (error) {
       const errorMessage =
         error instanceof Error
@@ -397,6 +543,12 @@ export default function Registration() {
     acc[slot.category].push(slot);
     return acc;
   }, {} as { [key: string]: TimeSlot[] });
+
+  console.log("Grouped time slots:", groupedTimeSlots);
+  console.log("Time slots array length:", timeSlots.length);
+  console.log("Time slots array:", timeSlots);
+  console.log("Day packages:", dayPackages);
+  console.log("Selected day package:", selectedDayPackage);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -418,31 +570,51 @@ export default function Registration() {
   useEffect(() => {
     const checkAvailability = async () => {
       if (!selectedDayPackage) return;
+      console.log(
+        "Starting availability check for day package:",
+        selectedDayPackage
+      );
       setLoadingAvailability(true);
       const availability: { [time: string]: boolean } = {};
+
       await Promise.all(
         timeSlots.map(async (slot) => {
           try {
+            console.log(`Checking availability for slot: ${slot.time}`);
             const res = await fetch(
               `/api/teachers-by-time?selectedTime=${encodeURIComponent(
                 slot.time
               )}&selectedDayPackage=${encodeURIComponent(selectedDayPackage)}`
             );
             if (!res.ok) {
+              console.log(`API error for ${slot.time}:`, res.statusText);
               availability[slot.time] = false;
               return;
             }
             const data = await res.json();
             const teachers = Array.isArray(data) ? data : data.teachers;
-            availability[slot.time] = teachers && teachers.length > 0;
-          } catch {
+            const isAvailable = teachers && teachers.length > 0;
+            availability[slot.time] = isAvailable;
+            console.log(
+              `Slot ${slot.time} availability:`,
+              isAvailable,
+              `(${teachers?.length || 0} teachers)`
+            );
+          } catch (error) {
+            console.error(
+              `Error checking availability for ${slot.time}:`,
+              error
+            );
             availability[slot.time] = false;
           }
         })
       );
+
+      console.log("Final availability map:", availability);
       setAvailableTimeSlots(availability);
       setLoadingAvailability(false);
     };
+
     if (timeSlots.length > 0 && selectedDayPackage) {
       checkAvailability();
     }
@@ -467,6 +639,127 @@ export default function Registration() {
     }
   }, [session]);
 
+  // --- ENHANCEMENT: Stepper clickable navigation ---
+  const canGoToStep = (targetStep: number) => {
+    if (targetStep === 1) return true;
+    if (targetStep === 2) {
+      return (
+        (!editId || (editId && editTimeTeacher)) &&
+        selectedTime &&
+        selectedDayPackage
+      );
+    }
+    if (targetStep === 3) {
+      return (
+        (!editId || (editId && editTimeTeacher)) &&
+        selectedTeacher &&
+        selectedTime &&
+        selectedDayPackage
+      );
+    }
+    return false;
+  };
+
+  // --- ENHANCEMENT: Auto-scroll to first error field on validation error ---
+  const formRef = useRef<HTMLFormElement | null>(null);
+  useEffect(() => {
+    if (Object.keys(errors).length > 0 && formRef.current) {
+      const firstErrorField = formRef.current.querySelector(
+        ".border-red-500, [aria-invalid='true']"
+      );
+      if (
+        firstErrorField &&
+        typeof (firstErrorField as HTMLElement).scrollIntoView === "function"
+      ) {
+        (firstErrorField as HTMLElement).scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        (firstErrorField as HTMLElement).focus();
+      }
+    }
+  }, [errors]);
+
+  // --- ENHANCEMENT: Add ARIA labels and improve focus/active states ---
+  // Add aria-labels to major sections and buttons, and add focus:ring classes to all major buttons/inputs
+  // Example for a button:
+  // className="... focus:outline-none focus:ring-2 focus:ring-teal-400 ..."
+  // Example for a section:
+  // <section aria-label="Student Details"> ... </section>
+  // --- ENHANCEMENT: Ensure no horizontal scroll on small screens ---
+  // Add overflow-x-hidden to main container and ensure all cards use w-full and max-w-full where appropriate
+
+  // --- ENHANCEMENT: Keyboard navigation for major elements ---
+  // Add tabIndex={0} and key handlers to stepper, teacher/time selection, etc.
+  // Example for a stepper button:
+  // <button
+  //   type="button"
+  //   aria-label={`Go to step ${i}`}
+  //   disabled={step === i || !canGoToStep(i)}
+  //   onClick={() => canGoToStep(i) && setStep(i)}
+  //   className={`h-3 w-3 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-teal-400 ${
+  //     step >= i ? "bg-teal-300 shadow-md" : "bg-white/40"
+  //   } ${step === i ? "ring-2 ring-teal-500" : ""}`}
+  //   style={{
+  //     cursor: canGoToStep(i) ? "pointer" : "not-allowed",
+  //   }}
+  //   onKeyDown={(e) => {
+  //     if (e.key === "Enter" || e.key === " ") {
+  //       e.preventDefault();
+  //       canGoToStep(i) && setStep(i);
+  //     }
+  //   }}
+  //   tabIndex={step === i ? 0 : -1}
+  // />
+  // Example for a time slot button:
+  // <motion.button
+  //   key={slot.id}
+  //   type="button"
+  //   onClick={() => {
+  //     if (availableTimeSlots[slot.time]) {
+  //       setSelectedTime(slot.time);
+  //       setStep(2);
+  //     }
+  //   }}
+  //   disabled={!availableTimeSlots[slot.time]}
+  //   whileHover={
+  //     availableTimeSlots[slot.time]
+  //       ? { scale: 1.03 }
+  //       : {}
+  //   }
+  //   whileTap={
+  //     availableTimeSlots[slot.time]
+  //       ? { scale: 0.97 }
+  //       : {}
+  //   }
+  //   className={`w-full text-left p-4 rounded-xl transition-all duration-200 text-sm font-semibold flex items-center shadow-sm ${
+  //     selectedTime === slot.time
+  //       ? "bg-teal-600 text-white shadow-md"
+  //       : availableTimeSlots[slot.time]
+  //       ? "bg-gray-50 text-gray-800 hover:bg-teal-50 border border-gray-200 hover:border-teal-300"
+  //       : "bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed"
+  //   }`}
+  //   title={
+  //     availableTimeSlots[slot.time]
+  //       ? ""
+  //       : "No teacher available for this time and package"
+  //   }
+  //   onKeyDown={(e) => {
+  //     if (e.key === "Enter" || e.key === " ") {
+  //       e.preventDefault();
+  //       if (availableTimeSlots[slot.time]) {
+  //         setSelectedTime(slot.time);
+  //         setStep(2);
+  //       }
+  //     }
+  //   }}
+  //   tabIndex={availableTimeSlots[slot.time] ? 0 : -1}
+  // />
+
+  // --- ENHANCEMENT: Show summary card and delay before redirect ---
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryData, setSummaryData] = useState<any>(null);
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-teal-50 flex items-center justify-center">
@@ -479,7 +772,157 @@ export default function Registration() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-teal-50 flex items-center justify-center p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-teal-50 flex items-center justify-center p-4 md:p-8 font-sans overflow-x-hidden">
+      {/* ARIA live region for error/success messages */}
+      <div aria-live="polite" className="sr-only">
+        {ariaMessage}
+      </div>
+      {/* Confirmation modal for unsaved changes */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="bg-gradient-to-br from-yellow-50 to-white border border-yellow-200 rounded-3xl shadow-2xl p-8 max-w-sm w-full flex flex-col items-center relative"
+            style={{ fontFamily: "inherit" }}
+          >
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-yellow-100 border-4 border-yellow-200 mb-4 shadow">
+              <svg
+                className="w-8 h-8 text-yellow-500"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="#fef9c3"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 8v4m0 4h.01"
+                />
+              </svg>
+            </div>
+            <h2 className="text-xl md:text-2xl font-extrabold text-yellow-700 mb-2 tracking-tight">
+              Unsaved Changes
+            </h2>
+            <p className="mb-6 text-gray-700 text-base md:text-lg text-center font-medium">
+              You have unsaved changes. Are you sure you want to leave?
+            </p>
+            <div className="flex flex-col md:flex-row justify-end gap-4 w-full mt-2">
+              <button
+                onClick={cancelLeave}
+                className="px-6 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold text-base shadow focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all w-full md:w-auto"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmLeave}
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold text-base shadow focus:outline-none focus:ring-2 focus:ring-red-400 transition-all w-full md:w-auto"
+              >
+                Leave
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {/* Show summary card after registration/edit */}
+      {showSummary && summaryData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="relative bg-white border-2 border-teal-200 rounded-3xl shadow-2xl p-10 max-w-md w-full flex flex-col items-center"
+          >
+            {/* Success Icon */}
+            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-teal-100 border-4 border-teal-200 mb-4 shadow-lg">
+              <svg
+                className="w-12 h-12 text-teal-500"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="#e0f2fe"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 12l3 3 5-5"
+                />
+              </svg>
+            </div>
+            <h2 className="text-3xl font-extrabold text-teal-700 mb-2 tracking-tight text-center">
+              Registration Successful!
+            </h2>
+            <div className="space-y-2 text-gray-800 text-center text-lg font-medium mb-4">
+              <div>
+                <span className="font-semibold">Name:</span> {summaryData.name}
+              </div>
+              <div>
+                <span className="font-semibold">Phone:</span>{" "}
+                {summaryData.phone}
+              </div>
+              <div>
+                <span className="font-semibold">Time Slot:</span>{" "}
+                {summaryData.time}
+              </div>
+              <div>
+                <span className="font-semibold">Teacher:</span>{" "}
+                {summaryData.teacher}
+              </div>
+              <div>
+                <span className="font-semibold">Package:</span>{" "}
+                {summaryData.package}
+              </div>
+              <div>
+                <span className="font-semibold">Day Package:</span>{" "}
+                {summaryData.daypackage}
+              </div>
+              <div>
+                <span className="font-semibold">Status:</span>{" "}
+                {summaryData.status}
+              </div>
+              <div>
+                <span className="font-semibold">Subject:</span>{" "}
+                {summaryData.subject}
+              </div>
+              <div>
+                <span className="font-semibold">Country:</span>{" "}
+                {summaryData.country}
+              </div>
+            </div>
+            {/* Progress bar for redirect */}
+            <div className="w-full mt-4">
+              <div className="h-2 rounded-full bg-teal-100 overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 1.5, ease: "linear" }}
+                  className="h-2 bg-gradient-to-r from-teal-400 to-blue-500 rounded-full"
+                />
+              </div>
+              <div className="mt-3 text-teal-700 text-center font-semibold text-base tracking-wide animate-pulse">
+                Redirecting to dashboard...
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -504,15 +947,32 @@ export default function Registration() {
                   </p>
                 </div>
               </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-full px-6 py-2 text-sm font-semibold flex items-center shadow-inner">
+              <div
+                className="bg-white/10 backdrop-blur-sm rounded-full px-6 py-2 text-sm font-semibold flex items-center shadow-inner"
+                aria-label="Step Progress"
+              >
                 <span className="mr-3">Step {step} of 3</span>
                 <div className="flex space-x-1.5">
                   {[1, 2, 3].map((i) => (
-                    <div
+                    <button
                       key={i}
-                      className={`h-3 w-3 rounded-full transition-all duration-300 ${
+                      type="button"
+                      aria-label={`Go to step ${i}`}
+                      disabled={step === i || !canGoToStep(i)}
+                      onClick={() => canGoToStep(i) && setStep(i)}
+                      className={`h-3 w-3 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-teal-400 ${
                         step >= i ? "bg-teal-300 shadow-md" : "bg-white/40"
-                      }`}
+                      } ${step === i ? "ring-2 ring-teal-500" : ""}`}
+                      style={{
+                        cursor: canGoToStep(i) ? "pointer" : "not-allowed",
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          canGoToStep(i) && setStep(i);
+                        }
+                      }}
+                      tabIndex={step === i ? 0 : -1}
                     />
                   ))}
                 </div>
@@ -550,7 +1010,8 @@ export default function Registration() {
               </div>
             )}
             <AnimatePresence mode="wait">
-              {(!editId || (editId && editTimeTeacher)) && step === 1 && (
+              {/* Step 1: Day package and time slot selection (no TimePicker, no teacher selection) */}
+              {step === 1 && (
                 <motion.div
                   key="step1"
                   initial={{ opacity: 0, x: -30 }}
@@ -562,8 +1023,6 @@ export default function Registration() {
                   <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
                     Select Preferred Time Slot
                   </h2>
-
-                  {/* Day Package Dropdown (Step 1 only, restored) */}
                   <div className="flex flex-col md:flex-row items-start md:items-center bg-white rounded-2xl p-5 shadow-md border border-gray-100 w-full md:w-auto transition-all duration-300 hover:shadow-lg mb-4">
                     <label className="flex items-center text-sm font-semibold text-gray-800 mb-3 md:mb-0 md:mr-5">
                       <FiCalendar className="mr-2 text-teal-600" />
@@ -597,51 +1056,32 @@ export default function Registration() {
                       </p>
                     )}
                   </div>
-                  {/* Analysis for availability */}
-                  {(() => {
-                    const totalSlots =
-                      Object.values(groupedTimeSlots).flat().length;
-                    const availableSlots =
-                      Object.values(availableTimeSlots).filter(Boolean).length;
-                    const unavailableSlots = totalSlots - availableSlots;
-                    // Find most/least available time(s) (optional, here just show counts)
-                    return (
-                      <div className="flex flex-wrap gap-4 mb-4">
-                        <div className="bg-teal-50 border-l-4 border-teal-400 rounded-xl px-6 py-3 text-teal-800 font-semibold shadow-sm">
-                          Total Time Slots: {totalSlots}
-                        </div>
-                        <div className="bg-green-50 border-l-4 border-green-400 rounded-xl px-6 py-3 text-green-800 font-semibold shadow-sm">
-                          Available: {availableSlots}
-                        </div>
-                        <div className="bg-gray-100 border-l-4 border-gray-400 rounded-xl px-6 py-3 text-gray-700 font-semibold shadow-sm">
-                          Unavailable: {unavailableSlots}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  {/* Legend */}
-                  <div className="flex items-center space-x-6 mb-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="inline-block w-5 h-5 rounded bg-teal-600 border border-teal-600"></span>
-                      <span className="text-sm text-gray-700">Available</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="inline-block w-5 h-5 rounded bg-gray-200 border border-gray-300"></span>
-                      <span className="text-sm text-gray-700">Unavailable</span>
-                    </div>
-                  </div>
-                  {/* Loading spinner */}
-                  {loadingAvailability && (
-                    <div className="flex justify-center items-center py-8">
-                      <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-b-4 border-teal-500"></div>
-                      <span className="ml-4 text-teal-600 font-medium">
-                        Checking availability...
-                      </span>
-                    </div>
-                  )}
                   {/* Time slot grid */}
-                  {!loadingAvailability && (
+                  {(() => {
+                    console.log("Rendering condition check:");
+                    console.log("- timeSlots.length:", timeSlots.length);
+                    console.log(
+                      "- timeSlots.length > 0:",
+                      timeSlots.length > 0
+                    );
+                    console.log("- Should render:", timeSlots.length > 0);
+                    return timeSlots.length > 0;
+                  })() && (
                     <>
+                      {/* Debug info */}
+                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-blue-800 font-medium">Debug Info:</p>
+                        <p className="text-blue-600 text-sm">
+                          Time slots count: {timeSlots.length}
+                        </p>
+                        <p className="text-blue-600 text-sm">
+                          Categories: {Object.keys(groupedTimeSlots).join(", ")}
+                        </p>
+                        <p className="text-blue-600 text-sm">
+                          Selected day package: {selectedDayPackage}
+                        </p>
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {Object.keys(groupedTimeSlots).map((category) => (
                           <div
@@ -653,56 +1093,134 @@ export default function Registration() {
                               {category}
                             </h3>
                             <div className="space-y-3">
-                              {groupedTimeSlots[category].map((slot) => (
-                                <motion.button
-                                  key={slot.id}
-                                  type="button"
-                                  onClick={() => {
-                                    if (availableTimeSlots[slot.time]) {
-                                      setSelectedTime(slot.time);
-                                      setStep(2);
+                              {groupedTimeSlots[category].map((slot) => {
+                                const isAvailable =
+                                  availableTimeSlots[slot.time];
+                                const isSelected = selectedTime === slot.time;
+                                const isLoading = loadingAvailability;
+
+                                return (
+                                  <motion.button
+                                    key={slot.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isAvailable && !isLoading) {
+                                        setSelectedTime(slot.time);
+                                      }
+                                    }}
+                                    disabled={!isAvailable || isLoading}
+                                    whileHover={
+                                      isAvailable && !isLoading
+                                        ? { scale: 1.03 }
+                                        : {}
                                     }
-                                  }}
-                                  disabled={!availableTimeSlots[slot.time]}
-                                  whileHover={
-                                    availableTimeSlots[slot.time]
-                                      ? { scale: 1.03 }
-                                      : {}
-                                  }
-                                  whileTap={
-                                    availableTimeSlots[slot.time]
-                                      ? { scale: 0.97 }
-                                      : {}
-                                  }
-                                  className={`w-full text-left p-4 rounded-xl transition-all duration-200 text-sm font-semibold flex items-center shadow-sm ${
-                                    selectedTime === slot.time
-                                      ? "bg-teal-600 text-white shadow-md"
-                                      : availableTimeSlots[slot.time]
-                                      ? "bg-gray-50 text-gray-800 hover:bg-teal-50 border border-gray-200 hover:border-teal-300"
-                                      : "bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed"
-                                  }`}
-                                  title={
-                                    availableTimeSlots[slot.time]
-                                      ? ""
-                                      : "No teacher available for this time and package"
-                                  }
-                                >
-                                  <span className="flex-1">{slot.time}</span>
-                                  <FiArrowRight
-                                    className={`ml-2 ${
-                                      selectedTime === slot.time
-                                        ? "text-white"
-                                        : availableTimeSlots[slot.time]
-                                        ? "text-gray-500"
-                                        : "text-gray-400"
+                                    whileTap={
+                                      isAvailable && !isLoading
+                                        ? { scale: 0.97 }
+                                        : {}
+                                    }
+                                    className={`w-full text-left p-4 rounded-xl transition-all duration-200 text-sm font-semibold flex items-center shadow-sm ${
+                                      isSelected
+                                        ? "bg-teal-600 text-white shadow-md"
+                                        : isLoading
+                                        ? "bg-gray-100 text-gray-500 border border-gray-200 cursor-wait"
+                                        : isAvailable
+                                        ? "bg-green-50 text-green-800 hover:bg-green-100 border border-green-200 hover:border-green-300"
+                                        : "bg-red-50 text-red-600 border border-red-200 cursor-not-allowed"
                                     }`}
-                                  />
-                                </motion.button>
-                              ))}
+                                    title={
+                                      isLoading
+                                        ? "Checking availability..."
+                                        : isAvailable
+                                        ? "Click to select this time slot"
+                                        : "No teacher available for this time and package"
+                                    }
+                                  >
+                                    <span className="flex-1">{slot.time}</span>
+                                    <div className="flex items-center space-x-2">
+                                      {isLoading ? (
+                                        <Badge className="bg-gray-100 text-gray-600 text-xs">
+                                          Checking...
+                                        </Badge>
+                                      ) : isAvailable ? (
+                                        <Badge className="bg-green-100 text-green-800 text-xs">
+                                          Available
+                                        </Badge>
+                                      ) : (
+                                        <Badge className="bg-red-100 text-red-800 text-xs">
+                                          Unavailable
+                                        </Badge>
+                                      )}
+                                      <FiArrowRight
+                                        className={`ml-2 ${
+                                          isSelected
+                                            ? "text-white"
+                                            : isLoading
+                                            ? "text-gray-400"
+                                            : isAvailable
+                                            ? "text-green-600"
+                                            : "text-red-400"
+                                        }`}
+                                      />
+                                    </div>
+                                  </motion.button>
+                                );
+                              })}
                             </div>
                           </div>
                         ))}
                       </div>
+
+                      {/* Summary of availability */}
+                      <div className="mt-6 bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+                        <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+                          <FiInfo className="mr-2 text-teal-600" />
+                          Time Slot Availability Summary
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-green-600">
+                              {
+                                Object.values(availableTimeSlots).filter(
+                                  (v) => v
+                                ).length
+                              }
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              Available
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-red-600">
+                              {
+                                Object.values(availableTimeSlots).filter(
+                                  (v) => !v
+                                ).length
+                              }
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              Unavailable
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-600">
+                              {Object.keys(groupedTimeSlots).length}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              Categories
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-gray-600">
+                              {timeSlots.length}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              Total Slots
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* No available slots message */}
                       {Object.values(availableTimeSlots).length > 0 &&
                         Object.values(availableTimeSlots).every((v) => !v) && (
@@ -717,6 +1235,25 @@ export default function Registration() {
                         )}
                     </>
                   )}
+
+                  {/* Loading state */}
+                  {timeSlots.length === 0 && !loadingAvailability && (
+                    <div className="text-center py-8">
+                      <div className="bg-gray-50 border-l-4 border-gray-400 p-6 rounded-xl inline-block shadow-sm">
+                        <p className="text-gray-700 font-medium text-lg">
+                          No time slots available. Please contact admin to add
+                          teacher schedules.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <Button
+                    onClick={() => setStep(2)}
+                    disabled={!selectedDayPackage || !selectedTime}
+                    className="mt-4"
+                  >
+                    Continue
+                  </Button>
                   {error && (
                     <motion.div
                       initial={{ opacity: 0 }}
@@ -729,7 +1266,8 @@ export default function Registration() {
                 </motion.div>
               )}
 
-              {(!editId || (editId && editTimeTeacher)) && step === 2 && (
+              {/* Step 2: Teacher selection (filtered by selected time and package) */}
+              {step === 2 && (
                 <motion.div
                   key="step2"
                   initial={{ opacity: 0, x: -30 }}
@@ -800,7 +1338,7 @@ export default function Registration() {
                               </p>
                               <p className="text-xs text-gray-600 mt-1.5">
                                 Available (Controller:{" "}
-                                {teacher.control.username})
+                                {teacher.control?.username || "Unknown"})
                               </p>
                             </div>
                           </div>
@@ -824,34 +1362,15 @@ export default function Registration() {
                       </div>
                     )}
                   </div>
-
                   <div className="flex justify-end pt-6">
                     <motion.button
                       type="button"
                       onClick={() => setStep(3)}
-                      disabled={
-                        !selectedTeacher ||
-                        !selectedTime ||
-                        !availableTimeSlots[selectedTime]
-                      }
-                      whileHover={
-                        selectedTeacher &&
-                        selectedTime &&
-                        availableTimeSlots[selectedTime]
-                          ? { scale: 1.03 }
-                          : {}
-                      }
-                      whileTap={
-                        selectedTeacher &&
-                        selectedTime &&
-                        availableTimeSlots[selectedTime]
-                          ? { scale: 0.97 }
-                          : {}
-                      }
+                      disabled={!selectedTeacher}
+                      whileHover={selectedTeacher ? { scale: 1.03 } : {}}
+                      whileTap={selectedTeacher ? { scale: 0.97 } : {}}
                       className={`px-6 py-3 rounded-xl font-semibold text-white shadow-lg transition-all duration-300 flex items-center ${
-                        !selectedTeacher ||
-                        !selectedTime ||
-                        !availableTimeSlots[selectedTime]
+                        !selectedTeacher
                           ? "bg-gray-300 cursor-not-allowed"
                           : "bg-teal-600 hover:bg-teal-700"
                       }`}

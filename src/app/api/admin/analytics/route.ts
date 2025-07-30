@@ -5,12 +5,35 @@ import { getToken } from "next-auth/jwt";
 const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
-  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
+    console.log(
+      "Admin Analytics API: NEXTAUTH_SECRET exists:",
+      !!process.env.NEXTAUTH_SECRET
+    );
+
+    // Fallback secret for development if NEXTAUTH_SECRET is not set
+    const secret =
+      process.env.NEXTAUTH_SECRET || "fallback-secret-for-development";
+
+    const session = await getToken({ req, secret });
+
+    console.log("Admin Analytics API: Session token:", session);
+
+    if (!session) {
+      console.log("Admin Analytics API: No session token found");
+      return NextResponse.json({ error: "No session token" }, { status: 401 });
+    }
+
+    if (session.role !== "admin") {
+      console.log("Admin Analytics API: User role is not admin:", session.role);
+      return NextResponse.json(
+        { error: "Admin access required" },
+        { status: 401 }
+      );
+    }
+
+    console.log("Admin Analytics API: Admin access granted");
+
     const { searchParams } = new URL(req.url);
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -92,5 +115,7 @@ export async function GET(req: NextRequest) {
       { error: "Internal Server Error" },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

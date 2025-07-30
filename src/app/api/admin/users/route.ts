@@ -6,9 +6,37 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
-  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    console.log("NEXTAUTH_SECRET exists:", !!process.env.NEXTAUTH_SECRET);
+
+    // Fallback secret for development if NEXTAUTH_SECRET is not set
+    const secret =
+      process.env.NEXTAUTH_SECRET || "fallback-secret-for-development";
+
+    const session = await getToken({
+      req,
+      secret,
+    });
+
+    console.log("Session token:", session);
+
+    if (!session) {
+      console.log("No session token found");
+      return NextResponse.json({ error: "No session token" }, { status: 401 });
+    }
+
+    if (session.role !== "admin") {
+      console.log("User role is not admin:", session.role);
+      return NextResponse.json(
+        { error: "Admin access required" },
+        { status: 401 }
+      );
+    }
+
+    console.log("Admin access granted");
+  } catch (error) {
+    console.error("Error getting session token:", error);
+    return NextResponse.json({ error: "Session error" }, { status: 401 });
   }
 
   try {
@@ -206,6 +234,7 @@ export async function POST(req: NextRequest) {
             schedule,
             controlId: Number(controlId),
             phone,
+            password: hashedPassword,
           },
         });
         break;

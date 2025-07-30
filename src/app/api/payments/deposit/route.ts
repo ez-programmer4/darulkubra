@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
       const deposit = await prisma.payment.create({
         data: {
           studentid: parseInt(studentId),
-          studentname: student.name,
+          studentname: student.name ?? "",
           paidamount: new Prisma.Decimal(amount),
           reason: reason || "deposit",
           paymentdate: new Date(),

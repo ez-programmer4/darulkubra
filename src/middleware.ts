@@ -1,108 +1,83 @@
+import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { AuthUser } from "./lib/auth";
 
-// Public paths that don't require authentication
-const publicPaths = ["/login", "/_next", "/favicon.ico", "/api/registrations"];
+export default withAuth(
+  function middleware(req: NextRequest) {
+    const { pathname } = req.nextUrl;
+    const token = (req as any).nextauth.token as AuthUser | null;
 
-// Role-based access control paths
-const roleBasedPaths = {
-  controller: [
-    "/controller",
-    "/api/controller/students",
-    "/api/controller/students/[id]",
-    "/api/controller/attendance",
-    "/api/payments",
-    "/api/payments/monthly",
-    "/api/payments/deposit",
-    "/api/payments/free-month",
-    "/api/payments/student/[id]",
-    "/api/payments/prize",
-    "/api/students/payment-status",
-    "/api/payments/reminders",
-    "/api/auth/me",
-    "/paymentmanagement",
-    "/paymentmanagement/[id]", // Ensure consistent [id] notation
-    "/api/students",
-    "/api/students/[id]",
-    "/api/registrations",
-    "/api/time-slots",
-    "/api/control-options",
-    "/api/teachers-by-time",
-    "/api/occupied-times",
-    "/registration",
-    "/attendance-list",
-    "/api/zoom-links",
-    "/api/attendance-list",
-    "/analytics",
-    "/api/analytics",
-    "/reports",
-    "/api/reports",
-  ],
-  registral: [
-    "/dashboard",
-    "/registration", // Base registration path for registral (e.g., new registration)
-    "/api/registrations",
-    "/api/time-slots",
-    "/api/control-options",
-    "/api/teachers-by-time",
-    "/api/occupied-times",
-    "/api/auth/me",
-    "/api/students",
-    "/api/students/[id]",
-  ],
-  admin: ["/admin", "/api/admin", "/api/auth/me"],
-};
+    // If the user is authenticated, prevent them from accessing login pages
+    if (token) {
+      if (
+        pathname.startsWith("/login") ||
+        pathname.startsWith("/teachers/login")
+      ) {
+        const role = token.role;
+        const url =
+          role === "teacher"
+            ? "/teachers/dashboard"
+            : role === "admin"
+            ? "/admin"
+            : role === "controller"
+            ? "/controller"
+            : "/dashboard"; // Default for registral
+        return NextResponse.redirect(new URL(url, req.url));
+      }
 
-// Dynamic route patterns
-const dynamicRoutePatterns = {
-  studentId: /^\/api\/students\/\d+$/,
-  paymentManagement: /^\/paymentmanagement\/\d+(\/)?$/i, // Matches /paymentmanagement/19
-  apiStudents: /^\/api\/students\/\d+$/,
-  registrationEdit: /^\/registration\?id=\d+(&step=\d+)?$/, // Matches /registration?id=19&step=3 for both roles
-};
+      // Role-based route protection
+      if (pathname.startsWith("/teachers") && token.role !== "teacher") {
+        return NextResponse.redirect(
+          new URL("/login?error=AccessDenied", req.url)
+        );
+      }
+      if (pathname.startsWith("/admin") && token.role !== "admin") {
+        return NextResponse.redirect(
+          new URL("/login?error=AccessDenied", req.url)
+        );
+      }
+      if (pathname.startsWith("/controller") && token.role !== "controller") {
+        return NextResponse.redirect(
+          new URL("/login?error=AccessDenied", req.url)
+        );
+      }
+      if (pathname.startsWith("/dashboard") && token.role !== "registral") {
+        return NextResponse.redirect(
+          new URL("/login?error=AccessDenied", req.url)
+        );
+      }
+    }
 
-export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
-  const fullUrl = request.url; // Include query parameters for pattern matching
-  console.log("Middleware processing path:", path, "Full URL:", fullUrl); // Debug log
-
-  // Always allow all NextAuth API routes
-  if (path.startsWith("/api/auth")) {
     return NextResponse.next();
+  },
+  {
+    callbacks: {
+      authorized: ({ req, token }) => {
+        const { pathname } = req.nextUrl;
+
+        // Login pages are always accessible, the logic inside middleware handles redirects
+        if (
+          pathname.startsWith("/login") ||
+          pathname.startsWith("/teachers/login")
+        ) {
+          return true;
+        }
+
+        // For any other page, a token is required.
+        return !!token;
+      },
+    },
   }
-
-  // Allow public paths
-  if (publicPaths.some((publicPath) => path.startsWith(publicPath))) {
-    console.log("Allowing public path:", path);
-    return NextResponse.next();
-  }
-
-  // Use NextAuth's getToken to check for a valid session
-  const session = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
-  if (!session) {
-    console.log("No NextAuth session found, redirecting to login from:", path);
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  // You can access session.user.role, session.user, etc. here for role-based logic
-  // ... (rest of your role-based access logic, using session instead of user)
-
-  // For now, just allow access if session exists
-  return NextResponse.next();
-}
+);
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/admin/:path*",
+    "/controller/:path*",
+    "/dashboard/:path*",
+    "/teachers/:path*",
+    "/login",
+    "/teachers/login",
   ],
 };

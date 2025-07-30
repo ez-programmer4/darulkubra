@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         },
       },
       select: {
-        id: true,
+        wdt_ID: true,
         name: true,
         selectedTime: true,
         control: true,
@@ -102,8 +102,8 @@ export async function GET(request: NextRequest) {
           control: link.wpos_wpdatatable_23.control,
         },
         teacher: {
-          ustazid: link.wpos_wpdatatable_24.ustazid,
-          ustazname: link.wpos_wpdatatable_24.ustazname,
+          ustazid: link.wpos_wpdatatable_24?.ustazid,
+          ustazname: link.wpos_wpdatatable_24?.ustazname,
         },
       })),
       teachersWithLinks,

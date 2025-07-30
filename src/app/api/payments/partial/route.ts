@@ -37,6 +37,12 @@ export async function POST(request: NextRequest) {
   }
 
   // Get registration date
+  if (!student.registrationdate) {
+    return NextResponse.json(
+      { error: "Student registration date not found" },
+      { status: 400 }
+    );
+  }
   const registrationDate = new Date(student.registrationdate);
   const registrationMonth = format(registrationDate, "yyyy-MM");
 

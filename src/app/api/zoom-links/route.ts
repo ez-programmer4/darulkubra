@@ -31,7 +31,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching zoom links:", error);
     return NextResponse.json(
-      { message: "Error fetching zoom links", error: error.message },
+      {
+        message: "Error fetching zoom links",
+        error: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

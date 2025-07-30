@@ -138,26 +138,30 @@ export default function UstazRatingsPage() {
 
   return (
     <div className="bg-white shadow-md rounded-lg p-2 sm:p-6">
-      <h1 className="text-3xl font-bold text-indigo-800 mb-6">
+      <h1 className="text-3xl font-bold text-blue-900 mb-6">
         Teacher Exam Ratings
       </h1>
       {/* Summary Cards */}
       <div className="mb-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6">
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-indigo-500">
-          <div className="text-gray-500">Total Teachers</div>
-          <div className="text-2xl font-bold">{totalTeachers}</div>
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+          <div className="text-blue-500">Total Teachers</div>
+          <div className="text-2xl font-bold text-blue-900">
+            {totalTeachers}
+          </div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
-          <div className="text-gray-500">Total Passed</div>
-          <div className="text-2xl font-bold">{totalPassed}</div>
+          <div className="text-green-500">Total Passed</div>
+          <div className="text-2xl font-bold text-green-900">{totalPassed}</div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
-          <div className="text-gray-500">Total Failed</div>
-          <div className="text-2xl font-bold">{totalFailed}</div>
+          <div className="text-red-500">Total Failed</div>
+          <div className="text-2xl font-bold text-red-900">{totalFailed}</div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
-          <div className="text-gray-500">Average Pass Rate</div>
-          <div className="text-2xl font-bold">{averagePassRate}%</div>
+          <div className="text-yellow-500">Average Pass Rate</div>
+          <div className="text-2xl font-bold text-yellow-900">
+            {averagePassRate}%
+          </div>
         </div>
       </div>
       {/* Charts */}

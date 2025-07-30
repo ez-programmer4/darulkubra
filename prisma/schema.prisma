@@ -7,17 +7,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model wpos_teams {
+  id   Int    @id @default(autoincrement()) @db.UnsignedInt
+  name String @db.VarChar(255)
+
+  @@map("wpos_teams")
+}
+
 model wpos_wpdatatable_24 {
-  ustazid        String                      @id @db.VarChar(255)
-  ustazname      String?                     @db.VarChar(120)
-  phone          String?                     @db.VarChar(32)
-  schedule       String?                     @db.Text
-  control        wpos_wpdatatable_28?        @relation(fields: [controlId], references: [wdt_ID])
-  controlId      Int?                        @db.Int // Should match controller's id type
-  created_at     DateTime?                   @default(now()) @db.Timestamp(0)
-  occupied_times wpos_ustaz_occupied_times[]
-  students       wpos_wpdatatable_23[]       @relation("fk_student_ustaz")
-  zoom_links     wpos_zoom_links[]
+  ustazid                 String                      @id @db.VarChar(255)
+  ustazname               String?                     @db.VarChar(120)
+  phone                   String?                     @db.VarChar(32)
+  schedule                String?                     @db.Text
+  password                String                      @db.VarChar(255)
+  control                 wpos_wpdatatable_28?        @relation(fields: [controlId], references: [wdt_ID])
+  controlId               Int?                        @db.Int // Should match controller's id type
+  created_at              DateTime?                   @default(now()) @db.Timestamp(0)
+  occupied_times          wpos_ustaz_occupied_times[]
+  students                wpos_wpdatatable_23[]       @relation("fk_student_ustaz")
+  zoom_links              wpos_zoom_links[]
+  LatenessRecord          LatenessRecord[]
+  AbsenceRecord           AbsenceRecord[]
+  PermissionRequests      PermissionRequest[]         @relation("TeacherPermissionRequests")
+  AttendanceSubmissionLog AttendanceSubmissionLog[]
+  QualityAssessment       QualityAssessment[]
+  BonusRecord             BonusRecord[]
+  LatenessDeductionConfig LatenessDeductionConfig[]
+  TeacherSalaryPayments   TeacherSalaryPayment[]
 
   @@index([ustazid], map: "idx_ustazid")
 }
@@ -66,9 +82,20 @@ model wpos_wpdatatable_28 {
   password String  @db.VarChar(255)
   code     String? @unique @db.VarChar(32)
 
-  payment  Payment[]
-  students wpos_wpdatatable_23[] @relation("StudentToController")
-  ustazs   wpos_wpdatatable_24[] // This will be populated automatically
+  payment                    Payment[]
+  students                   wpos_wpdatatable_23[]     @relation("StudentToController")
+  ustazs                     wpos_wpdatatable_24[] // This will be populated automatically
+  LatenessRecord             LatenessRecord[]
+  AbsenceRecord              AbsenceRecord[]
+  ReviewedPermissionRequests PermissionRequest[]
+  AttendanceSubmissionLog    AttendanceSubmissionLog[]
+  DeductionBonusConfig       DeductionBonusConfig[]
+  QualityAssessment          QualityAssessment[]
+  QualityDescription         QualityDescription[]
+  BonusRecord                BonusRecord[]
+  AuditLog                   AuditLog[]
+  LatenessDeductionConfig    LatenessDeductionConfig[]
+  TeacherSalaryPayments      TeacherSalaryPayment[]
 }
 
 model wpos_ustaz_occupied_times {
@@ -93,11 +120,23 @@ model wpos_wpdatatable_33 {
 }
 
 model admin {
-  id       Int     @id @default(autoincrement())
-  name     String  @unique @db.VarChar(120)
-  username String? @unique @db.VarChar(120)
-  passcode String  @db.VarChar(120)
-  role     String? @default("admin") @db.VarChar(20)
+  id                      Int                       @id @default(autoincrement())
+  name                    String                    @unique @db.VarChar(120)
+  username                String?                   @unique @db.VarChar(120)
+  passcode                String                    @db.VarChar(120)
+  phone                   String?                   @db.VarChar(32)
+  role                    String?                   @default("admin") @db.VarChar(20)
+  LatenessRecord          LatenessRecord[]
+  AbsenceRecord           AbsenceRecord[]
+  PermissionRequest       PermissionRequest[]
+  AttendanceSubmissionLog AttendanceSubmissionLog[]
+  DeductionBonusConfig    DeductionBonusConfig[]
+  QualityAssessment       QualityAssessment[]
+  QualityDescription      QualityDescription[]
+  BonusRecord             BonusRecord[]
+  AuditLog                AuditLog[]
+  LatenessDeductionConfig LatenessDeductionConfig[]
+  TeacherSalaryPayment    TeacherSalaryPayment[]
 }
 
 model months_table {
@@ -228,4 +267,200 @@ model ControllerEarning {
   // Relations (optional, for referential integrity)
   // student         wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID])
   // payment         payment             @relation(fields: [paymentId], references: [id])
+}
+
+model LatenessRecord {
+  id                        Int                  @id @default(autoincrement())
+  teacherId                 String
+  classDate                 DateTime
+  scheduledTime             DateTime
+  actualStartTime           DateTime
+  latenessMinutes           Int
+  deductionApplied          Float
+  deductionTier             String
+  createdAt                 DateTime             @default(now())
+  teacher                   wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid])
+  adminId                   Int?
+  admin                     admin?               @relation(fields: [adminId], references: [id], map: "LatenessRecord_admin_fkey")
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
+}
+
+model AbsenceRecord {
+  id                        Int                  @id @default(autoincrement())
+  teacherId                 String
+  classDate                 DateTime
+  permitted                 Boolean
+  permissionRequestId       Int?
+  deductionApplied          Float
+  reviewedByManager         Boolean
+  reviewNotes               String?
+  createdAt                 DateTime             @default(now())
+  teacher                   wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid])
+  permissionRequest         PermissionRequest?   @relation(fields: [permissionRequestId], references: [id])
+  adminId                   Int?
+  admin                     admin?               @relation(fields: [adminId], references: [id], map: "AbsenceRecord_admin_fkey")
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
+}
+
+model PermissionRequest {
+  id                        Int                  @id @default(autoincrement())
+  teacherId                 String
+  requestedDates            String // Comma-separated dates or JSON string for scalability
+  reasonCategory            String
+  reasonDetails             String
+  supportingDocs            String? // Comma-separated file URLs/paths
+  status                    String // Pending/Accepted/Declined
+  reviewedAt                DateTime?
+  reviewNotes               String?
+  lateReviewReason          String?
+  createdAt                 DateTime             @default(now())
+  teacher                   wpos_wpdatatable_24  @relation("TeacherPermissionRequests", fields: [teacherId], references: [ustazid])
+  absenceRecords            AbsenceRecord[]
+  adminId                   Int?
+  admin                     admin?               @relation(fields: [adminId], references: [id], map: "PermissionRequest_admin_fkey")
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
+}
+
+model AttendanceSubmissionLog {
+  id                        Int                  @id @default(autoincrement())
+  teacherId                 String
+  classDate                 DateTime
+  submittedAt               DateTime
+  isLate                    Boolean
+  deductionApplied          Float
+  createdAt                 DateTime             @default(now())
+  teacher                   wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid])
+  adminId                   Int?
+  admin                     admin?               @relation(fields: [adminId], references: [id], map: "AttendanceSubmissionLog_admin_fkey")
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
+}
+
+model DeductionBonusConfig {
+  id                        Int                  @id @default(autoincrement())
+  configType                String // lateness/absence/attendance/bonus
+  key                       String
+  value                     String
+  effectiveMonths           String? // Comma-separated months if applicable
+  updatedAt                 DateTime             @updatedAt
+  adminId                   Int?
+  admin                     admin?               @relation(fields: [adminId], references: [id], map: "DeductionBonusConfig_admin_fkey")
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
+}
+
+model QualityAssessment {
+  id                        Int                  @id @default(autoincrement())
+  teacherId                 String
+  weekStart                 DateTime
+  supervisorFeedback        String               @db.Text // JSON string for ratings, notes, categories
+  examinerRating            Float?
+  studentPassRate           Float?
+  overallQuality            String // Bad/Good/Better/Excellent/Exceptional
+  managerApproved           Boolean
+  managerOverride           Boolean
+  overrideNotes             String?
+  bonusAwarded              Float?
+  createdAt                 DateTime             @default(now())
+  teacher                   wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid])
+  adminId                   Int?
+  admin                     admin?               @relation(fields: [adminId], references: [id], map: "QualityAssessment_admin_fkey")
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
+}
+
+model QualityDescription {
+  id                        Int                  @id @default(autoincrement())
+  type                      String // positive/negative
+  description               String
+  updatedAt                 DateTime             @default(now())
+  adminId                   Int?
+  admin                     admin?               @relation(fields: [adminId], references: [id], map: "QualityDescription_admin_fkey")
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
+}
+
+model BonusRecord {
+  id                        Int                  @id @default(autoincrement())
+  teacherId                 String
+  period                    String // e.g., '2025-07'
+  amount                    Float
+  reason                    String
+  createdAt                 DateTime             @default(now())
+  teacher                   wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid])
+  adminId                   Int?
+  admin                     admin?               @relation(fields: [adminId], references: [id], map: "BonusRecord_admin_fkey")
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
+}
+
+model AuditLog {
+  id                        Int                  @id @default(autoincrement())
+  actionType                String
+  adminId                   Int
+  targetId                  Int?
+  details                   String // JSON or text
+  createdAt                 DateTime             @default(now())
+  admin                     admin                @relation(fields: [adminId], references: [id], map: "AuditLog_admin_fkey")
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
+}
+
+model LatenessDeductionConfig {
+  id                        Int                  @id @default(autoincrement())
+  excusedThreshold          Int // Maximum excused lateness in minutes (e.g., 3)
+  tier                      Int // Tier number (1, 2, 3, ...)
+  startMinute               Int // Start minute (inclusive)
+  endMinute                 Int // End minute (inclusive)
+  deductionPercent          Float // Deduction percentage (e.g., 10 for 10%)
+  isGlobal                  Boolean              @default(true) // If true, applies to all teachers
+  teacherId                 String? // If set, applies only to this teacher
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  teacher                   wpos_wpdatatable_24? @relation(fields: [teacherId], references: [ustazid])
+  adminId                   Int?
+  admin                     admin?               @relation(fields: [adminId], references: [id], map: "LatenessDeductionConfig_admin_fkey")
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
+}
+
+model TeacherSalaryPayment {
+  id                        Int                  @id @default(autoincrement())
+  teacherId                 String
+  period                    String // e.g., '2024-07'
+  status                    String // 'Paid' | 'Unpaid'
+  paidAt                    DateTime?
+  adminId                   Int?
+  admin                     admin?               @relation(fields: [adminId], references: [id], map: "TeacherSalaryPayment_admin_fkey")
+  totalSalary               Float
+  latenessDeduction         Float
+  absenceDeduction          Float
+  bonuses                   Float
+  createdAt                 DateTime             @default(now())
+  teacher                   wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid])
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
+
+  @@unique([teacherId, period])
+  @@index([teacherId, period])
+}
+
+model PermissionReason {
+  id        Int      @id @default(autoincrement())
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String   @db.VarChar(255)
+  message   String   @db.Text
+  type      String   @db.VarChar(50)
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamp(0)
+  userId    String   @db.VarChar(255)
+  userRole  String   @db.VarChar(50)
 }

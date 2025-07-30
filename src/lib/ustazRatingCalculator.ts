@@ -156,40 +156,6 @@ export async function updateUstazAttendanceRating(
     }
 
     // Create or update the rating record
-    await prisma.ustaz_attendance_rating.upsert({
-      where: {
-        ustazid_date: {
-          ustazid: ustazId,
-          date: new Date(date),
-        },
-      },
-      update: {
-        sent_time: ratingData.sent_time,
-        expected_deadline: ratingData.expected_deadline,
-        is_on_time: ratingData.is_on_time,
-        delay_minutes: ratingData.delay_minutes,
-        total_students: ratingData.total_students,
-        students_present: ratingData.students_present,
-        students_absent: ratingData.students_absent,
-        attendance_rate: ratingData.attendance_rate,
-        rating_score: ratingData.rating_score,
-        updated_at: new Date(),
-      },
-      create: {
-        ustazid: ustazId,
-        date: new Date(date),
-        scheduled_time: ratingData.scheduled_time,
-        sent_time: ratingData.sent_time,
-        expected_deadline: ratingData.expected_deadline,
-        is_on_time: ratingData.is_on_time,
-        delay_minutes: ratingData.delay_minutes,
-        total_students: ratingData.total_students,
-        students_present: ratingData.students_present,
-        students_absent: ratingData.students_absent,
-        attendance_rate: ratingData.attendance_rate,
-        rating_score: ratingData.rating_score,
-      },
-    });
 
     return true;
   } catch (error) {

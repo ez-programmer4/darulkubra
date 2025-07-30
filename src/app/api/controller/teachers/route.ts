@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     const ustazs = await prisma.wpos_wpdatatable_24.findMany({
       where: {
-        controlId: controller.id,
+        controlId: controller.wdt_ID,
       },
       select: {
         ustazid: true,

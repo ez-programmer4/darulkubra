@@ -63,7 +63,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   };
   const style = statusStyles[status.toLowerCase()] || {
     icon: <FiAlertCircle />,
-    className: "bg-gray-100 text-gray-800",
+    className: "bg-blue-100 text-blue-800",
   };
 
   return (
@@ -192,24 +192,32 @@ export default function PaymentManagementPage() {
   };
 
   return (
-    <div className="bg-white p-2 sm:p-6 rounded-lg shadow-md">
+    <div className="bg-white p-2 sm:p-6 rounded-lg shadow-md border border-blue-100">
       {/* Statistics Cards and Charts */}
       <div className="mb-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6">
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-indigo-500">
-          <div className="text-gray-500">Total Payments</div>
-          <div className="text-2xl font-bold">{payments.length}</div>
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+          <div className="text-blue-500">Total Payments</div>
+          <div className="text-2xl font-bold text-blue-900">
+            {payments.length}
+          </div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
-          <div className="text-gray-500">Approved Amount</div>
-          <div className="text-2xl font-bold">${statusAmounts[0].value}</div>
+          <div className="text-green-500">Approved Amount</div>
+          <div className="text-2xl font-bold text-green-900">
+            ${statusAmounts[0].value}
+          </div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
-          <div className="text-gray-500">Pending Amount</div>
-          <div className="text-2xl font-bold">${statusAmounts[1].value}</div>
+          <div className="text-yellow-500">Pending Amount</div>
+          <div className="text-2xl font-bold text-yellow-900">
+            ${statusAmounts[1].value}
+          </div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
-          <div className="text-gray-500">Rejected Amount</div>
-          <div className="text-2xl font-bold">${statusAmounts[2].value}</div>
+          <div className="text-red-500">Rejected Amount</div>
+          <div className="text-2xl font-bold text-red-900">
+            ${statusAmounts[2].value}
+          </div>
         </div>
       </div>
       <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-8">
@@ -362,7 +370,7 @@ export default function PaymentManagementPage() {
             ) : (
               paginatedPayments.map((payment) => (
                 <tr key={payment.id}>
-                  <td className="px-6 py-4 text-indigo-700 font-semibold hover:underline cursor-pointer">
+                  <td className="px-6 py-4 text-blue-700 font-semibold hover:underline cursor-pointer">
                     {payment.studentname}
                   </td>
                   <td className="px-6 py-4">
@@ -414,21 +422,21 @@ export default function PaymentManagementPage() {
       </div>
       {/* Pagination Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-2">
-        <p className="text-sm text-indigo-700 font-semibold">
+        <p className="text-sm text-blue-700 font-semibold">
           Page {currentPage} of {totalPages}
         </p>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="p-2 border-2 border-indigo-200 rounded-full bg-white text-indigo-600 hover:bg-indigo-100 disabled:opacity-50 shadow-sm transition-all"
+            className="p-2 border-2 border-blue-200 rounded-full bg-white text-blue-600 hover:bg-blue-100 disabled:opacity-50 shadow-sm transition-all"
           >
             &lt;
           </button>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="p-2 border-2 border-indigo-200 rounded-full bg-white text-indigo-600 hover:bg-indigo-100 disabled:opacity-50 shadow-sm transition-all"
+            className="p-2 border-2 border-blue-200 rounded-full bg-white text-blue-600 hover:bg-blue-100 disabled:opacity-50 shadow-sm transition-all"
           >
             &gt;
           </button>

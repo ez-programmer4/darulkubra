@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
         attendance_progress: true,
         controller: true,
       },
-      orderBy: { id: "desc" },
+      orderBy: { wdt_ID: "desc" },
       skip: (page - 1) * limit,
       take: limit,
     });

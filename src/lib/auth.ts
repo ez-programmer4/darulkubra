@@ -2,6 +2,16 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import { compare } from "bcryptjs";
+import { getServerSession } from "next-auth";
+import { NextRequest } from "next/server";
+
+export type AuthUser = {
+  id: string;
+  name: string;
+  username: string;
+  role: "teacher" | "admin" | "controller" | "registral";
+  code?: string;
+};
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -37,6 +47,19 @@ export const authOptions: NextAuthOptions = {
           user = await prisma.wpos_wpdatatable_33.findFirst({
             where: { username: credentials.username },
           });
+        } else if (role === "teacher") {
+          user = await prisma.wpos_wpdatatable_24.findFirst({
+            where: { ustazid: credentials.username },
+          });
+          if (!user) return null;
+          const isValid = await compare(credentials.password, user.password);
+          if (!isValid) return null;
+          return {
+            id: user.ustazid,
+            name: user.ustazname ?? "",
+            username: user.ustazid ?? "",
+            role,
+          };
         }
         // Check admins
         else if (role === "admin") {
@@ -51,8 +74,12 @@ export const authOptions: NextAuthOptions = {
         if (user && "passcode" in user) {
           const isValid = await compare(credentials.password, user.passcode);
           if (!isValid) return null;
+          // For admin, always use the integer id from the admin table
           return {
-            id: user.id?.toString() ?? "",
+            id:
+              user.id !== undefined && user.id !== null
+                ? user.id.toString()
+                : "",
             name: user.name ?? "",
             username: user.username ?? "",
             role: user.role ?? "admin",
@@ -106,3 +133,12 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
+
+export async function getSessionUser(req: NextRequest) {
+  // getServerSession in app router expects no args, so we use cookies from req
+  // but in edge runtime, you may need to use headers/cookies directly
+  // Here, we use getServerSession with authOptions
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) throw new Error("Unauthorized");
+  return session.user;
+}

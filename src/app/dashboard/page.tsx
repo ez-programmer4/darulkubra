@@ -222,7 +222,7 @@ export default function Dashboard() {
     () =>
       Array.from(
         new Set(
-          registrations.map((reg) => reg.daypackages?.toLowerCase() || "")
+          registrations.map((reg) => (reg.daypackages || "").toLowerCase())
         )
       ).filter((pkg) => pkg),
     [registrations]
@@ -371,28 +371,28 @@ export default function Dashboard() {
   const filteredRegistrations = useMemo(() => {
     return registrations.filter((reg) => {
       const matchesSearch =
-        reg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (reg.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         reg.phoneno.includes(searchQuery);
       const matchesStatus =
         filterStatus === "all" ||
-        reg.status.toLowerCase() === filterStatus.toLowerCase();
+        (reg.status || "").toLowerCase() === filterStatus.toLowerCase();
       const matchesPackage =
         filterPackage === "all" ||
-        reg.package.toLowerCase() === filterPackage.toLowerCase();
+        (reg.package || "").toLowerCase() === filterPackage.toLowerCase();
       const matchesTrained =
         filterTrained === "all" ||
         (filterTrained === "trained" && reg.isTrained) ||
         (filterTrained === "nottrained" && !reg.isTrained);
       const matchesDayPackage =
         filterDayPackage === "all" ||
-        reg.daypackages?.toLowerCase() === filterDayPackage.toLowerCase();
+        (reg.daypackages || "").toLowerCase() ===
+          filterDayPackage.toLowerCase();
       const matchesUstaz =
         filterUstaz === "all" ||
-        (reg.ustazname || reg.ustazname || "").toLowerCase() ===
-          filterUstaz.toLowerCase();
+        (reg.ustazname || "").toLowerCase() === filterUstaz.toLowerCase();
       const matchesSubject =
         filterSubject === "all" ||
-        reg.subject.toLowerCase() === filterSubject.toLowerCase();
+        (reg.subject || "").toLowerCase() === filterSubject.toLowerCase();
       return (
         matchesSearch &&
         matchesStatus &&
@@ -438,31 +438,29 @@ export default function Dashboard() {
   const uniqueUstaz = useMemo(
     () =>
       Array.from(
-        new Set(
-          registrations.map((reg) => reg.ustazname || reg.ustazname || "")
-        )
+        new Set(registrations.map((reg) => reg.ustazname || ""))
       ).filter((u) => u && u !== "Not assigned"),
     [registrations]
   );
 
   const { activeStudents, packages, subjects, statusCounts } = useMemo(() => {
     const active = registrations.filter(
-      (reg) => reg.status.toLowerCase() === "active"
+      (reg) => (reg.status || "").toLowerCase() === "active"
     ).length;
     const revenue = registrations.reduce(
       (sum, reg) => sum + (Number(reg.classfee) || 0),
       0
     );
     const uniquePackages = Array.from(
-      new Set(registrations.map((reg) => reg.package.toLowerCase()))
+      new Set(registrations.map((reg) => (reg.package || "").toLowerCase()))
     );
     const uniqueSubjects = Array.from(
-      new Set(registrations.map((reg) => reg.subject.toLowerCase()))
+      new Set(registrations.map((reg) => (reg.subject || "").toLowerCase()))
     );
 
     const counts = registrations.reduce(
       (acc, reg) => {
-        const key = reg.status.toLowerCase();
+        const key = (reg.status || "").toLowerCase();
         acc[key] = (acc[key] || 0) + 1;
         return acc;
       },
@@ -1146,14 +1144,7 @@ export default function Dashboard() {
                 >
                   <FiPrinter className="mr-2" /> Print Selected
                 </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleBulkDelete}
-                  className="flex items-center px-3 py-2 bg-white text-red-600 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
-                >
-                  <FiTrash2 className="mr-2" /> Delete Selected
-                </motion.button>
+
                 <div className="relative">
                   <select
                     onChange={(e) => handleBulkStatusUpdate(e.target.value)}
@@ -1341,16 +1332,20 @@ export default function Dashboard() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
                               className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full capitalize ${
-                                reg.status.toLowerCase() === "active"
+                                (reg.status || "").toLowerCase() === "active"
                                   ? "bg-green-100 text-green-800"
-                                  : reg.status.toLowerCase() === "pending"
+                                  : (reg.status || "").toLowerCase() ===
+                                    "pending"
                                   ? "bg-yellow-100 text-yellow-800"
-                                  : reg.status.toLowerCase() === "fresh"
+                                  : (reg.status || "").toLowerCase() === "fresh"
                                   ? "bg-blue-100 text-blue-800"
-                                  : reg.status.toLowerCase() === "notyet"
+                                  : (reg.status || "").toLowerCase() ===
+                                    "notyet"
                                   ? "bg-gray-100 text-gray-800"
-                                  : reg.status.toLowerCase() === "leave" ||
-                                    reg.status.toLowerCase() === "remadan leave"
+                                  : (reg.status || "").toLowerCase() ===
+                                      "leave" ||
+                                    (reg.status || "").toLowerCase() ===
+                                      "remadan leave"
                                   ? "bg-red-100 text-red-800"
                                   : "bg-red-100 text-red-800"
                               }`}

@@ -1,36 +1,122 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { prisma } from "@/lib/prisma";
+import { EarningsCalculator } from "@/lib/earningsCalculator";
 
 export async function GET(request: NextRequest) {
-  const session = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const controllerUsername =
-    searchParams.get("controllerUsername") || undefined;
-  const paidOutParam = searchParams.get("paidOut");
-  let paidOut: boolean | undefined = undefined;
-  if (paidOutParam === "true") paidOut = true;
-  if (paidOutParam === "false") paidOut = false;
-
   try {
-    const earnings = await prisma.controllerEarning.findMany({
-      where: {
-        ...(controllerUsername ? { controllerUsername } : {}),
-        ...(paidOut !== undefined ? { paidOut } : {}),
-      },
-      orderBy: { createdAt: "desc" },
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
     });
-    return NextResponse.json(earnings);
+
+    if (!session) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Only admins can access all controller earnings
+    if (session.role !== "admin") {
+      return NextResponse.json(
+        { message: "Unauthorized role" },
+        { status: 403 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const yearMonth = searchParams.get("month") || undefined;
+    const teamId = searchParams.get("teamId")
+      ? parseInt(searchParams.get("teamId")!)
+      : undefined;
+    const controllerId = searchParams.get("controllerId") || undefined;
+
+    console.log(
+      `Admin earnings request - month: ${yearMonth}, teamId: ${teamId}, controllerId: ${controllerId}`
+    );
+
+    try {
+      const calculator = new EarningsCalculator(yearMonth);
+      const earnings = await calculator.calculateControllerEarnings({
+        yearMonth,
+        teamId,
+        controllerId,
+      });
+
+      console.log(
+        `Successfully calculated earnings for ${earnings.length} controllers`
+      );
+
+      // Calculate summary statistics
+      const totalEarnings = earnings.reduce(
+        (sum, e) => sum + e.totalEarnings,
+        0
+      );
+      const totalActiveStudents = earnings.reduce(
+        (sum, e) => sum + e.activeStudents,
+        0
+      );
+      const totalPaidStudents = earnings.reduce(
+        (sum, e) => sum + e.paidThisMonth,
+        0
+      );
+      const averageEarnings =
+        earnings.length > 0 ? totalEarnings / earnings.length : 0;
+
+      // Group by teams
+      const teamStats = earnings.reduce((acc, earning) => {
+        const teamId = earning.teamId;
+        if (!acc[teamId]) {
+          acc[teamId] = {
+            teamId,
+            teamName: earning.teamName,
+            teamLeader: earning.teamLeader,
+            controllers: [],
+            totalEarnings: 0,
+            totalActiveStudents: 0,
+            totalPaidStudents: 0,
+          };
+        }
+
+        acc[teamId].controllers.push(earning);
+        acc[teamId].totalEarnings += earning.totalEarnings;
+        acc[teamId].totalActiveStudents += earning.activeStudents;
+        acc[teamId].totalPaidStudents += earning.paidThisMonth;
+
+        return acc;
+      }, {} as any);
+
+      return NextResponse.json({
+        message: "Controller earnings retrieved successfully",
+        earnings,
+        summary: {
+          totalControllers: earnings.length,
+          totalEarnings,
+          totalActiveStudents,
+          totalPaidStudents,
+          averageEarnings,
+        },
+        teamStats: Object.values(teamStats),
+      });
+    } catch (calculationError) {
+      console.error("Error in earnings calculation:", calculationError);
+      return NextResponse.json(
+        {
+          message: "Error calculating earnings",
+          error:
+            calculationError instanceof Error
+              ? calculationError.message
+              : "Unknown error",
+          details: calculationError,
+        },
+        { status: 500 }
+      );
+    }
   } catch (error) {
+    console.error("Error in admin controller earnings API:", error);
     return NextResponse.json(
-      { error: "Failed to fetch controller earnings" },
+      {
+        message: "Internal server error",
+        error: error instanceof Error ? error.message : "Unknown error",
+        details: error,
+      },
       { status: 500 }
     );
   }

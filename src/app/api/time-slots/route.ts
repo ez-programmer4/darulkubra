@@ -2,34 +2,67 @@ import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { NextRequest } from "next/server";
+import {
+  generateTimeSlots,
+  groupSlotsByCategory,
+  sortTimeSlots,
+  TimeSlot,
+  DEFAULT_PRAYER_TIMES,
+} from "@/utils/timeUtils";
 
 const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   try {
+    console.log(
+      "Time-slots API: NEXTAUTH_SECRET exists:",
+      !!process.env.NEXTAUTH_SECRET
+    );
+
+    // Fallback secret for development if NEXTAUTH_SECRET is not set
+    const secret =
+      process.env.NEXTAUTH_SECRET || "fallback-secret-for-development";
+
     // Check authentication
     const session = await getToken({
       req: request,
-      secret: process.env.NEXTAUTH_SECRET,
+      secret,
     });
+
+    console.log("Time-slots API: Session token:", session);
+
     if (!session) {
+      console.log("Time-slots API: No session token found");
       return NextResponse.json(
         { message: "Authentication required" },
         { status: 401 }
       );
     }
 
-    // Restrict to registral or controller roles
-    if (session.role !== "registral" && session.role !== "controller") {
+    // Allow admin, registral, and controller roles
+    if (!["admin", "registral", "controller"].includes(session.role)) {
+      console.log("Time-slots API: Unauthorized role:", session.role);
       return NextResponse.json(
         { message: "Unauthorized role" },
         { status: 401 }
       );
     }
 
+    console.log("Time-slots API: Access granted for role:", session.role);
+
     let ustazs;
-    if (session.role === "registral") {
-      // For registral, get all ustaz schedules
+    if (session.role === "admin") {
+      // For admin, get all ustaz schedules
+      ustazs = await prisma.wpos_wpdatatable_24.findMany({
+        select: { schedule: true },
+        where: {
+          schedule: {
+            not: "",
+          },
+        },
+      });
+    } else if (session.role === "registral") {
+      // For registral, get all ustaz schedules (same as admin for now)
       ustazs = await prisma.wpos_wpdatatable_24.findMany({
         select: { schedule: true },
         where: {
@@ -58,26 +91,45 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Extract and process time slots
-    const allTimeSlots = (ustazs || []).flatMap((ustaz) => {
-      if (!ustaz.schedule) return [];
-      return ustaz.schedule.split(",").map((time, index) => ({
-        id: index + 1,
-        time: time.trim(),
-        category: getTimeCategory(time.trim()),
-      }));
+    // Extract and process time slots using new utilities
+    const allTimeSlots: TimeSlot[] = [];
+
+    (ustazs || []).forEach((ustaz) => {
+      if (ustaz.schedule) {
+        const slots = generateTimeSlots(ustaz.schedule, DEFAULT_PRAYER_TIMES);
+        allTimeSlots.push(...slots);
+      }
     });
 
     // Remove duplicates and sort by time
-    const uniqueTimeSlots = [
-      ...new Map(allTimeSlots.map((item) => [item.time, item])).values(),
-    ].sort((a, b) => {
-      const timeA = hmToMinutes(a.time);
-      const timeB = hmToMinutes(b.time);
-      return timeA - timeB;
-    });
+    const uniqueTimeSlots = sortTimeSlots(
+      allTimeSlots.filter(
+        (slot, index, self) =>
+          index === self.findIndex((s) => s.time === slot.time)
+      )
+    );
 
-    return NextResponse.json({ timeSlots: uniqueTimeSlots }, { status: 200 });
+    // Group by prayer categories
+    const groupedSlots = groupSlotsByCategory(uniqueTimeSlots);
+
+    // Calculate analytics
+    const analytics = {
+      totalSlots: uniqueTimeSlots.length,
+      byCategory: Object.keys(groupedSlots).map((category) => ({
+        category,
+        count: groupedSlots[category].length,
+      })),
+      prayerTimes: DEFAULT_PRAYER_TIMES,
+    };
+
+    return NextResponse.json(
+      {
+        timeSlots: uniqueTimeSlots,
+        groupedSlots,
+        analytics,
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Time slots error:", error);
     return NextResponse.json(
@@ -86,44 +138,5 @@ export async function GET(request: NextRequest) {
     );
   } finally {
     await prisma.$disconnect();
-  }
-}
-
-const overallPrayerTimes = {
-  Fajr: "05:00",
-  Dhuhr: "12:00",
-  Asr: "15:00",
-  Maghrib: "18:00",
-  Isha: "19:30",
-};
-
-function hmToMinutes(hm: string): number {
-  try {
-    const [h, m] = hm.split(":").map(Number);
-    if (isNaN(h) || isNaN(m)) return 0;
-    return h * 60 + m;
-  } catch (error) {
-    console.error("Error converting time to minutes:", hm);
-    return 0;
-  }
-}
-
-function getTimeCategory(hm: string): string {
-  try {
-    const t = hmToMinutes(hm);
-    const fajr = hmToMinutes(overallPrayerTimes.Fajr);
-    const dhuhr = hmToMinutes(overallPrayerTimes.Dhuhr);
-    const asr = hmToMinutes(overallPrayerTimes.Asr);
-    const maghrib = hmToMinutes(overallPrayerTimes.Maghrib);
-    const isha = hmToMinutes(overallPrayerTimes.Isha);
-
-    if (t >= fajr && t < dhuhr) return "After Fajr";
-    if (t >= dhuhr && t < asr) return "After Dhuhr";
-    if (t >= asr && t < maghrib) return "After Asr";
-    if (t >= maghrib && t < isha) return "After Maghrib";
-    return "After Isha";
-  } catch (error) {
-    console.error("Error categorizing time:", hm);
-    return "Unknown";
   }
 }
