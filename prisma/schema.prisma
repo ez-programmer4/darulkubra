@@ -83,7 +83,7 @@ model wpos_wpdatatable_28 {
   code     String? @unique @db.VarChar(32)
 
   payment                    Payment[]
-  students                   wpos_wpdatatable_23[]     @relation("StudentToController")
+  students                   wpos_wpdatatable_23[]      @relation("StudentToController")
   ustazs                     wpos_wpdatatable_24[] // This will be populated automatically
   LatenessRecord             LatenessRecord[]
   AbsenceRecord              AbsenceRecord[]
@@ -96,6 +96,7 @@ model wpos_wpdatatable_28 {
   AuditLog                   AuditLog[]
   LatenessDeductionConfig    LatenessDeductionConfig[]
   TeacherSalaryPayments      TeacherSalaryPayment[]
+  ControllerEarningsConfig   ControllerEarningsConfig[]
 }
 
 model wpos_ustaz_occupied_times {
@@ -120,23 +121,24 @@ model wpos_wpdatatable_33 {
 }
 
 model admin {
-  id                      Int                       @id @default(autoincrement())
-  name                    String                    @unique @db.VarChar(120)
-  username                String?                   @unique @db.VarChar(120)
-  passcode                String                    @db.VarChar(120)
-  phone                   String?                   @db.VarChar(32)
-  role                    String?                   @default("admin") @db.VarChar(20)
-  LatenessRecord          LatenessRecord[]
-  AbsenceRecord           AbsenceRecord[]
-  PermissionRequest       PermissionRequest[]
-  AttendanceSubmissionLog AttendanceSubmissionLog[]
-  DeductionBonusConfig    DeductionBonusConfig[]
-  QualityAssessment       QualityAssessment[]
-  QualityDescription      QualityDescription[]
-  BonusRecord             BonusRecord[]
-  AuditLog                AuditLog[]
-  LatenessDeductionConfig LatenessDeductionConfig[]
-  TeacherSalaryPayment    TeacherSalaryPayment[]
+  id                       Int                        @id @default(autoincrement())
+  name                     String                     @unique @db.VarChar(120)
+  username                 String?                    @unique @db.VarChar(120)
+  passcode                 String                     @db.VarChar(120)
+  phone                    String?                    @db.VarChar(32)
+  role                     String?                    @default("admin") @db.VarChar(20)
+  LatenessRecord           LatenessRecord[]
+  AbsenceRecord            AbsenceRecord[]
+  PermissionRequest        PermissionRequest[]
+  AttendanceSubmissionLog  AttendanceSubmissionLog[]
+  DeductionBonusConfig     DeductionBonusConfig[]
+  QualityAssessment        QualityAssessment[]
+  QualityDescription       QualityDescription[]
+  BonusRecord              BonusRecord[]
+  AuditLog                 AuditLog[]
+  LatenessDeductionConfig  LatenessDeductionConfig[]
+  TeacherSalaryPayment     TeacherSalaryPayment[]
+  ControllerEarningsConfig ControllerEarningsConfig[]
 }
 
 model months_table {
@@ -463,4 +465,23 @@ model Notification {
   createdAt DateTime @default(now()) @db.Timestamp(0)
   userId    String   @db.VarChar(255)
   userRole  String   @db.VarChar(50)
+}
+
+model ControllerEarningsConfig {
+  id                        Int                  @id @default(autoincrement())
+  mainBaseRate              Float                @default(40) // Base rate for earnings, leave penalty, unpaid penalty
+  referralBaseRate          Float                @default(40) // Base rate for referral bonus (can be different)
+  leavePenaltyMultiplier    Float                @default(3) // Multiplier for leave penalty
+  leaveThreshold            Int                  @default(5) // Number of leaves before penalty applies
+  unpaidPenaltyMultiplier   Float                @default(2) // Multiplier for unpaid penalty
+  referralBonusMultiplier   Float                @default(4) // Multiplier for referral bonus
+  targetEarnings            Float                @default(3000) // Monthly target earnings
+  effectiveFrom             DateTime             @default(now()) // When this config becomes effective
+  isActive                  Boolean              @default(true) // Whether this config is currently active
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  adminId                   Int?
+  admin                     admin?               @relation(fields: [adminId], references: [id], map: "ControllerEarningsConfig_admin_fkey")
+  wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID])
+  wpos_wpdatatable_28Wdt_ID Int?
 }

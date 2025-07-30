@@ -118,6 +118,7 @@ export async function POST(
       data: {
         userId: teacherId,
         type: "bonus_awarded",
+        title: "Bonus Awarded",
         message: `You have been awarded a bonus of ${amount} ETB for ${period}. Reason: ${reason}`,
         userRole: "teacher",
       },

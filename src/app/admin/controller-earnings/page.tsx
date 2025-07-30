@@ -18,12 +18,23 @@ import {
   FiFilter,
   FiDownload,
   FiSearch,
+  FiSettings,
 } from "react-icons/fi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ControllerEarnings } from "@/lib/earningsCalculator";
+
+interface EarningsConfig {
+  mainBaseRate: number;
+  referralBaseRate: number;
+  leavePenaltyMultiplier: number;
+  leaveThreshold: number;
+  unpaidPenaltyMultiplier: number;
+  referralBonusMultiplier: number;
+  targetEarnings: number;
+}
 
 interface AdminEarningsData {
   earnings: ControllerEarnings[];
@@ -50,6 +61,20 @@ export default function AdminControllerEarningsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
 
+  // Earnings configuration state
+  const [showConfig, setShowConfig] = useState(false);
+  const [config, setConfig] = useState<EarningsConfig>({
+    mainBaseRate: 40,
+    referralBaseRate: 40,
+    leavePenaltyMultiplier: 3,
+    leaveThreshold: 5,
+    unpaidPenaltyMultiplier: 2,
+    referralBonusMultiplier: 4,
+    targetEarnings: 3000,
+  });
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configHistory, setConfigHistory] = useState<any[]>([]);
+
   // Check authentication and role
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -63,6 +88,7 @@ export default function AdminControllerEarningsPage() {
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role === "admin") {
       fetchEarnings();
+      fetchEarningsConfig();
     }
   }, [status, session, selectedMonth]);
 
@@ -84,6 +110,57 @@ export default function AdminControllerEarningsPage() {
       toast.error("Failed to load earnings data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEarningsConfig = async () => {
+    try {
+      setConfigLoading(true);
+      const response = await fetch("/api/admin/controller-earnings-config");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch earnings configuration");
+      }
+
+      const data = await response.json();
+      if (data.current) {
+        setConfig(data.current);
+      }
+      setConfigHistory(data.history || []);
+    } catch (error) {
+      console.error("Error fetching earnings config:", error);
+      toast.error("Failed to load earnings configuration");
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  const updateEarningsConfig = async (newConfig: EarningsConfig) => {
+    try {
+      setConfigLoading(true);
+      const response = await fetch("/api/admin/controller-earnings-config", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newConfig),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update earnings configuration");
+      }
+
+      const updatedConfig = await response.json();
+      setConfig(updatedConfig);
+      toast.success("Earnings configuration updated successfully!");
+
+      // Refresh earnings data to reflect new rates
+      await fetchEarnings();
+    } catch (error) {
+      console.error("Error updating earnings config:", error);
+      toast.error("Failed to update earnings configuration");
+    } finally {
+      setConfigLoading(false);
     }
   };
 
@@ -202,6 +279,14 @@ export default function AdminControllerEarningsPage() {
               <Button onClick={fetchEarnings} variant="outline">
                 Refresh
               </Button>
+              <Button
+                onClick={() => setShowConfig(!showConfig)}
+                variant="outline"
+                className="bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100"
+              >
+                <FiTarget className="mr-2" />
+                Earnings Config
+              </Button>
               <Button onClick={exportToCSV} variant="outline">
                 <FiDownload className="mr-2" />
                 Export CSV
@@ -209,6 +294,208 @@ export default function AdminControllerEarningsPage() {
             </div>
           </div>
         </div>
+
+        {/* Earnings Configuration Section */}
+        {showConfig && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-8"
+          >
+            <Card className="border-2 border-yellow-200 bg-yellow-50">
+              <CardHeader>
+                <CardTitle className="flex items-center text-yellow-800">
+                  <FiTarget className="mr-2" />
+                  Earnings Configuration
+                </CardTitle>
+                <p className="text-yellow-700 text-sm">
+                  Configure the rates and multipliers used for calculating
+                  controller earnings
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Main Base Rate */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Main Base Rate (ETB)
+                    </label>
+                    <Input
+                      type="number"
+                      value={config.mainBaseRate}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          mainBaseRate: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full"
+                      placeholder="40"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Base rate for earnings, leave penalty, unpaid penalty
+                    </p>
+                  </div>
+
+                  {/* Referral Base Rate */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Referral Base Rate (ETB)
+                    </label>
+                    <Input
+                      type="number"
+                      value={config.referralBaseRate}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          referralBaseRate: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full"
+                      placeholder="40"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Base rate for referral bonus (can be different from main
+                      rate)
+                    </p>
+                  </div>
+
+                  {/* Leave Penalty Multiplier */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Leave Penalty Multiplier
+                    </label>
+                    <Input
+                      type="number"
+                      value={config.leavePenaltyMultiplier}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          leavePenaltyMultiplier:
+                            parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full"
+                      placeholder="3"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Multiplier for leave penalty after threshold
+                    </p>
+                  </div>
+
+                  {/* Leave Threshold */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Leave Threshold
+                    </label>
+                    <Input
+                      type="number"
+                      value={config.leaveThreshold}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          leaveThreshold: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full"
+                      placeholder="5"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Number of leaves before penalty applies
+                    </p>
+                  </div>
+
+                  {/* Unpaid Penalty Multiplier */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Unpaid Penalty Multiplier
+                    </label>
+                    <Input
+                      type="number"
+                      value={config.unpaidPenaltyMultiplier}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          unpaidPenaltyMultiplier:
+                            parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full"
+                      placeholder="2"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Multiplier for unpaid active students
+                    </p>
+                  </div>
+
+                  {/* Referral Bonus Multiplier */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Referral Bonus Multiplier
+                    </label>
+                    <Input
+                      type="number"
+                      value={config.referralBonusMultiplier}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          referralBonusMultiplier:
+                            parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full"
+                      placeholder="4"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Multiplier for referral bonus
+                    </p>
+                  </div>
+
+                  {/* Target Earnings */}
+                  <div className="md:col-span-2 lg:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Target Earnings (ETB)
+                    </label>
+                    <Input
+                      type="number"
+                      value={config.targetEarnings}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          targetEarnings: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full"
+                      placeholder="3000"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Monthly target earnings for achievement percentage
+                      calculation
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-4 mt-6">
+                  <Button
+                    onClick={() => setShowConfig(false)}
+                    variant="outline"
+                    disabled={configLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => updateEarningsConfig(config)}
+                    disabled={configLoading}
+                    className="bg-yellow-600 hover:bg-yellow-700"
+                  >
+                    {configLoading ? "Saving..." : "Save Configuration"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

@@ -137,6 +137,7 @@ export async function POST(
           data: {
             userId: String(student.wdt_ID),
             type: "absence_notice",
+            title: "Class Cancellation Notice",
             message,
             userRole: "student",
           },

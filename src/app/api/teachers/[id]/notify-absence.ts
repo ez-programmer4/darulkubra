@@ -44,6 +44,7 @@ export async function POST(
           data: {
             userId: String(student.wdt_ID),
             type: "absence",
+            title: "Teacher Absence Notice",
             message,
             userRole: "student",
           },

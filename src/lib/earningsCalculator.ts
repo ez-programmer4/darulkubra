@@ -43,10 +43,21 @@ export interface EarningsParams {
   teamId?: number;
 }
 
+export interface EarningsConfig {
+  mainBaseRate: number;
+  referralBaseRate: number;
+  leavePenaltyMultiplier: number;
+  leaveThreshold: number;
+  unpaidPenaltyMultiplier: number;
+  referralBonusMultiplier: number;
+  targetEarnings: number;
+}
+
 export class EarningsCalculator {
   private yearMonth: string;
   private startDate: string;
   private endDate: string;
+  private config: EarningsConfig | null = null;
 
   constructor(yearMonth?: string) {
     this.yearMonth = yearMonth || new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -58,12 +69,51 @@ export class EarningsCalculator {
       .slice(0, 10);
   }
 
+  private async getEarningsConfig(): Promise<EarningsConfig> {
+    if (this.config) return this.config;
+
+    // Get the current active configuration
+    const config = await prisma.controllerEarningsConfig.findFirst({
+      where: { isActive: true },
+      orderBy: { effectiveFrom: "desc" },
+    });
+
+    if (!config) {
+      // Return default values if no configuration exists
+      this.config = {
+        mainBaseRate: 40,
+        referralBaseRate: 40,
+        leavePenaltyMultiplier: 3,
+        leaveThreshold: 5,
+        unpaidPenaltyMultiplier: 2,
+        referralBonusMultiplier: 4,
+        targetEarnings: 3000,
+      };
+    } else {
+      this.config = {
+        mainBaseRate: config.mainBaseRate,
+        referralBaseRate: config.referralBaseRate,
+        leavePenaltyMultiplier: config.leavePenaltyMultiplier,
+        leaveThreshold: config.leaveThreshold,
+        unpaidPenaltyMultiplier: config.unpaidPenaltyMultiplier,
+        referralBonusMultiplier: config.referralBonusMultiplier,
+        targetEarnings: config.targetEarnings,
+      };
+    }
+
+    return this.config;
+  }
+
   async calculateControllerEarnings(
     params: EarningsParams = {}
   ): Promise<ControllerEarnings[]> {
     try {
       console.log(`Calculating earnings for ${this.yearMonth}`);
       console.log(`Date range: ${this.startDate} to ${this.endDate}`);
+
+      // Get the current earnings configuration
+      const config = await this.getEarningsConfig();
+      console.log("Using earnings configuration:", config);
 
       // Get all controllers from students table
       const students = await prisma.wpos_wpdatatable_23.findMany({
@@ -227,20 +277,39 @@ export class EarningsCalculator {
             referencedActiveArr.map((s) => s.name)
           );
 
-          // Calculate earnings
-          const baseEarnings = activeStudentsArr.length * 40;
+          // Calculate earnings using configurable rates
+          const baseEarnings = activeStudentsArr.length * config.mainBaseRate;
           const leavePenalty =
-            Math.max(leaveStudentsArr.length - 5, 0) * 3 * 40;
-          const unpaidPenalty = unpaidActiveArr.length * 2 * 40;
-          const referencedBonus = referencedActiveArr.length * 4 * 40;
+            Math.max(leaveStudentsArr.length - config.leaveThreshold, 0) *
+            config.leavePenaltyMultiplier *
+            config.mainBaseRate;
+          const unpaidPenalty =
+            unpaidActiveArr.length *
+            config.unpaidPenaltyMultiplier *
+            config.mainBaseRate;
+          const referencedBonus =
+            referencedActiveArr.length *
+            config.referralBonusMultiplier *
+            config.referralBaseRate;
           const totalEarnings =
             baseEarnings - leavePenalty - unpaidPenalty + referencedBonus;
 
           console.log(`\nEarnings calculation for ${controllerId}:`);
-          console.log(`Base earnings: ${baseEarnings}`);
-          console.log(`Leave penalty: ${leavePenalty}`);
-          console.log(`Unpaid penalty: ${unpaidPenalty}`);
-          console.log(`Referenced bonus: ${referencedBonus}`);
+          console.log(
+            `Base earnings: ${baseEarnings} (${activeStudentsArr.length} × ${config.mainBaseRate})`
+          );
+          console.log(
+            `Leave penalty: ${leavePenalty} (${Math.max(
+              leaveStudentsArr.length - config.leaveThreshold,
+              0
+            )} × ${config.leavePenaltyMultiplier} × ${config.mainBaseRate})`
+          );
+          console.log(
+            `Unpaid penalty: ${unpaidPenalty} (${unpaidActiveArr.length} × ${config.unpaidPenaltyMultiplier} × ${config.mainBaseRate})`
+          );
+          console.log(
+            `Referenced bonus: ${referencedBonus} (${referencedActiveArr.length} × ${config.referralBonusMultiplier} × ${config.referralBaseRate})`
+          );
           console.log(`Total earnings: ${totalEarnings}`);
 
           // Get previous month earnings
@@ -287,8 +356,9 @@ export class EarningsCalculator {
             totalEarnings,
 
             // Performance Metrics
-            targetEarnings: 3000,
-            achievementPercentage: (totalEarnings / 3000) * 100,
+            targetEarnings: config.targetEarnings,
+            achievementPercentage:
+              (totalEarnings / config.targetEarnings) * 100,
             growthRate,
 
             // Historical Data
@@ -311,6 +381,8 @@ export class EarningsCalculator {
     month: string
   ): Promise<number> {
     try {
+      const config = await this.getEarningsConfig();
+
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: {
           control: controllerId,
@@ -349,10 +421,11 @@ export class EarningsCalculator {
       ).length;
 
       return (
-        (activeStudents -
-          Math.max(leaveStudents - 5, 0) * 3 -
-          unpaidStudents * 2) *
-        40
+        activeStudents * config.mainBaseRate -
+        Math.max(leaveStudents - config.leaveThreshold, 0) *
+          config.leavePenaltyMultiplier *
+          config.mainBaseRate -
+        unpaidStudents * config.unpaidPenaltyMultiplier * config.mainBaseRate
       );
     } catch (error) {
       console.error("Error getting previous month earnings:", error);
@@ -362,6 +435,8 @@ export class EarningsCalculator {
 
   private async getYearToDateEarnings(controllerId: string): Promise<number> {
     try {
+      const config = await this.getEarningsConfig();
+
       const currentYear = new Date().getFullYear();
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: {
@@ -400,10 +475,11 @@ export class EarningsCalculator {
       ).length;
 
       return (
-        (activeStudents -
-          Math.max(leaveStudents - 5, 0) * 3 -
-          unpaidStudents * 2) *
-        40
+        activeStudents * config.mainBaseRate -
+        Math.max(leaveStudents - config.leaveThreshold, 0) *
+          config.leavePenaltyMultiplier *
+          config.mainBaseRate -
+        unpaidStudents * config.unpaidPenaltyMultiplier * config.mainBaseRate
       );
     } catch (error) {
       console.error("Error getting year to date earnings:", error);
