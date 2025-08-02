@@ -5,9 +5,9 @@ import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const { isLoading } = useAuth({
     redirectIfFound: true,
   });
@@ -58,5 +58,13 @@ export default function LoginPage() {
         <LoginForm callbackUrl={searchParams.get("callbackUrl") || undefined} />
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

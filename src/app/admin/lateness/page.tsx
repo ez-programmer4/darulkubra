@@ -45,7 +45,8 @@ const formatDateSafely = (dateStr: string) => {
   }
 };
 
-function getInitials(name: string) {
+function getInitials(name: string | null | undefined) {
+  if (!name) return "N/A";
   return name
     .split(" ")
     .map((n) => n[0])

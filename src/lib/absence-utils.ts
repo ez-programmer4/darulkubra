@@ -109,7 +109,7 @@ export async function isTeacherAbsent(
   // Teachers are only considered absent if no zoom links sent and no approved permission
 
   // Check for approved permission
-  const permissionRequest = await prisma.permissionRequest.findFirst({
+  const permissionRequest = await prisma.permissionrequest.findFirst({
     where: {
       teacherId: teacherId,
       status: "Approved",
@@ -133,14 +133,14 @@ export async function isTeacherAbsent(
  * Get absence deduction configuration
  */
 export async function getAbsenceDeductionConfig() {
-  const deductionConfig = await prisma.deductionBonusConfig.findFirst({
+  const deductionConfig = await prisma.deductionbonusconfig.findFirst({
     where: {
       configType: "absence",
       key: "unpermitted_absence_deduction",
     },
   });
 
-  const effectiveMonthsConfig = await prisma.deductionBonusConfig.findFirst({
+  const effectiveMonthsConfig = await prisma.deductionbonusconfig.findFirst({
     where: {
       configType: "absence",
       key: "absence_deduction_effective_months",

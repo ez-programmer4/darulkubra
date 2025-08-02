@@ -84,7 +84,7 @@ export async function calculateLatenessAndDeduction({
   }>;
 }) {
   // Fetch lateness config from latenessDeductionConfig
-  const latenessConfigs = await prisma.latenessDeductionConfig.findMany({
+  const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
   });
   let excusedThreshold = 3;

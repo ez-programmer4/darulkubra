@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
       // Get the student to verify ownership
       const student = await prisma.wpos_wpdatatable_23.findUnique({
         where: { wdt_ID: parseInt(studentId) },
-        select: { control: true, name: true },
+        select: { u_control: true, name: true },
       });
 
       if (!student) {
@@ -259,9 +259,9 @@ export async function POST(request: NextRequest) {
       }
 
       // Check if the student belongs to this controller
-      if (student.control !== session.username) {
+      if (student.u_control !== session.code) {
         console.error("Student does not belong to controller:", {
-          studentControl: student.control,
+          studentControl: student.u_control,
           userControl: session.username,
         });
         return NextResponse.json(

@@ -243,11 +243,11 @@ export default function AdminQualityReviewPage() {
                       <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-200 text-red-800 font-extrabold text-lg shadow">
                         {t.teacherName
                           ?.split(" ")
-                          .map((n: string) => n[0])
-                          .join("")}
+                          ?.map((n: string) => n[0])
+                          ?.join("") || "N/A"}
                       </span>
                       <span className="text-red-900 font-semibold text-lg">
-                        {t.teacherName}
+                        {t.teacherName || "Unknown Teacher"}
                       </span>
                       <Badge color="red" className="font-bold">
                         Bad
@@ -317,14 +317,14 @@ export default function AdminQualityReviewPage() {
                           <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white font-extrabold text-lg shadow-lg">
                             {t.teacherName
                               ?.split(" ")
-                              .map((n: string) => n[0])
-                              .join("")}
+                              ?.map((n: string) => n[0])
+                              ?.join("") || "N/A"}
                           </span>
                           <span
                             className="font-semibold text-blue-900 truncate max-w-[180px] text-lg"
-                            title={t.teacherName}
+                            title={t.teacherName || "Unknown Teacher"}
                           >
-                            {t.teacherName}
+                            {t.teacherName || "Unknown Teacher"}
                           </span>
                         </td>
                         <td className="px-6 py-5 text-sm">

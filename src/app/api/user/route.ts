@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
         break;
       case "admin":
         userDetails = await prisma.admin.findUnique({
-          where: { id: parseInt(id) },
+          where: { id: String(id) },
           select: { id: true, name: true, username: true, role: true },
         });
         break;

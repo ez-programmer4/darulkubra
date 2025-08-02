@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { NextRequest } from "next/server";
+import { prisma } from "@/lib/prisma";
 import {
   generateTimeSlots,
   groupSlotsByCategory,
@@ -10,7 +9,8 @@ import {
   DEFAULT_PRAYER_TIMES,
 } from "@/utils/timeUtils";
 
-const prisma = new PrismaClient();
+// Force dynamic rendering
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {

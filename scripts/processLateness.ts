@@ -8,7 +8,7 @@ async function main(dateArg?: string) {
   const dateStr = today.toISOString().split("T")[0];
 
   // 1. Get lateness config
-  const latenessConfigs = await prisma.deductionBonusConfig.findMany({
+  const latenessConfigs = await prisma.deductionbonusconfig.findMany({
     where: { configType: "lateness" },
   });
   let excusedThreshold = 0;
@@ -101,14 +101,14 @@ async function main(dateArg?: string) {
     }
 
     // 6. Insert into LatenessRecord if not already present
-    const exists = await prisma.latenessRecord.findFirst({
+    const exists = await prisma.latenessrecord.findFirst({
       where: {
         teacherId: student.ustaz,
         classDate: scheduledTime,
       },
     });
     if (!exists) {
-      await prisma.latenessRecord.create({
+      await prisma.latenessrecord.create({
         data: {
           teacherId: student.ustaz,
           classDate: scheduledTime,

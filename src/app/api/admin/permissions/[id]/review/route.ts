@@ -44,10 +44,10 @@ export async function POST(
     const requestId = parseInt(params.id);
 
     // Fetch the permission request and teacher
-    const permissionRequest = await prisma.permissionRequest.findUnique({
+    const permissionRequest = await prisma.permissionrequest.findUnique({
       where: { id: requestId },
       include: {
-        teacher: {
+        wpos_wpdatatable_24: {
           select: {
             ustazname: true,
             students: {
@@ -81,22 +81,23 @@ export async function POST(
       );
     }
 
-    const updatedRequest = await prisma.permissionRequest.update({
+    const updatedRequest = await prisma.permissionrequest.update({
       where: { id: requestId },
       data: {
         status,
         reviewNotes,
         lateReviewReason,
-        adminId: parseInt(user.id),
+        adminId: user.id,
         reviewedAt: new Date(),
       },
     });
 
     // Notify students if requested
-    if (notifyStudents && permissionRequest.teacher?.students) {
-      const teacherName = permissionRequest.teacher.ustazname || "Your teacher";
+    if (notifyStudents && permissionRequest.wpos_wpdatatable_24?.students) {
+      const teacherName =
+        permissionRequest.wpos_wpdatatable_24.ustazname || "Your teacher";
       const message = `Teacher ${teacherName} will be absent on ${permissionRequest.requestedDates}. Your class is cancelled/rescheduled.`;
-      for (const student of permissionRequest.teacher.students) {
+      for (const student of permissionRequest.wpos_wpdatatable_24.students) {
         if (student.phoneno) {
           await sendSMS(student.phoneno, message);
         }

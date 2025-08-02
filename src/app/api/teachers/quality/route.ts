@@ -12,7 +12,7 @@ async function enrichFeedbackWithDescriptions(feedback: any) {
     ...(feedback.negative?.map((f: any) => f.id) || []),
   ];
   if (allIds.length === 0) return feedback;
-  const categories = await prisma.qualityDescription.findMany({
+  const categories = await prisma.qualitydescription.findMany({
     where: { id: { in: allIds } },
   });
   const catMap = Object.fromEntries(
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
       );
   const nextWeek = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
   // Only return manager-approved assessments for this teacher and week
-  const assessments = await prisma.qualityAssessment.findMany({
+  const assessments = await prisma.qualityassessment.findMany({
     where: {
       weekStart: {
         gte: weekStart,
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
       teacherId: session.id,
       managerApproved: true,
     },
-    include: { teacher: true },
+    include: { wpos_wpdatatable_24: true },
   });
   // Debug info
   const debug = {
@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
     const bonus = a.managerOverride ? a.bonusAwarded : a.bonusAwarded;
     return {
       teacherId: a.teacherId,
-      teacherName: a.teacher?.ustazname || a.teacherId,
+      teacherName: a.wpos_wpdatatable_24?.ustazname || a.teacherId,
       weekStart: a.weekStart ? a.weekStart.toISOString() : undefined,
       controllerFeedback: a.controllerFeedback,
       controlRate,

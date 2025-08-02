@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
     const userQueries = [
       roleFilter === "admin" || !roleFilter
         ? prisma.admin.findMany({ ...baseQueryArgs, where: whereClause })
-        : prisma.admin.findMany({ where: { id: -1 } }),
+        : prisma.admin.findMany({ where: { id: "nonexistent" } }),
       roleFilter === "controller" || !roleFilter
         ? prisma.wpos_wpdatatable_28.findMany({
             ...baseQueryArgs,
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
     const [adminCount, controllerCount, teacherCount, registralCount] =
       await Promise.all(countQueries);
 
-    type Admin = { id: number; name: string; username: string };
+    type Admin = { id: string; name: string; username: string | null };
     type Controller = { wdt_ID: number; name: string; username: string };
     type Teacher = { ustazid: string; ustazname: string; phone?: string };
     type Registral = { wdt_ID: number; name: string; username: string };
@@ -311,7 +311,7 @@ export async function PUT(req: NextRequest) {
     switch (role) {
       case "admin":
         updatedUser = await prisma.admin.update({
-          where: { id: Number(id) },
+          where: { id: String(id) },
           data,
         });
         break;
@@ -389,7 +389,7 @@ export async function DELETE(req: NextRequest) {
 
     switch (role) {
       case "admin":
-        await prisma.admin.delete({ where: { id: Number(id) } });
+        await prisma.admin.delete({ where: { id: String(id) } });
         break;
       case "controller":
         await prisma.wpos_wpdatatable_28.delete({

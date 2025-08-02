@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const teacherId = params.id;
-    const records = await prisma.absenceRecord.findMany({
+    const records = await prisma.absencerecord.findMany({
       where: { teacherId },
       orderBy: { classDate: "desc" },
     });
@@ -62,7 +62,7 @@ export async function POST(
       reviewedByManager,
       reviewNotes,
     } = parseResult.data;
-    const record = await prisma.absenceRecord.create({
+    const record = await prisma.absencerecord.create({
       data: {
         teacherId,
         classDate: new Date(classDate),

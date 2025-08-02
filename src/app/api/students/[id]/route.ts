@@ -30,7 +30,7 @@ export async function GET(
         startdate: true,
         classfee: true,
         registrationdate: true,
-        control: true,
+        u_control: true,
       },
     });
 
@@ -39,7 +39,7 @@ export async function GET(
     }
 
     // Check if the student belongs to this controller
-    if (student.control !== session.username) {
+    if (student.u_control !== session.code) {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }

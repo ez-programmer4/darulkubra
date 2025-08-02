@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const teacherId = params.id;
-    const records = await prisma.permissionRequest.findMany({
+    const records = await prisma.permissionrequest.findMany({
       where: { teacherId },
       orderBy: { createdAt: "desc" },
     });
@@ -60,7 +60,7 @@ export async function POST(
       supportingDocs,
       status,
     } = parseResult.data;
-    const record = await prisma.permissionRequest.create({
+    const record = await prisma.permissionrequest.create({
       data: {
         teacherId,
         requestedDates,

@@ -1,8 +1,9 @@
-import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { prisma } from "@/lib/prisma";
 
-const prisma = new PrismaClient();
+// Force dynamic rendering
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {

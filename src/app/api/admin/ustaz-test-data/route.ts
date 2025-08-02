@@ -1,5 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 import { PrismaClient } from "@prisma/client";
+
+// Force dynamic rendering
+export const dynamic = "force-dynamic";
 
 const prisma = new PrismaClient();
 
@@ -34,7 +38,7 @@ export async function GET(request: NextRequest) {
             wdt_ID: true,
             name: true,
             selectedTime: true,
-            control: true,
+            u_control: true,
           },
         },
         wpos_wpdatatable_24: {
@@ -81,7 +85,7 @@ export async function GET(request: NextRequest) {
         wdt_ID: true,
         name: true,
         selectedTime: true,
-        control: true,
+        u_control: true,
         ustaz: true,
       },
       take: 10,
@@ -99,7 +103,7 @@ export async function GET(request: NextRequest) {
           id: link.wpos_wpdatatable_23.wdt_ID,
           name: link.wpos_wpdatatable_23.name,
           selectedTime: link.wpos_wpdatatable_23.selectedTime,
-          control: link.wpos_wpdatatable_23.control,
+          control: link.wpos_wpdatatable_23.u_control,
         },
         teacher: {
           ustazid: link.wpos_wpdatatable_24?.ustazid,

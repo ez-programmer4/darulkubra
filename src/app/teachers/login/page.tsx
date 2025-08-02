@@ -5,8 +5,9 @@ import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function TeacherLoginPage() {
+function TeacherLoginPageContent() {
   const { isLoading } = useAuth({
     redirectIfFound: true,
   });
@@ -44,5 +45,13 @@ export default function TeacherLoginPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function TeacherLoginPage() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <TeacherLoginPageContent />
+    </Suspense>
   );
 }

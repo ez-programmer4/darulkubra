@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
-    const reasons = await prisma.permissionReason.findMany({
+    const reasons = await prisma.permissionreason.findMany({
       orderBy: { createdAt: "desc" },
       select: { reason: true },
     });

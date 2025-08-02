@@ -165,14 +165,14 @@ export async function GET(req: NextRequest) {
       );
   const nextWeek = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
   // Get all quality assessments for the week (range)
-  const assessments = await prisma.qualityAssessment.findMany({
+  const assessments = await prisma.qualityassessment.findMany({
     where: {
       weekStart: {
         gte: weekStart,
         lt: nextWeek,
       },
     },
-    include: { teacher: true },
+    include: { wpos_wpdatatable_24: true },
   });
 
   console.log("Found assessments for week:", assessments.length);
@@ -205,7 +205,7 @@ export async function GET(req: NextRequest) {
     const negativeCount = feedback.negative.length;
     const teacherData = {
       teacherId: a.teacherId,
-      teacherName: a.teacher?.ustazname || a.teacherId,
+      teacherName: a.wpos_wpdatatable_24?.ustazname || a.teacherId,
       controllerFeedback: feedback,
       controlRate,
       positiveSum,
@@ -264,7 +264,7 @@ export async function POST(req: NextRequest) {
   });
 
   // Update or create the assessment for this teacher/week
-  const updated = await prisma.qualityAssessment.updateMany({
+  const updated = await prisma.qualityassessment.updateMany({
     where: { teacherId, weekStart },
     data: {
       overallQuality: override,

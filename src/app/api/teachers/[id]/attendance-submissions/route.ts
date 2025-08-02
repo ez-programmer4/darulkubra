@@ -23,7 +23,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const teacherId = params.id;
-    const records = await prisma.attendanceSubmissionLog.findMany({
+    const records = await prisma.attendancesubmissionlog.findMany({
       where: { teacherId },
       orderBy: { classDate: "desc" },
     });
@@ -54,7 +54,7 @@ export async function POST(
     }
     const { classDate, submittedAt, isLate, deductionApplied } =
       parseResult.data;
-    const record = await prisma.attendanceSubmissionLog.create({
+    const record = await prisma.attendancesubmissionlog.create({
       data: {
         teacherId,
         classDate: new Date(classDate),

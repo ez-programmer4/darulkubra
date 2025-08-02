@@ -1,8 +1,9 @@
-import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { prisma } from "@/lib/prisma";
 
-const prisma = new PrismaClient();
+// Force dynamic rendering
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
       where:
         session.role === "admin"
           ? {} // Admin can see all students
-          : { control: { equals: session.username } }, // Controller only sees their students
+          : { u_control: { equals: session.code } }, // Controller only sees their students
       include: {
         teacher: true,
         attendance_progress: {
@@ -100,7 +101,7 @@ export async function GET(req: NextRequest) {
           : {
               students: {
                 some: {
-                  control: { equals: session.username },
+                  u_control: { equals: session.code },
                 },
               },
             },
@@ -109,7 +110,7 @@ export async function GET(req: NextRequest) {
           where:
             session.role === "admin"
               ? {} // Admin can see all students
-              : { control: { equals: session.username } }, // Controller only sees their students
+              : { u_control: { equals: session.code } }, // Controller only sees their students
           include: {
             attendance_progress: {
               where: {

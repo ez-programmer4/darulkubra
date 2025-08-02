@@ -2,6 +2,9 @@ import { NextResponse, NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { EarningsCalculator } from "@/lib/earningsCalculator";
 
+// Force dynamic rendering
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getToken({

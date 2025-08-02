@@ -7,7 +7,7 @@ async function processAbsences(targetDate: Date) {
   console.log(`Processing absences for ${format(targetDate, "yyyy-MM-dd")}...`);
 
   // 1. Get Configuration
-  const deductionConfig = await prisma.deductionBonusConfig.findFirst({
+  const deductionConfig = await prisma.deductionbonusconfig.findFirst({
     where: {
       configType: "absence",
       key: "unpermitted_absence_deduction",
@@ -61,7 +61,7 @@ async function processAbsences(targetDate: Date) {
     }
 
     // 3c. Check for Approved Permission
-    const permissionRequest = await prisma.permissionRequest.findFirst({
+    const permissionRequest = await prisma.permissionrequest.findFirst({
       where: {
         teacherId: teacher.ustazid,
         status: "Approved",
@@ -81,7 +81,7 @@ async function processAbsences(targetDate: Date) {
       `Teacher ${teacher.ustazname} (${teacher.ustazid}) was absent without permission. Logging record.`
     );
 
-    await prisma.absenceRecord.create({
+    await prisma.absencerecord.create({
       data: {
         teacherId: teacher.ustazid,
         classDate: targetDate,

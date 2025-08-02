@@ -1,8 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
-
-const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
   const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -20,7 +18,7 @@ export async function GET(req: NextRequest) {
   dayEnd.setDate(dayStart.getDate() + 1);
 
   // Fetch lateness deduction config from DB
-  const latenessConfigs = await prisma.latenessDeductionConfig.findMany({
+  const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
   });
   let excusedThreshold = 3;

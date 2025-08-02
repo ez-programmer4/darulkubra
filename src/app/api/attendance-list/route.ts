@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
 
   // DEBUG: Log all students for this controller
   const allStudents = await prisma.wpos_wpdatatable_23.findMany({
-    where: { control: { equals: session.username } },
+    where: { u_control: { equals: session.code } },
     select: { wdt_ID: true, name: true, daypackages: true },
   });
   console.log(
@@ -74,43 +74,8 @@ export async function GET(req: NextRequest) {
     { daypackages: { contains: "ALL" } },
   ];
 
-  const where = {
-    control: { equals: session.username }, // Filter by logged-in controller
-    teacher: ustaz ? { ustazid: ustaz } : undefined,
-    OR: dayPackageOr,
-    attendance_progress: attendanceStatus
-      ? {
-          some: {
-            attendance_status: attendanceStatus,
-            date: {
-              gte: dayStart,
-              lt: dayEnd,
-            },
-          },
-        }
-      : undefined,
-    zoom_links:
-      sentStatus ||
-      clickedStatus ||
-      (date && ["sent", "notSent"].includes(sentStatus))
-        ? {
-            some: {
-              ...(date && {
-                sent_time: {
-                  gte: dayStart,
-                  lt: dayEnd,
-                },
-              }),
-              ...(sentStatus === "sent" && { sent_time: { not: null } }),
-              ...(sentStatus === "notSent" && { sent_time: null }),
-              ...(clickedStatus === "clicked" && { clicked_at: { not: null } }),
-              ...(clickedStatus === "notClicked" && { clicked_at: null }),
-            },
-          }
-        : undefined,
-  };
-
-  console.log("Prisma where filter:", JSON.stringify(where, null, 2));
+  // Simplified where clause for testing
+  console.log("Using simplified query for testing");
 
   if (notify) {
     const student = await prisma.wpos_wpdatatable_23.findUnique({
@@ -198,13 +163,19 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    console.log("About to execute Prisma query with simplified where clause");
+    console.log("Session username:", session.username);
+
+    // Simplified query to test basic functionality
     const records = await prisma.wpos_wpdatatable_23.findMany({
-      where,
+      where: {
+        u_control: { equals: session.code },
+      },
       include: {
         teacher: true,
         zoom_links: true,
-        attendance_progress: true, // Fetch all attendance records
-        controller: true, // Include controller details
+        attendance_progress: true,
+        controller: true,
       },
       skip: (page - 1) * limit,
       take: limit,
@@ -283,8 +254,8 @@ export async function GET(req: NextRequest) {
 
       return {
         student_id: record.wdt_ID,
-        studentName: record.name,
-        ustazName: record.teacher.ustazname,
+        studentName: record.name || "Unknown",
+        ustazName: record.teacher?.ustazname || "Unknown",
         controllerName: record.controller?.name || "N/A",
         scheduledAt,
         links: linksForDay, // Array of all links for the day
@@ -293,7 +264,9 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const total = await prisma.wpos_wpdatatable_23.count({ where });
+    const total = await prisma.wpos_wpdatatable_23.count({
+      where: { u_control: { equals: session.code } },
+    });
 
     // Calculate stats using the new links array
     let totalLinks = integratedData.length;
@@ -329,6 +302,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(responseData);
   } catch (error: any) {
+    console.error("Attendance list API error:", error);
+    console.error("Error stack:", error.stack);
     return NextResponse.json(
       { error: "Failed to fetch attendance data", details: error.message },
       { status: 500 }

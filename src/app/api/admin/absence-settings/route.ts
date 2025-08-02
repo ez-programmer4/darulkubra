@@ -16,21 +16,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const deductionConfig = await prisma.deductionBonusConfig.findFirst({
+    const deductionConfig = await prisma.deductionbonusconfig.findFirst({
       where: {
         configType: "absence",
         key: "unpermitted_absence_deduction",
       },
     });
 
-    const effectiveMonthsConfig = await prisma.deductionBonusConfig.findFirst({
+    const effectiveMonthsConfig = await prisma.deductionbonusconfig.findFirst({
       where: {
         configType: "absence",
         key: "absence_deduction_effective_months",
       },
     });
 
-    const permissionReasons = await prisma.permissionReason.findMany();
+    const permissionReasons = await prisma.permissionreason.findMany();
 
     return NextResponse.json({
       deductionAmount: deductionConfig?.value,
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       await req.json();
 
     // Update deduction amount
-    const existingDeductionConfig = await prisma.deductionBonusConfig.findFirst(
+    const existingDeductionConfig = await prisma.deductionbonusconfig.findFirst(
       {
         where: {
           configType: "absence",
@@ -67,24 +67,25 @@ export async function POST(req: NextRequest) {
     );
 
     if (existingDeductionConfig) {
-      await prisma.deductionBonusConfig.update({
+      await prisma.deductionbonusconfig.update({
         where: { id: existingDeductionConfig.id },
         data: {
           value: deductionAmount.toString(),
         },
       });
     } else {
-      await prisma.deductionBonusConfig.create({
+      await prisma.deductionbonusconfig.create({
         data: {
           configType: "absence",
           key: "unpermitted_absence_deduction",
           value: deductionAmount.toString(),
+          updatedAt: new Date(),
         },
       });
     }
 
     // Update effective months
-    const existingMonthsConfig = await prisma.deductionBonusConfig.findFirst({
+    const existingMonthsConfig = await prisma.deductionbonusconfig.findFirst({
       where: {
         configType: "absence",
         key: "absence_deduction_effective_months",
@@ -92,35 +93,36 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingMonthsConfig) {
-      await prisma.deductionBonusConfig.update({
+      await prisma.deductionbonusconfig.update({
         where: { id: existingMonthsConfig.id },
         data: {
           value: effectiveMonths.join(","),
         },
       });
     } else {
-      await prisma.deductionBonusConfig.create({
+      await prisma.deductionbonusconfig.create({
         data: {
           configType: "absence",
           key: "absence_deduction_effective_months",
           value: effectiveMonths.join(","),
+          updatedAt: new Date(),
         },
       });
     }
 
     // Update permission reasons
-    await prisma.permissionReason.deleteMany({});
+    await prisma.permissionreason.deleteMany({});
     if (permissionReasons && permissionReasons.length > 0) {
-      await prisma.permissionReason.createMany({
+      await prisma.permissionreason.createMany({
         data: permissionReasons.map((reason: string) => ({ reason })),
       });
     }
 
     // Create an audit log entry
-    let logAdminId: number | null = null;
-    const adminId = parseInt((session.user as AuthUser).id);
+    let logAdminId: string | null = null;
+    const adminId = (session.user as AuthUser).id;
     console.log("AuditLog adminId:", adminId, "session.user:", session.user);
-    if (!isNaN(adminId)) {
+    if (adminId) {
       const adminExists = await prisma.admin.findUnique({
         where: { id: adminId },
       });
@@ -131,7 +133,7 @@ export async function POST(req: NextRequest) {
       if (firstAdmin) logAdminId = firstAdmin.id;
     }
     if (logAdminId !== null) {
-      await prisma.auditLog.create({
+      await prisma.auditlog.create({
         data: {
           actionType: "UPDATE_ABSENCE_SETTINGS",
           adminId: logAdminId,

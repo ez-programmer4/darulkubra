@@ -32,12 +32,7 @@ export async function GET(
     }
 
     // Verify the student belongs to this controller
-    const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { wdt_ID: parseInt(session.id) },
-      select: { username: true },
-    });
-
-    if (student.control !== controller?.username) {
+    if (student.u_control !== session.code) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -84,12 +79,7 @@ export async function PUT(
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { wdt_ID: parseInt(session.id) },
-      select: { username: true },
-    });
-
-    if (student.control !== controller?.username) {
+    if (student.u_control !== session.code) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -146,12 +136,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { wdt_ID: parseInt(session.id) },
-      select: { username: true },
-    });
-
-    if (student.control !== controller?.username) {
+    if (student.u_control !== session.code) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

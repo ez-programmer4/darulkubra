@@ -22,8 +22,8 @@ export async function POST(req: NextRequest) {
   try {
     // Use the correct field name and type for updating the admin's phone number
     await prisma.admin.update({
-      where: { id: Number(user.id) },
-      data: { phone: String(phone) },
+      where: { id: user.id },
+      data: { phoneno: String(phone) },
     });
     return NextResponse.json({ message: "Phone number updated" });
   } catch (error) {

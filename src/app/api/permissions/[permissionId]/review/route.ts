@@ -60,7 +60,7 @@ export async function POST(
     }
     const { status, reviewNotes, lateReviewReason } = parseResult.data;
     // Only allow review if status is Pending
-    const permission = await prisma.permissionRequest.findUnique({
+    const permission = await prisma.permissionrequest.findUnique({
       where: { id: permissionId },
     });
     if (!permission) {
@@ -75,7 +75,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    const reviewerId = parseInt(user.id, 10);
+    const reviewerId = user.id;
     console.log("Session user:", user);
     console.log("Trying reviewerId:", reviewerId);
     const admin = await prisma.admin.findUnique({
@@ -88,7 +88,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    const updated = await prisma.permissionRequest.update({
+    const updated = await prisma.permissionrequest.update({
       where: { id: permissionId },
       data: {
         status,
@@ -101,10 +101,10 @@ export async function POST(
 
     // Notify students if requested
     // Fetch teacher and students
-    const permissionWithTeacher = await prisma.permissionRequest.findUnique({
+    const permissionWithTeacher = await prisma.permissionrequest.findUnique({
       where: { id: permissionId },
       include: {
-        teacher: {
+        wpos_wpdatatable_24: {
           select: {
             ustazname: true,
             students: {
@@ -120,11 +120,15 @@ export async function POST(
       },
     });
     // If notifyStudents is passed in the body and students exist
-    if (body.notifyStudents && permissionWithTeacher?.teacher?.students) {
+    if (
+      body.notifyStudents &&
+      permissionWithTeacher?.wpos_wpdatatable_24?.students
+    ) {
       const teacherName =
-        permissionWithTeacher.teacher.ustazname || "Your teacher";
+        permissionWithTeacher.wpos_wpdatatable_24.ustazname || "Your teacher";
       const message = `Teacher ${teacherName} will be absent on ${permissionWithTeacher.requestedDates}. Your class is cancelled/rescheduled.`;
-      for (const student of permissionWithTeacher.teacher.students) {
+      for (const student of permissionWithTeacher.wpos_wpdatatable_24
+        .students) {
         if (student.phoneno) {
           // You may need to import or define sendSMS
           try {

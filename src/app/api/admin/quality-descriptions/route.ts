@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const type = url.searchParams.get("type");
   const where = type ? { type } : {};
-  const descriptions = await prisma.qualityDescription.findMany({
+  const descriptions = await prisma.qualitydescription.findMany({
     where,
     orderBy: { updatedAt: "asc" },
   });
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   }
   const { type, description } = parse.data;
   // Do NOT set createdBy at all
-  const created = await prisma.qualityDescription.create({
+  const created = await prisma.qualitydescription.create({
     data: {
       type,
       description,
@@ -64,7 +64,7 @@ export async function PUT(req: NextRequest) {
       { status: 400 }
     );
   }
-  const updated = await prisma.qualityDescription.update({
+  const updated = await prisma.qualitydescription.update({
     where: { id: Number(id) },
     data: { type, description },
   });
@@ -81,6 +81,6 @@ export async function DELETE(req: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: "ID is required" }, { status: 400 });
   }
-  await prisma.qualityDescription.delete({ where: { id: Number(id) } });
+  await prisma.qualitydescription.delete({ where: { id: Number(id) } });
   return NextResponse.json({ success: true });
 }

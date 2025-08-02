@@ -246,7 +246,7 @@ export default function AdminDashboardPage() {
           : []
       );
 
-      const auditLogs = await prisma.auditLog.findMany({
+      const auditLogs = await prisma.auditlog.findMany({
         orderBy: { createdAt: "desc" },
         take: 5,
         include: {
@@ -265,11 +265,11 @@ export default function AdminDashboardPage() {
         }))
       );
 
-      const recentAbsencesData = await prisma.absenceRecord.findMany({
+      const recentAbsencesData = await prisma.absencerecord.findMany({
         orderBy: { createdAt: "desc" },
         take: 5,
         include: {
-          teacher: {
+          wpos_wpdatatable_24: {
             select: { ustazname: true },
           },
         },
@@ -278,9 +278,9 @@ export default function AdminDashboardPage() {
       setRecentAbsences(
         recentAbsencesData.map((absence: any) => ({
           id: absence.id,
-          teacher: absence.teacher?.ustazname || "Unknown",
-          date: absence.date.toISOString().split("T")[0],
-          processed: absence.processed,
+          teacher: absence.wpos_wpdatatable_24?.ustazname || "Unknown",
+          date: absence.classDate.toISOString().split("T")[0],
+          processed: absence.reviewedByManager,
         }))
       );
     } catch (e: any) {

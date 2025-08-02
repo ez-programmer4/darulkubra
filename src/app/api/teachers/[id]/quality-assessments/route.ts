@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const teacherId = params.id;
-    const records = await prisma.qualityAssessment.findMany({
+    const records = await prisma.qualityassessment.findMany({
       where: { teacherId },
       orderBy: { weekStart: "desc" },
     });
@@ -68,7 +68,7 @@ export async function POST(
       overrideNotes,
       bonusAwarded,
     } = parseResult.data;
-    const record = await prisma.qualityAssessment.create({
+    const record = await prisma.qualityassessment.create({
       data: {
         teacherId,
         weekStart: new Date(weekStart),

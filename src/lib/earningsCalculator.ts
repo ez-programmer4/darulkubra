@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "./prisma";
 
 export interface ControllerEarnings {
   controllerId: string;
@@ -73,7 +71,7 @@ export class EarningsCalculator {
     if (this.config) return this.config;
 
     // Get the current active configuration
-    const config = await prisma.controllerEarningsConfig.findFirst({
+    const config = await prisma.controllerearningsconfig.findFirst({
       where: { isActive: true },
       orderBy: { effectiveFrom: "desc" },
     });
@@ -118,18 +116,18 @@ export class EarningsCalculator {
       // Get all controllers from students table
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: {
-          control: {
+          u_control: {
             not: null,
           },
         },
         select: {
-          control: true,
+          u_control: true,
         },
-        distinct: ["control"],
+        distinct: ["u_control"],
       });
 
       const controllerIds = students
-        .map((s) => s.control)
+        .map((s) => s.u_control)
         .filter(Boolean) as string[];
       console.log(`Found ${controllerIds.length} controllers:`, controllerIds);
 
@@ -139,7 +137,7 @@ export class EarningsCalculator {
           // Get controller info
           const controller = await prisma.wpos_wpdatatable_28.findFirst({
             where: {
-              username: controllerId,
+              code: controllerId,
             },
             select: {
               name: true,
@@ -150,7 +148,7 @@ export class EarningsCalculator {
           // Get student counts using Prisma's findMany instead of raw SQL
           const students = await prisma.wpos_wpdatatable_23.findMany({
             where: {
-              control: controllerId,
+              u_control: controllerId,
             },
             select: {
               wdt_ID: true,
@@ -385,7 +383,7 @@ export class EarningsCalculator {
 
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: {
-          control: controllerId,
+          u_control: controllerId,
         },
         select: {
           wdt_ID: true,
@@ -440,7 +438,7 @@ export class EarningsCalculator {
       const currentYear = new Date().getFullYear();
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: {
-          control: controllerId,
+          u_control: controllerId,
           registrationdate: {
             gte: new Date(`${currentYear}-01-01`),
             lt: new Date(`${currentYear + 1}-01-01`),

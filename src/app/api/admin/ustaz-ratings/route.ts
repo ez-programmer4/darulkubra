@@ -1,8 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
-
-const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
   const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -17,7 +15,7 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
 
     // Get teacher ratings based on quality assessments
-    const teacherRatings = await prisma.qualityAssessment.groupBy({
+    const teacherRatings = await prisma.qualityassessment.groupBy({
       by: ["teacherId"],
       _count: {
         id: true,
@@ -45,7 +43,7 @@ export async function GET(req: NextRequest) {
         });
 
         // Get the latest quality assessment for this teacher
-        const latestAssessment = await prisma.qualityAssessment.findFirst({
+        const latestAssessment = await prisma.qualityassessment.findFirst({
           where: { teacherId: rating.teacherId },
           orderBy: { createdAt: "desc" },
           select: { overallQuality: true },

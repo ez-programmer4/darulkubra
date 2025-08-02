@@ -29,13 +29,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Get the current active configuration
-    const currentConfig = await prisma.controllerEarningsConfig.findFirst({
+    const currentConfig = await prisma.controllerearningsconfig.findFirst({
       where: { isActive: true },
       orderBy: { effectiveFrom: "desc" },
     });
 
     // Get all configurations for history
-    const allConfigs = await prisma.controllerEarningsConfig.findMany({
+    const allConfigs = await prisma.controllerearningsconfig.findMany({
       orderBy: { effectiveFrom: "desc" },
       include: {
         admin: {
@@ -99,13 +99,13 @@ export async function POST(req: NextRequest) {
     const user = session.user as { id: string; role: string };
 
     // Deactivate all existing configurations
-    await prisma.controllerEarningsConfig.updateMany({
+    await prisma.controllerearningsconfig.updateMany({
       where: { isActive: true },
       data: { isActive: false },
     });
 
     // Create new configuration
-    const config = await prisma.controllerEarningsConfig.create({
+    const config = await prisma.controllerearningsconfig.create({
       data: {
         mainBaseRate,
         referralBaseRate,
@@ -116,15 +116,16 @@ export async function POST(req: NextRequest) {
         targetEarnings,
         effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
         isActive: true,
-        adminId: parseInt(user.id),
+        adminId: user.id,
+        updatedAt: new Date(),
       },
     });
 
     // Log the change
-    await prisma.auditLog.create({
+    await prisma.auditlog.create({
       data: {
         actionType: "earnings_config_updated",
-        adminId: parseInt(user.id),
+        adminId: user.id,
         details: JSON.stringify({
           mainBaseRate,
           referralBaseRate,
@@ -184,11 +185,11 @@ export async function PUT(req: NextRequest) {
 
     const user = session.user as { id: string; role: string };
 
-    const config = await prisma.controllerEarningsConfig.update({
+    const config = await prisma.controllerearningsconfig.update({
       where: { id: parseInt(id) },
       data: {
         ...parseResult.data,
-        adminId: parseInt(user.id),
+        adminId: user.id,
         updatedAt: new Date(),
       },
     });

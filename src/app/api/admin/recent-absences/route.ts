@@ -18,14 +18,14 @@ export async function GET(req: NextRequest) {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const absences = await prisma.absenceRecord.findMany({
+    const absences = await prisma.absencerecord.findMany({
       where: {
         classDate: {
           gte: thirtyDaysAgo,
         },
       },
       include: {
-        teacher: {
+        wpos_wpdatatable_24: {
           select: {
             ustazname: true,
           },

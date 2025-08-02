@@ -36,12 +36,12 @@ export async function POST(
         { status: 400 }
       );
     }
-    const permission = await prisma.permissionRequest.findUnique({
+    const permission = await prisma.permissionrequest.findUnique({
       where: { id: permissionId },
-      include: { teacher: { include: { students: true } } },
+      include: { wpos_wpdatatable_24: { include: { students: true } } },
     });
     console.log("Fetched permission:", permission);
-    if (!permission || !permission.teacher) {
+    if (!permission || !permission.wpos_wpdatatable_24) {
       console.log("Permission or teacher not found");
       return NextResponse.json(
         { error: "Permission or teacher not found" },
@@ -56,8 +56,9 @@ export async function POST(
       );
     }
     const teacherName =
-      permission.teacher.ustazname || permission.teacher.ustazid;
-    const students = permission.teacher.students || [];
+      permission.wpos_wpdatatable_24.ustazname ||
+      permission.wpos_wpdatatable_24.ustazid;
+    const students = permission.wpos_wpdatatable_24.students || [];
     console.log("Teacher students:", students.length);
     const message = `Teacher ${teacherName} will be absent on ${permission.requestedDates}. Your class is cancelled or rescheduled.`;
     let sentCount = 0;

@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     console.log("POST /api/teachers/permissions - Checking for duplicates");
     // Prevent duplicate requests for the same date
-    const existingRequest = await prisma.permissionRequest.findFirst({
+    const existingRequest = await prisma.permissionrequest.findFirst({
       where: {
         teacherId: user.id,
         requestedDates: date,
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("POST /api/teachers/permissions - Creating new request");
-    const permissionRequest = await prisma.permissionRequest.create({
+    const permissionRequest = await prisma.permissionrequest.create({
       data: {
         teacherId: user.id,
         requestedDates: date,
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     console.log("POST /api/teachers/permissions - Creating notifications");
     // Notify all admins with a phone number
     const admins = await prisma.admin.findMany({
-      where: { phone: { not: null } },
+      where: { phoneno: { not: null } },
     });
     console.log(
       "POST /api/teachers/permissions - Found admins:",
@@ -109,12 +109,12 @@ export async function POST(req: NextRequest) {
 
     for (const admin of admins) {
       try {
-        if (admin.phone) {
+        if (admin.phoneno) {
           console.log(
             "POST /api/teachers/permissions - Sending SMS to:",
-            admin.phone
+            admin.phoneno
           );
-          await sendSMS(admin.phone, message);
+          await sendSMS(admin.phoneno, message);
         }
         console.log(
           "POST /api/teachers/permissions - Creating notification for admin:",
@@ -169,7 +169,7 @@ export async function GET(req: NextRequest) {
     }
     const user = session.user as { id: string; role: string };
 
-    const permissions = await prisma.permissionRequest.findMany({
+    const permissions = await prisma.permissionrequest.findMany({
       where: { teacherId: user.id },
       orderBy: { createdAt: "desc" },
     });

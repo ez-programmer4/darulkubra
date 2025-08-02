@@ -37,8 +37,8 @@ export async function PUT(req: NextRequest) {
     }
     const updated = await prisma.setting.upsert({
       where: { key },
-      update: { value },
-      create: { key, value },
+      update: { value, updatedAt: new Date() },
+      create: { key, value, updatedAt: new Date() },
     });
     return NextResponse.json({
       setting: { key: updated.key, value: updated.value },

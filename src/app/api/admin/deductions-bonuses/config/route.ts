@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
         { status: 403 }
       );
     }
-    const configs = await prisma.deductionBonusConfig.findMany({
+    const configs = await prisma.deductionbonusconfig.findMany({
       orderBy: { updatedAt: "desc" },
     });
     return NextResponse.json(configs);
@@ -53,13 +53,14 @@ export async function POST(req: NextRequest) {
       );
     }
     const { configType, key, value, effectiveMonths } = parseResult.data;
-    const config = await prisma.deductionBonusConfig.create({
+    const config = await prisma.deductionbonusconfig.create({
       data: {
         configType,
         key,
         value,
         effectiveMonths,
-        adminId: parseInt(user.id, 10),
+        adminId: user.id,
+        updatedAt: new Date(),
       },
     });
     return NextResponse.json(config, { status: 201 });

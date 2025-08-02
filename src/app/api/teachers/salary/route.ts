@@ -1,13 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextResponse, NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
+
+// Force dynamic rendering
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
     console.log("🔍 Teacher Salary API called");
 
-    const session = await getServerSession(authOptions);
+    const session = (await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    })) as any;
     console.log("👤 Session user:", session?.user?.id);
 
     if (!session?.user?.id) {
@@ -45,7 +50,7 @@ export async function GET(request: NextRequest) {
     console.log("📊 Teacher ID:", teacherId);
 
     // Check all salary payments for this teacher
-    const allTeacherPayments = await prisma.teacherSalaryPayment.findMany({
+    const allTeacherPayments = await prisma.teachersalarypayment.findMany({
       where: { teacherId: teacherId },
       orderBy: { createdAt: "desc" },
     });
@@ -59,7 +64,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Check all salary payments in database (for debugging)
-    const allPayments = await prisma.teacherSalaryPayment.findMany({
+    const allPayments = await prisma.teachersalarypayment.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
     });
@@ -74,7 +79,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Get teacher's salary payment for the period
-    const salaryPayment = await prisma.teacherSalaryPayment.findFirst({
+    const salaryPayment = await prisma.teachersalarypayment.findFirst({
       where: {
         teacherId: teacherId,
         period: period,

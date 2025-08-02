@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
         wdt_ID: parseInt(studentId),
       },
       select: {
-        control: true,
+        u_control: true,
         startdate: true,
         classfee: true,
       },
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    if (session.role === "controller" && student.control !== session.username) {
+    if (session.role === "controller" && student.u_control !== session.code) {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
         wdt_ID: parseInt(studentId),
       },
       select: {
-        control: true,
+        u_control: true,
         startdate: true,
         classfee: true,
         refer: true, // <-- Add refer field
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if the student belongs to this controller (for controller role)
-    if (session.role === "controller" && student.control !== session.username) {
+    if (session.role === "controller" && student.u_control !== session.code) {
       return NextResponse.json(
         { error: "You are not authorized to add payments for this student" },
         { status: 403 }
@@ -454,14 +454,14 @@ export async function POST(request: NextRequest) {
       ["full", "partial", "prizepartial"].includes(payment_type)
     ) {
       // Only one earning per student per month
-      const existingEarning = await prisma.controllerEarning.findFirst({
+      const existingEarning = await prisma.controllerearning.findFirst({
         where: {
           controllerUsername: student.refer,
           studentId: parseInt(studentId),
         },
       });
       if (!existingEarning) {
-        await prisma.controllerEarning.create({
+        await prisma.controllerearning.create({
           data: {
             controllerUsername: student.refer,
             studentId: parseInt(studentId),

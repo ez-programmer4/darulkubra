@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
         date: r.date,
         status: r.attendance_status,
         studentName: r.wpos_wpdatatable_23?.name,
-        studentControl: r.wpos_wpdatatable_23?.control,
+        studentControl: r.wpos_wpdatatable_23?.u_control,
         teacherName: r.wpos_wpdatatable_23?.teacher?.ustazname,
         controllerName: r.wpos_wpdatatable_23?.controller?.name,
       })),

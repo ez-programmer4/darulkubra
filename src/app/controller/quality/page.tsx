@@ -311,11 +311,11 @@ export default function ControllerQualityPage() {
                     <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 font-bold text-lg">
                       {teacher.ustazname
                         ?.split(" ")
-                        .map((n: string) => n[0])
-                        .join("")}
+                        ?.map((n: string) => n[0])
+                        ?.join("") || "N/A"}
                     </span>
                     <span className="text-lg font-semibold text-gray-900">
-                      {teacher.ustazname}
+                      {teacher.ustazname || "Unknown Teacher"}
                     </span>
                   </div>
                   <button className="text-indigo-600 hover:text-indigo-800 transition-colors">

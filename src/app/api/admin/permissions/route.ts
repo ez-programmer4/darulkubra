@@ -1,8 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
-
-const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
   const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -20,10 +18,10 @@ export async function GET(req: NextRequest) {
       whereClause.status = status;
     }
 
-    const permissions = await prisma.permissionRequest.findMany({
+    const permissions = await prisma.permissionrequest.findMany({
       where: whereClause,
       include: {
-        teacher: {
+        wpos_wpdatatable_24: {
           select: {
             ustazname: true,
           },
@@ -38,8 +36,7 @@ export async function GET(req: NextRequest) {
     // Transform the data to match the dashboard expectations
     const transformedPermissions = permissions.map((permission: any) => ({
       id: permission.id,
-      teacher:
-        permission.teacher?.ustazname || permission.teacher?.name || "Unknown",
+      teacher: permission.wpos_wpdatatable_24?.ustazname || "Unknown",
       teacherId: permission.teacherId,
       status: permission.status,
       date: permission.createdAt?.toISOString().split("T")[0],

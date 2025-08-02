@@ -45,7 +45,7 @@ export async function GET(
       );
     }
     const teacherId = params.id;
-    const records = await prisma.bonusRecord.findMany({
+    const records = await prisma.bonusrecord.findMany({
       where: { teacherId },
       orderBy: { period: "desc" },
     });
@@ -85,7 +85,7 @@ export async function POST(
     }
     const { period, amount, reason } = parseResult.data;
     // Check if bonus record already exists for this teacher and period
-    const existingRecord = await prisma.bonusRecord.findFirst({
+    const existingRecord = await prisma.bonusrecord.findFirst({
       where: {
         teacherId,
         period,
@@ -95,7 +95,7 @@ export async function POST(
     let record;
     if (existingRecord) {
       // Update existing record
-      record = await prisma.bonusRecord.update({
+      record = await prisma.bonusrecord.update({
         where: { id: existingRecord.id },
         data: {
           amount,
@@ -104,7 +104,7 @@ export async function POST(
       });
     } else {
       // Create new record
-      record = await prisma.bonusRecord.create({
+      record = await prisma.bonusrecord.create({
         data: {
           teacherId,
           period,

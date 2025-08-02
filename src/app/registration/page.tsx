@@ -1,7 +1,7 @@
 "use client";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -93,7 +93,7 @@ const convertTo12Hour = (time: string): string => {
   }
 };
 
-export default function Registration() {
+function RegistrationContent() {
   const searchParams = useSearchParams();
   const editId = searchParams.get("id");
   const initialStep = parseInt(searchParams.get("step") || "1", 10);
@@ -1805,5 +1805,13 @@ export default function Registration() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function Registration() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <RegistrationContent />
+    </Suspense>
   );
 }

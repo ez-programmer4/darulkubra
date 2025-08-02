@@ -1,9 +1,7 @@
-import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
 import { format, addDays, isBefore } from "date-fns";
-
-const prisma = new PrismaClient();
 
 function getDayName(date: Date) {
   return date.toLocaleDateString("en-US", { weekday: "long" });
@@ -40,7 +38,7 @@ export async function GET(req: NextRequest) {
   endDate.setHours(23, 59, 59, 999);
 
   // Fetch lateness deduction config from DB
-  const latenessConfigs = await prisma.latenessDeductionConfig.findMany({
+  const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
   });
   let excusedThreshold = 3;

@@ -17,7 +17,7 @@ export async function GET(
       );
     }
     const teacherId = params.id;
-    const records = await prisma.latenessRecord.findMany({
+    const records = await prisma.latenessrecord.findMany({
       where: { teacherId },
       orderBy: { classDate: "desc" },
     });
@@ -65,7 +65,7 @@ export async function POST(
     });
     // Store lateness records in DB
     const createdRecords = await prisma.$transaction(
-      latenessRecords.map((rec) => prisma.latenessRecord.create({ data: rec }))
+      latenessRecords.map((rec) => prisma.latenessrecord.create({ data: rec }))
     );
     return NextResponse.json(createdRecords, { status: 201 });
   } catch (err) {

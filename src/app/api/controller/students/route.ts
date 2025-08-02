@@ -1,6 +1,9 @@
+import { NextResponse, NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+
+// Force dynamic rendering
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,35 +15,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get controller's username from the database
-    const controllerId =
-      typeof session.id === "string" ? parseInt(session.id, 10) : session.id;
-    if (!controllerId || isNaN(controllerId)) {
-      return NextResponse.json(
-        { error: "Invalid controller session id" },
-        { status: 400 }
-      );
-    }
-    const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { wdt_ID: controllerId },
-      select: { username: true },
-    });
-    console.log("Found controller:", controller);
-    console.log("Looking for controller with ID:", session.id);
+    // Get controller's code from the session
+    console.log("Session code:", session.code);
+    console.log("Looking for controller with code:", session.code);
 
-    if (!controller) {
-      console.log("Controller not found in database");
+    if (!session.code) {
+      console.log("Controller code not found in session");
       return NextResponse.json(
-        { error: "Controller not found" },
+        { error: "Controller code not found" },
         { status: 404 }
       );
     }
 
     // Get students for this controller
-    console.log("Searching for students with control:", controller.username);
+    console.log("Searching for students with control:", session.code);
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
-        control: controller.username,
+        u_control: session.code,
       },
       include: {
         teacher: {

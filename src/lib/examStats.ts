@@ -10,17 +10,17 @@ export async function getTeacherExamPassFail(prisma: any, teacherId: string) {
   }
   const studentIds = students.map((s: any) => s.wdt_ID);
   // 2. Get all test results for these students
-  const testResults = await prisma.testResult.findMany({
+  const testResults = await prisma.testresult.findMany({
     where: { studentId: { in: studentIds } },
-    include: { question: { include: { test: true } } },
+    include: { testquestion: { include: { test: true } } },
   });
   // 3. Process results in memory
   const scoresByStudentAndTest: {
     [studentId: number]: { [testId: string]: { score: number; test: any } };
   } = {};
   for (const result of testResults) {
-    const { studentId, question, result: score } = result;
-    const test = question.test;
+    const { studentId, testquestion, result: score } = result;
+    const test = testquestion.test;
     if (!scoresByStudentAndTest[studentId])
       scoresByStudentAndTest[studentId] = {};
     if (!scoresByStudentAndTest[studentId][test.id])

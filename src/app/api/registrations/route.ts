@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     console.log("Registration API received body:", body);
     const { control } = body;
 
-    if (session.role === "controller" && control !== session.username) {
+    if (session.role === "controller" && control !== session.code) {
       return NextResponse.json(
         { message: "Unauthorized to assign to another controller" },
         { status: 403 }
@@ -252,6 +252,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine the u_control value
+    let u_control = null;
+    if (session.role === "controller") {
+      u_control = session.code;
+    } else if (control) {
+      // Look up the controller's code based on username
+      const controller = await prisma.wpos_wpdatatable_28.findFirst({
+        where: { username: control },
+        select: { code: true },
+      });
+      u_control = controller?.code || null;
+    }
+
     const newRegistration = await prismaClient.$transaction(async (tx) => {
       const registration = await tx.wpos_wpdatatable_23.create({
         data: {
@@ -259,8 +272,7 @@ export async function POST(request: NextRequest) {
           phoneno: phoneNumber,
           classfee: classfee ? parseFloat(classfee) : null,
           startdate: startdate ? new Date(startdate) : null,
-          control:
-            session.role === "controller" ? session.username : control || null,
+          u_control,
           status: status?.toLowerCase() || "pending",
           ustaz,
           package: regionPackage || null,
@@ -288,7 +300,9 @@ export async function POST(request: NextRequest) {
       });
 
       console.log(
-        `Registration created for ${fullName} by ${session.username} - Notification triggered`
+        `Registration created for ${fullName} by ${
+          session.code || session.username
+        } - Notification triggered`
       );
       return registration;
     });
@@ -334,7 +348,7 @@ export async function PUT(request: NextRequest) {
       const existingRegistration =
         await prismaClient.wpos_wpdatatable_23.findUnique({
           where: { wdt_ID: parseInt(id) },
-          select: { control: true },
+          select: { u_control: true },
         });
 
       if (!existingRegistration) {
@@ -346,8 +360,8 @@ export async function PUT(request: NextRequest) {
 
       // Allow if controller owns the registration OR if they're not changing the control field
       if (
-        existingRegistration.control !== session.username &&
-        control !== session.username
+        existingRegistration.u_control !== session.code &&
+        control !== session.code
       ) {
         return NextResponse.json(
           { message: "Unauthorized to assign to another controller" },
@@ -495,8 +509,8 @@ export async function PUT(request: NextRequest) {
           phoneno: phoneNumber,
           classfee: classfee ? parseFloat(classfee) : null,
           startdate: startdate ? new Date(startdate) : null,
-          control:
-            session.role === "controller" ? session.username : control || null,
+          u_control:
+            session.role === "controller" ? session.code : control || null,
           status: status?.toLowerCase() || "pending",
           ustaz,
           package: regionPackage || null,
@@ -539,7 +553,9 @@ export async function PUT(request: NextRequest) {
       }
 
       console.log(
-        `Registration updated for ${fullName} by ${session.username} - Notification triggered`
+        `Registration updated for ${fullName} by ${
+          session.code || session.username
+        } - Notification triggered`
       );
       return registration;
     });
@@ -598,7 +614,7 @@ export async function GET(request: NextRequest) {
         phoneno: true,
         classfee: true,
         startdate: true,
-        control: true,
+        u_control: true,
         status: true,
         ustaz: true,
         package: true,
@@ -623,7 +639,7 @@ export async function GET(request: NextRequest) {
 
     if (
       session.role === "controller" &&
-      registration.control !== session.username
+      registration.u_control !== session.code
     ) {
       return NextResponse.json(
         { message: "Unauthorized to view this registration" },
@@ -640,7 +656,7 @@ export async function GET(request: NextRequest) {
 
   const whereClause =
     session.role === "controller"
-      ? { control: session.username, name: { not: "" } }
+      ? { u_control: session.code, name: { not: "" } }
       : { name: { not: "" } };
 
   const registrations = await prismaClient.wpos_wpdatatable_23.findMany({
@@ -650,7 +666,7 @@ export async function GET(request: NextRequest) {
       phoneno: true,
       classfee: true,
       startdate: true,
-      control: true,
+      u_control: true,
       status: true,
       ustaz: true,
       package: true,
@@ -701,7 +717,7 @@ export async function DELETE(request: NextRequest) {
       const existingRegistration =
         await prismaClient.wpos_wpdatatable_23.findUnique({
           where: { wdt_ID: parsedId },
-          select: { control: true },
+          select: { u_control: true },
         });
       if (!existingRegistration) {
         return NextResponse.json(
@@ -711,7 +727,7 @@ export async function DELETE(request: NextRequest) {
       }
       if (
         session.role === "controller" &&
-        existingRegistration.control !== session.username
+        existingRegistration.u_control !== session.code
       ) {
         return NextResponse.json(
           { message: "Unauthorized to delete this registration" },
@@ -736,8 +752,8 @@ export async function DELETE(request: NextRequest) {
         prismaClient.wpos_zoom_links.findFirst({
           where: { studentid: parsedId },
         }),
-        prismaClient.testResult.findFirst({ where: { studentId: parsedId } }),
-        prismaClient.testAppointment.findFirst({
+        prismaClient.testresult.findFirst({ where: { studentId: parsedId } }),
+        prismaClient.testappointment.findFirst({
           where: { studentId: parsedId },
         }),
       ]);
@@ -800,8 +816,7 @@ export async function DELETE(request: NextRequest) {
         await prismaClient.wpos_wpdatatable_23.findMany({
           where: {
             wdt_ID: { in: ids.map((id: number) => parseInt(id.toString())) },
-            control:
-              session.role === "controller" ? session.username : undefined,
+            u_control: session.role === "controller" ? session.code : undefined,
           },
         });
 
@@ -824,8 +839,7 @@ export async function DELETE(request: NextRequest) {
         await tx.wpos_wpdatatable_23.deleteMany({
           where: {
             wdt_ID: { in: ids.map((id: number) => parseInt(id.toString())) },
-            control:
-              session.role === "controller" ? session.username : undefined,
+            u_control: session.role === "controller" ? session.code : undefined,
           },
         });
       });
@@ -883,7 +897,7 @@ export async function PATCH(request: NextRequest) {
       }
       const existing = await prismaClient.wpos_wpdatatable_23.findUnique({
         where: { wdt_ID: parseInt(id) },
-        select: { control: true },
+        select: { u_control: true },
       });
       if (!existing) {
         return NextResponse.json(
@@ -893,7 +907,7 @@ export async function PATCH(request: NextRequest) {
       }
       if (
         session.role === "controller" &&
-        existing.control !== session.username
+        existing.u_control !== session.code
       ) {
         return NextResponse.json(
           { message: "Unauthorized to update this registration" },
@@ -948,8 +962,7 @@ export async function PATCH(request: NextRequest) {
         await prismaClient.wpos_wpdatatable_23.findMany({
           where: {
             wdt_ID: { in: ids.map((id: string) => parseInt(id)) },
-            control:
-              session.role === "controller" ? session.username : undefined,
+            u_control: session.role === "controller" ? session.code : undefined,
           },
         });
 
@@ -963,7 +976,7 @@ export async function PATCH(request: NextRequest) {
       await prismaClient.wpos_wpdatatable_23.updateMany({
         where: {
           wdt_ID: { in: ids.map((id: string) => parseInt(id)) },
-          control: session.role === "controller" ? session.username : undefined,
+          u_control: session.role === "controller" ? session.code : undefined,
         },
         data: { status: status.toLowerCase() },
       });

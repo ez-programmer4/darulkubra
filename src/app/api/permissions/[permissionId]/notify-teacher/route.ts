@@ -36,17 +36,17 @@ export async function POST(
         { status: 400 }
       );
     }
-    const permission = await prisma.permissionRequest.findUnique({
+    const permission = await prisma.permissionrequest.findUnique({
       where: { id: permissionId },
-      include: { teacher: true },
+      include: { wpos_wpdatatable_24: true },
     });
-    if (!permission || !permission.teacher) {
+    if (!permission || !permission.wpos_wpdatatable_24) {
       return NextResponse.json(
         { error: "Permission or teacher not found" },
         { status: 404 }
       );
     }
-    const teacherPhone = permission.teacher.phone;
+    const teacherPhone = permission.wpos_wpdatatable_24.phone;
     if (!teacherPhone) {
       return NextResponse.json(
         { error: "Teacher phone not found" },
@@ -54,7 +54,8 @@ export async function POST(
       );
     }
     const teacherName =
-      permission.teacher.ustazname || permission.teacher.ustazid;
+      permission.wpos_wpdatatable_24.ustazname ||
+      permission.wpos_wpdatatable_24.ustazid;
     const message = `Your permission request for ${
       permission.requestedDates
     } has been ${status.toLowerCase()}.\nNotes: ${reviewNotes || "-"}`;
