@@ -827,18 +827,26 @@ export default function PaymentManagement({
   const formatDate = (date: string | undefined | null): string => {
     if (!date) return "N/A";
     try {
-      return format(new Date(date), "MMMM d, yyyy");
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) {
+        return "Invalid date";
+      }
+      return format(parsedDate, "MMMM d, yyyy");
     } catch (error) {
-      return date;
+      return "Invalid date";
     }
   };
 
   const formatPaymentMonth = (month: string | undefined | null): string => {
     if (!month) return "N/A";
     try {
-      return format(new Date(month + "-01"), "MMMM yyyy");
+      const parsedDate = new Date(month + "-01");
+      if (isNaN(parsedDate.getTime())) {
+        return "Invalid month";
+      }
+      return format(parsedDate, "MMMM yyyy");
     } catch (error) {
-      return month;
+      return "Invalid month";
     }
   };
 
@@ -1086,7 +1094,16 @@ export default function PaymentManagement({
                   <p className="text-sm text-gray-600">Start Date</p>
                   <p className="font-semibold text-gray-900">
                     {student?.startdate
-                      ? format(new Date(student.startdate), "MMM d, yyyy")
+                      ? (() => {
+                          try {
+                            const date = new Date(student.startdate);
+                            return isNaN(date.getTime())
+                              ? "Invalid date"
+                              : format(date, "MMM d, yyyy");
+                          } catch {
+                            return "Invalid date";
+                          }
+                        })()
                       : "N/A"}
                   </p>
                 </div>

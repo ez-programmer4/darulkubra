@@ -379,7 +379,16 @@ export function AttendanceAnalytics({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="date"
-                tickFormatter={(str) => format(new Date(str), "MMM d")}
+                tickFormatter={(str) => {
+                  try {
+                    const date = new Date(str);
+                    return isNaN(date.getTime())
+                      ? "Invalid"
+                      : format(date, "MMM d");
+                  } catch {
+                    return "Invalid";
+                  }
+                }}
               />
               <YAxis allowDecimals={false} />
               <Tooltip />
@@ -439,7 +448,16 @@ export function AttendanceAnalytics({
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={(str) => format(new Date(str), "MMM d")}
+                  tickFormatter={(str) => {
+                    try {
+                      const date = new Date(str);
+                      return isNaN(date.getTime())
+                        ? "Invalid"
+                        : format(date, "MMM d");
+                    } catch {
+                      return "Invalid";
+                    }
+                  }}
                   type="category"
                 />
                 <YAxis

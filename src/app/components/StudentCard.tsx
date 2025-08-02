@@ -236,7 +236,16 @@ export default function StudentCard({
                       <FiCalendar className="text-pink-600" size={16} />
                     </div>
                     <span className="font-medium text-gray-900">
-                      {format(new Date(student.startdate), "MMM d, yyyy")}
+                      {(() => {
+                        try {
+                          const date = new Date(student.startdate);
+                          return isNaN(date.getTime())
+                            ? "Invalid date"
+                            : format(date, "MMM d, yyyy");
+                        } catch {
+                          return "Invalid date";
+                        }
+                      })()}
                     </span>
                   </div>
                 </td>
@@ -362,7 +371,16 @@ export default function StudentCard({
         <div className="flex items-center space-x-4">
           <span className="text-xs text-gray-500">
             Registration:{" "}
-            {format(new Date(student.registrationdate), "MMM d, yyyy")}
+            {(() => {
+              try {
+                const date = new Date(student.registrationdate);
+                return isNaN(date.getTime())
+                  ? "Invalid date"
+                  : format(date, "MMM d, yyyy");
+              } catch {
+                return "Invalid date";
+              }
+            })()}
           </span>
           <span className="text-xs text-gray-500">•</span>
           <span className="text-xs text-gray-500">
