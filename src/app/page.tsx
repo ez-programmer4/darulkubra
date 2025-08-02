@@ -43,7 +43,7 @@ export default function Home() {
         <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4 drop-shadow-sm">
           Welcome to{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-teal-600">
-            Darulkubra Quran Academy
+            Darulkubra Quran Academy Center
           </span>
         </h1>
         <p className="text-gray-700 text-lg md:text-xl mb-8 max-w-lg mx-auto font-medium">
