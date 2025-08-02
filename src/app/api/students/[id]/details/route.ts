@@ -62,16 +62,10 @@ export async function GET(
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    console.log("Student Details Debug:", {
-      studentId,
-      startDate,
-      endDate,
-      attendanceCount: student.attendance_progress.length,
-      zoomLinksCount: student.zoom_links.length,
-      attendanceStatuses: student.attendance_progress.map(
-        (ap) => ap.attendance_status
-      ),
-    });
+    console.log(
+      "Student attendance records:",
+      student.attendance_progress.length
+    );
 
     // Calculate attendance breakdown
     const attendanceBreakdown = student.attendance_progress.reduce(
@@ -145,7 +139,6 @@ export async function GET(
 
     return NextResponse.json(response);
   } catch (error: any) {
-    console.error("Error fetching student details:", error);
     return NextResponse.json(
       { error: "Failed to fetch student details", details: error.message },
       { status: 500 }

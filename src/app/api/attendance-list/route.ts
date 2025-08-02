@@ -13,7 +13,6 @@ export async function GET(req: NextRequest) {
       session.role !== "admin") ||
     !session.username
   ) {
-    console.error("Unauthorized: No valid user in session");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -37,32 +36,11 @@ export async function GET(req: NextRequest) {
     ? parseInt(searchParams.get("notify") || "0", 10)
     : null;
 
-  console.log("Request Parameters:", {
-    date,
-    startDate,
-    endDate,
-    ustaz,
-    attendanceStatus,
-    sentStatus,
-    clickedStatus,
-    page,
-    limit,
-    notify,
-    controllerUsername: session.username,
-  });
-
   // DEBUG: Log all students for this controller
   const allStudents = await prisma.wpos_wpdatatable_23.findMany({
     where: { u_control: { equals: session.code } },
     select: { wdt_ID: true, name: true, daypackages: true },
   });
-  console.log(
-    "All students for controller",
-    session.username,
-    ":",
-    allStudents
-  );
-
   // Determine which students are valid for the selected day (by day name)
   const selectedDayName = new Date(date).toLocaleDateString("en-US", {
     weekday: "long",
@@ -75,8 +53,6 @@ export async function GET(req: NextRequest) {
   ];
 
   // Simplified where clause for testing
-  console.log("Using simplified query for testing");
-
   if (notify) {
     const student = await prisma.wpos_wpdatatable_23.findUnique({
       where: { wdt_ID: notify },
@@ -97,9 +73,7 @@ export async function GET(req: NextRequest) {
       const senderName = process.env.AFROMSG_SENDER_NAME;
 
       if (!apiToken || !senderUid || !senderName) {
-        console.error(
-          "Afromessage credentials (AFROMSG_API_TOKEN, AFROMSG_SENDER_UID, AFROMSG_SENDER_NAME) are not configured in .env file"
-        );
+        console.log("SMS service credentials are not configured in .env file");
         return NextResponse.json(
           { error: "SMS service not configured." },
           { status: 500 }
@@ -127,9 +101,7 @@ export async function GET(req: NextRequest) {
           message,
         };
 
-        console.log("SMS Request URL:", url);
-        console.log("SMS API Token (masked):", apiToken ? "****" : "undefined");
-        console.log("SMS Payload:", JSON.stringify(payload));
+        console.log("Sending SMS with token:", apiToken ? "****" : "undefined");
 
         const smsRes = await fetch(url, {
           method: "POST",
@@ -141,15 +113,12 @@ export async function GET(req: NextRequest) {
         });
 
         const smsText = await smsRes.text();
-        console.log("SMS Response Status:", smsRes.status);
-        console.log("SMS Response Text:", smsText);
         return NextResponse.json({
           message: "Notification sent to teacher",
           smsStatus: smsRes.status,
           smsResponse: smsText,
         });
       } catch (err: any) {
-        console.error("SMS Error:", err.message);
         return NextResponse.json(
           { error: "Failed to send SMS", details: err.message },
           { status: 500 }
@@ -163,9 +132,6 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    console.log("About to execute Prisma query with simplified where clause");
-    console.log("Session username:", session.username);
-
     // Simplified query to test basic functionality
     const records = await prisma.wpos_wpdatatable_23.findMany({
       where: {
@@ -181,13 +147,10 @@ export async function GET(req: NextRequest) {
       take: limit,
     });
 
-    console.log("Returned records count:", records.length);
     if (records.length > 0) {
       console.log(
-        "First 3 students:",
-        records
-          .slice(0, 3)
-          .map((r) => ({ name: r.name, daypackages: r.daypackages }))
+        "Records found:",
+        records.map((r) => ({ name: r.name, daypackages: r.daypackages }))
       );
     }
 
@@ -302,8 +265,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(responseData);
   } catch (error: any) {
-    console.error("Attendance list API error:", error);
-    console.error("Error stack:", error.stack);
     return NextResponse.json(
       { error: "Failed to fetch attendance data", details: error.message },
       { status: 500 }

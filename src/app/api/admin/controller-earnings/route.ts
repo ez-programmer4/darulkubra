@@ -31,10 +31,6 @@ export async function GET(request: NextRequest) {
       : undefined;
     const controllerId = searchParams.get("controllerId") || undefined;
 
-    console.log(
-      `Admin earnings request - month: ${yearMonth}, teamId: ${teamId}, controllerId: ${controllerId}`
-    );
-
     try {
       const calculator = new EarningsCalculator(yearMonth);
       const earnings = await calculator.calculateControllerEarnings({
@@ -42,10 +38,6 @@ export async function GET(request: NextRequest) {
         teamId,
         controllerId,
       });
-
-      console.log(
-        `Successfully calculated earnings for ${earnings.length} controllers`
-      );
 
       // Calculate summary statistics
       const totalEarnings = earnings.reduce(
@@ -99,7 +91,6 @@ export async function GET(request: NextRequest) {
         teamStats: Object.values(teamStats),
       });
     } catch (calculationError) {
-      console.error("Error in earnings calculation:", calculationError);
       return NextResponse.json(
         {
           message: "Error calculating earnings",
@@ -113,7 +104,6 @@ export async function GET(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error("Error in admin controller earnings API:", error);
     return NextResponse.json(
       {
         message: "Internal server error",

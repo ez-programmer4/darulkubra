@@ -122,7 +122,6 @@ export default function Controller() {
       setStudents(students.filter((s) => s.id !== studentId));
       toast.success("Student deleted successfully");
     } catch (error) {
-      console.error("Error deleting student:", error);
       toast.error("Failed to delete student");
     }
   };

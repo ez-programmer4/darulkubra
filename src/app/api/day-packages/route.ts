@@ -16,7 +16,6 @@ export async function GET(request: NextRequest) {
     const dayPackages = ["All days Package"];
     return NextResponse.json({ dayPackages }, { status: 200 });
   } catch (error) {
-    console.error(error);
     return NextResponse.json(
       { message: "Error fetching day packages" },
       { status: 500 }

@@ -106,13 +106,8 @@ export class EarningsCalculator {
     params: EarningsParams = {}
   ): Promise<ControllerEarnings[]> {
     try {
-      console.log(`Calculating earnings for ${this.yearMonth}`);
-      console.log(`Date range: ${this.startDate} to ${this.endDate}`);
-
       // Get the current earnings configuration
       const config = await this.getEarningsConfig();
-      console.log("Using earnings configuration:", config);
-
       // Get all controllers from students table
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: {
@@ -129,8 +124,6 @@ export class EarningsCalculator {
       const controllerIds = students
         .map((s) => s.u_control)
         .filter(Boolean) as string[];
-      console.log(`Found ${controllerIds.length} controllers:`, controllerIds);
-
       // For each controller, calculate earnings
       const earnings = await Promise.all(
         controllerIds.map(async (controllerId) => {
@@ -184,28 +177,6 @@ export class EarningsCalculator {
               s.chatId !== ""
           );
 
-          console.log(`\n[Controller: ${controllerId}]`);
-          console.log(
-            `Active students:`,
-            activeStudentsArr.map((s) => s.name)
-          );
-          console.log(
-            `Not Yet students:`,
-            notYetStudentsArr.map((s) => s.name)
-          );
-          console.log(
-            `Leave students (this month):`,
-            leaveStudentsArr.map((s) => s.name)
-          );
-          console.log(
-            `Ramadan Leave students:`,
-            ramadanLeaveStudentsArr.map((s) => s.name)
-          );
-          console.log(
-            `Linked students:`,
-            linkedStudentsArr.map((s) => s.name)
-          );
-
           // Get payment data
           const payments = await prisma.months_table.findMany({
             where: {
@@ -228,15 +199,6 @@ export class EarningsCalculator {
                 (p) =>
                   p.studentid === s.wdt_ID && p.payment_status === "approved"
               )
-          );
-
-          console.log(
-            `Paid this month:`,
-            paidThisMonthArr.map((s) => s.name)
-          );
-          console.log(
-            `Unpaid active students:`,
-            unpaidActiveArr.map((s) => s.name)
           );
 
           // Get referenced students
@@ -270,10 +232,6 @@ export class EarningsCalculator {
           const referencedActiveArr = referencedStudents.filter(
             (s) => s.months_table.length > 0 && !s.rigistral
           );
-          console.log(
-            `Referenced active students:`,
-            referencedActiveArr.map((s) => s.name)
-          );
 
           // Calculate earnings using configurable rates
           const baseEarnings = activeStudentsArr.length * config.mainBaseRate;
@@ -291,24 +249,6 @@ export class EarningsCalculator {
             config.referralBaseRate;
           const totalEarnings =
             baseEarnings - leavePenalty - unpaidPenalty + referencedBonus;
-
-          console.log(`\nEarnings calculation for ${controllerId}:`);
-          console.log(
-            `Base earnings: ${baseEarnings} (${activeStudentsArr.length} × ${config.mainBaseRate})`
-          );
-          console.log(
-            `Leave penalty: ${leavePenalty} (${Math.max(
-              leaveStudentsArr.length - config.leaveThreshold,
-              0
-            )} × ${config.leavePenaltyMultiplier} × ${config.mainBaseRate})`
-          );
-          console.log(
-            `Unpaid penalty: ${unpaidPenalty} (${unpaidActiveArr.length} × ${config.unpaidPenaltyMultiplier} × ${config.mainBaseRate})`
-          );
-          console.log(
-            `Referenced bonus: ${referencedBonus} (${referencedActiveArr.length} × ${config.referralBonusMultiplier} × ${config.referralBaseRate})`
-          );
-          console.log(`Total earnings: ${totalEarnings}`);
 
           // Get previous month earnings
           const previousMonth = new Date(this.startDate);
@@ -366,10 +306,8 @@ export class EarningsCalculator {
         })
       );
 
-      console.log(`Calculated earnings for ${earnings.length} controllers`);
       return earnings;
     } catch (error) {
-      console.error("Error calculating controller earnings:", error);
       throw new Error("Failed to calculate controller earnings");
     }
   }
@@ -426,7 +364,6 @@ export class EarningsCalculator {
         unpaidStudents * config.unpaidPenaltyMultiplier * config.mainBaseRate
       );
     } catch (error) {
-      console.error("Error getting previous month earnings:", error);
       return 0;
     }
   }
@@ -480,7 +417,6 @@ export class EarningsCalculator {
         unpaidStudents * config.unpaidPenaltyMultiplier * config.mainBaseRate
       );
     } catch (error) {
-      console.error("Error getting year to date earnings:", error);
       return 0;
     }
   }

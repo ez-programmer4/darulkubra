@@ -82,8 +82,7 @@
 //       onUpdate(updatedStudent);
 //       toast.success("Student information updated successfully");
 //     } catch (error) {
-//       console.error("Error updating student:", error);
-//       toast.error("Failed to update student information");
+//       //       toast.error("Failed to update student information");
 //     } finally {
 //       setIsLoading(false);
 //     }

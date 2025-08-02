@@ -9,11 +9,6 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log(
-      "Teacher schedule API: NEXTAUTH_SECRET exists:",
-      !!process.env.NEXTAUTH_SECRET
-    );
-
     // Fallback secret for development if NEXTAUTH_SECRET is not set
     const secret =
       process.env.NEXTAUTH_SECRET || "fallback-secret-for-development";
@@ -23,10 +18,7 @@ export async function PUT(
       secret,
     });
 
-    console.log("Teacher schedule API: Session token:", session);
-
     if (!session) {
-      console.log("Teacher schedule API: No session token found");
       return NextResponse.json(
         { message: "No session token" },
         { status: 401 }
@@ -34,17 +26,11 @@ export async function PUT(
     }
 
     if (session.role !== "admin") {
-      console.log(
-        "Teacher schedule API: User role is not admin:",
-        session.role
-      );
       return NextResponse.json(
         { message: "Admin access required" },
         { status: 401 }
       );
     }
-
-    console.log("Teacher schedule API: Admin access granted");
 
     const teacherId = params.id;
     const body = await request.json();
@@ -71,7 +57,6 @@ export async function PUT(
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error updating teacher schedule:", error);
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 }

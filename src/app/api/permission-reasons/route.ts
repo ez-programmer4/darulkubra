@@ -9,7 +9,6 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json({ reasons: reasons.map((r) => r.reason) });
   } catch (error) {
-    console.error("Error fetching permission reasons:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

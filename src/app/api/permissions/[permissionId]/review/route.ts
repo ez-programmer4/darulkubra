@@ -76,12 +76,9 @@ export async function POST(
       );
     }
     const reviewerId = user.id;
-    console.log("Session user:", user);
-    console.log("Trying reviewerId:", reviewerId);
     const admin = await prisma.admin.findUnique({
       where: { id: reviewerId },
     });
-    console.log("Admin found:", admin);
     if (!admin) {
       return NextResponse.json(
         { error: "Reviewer admin not found." },
@@ -134,8 +131,7 @@ export async function POST(
           try {
             await sendSMS(student.phoneno, message);
           } catch (e) {
-            console.error("SMS failed", e);
-          }
+            }
         }
         await prisma.notification.create({
           data: {
@@ -152,12 +148,7 @@ export async function POST(
     return NextResponse.json(updated);
   } catch (err) {
     const error = err as Error;
-    console.error(
-      "Error in /api/permissions/[permissionId]/review POST:",
-      error
-    );
-    if (error.stack) console.error(error.stack);
-    if (error.message === "Unauthorized") {
+    if (error.stack) if (error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.json(

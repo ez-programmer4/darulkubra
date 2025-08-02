@@ -14,11 +14,6 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    console.log(
-      "Time-slots API: NEXTAUTH_SECRET exists:",
-      !!process.env.NEXTAUTH_SECRET
-    );
-
     // Fallback secret for development if NEXTAUTH_SECRET is not set
     const secret =
       process.env.NEXTAUTH_SECRET || "fallback-secret-for-development";
@@ -29,10 +24,7 @@ export async function GET(request: NextRequest) {
       secret,
     });
 
-    console.log("Time-slots API: Session token:", session);
-
     if (!session) {
-      console.log("Time-slots API: No session token found");
       return NextResponse.json(
         { message: "Authentication required" },
         { status: 401 }
@@ -41,14 +33,11 @@ export async function GET(request: NextRequest) {
 
     // Allow admin, registral, and controller roles
     if (!["admin", "registral", "controller"].includes(session.role)) {
-      console.log("Time-slots API: Unauthorized role:", session.role);
       return NextResponse.json(
         { message: "Unauthorized role" },
         { status: 401 }
       );
     }
-
-    console.log("Time-slots API: Access granted for role:", session.role);
 
     let ustazs;
     if (session.role === "admin") {
@@ -131,7 +120,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Time slots error:", error);
     return NextResponse.json(
       { message: "Error fetching time slots" },
       { status: 500 }

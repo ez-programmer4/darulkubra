@@ -97,8 +97,7 @@ export default function AdminTeacherSchedules() {
         setControllers(data.controllers || []);
       }
     } catch (error) {
-      console.error("Error fetching controllers:", error);
-    }
+      }
   };
 
   const fetchTimeSlots = async () => {
@@ -109,8 +108,7 @@ export default function AdminTeacherSchedules() {
         setTimeSlots(data.timeSlots || []);
       }
     } catch (error) {
-      console.error("Error fetching time slots:", error);
-    }
+      }
   };
 
   const handleUpdateSchedule = async (teacher: Teacher) => {

@@ -13,7 +13,6 @@ const ApprovalSchema = z.object({
 
 // Helper: aggregate controller feedback
 function aggregateControllerFeedback(supervisorFeedback: string) {
-  console.log("Raw supervisorFeedback:", supervisorFeedback);
   try {
     // Try to fix common JSON issues
     let cleanedFeedback = supervisorFeedback || "{}";
@@ -31,22 +30,16 @@ function aggregateControllerFeedback(supervisorFeedback: string) {
           cleanedFeedback.lastIndexOf(lastComplete) + lastComplete.length
         );
         cleanedFeedback = beforeLast + "]}}";
-        console.log("Fixed truncated JSON:", cleanedFeedback);
       }
     }
 
     const parsed = JSON.parse(cleanedFeedback);
-    console.log("Parsed supervisorFeedback:", parsed);
     const result = {
       positive: parsed.positive || [],
       negative: parsed.negative || [],
     };
-    console.log("Aggregated feedback result:", result);
     return result;
   } catch (error) {
-    console.log("Error parsing supervisorFeedback:", error);
-    console.log("Attempting to extract partial data...");
-
     // Try to extract what we can from the malformed JSON
     try {
       const positiveMatches =
@@ -64,10 +57,8 @@ function aggregateControllerFeedback(supervisorFeedback: string) {
         };
       });
 
-      console.log("Extracted partial positive feedback:", positive);
       return { positive, negative: [] };
     } catch (extractError) {
-      console.log("Failed to extract partial data:", extractError);
       return { positive: [], negative: [] };
     }
   }
@@ -99,16 +90,13 @@ function calculateControlRate(feedback: { positive: any[]; negative: any[] }) {
 
   const finalScoreOutOf10 = totalRawScore / totalNumberOfItems;
 
-  console.log("Control Rate Calculation:", {
-    positiveRatings: validPositiveRatings,
-    negativeRatings: feedback.negative?.map((c: any) => Number(c.rating)) || [],
+  return {
+    transformedPositiveRatings: validPositiveRatings,
     transformedNegativeRatings: validNegativeRatings,
     totalRawScore,
     totalNumberOfItems,
     finalScoreOutOf10,
-  });
-
-  return finalScoreOutOf10;
+  };
 }
 
 function sumRatings(arr: any[]) {
@@ -175,9 +163,6 @@ export async function GET(req: NextRequest) {
     include: { wpos_wpdatatable_24: true },
   });
 
-  console.log("Found assessments for week:", assessments.length);
-  console.log("Sample assessment:", assessments[0]);
-
   // Use direct DB query for exam pass rate for each teacher
   const teacherStats = await Promise.all(
     assessments.map(async (a) => {
@@ -220,11 +205,9 @@ export async function GET(req: NextRequest) {
       overrideNotes: a.overrideNotes,
       bonusAwarded: a.bonusAwarded,
     };
-    console.log("Teacher data for", a.teacherId, ":", teacherData);
     return teacherData;
   });
 
-  console.log("Final teachers array:", teachers);
   return NextResponse.json(teachers);
 }
 
@@ -254,15 +237,6 @@ export async function POST(req: NextRequest) {
   }
   const { override, notes, bonus } = parse.data;
 
-  console.log("POST request data:", {
-    teacherId,
-    weekStart,
-    override,
-    notes,
-    bonus,
-    bonusType: typeof bonus,
-  });
-
   // Update or create the assessment for this teacher/week
   const updated = await prisma.qualityassessment.updateMany({
     where: { teacherId, weekStart },
@@ -275,14 +249,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  console.log("Database update result:", updated);
-  console.log("Bonus calculation:", {
-    override,
-    isExceptional: override === "Exceptional",
-    bonus,
-    bonusDefaulted: bonus ?? 0,
-    finalBonus: override === "Exceptional" ? Math.min(bonus ?? 0, 100) : 0,
-  });
   // If bonus is awarded, send notification and SMS
   if (override === "Exceptional" && bonus && bonus > 0) {
     // Find teacher record for SMS and (if possible) notification
@@ -295,9 +261,7 @@ export async function POST(req: NextRequest) {
       // Attempt to find a teacher userId (int) for notification
       // (If you have a mapping, use it. Otherwise, skip notification.)
       // await prisma.notification.create({ ... })
-    } catch (e) {
-      console.log("No valid teacher userId for notification", e);
-    }
+    } catch (e) {}
     // SMS notification
     if (teacher?.phone) {
       const smsMessage = `Dear ${

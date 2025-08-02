@@ -37,7 +37,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(payments);
   } catch (error) {
-    console.error("Error fetching payments:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
@@ -69,7 +68,6 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json(updatedPayment);
   } catch (error) {
-    console.error("Error updating payment:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

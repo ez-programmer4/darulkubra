@@ -19,7 +19,6 @@ export async function GET(
     const { passed, failed } = await getTeacherExamPassFail(prisma, ustazId);
     return NextResponse.json({ passed, failed });
   } catch (error) {
-    console.error("Failed to get exam stats:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

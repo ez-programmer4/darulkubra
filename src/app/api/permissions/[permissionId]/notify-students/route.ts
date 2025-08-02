@@ -30,7 +30,6 @@ export async function POST(
   try {
     const permissionId = parseInt(params.permissionId, 10);
     if (isNaN(permissionId)) {
-      console.log("Invalid permissionId:", params.permissionId);
       return NextResponse.json(
         { error: "Invalid permissionId" },
         { status: 400 }
@@ -40,16 +39,13 @@ export async function POST(
       where: { id: permissionId },
       include: { wpos_wpdatatable_24: { include: { students: true } } },
     });
-    console.log("Fetched permission:", permission);
     if (!permission || !permission.wpos_wpdatatable_24) {
-      console.log("Permission or teacher not found");
       return NextResponse.json(
         { error: "Permission or teacher not found" },
         { status: 404 }
       );
     }
     if (permission.status !== "Approved") {
-      console.log("Permission is not approved:", permission.status);
       return NextResponse.json(
         { error: "Permission is not approved" },
         { status: 400 }
@@ -59,7 +55,6 @@ export async function POST(
       permission.wpos_wpdatatable_24.ustazname ||
       permission.wpos_wpdatatable_24.ustazid;
     const students = permission.wpos_wpdatatable_24.students || [];
-    console.log("Teacher students:", students.length);
     const message = `Teacher ${teacherName} will be absent on ${permission.requestedDates}. Your class is cancelled or rescheduled.`;
     let sentCount = 0;
     for (const student of students) {
@@ -67,18 +62,13 @@ export async function POST(
         try {
           await sendSMS(student.phoneno, message);
           sentCount++;
-          console.log("SMS sent to student:", student.phoneno);
-        } catch (e) {
-          console.error("Failed to send SMS to student:", student.phoneno, e);
-        }
+          } catch (e) {
+          }
       } else {
-        console.log("Student has no phone:", student);
-      }
+        }
     }
-    console.log("Total SMS sent:", sentCount);
     return NextResponse.json({ success: true, sentCount });
   } catch (error) {
-    console.error("Error notifying students:", error);
     return NextResponse.json(
       { error: "Failed to notify students" },
       { status: 500 }

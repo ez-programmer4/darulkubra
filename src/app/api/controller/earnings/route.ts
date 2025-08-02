@@ -28,20 +28,12 @@ export async function GET(request: NextRequest) {
     const yearMonth = searchParams.get("month") || undefined;
     const controllerId = session.username; // Use session username as controller ID
 
-    console.log(
-      `Controller earnings request for: ${controllerId}, month: ${yearMonth}`
-    );
-
     try {
       const calculator = new EarningsCalculator(yearMonth);
       const earnings = await calculator.calculateControllerEarnings({
         controllerId,
         yearMonth,
       });
-
-      console.log(
-        `Successfully calculated earnings for ${earnings.length} controllers`
-      );
 
       if (earnings.length === 0) {
         return NextResponse.json({
@@ -67,7 +59,6 @@ export async function GET(request: NextRequest) {
         earnings: controllerEarnings,
       });
     } catch (calculationError) {
-      console.error("Error in earnings calculation:", calculationError);
       return NextResponse.json(
         {
           message: "Error calculating earnings",
@@ -81,7 +72,6 @@ export async function GET(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error("Error in controller earnings API:", error);
     return NextResponse.json(
       {
         message: "Internal server error",

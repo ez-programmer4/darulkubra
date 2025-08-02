@@ -123,10 +123,6 @@ export default function StudentList({
             // Defensive: ensure student.id is defined
             const studentId = student.id;
             if (!studentId) {
-              console.warn(
-                "Skipping payment fetch for student with undefined id:",
-                student
-              );
               return {
                 ...student,
                 paymentStatus: {
@@ -149,9 +145,6 @@ export default function StudentList({
               );
 
               if (!response.ok) {
-                console.error(
-                  `Failed to fetch payment history for student ${studentId}: ${response.statusText}`
-                );
                 return {
                   ...student,
                   paymentStatus: {
@@ -197,10 +190,6 @@ export default function StudentList({
                 },
               };
             } catch (error) {
-              console.error(
-                `Error fetching payment history for student ${studentId}:`,
-                error
-              );
               return {
                 ...student,
                 paymentStatus: {
@@ -216,8 +205,7 @@ export default function StudentList({
 
         setStudentsWithPaymentStatus(updatedStudents);
       } catch (error) {
-        console.error("Error fetching payment histories:", error);
-      }
+        }
     };
 
     if (students.length > 0 && user) {
@@ -272,16 +260,6 @@ export default function StudentList({
 
   // Filter and search students with debug logs
   const filteredStudents = useMemo(() => {
-    console.log("Filtering students with:", {
-      searchQuery,
-      paymentStatusFilter,
-      paymentMonthFilter,
-      paymentAmountMin,
-      paymentAmountMax,
-      lastPaymentDateFrom,
-      lastPaymentDateTo,
-    });
-
     return studentsWithPaymentStatus.filter((student) => {
       const matchesSearch =
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -313,8 +291,6 @@ export default function StudentList({
       };
       const latestPayment = paymentStatus.lastPayment;
 
-      console.log(`Student ${student.id} - Payment Status:`, paymentStatus);
-
       // Payment status filter
       let matchesPaymentStatus = paymentStatusFilter === "all";
       if (paymentStatusFilter === "paid") {
@@ -335,17 +311,11 @@ export default function StudentList({
         latestPayment.month
       ) {
         matchesPaymentMonth = latestPayment.month === paymentMonthFilter;
-        console.log(
-          `Checking month for student ${student.id}: ${latestPayment.month} vs ${paymentMonthFilter}, Result: ${matchesPaymentMonth}`
-        );
-      } else if (
+        } else if (
         !latestPayment &&
         paymentStatusFilter !== "all" &&
         paymentMonthFilter
       ) {
-        console.log(
-          `Student ${student.id} has no latest payment, skipping month filter`
-        );
         matchesPaymentMonth = false; // Exclude if no payment data and month is specified
       }
 
@@ -400,23 +370,7 @@ export default function StudentList({
         matchesLastPaymentDate;
 
       if (!isMatch) {
-        console.log(`Student ${student.id} filtered out due to:`, {
-          matchesSearch,
-          matchesStatus,
-          matchesDayPackage,
-          matchesTimeSlot,
-          matchesSubject,
-          matchesUstaz,
-          matchesRegistrationDate,
-          matchesStartDate,
-          matchesPackage,
-          matchesTelegram,
-          matchesPaymentStatus,
-          matchesPaymentMonth,
-          matchesPaymentAmount,
-          matchesLastPaymentDate,
-        });
-      }
+        }
 
       return isMatch;
     });

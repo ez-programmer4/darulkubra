@@ -125,11 +125,9 @@ export default function AttendanceList() {
         `/api/attendance-list?${params.toString()}`,
         { credentials: "include" }
       );
-      console.log("API Response Status:", response.status);
       const result = await response.json();
-      console.log("API Data for date:", date, result);
       console.log(
-        "Attendance stats from API:",
+        "Attendance data:",
         result.integratedData?.map((r: any) => ({
           student: r.studentName,
           status: r.attendance_status,
@@ -151,7 +149,6 @@ export default function AttendanceList() {
         return;
       }
       if (!result.integratedData || !Array.isArray(result.integratedData)) {
-        console.warn("Invalid or empty integratedData:", result.integratedData);
         setData([]);
         setTotal(0);
       } else {
@@ -185,14 +182,12 @@ export default function AttendanceList() {
       setError(
         err instanceof Error ? err.message : "Failed to load attendance list"
       );
-      console.error("Fetch Error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    console.log("Date changed to:", date);
     fetchData();
   }, [date, ustaz, attendanceStatus, sentStatus, clickedStatus, page, limit]);
 
@@ -322,7 +317,6 @@ export default function AttendanceList() {
         );
       }
     } catch (err) {
-      console.error("Notification Error:", err);
       toast.error("An unexpected error occurred while sending the SMS.");
     } finally {
       setStudentToNotify(null); // Close the modal
@@ -342,7 +336,6 @@ export default function AttendanceList() {
       const timePart = dateStr.substring(11, 16);
       return `${datePart} ${timePart}`;
     } catch (e) {
-      console.warn("Error parsing date string:", dateStr, e);
       return "N/A";
     }
   };
@@ -352,7 +345,6 @@ export default function AttendanceList() {
   );
 
   // Attendance statistics calculation based on selected date
-  console.log("Calculating stats for date:", date);
   console.log(
     "Filtered data:",
     filteredData.map((r) => ({
@@ -380,7 +372,6 @@ export default function AttendanceList() {
     { total: 0, present: 0, absent: 0, permission: 0, "not-taken": 0 }
   );
 
-  console.log("Calculated attendance stats:", attendanceStats);
   const attendanceRate =
     attendanceStats.total > 0
       ? ((attendanceStats.present / attendanceStats.total) * 100).toFixed(1) +

@@ -13,7 +13,6 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json(configs);
   } catch (error: any) {
-    console.error("Error in GET lateness-deduction-config:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -36,7 +35,6 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(config, { status: 201 });
   } catch (error: any) {
-    console.error("Error in POST lateness-deduction-config:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -62,7 +60,6 @@ export async function PUT(req: NextRequest) {
     });
     return NextResponse.json(config);
   } catch (error: any) {
-    console.error("Error in PUT lateness-deduction-config:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -83,7 +80,6 @@ export async function DELETE(req: NextRequest) {
     await prisma.latenessdeductionconfig.delete({ where: { id: Number(id) } });
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Error in DELETE lateness-deduction-config:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

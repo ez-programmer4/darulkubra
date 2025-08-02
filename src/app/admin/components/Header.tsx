@@ -87,8 +87,7 @@ export default function Header({
     try {
       await signOut({ callbackUrl: "/login" });
     } catch (error) {
-      console.error("Logout failed", error);
-    }
+      }
   };
 
   return (

@@ -70,7 +70,6 @@ export default function StudentPayment({
       onUpdate(updatedStudent);
       onClose();
     } catch (err) {
-      console.error("Error submitting payment:", err);
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsSubmitting(false);

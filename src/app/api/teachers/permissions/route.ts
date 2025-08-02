@@ -27,21 +27,16 @@ async function sendSMS(phone: string, message: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("POST /api/teachers/permissions - Starting request");
     const session = await getServerSession(authOptions);
 
     if (
       !session?.user ||
       (session.user as { id: string; role: string }).role !== "teacher"
     ) {
-      console.log("POST /api/teachers/permissions - Unauthorized");
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     const user = session.user as { id: string; role: string };
-    console.log("POST /api/teachers/permissions - User:", user);
-
     const body = await req.json();
-    console.log("POST /api/teachers/permissions - Request body:", body);
     const { date, reason, details } = body;
 
     if (!date || !reason || !details) {
@@ -54,7 +49,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("POST /api/teachers/permissions - Checking for duplicates");
     // Prevent duplicate requests for the same date
     const existingRequest = await prisma.permissionrequest.findFirst({
       where: {
@@ -62,10 +56,6 @@ export async function POST(req: NextRequest) {
         requestedDates: date,
       },
     });
-    console.log(
-      "POST /api/teachers/permissions - Existing request:",
-      existingRequest
-    );
     if (existingRequest) {
       return NextResponse.json(
         {
@@ -76,7 +66,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("POST /api/teachers/permissions - Creating new request");
     const permissionRequest = await prisma.permissionrequest.create({
       data: {
         teacherId: user.id,
@@ -86,21 +75,10 @@ export async function POST(req: NextRequest) {
         status: "Pending",
       },
     });
-    console.log(
-      "POST /api/teachers/permissions - Created request:",
-      permissionRequest
-    );
-
-    console.log("POST /api/teachers/permissions - Creating notifications");
     // Notify all admins with a phone number
     const admins = await prisma.admin.findMany({
       where: { phoneno: { not: null } },
     });
-    console.log(
-      "POST /api/teachers/permissions - Found admins:",
-      admins.length
-    );
-
     const teacher = await prisma.wpos_wpdatatable_24.findUnique({
       where: { ustazid: user.id },
     });
@@ -110,16 +88,8 @@ export async function POST(req: NextRequest) {
     for (const admin of admins) {
       try {
         if (admin.phoneno) {
-          console.log(
-            "POST /api/teachers/permissions - Sending SMS to:",
-            admin.phoneno
-          );
           await sendSMS(admin.phoneno, message);
         }
-        console.log(
-          "POST /api/teachers/permissions - Creating notification for admin:",
-          admin.id
-        );
         // Temporarily disable notification creation due to database schema mismatch
         // await prisma.notification.create({
         //   data: {
@@ -130,10 +100,6 @@ export async function POST(req: NextRequest) {
         //   },
         // });
       } catch (notificationError) {
-        console.error(
-          "POST /api/teachers/permissions - Notification error:",
-          notificationError
-        );
         // Continue with other admins even if one fails
       }
     }
@@ -146,7 +112,6 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error submitting permission request:", error);
     return NextResponse.json(
       {
         error: "Internal Server Error",
@@ -176,7 +141,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(permissions);
   } catch (error) {
-    console.error("Error fetching permission requests:", error);
     return NextResponse.json(
       {
         error: "Internal Server Error",

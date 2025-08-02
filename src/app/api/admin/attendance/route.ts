@@ -175,7 +175,6 @@ export async function GET(req: NextRequest) {
       stats,
     });
   } catch (error) {
-    console.error("Failed to fetch attendance data for admin:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

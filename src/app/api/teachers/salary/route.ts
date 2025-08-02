@@ -7,16 +7,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    console.log("🔍 Teacher Salary API called");
-
     const session = (await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
     })) as any;
-    console.log("👤 Session user:", session?.user?.id);
-
     if (!session?.user?.id) {
-      console.log("❌ No session or user ID");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -25,10 +20,7 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
-    console.log("📅 Date range:", { from, to });
-
     if (!from || !to) {
-      console.log("❌ Missing from or to parameters");
       return NextResponse.json(
         { error: "Missing from or to parameters" },
         { status: 400 }
@@ -37,17 +29,12 @@ export async function GET(request: NextRequest) {
 
     // Calculate period from the TO date (which should be the end of the target month)
     const toDate = new Date(to);
-    console.log("📅 To date object:", toDate);
-    console.log("📅 To date year:", toDate.getFullYear());
-    console.log("📅 To date month (0-indexed):", toDate.getMonth());
-    console.log("📅 To date month (1-indexed):", toDate.getMonth() + 1);
+    console.log("Processing salary for month:", toDate.getMonth());
+    console.log("Next month:", toDate.getMonth() + 1);
 
     const period = `${toDate.getFullYear()}-${String(
       toDate.getMonth() + 1
     ).padStart(2, "0")}`;
-
-    console.log("📊 Looking for period:", period);
-    console.log("📊 Teacher ID:", teacherId);
 
     // Check all salary payments for this teacher
     const allTeacherPayments = await prisma.teachersalarypayment.findMany({
@@ -55,7 +42,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
     console.log(
-      "💰 All payments for this teacher:",
+      "Teacher payments:",
       allTeacherPayments.map((p) => ({
         period: p.period,
         status: p.status,
@@ -69,7 +56,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
     console.log(
-      "💰 All payments in database:",
+      "All payments:",
       allPayments.map((p) => ({
         teacherId: p.teacherId,
         period: p.period,
@@ -86,15 +73,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log("💰 Salary payment found:", salaryPayment ? "YES" : "NO");
     if (salaryPayment) {
-      console.log("💰 Salary details:", {
-        totalSalary: salaryPayment.totalSalary,
-        latenessDeduction: salaryPayment.latenessDeduction,
-        absenceDeduction: salaryPayment.absenceDeduction,
-        bonuses: salaryPayment.bonuses,
-        status: salaryPayment.status,
-      });
+      console.log("Found existing salary payment:", salaryPayment.id);
     }
 
     // Get teacher info
@@ -103,22 +83,16 @@ export async function GET(request: NextRequest) {
       include: { students: true },
     });
 
-    console.log("👨‍🏫 Teacher found:", teacher ? "YES" : "NO");
     if (teacher) {
-      console.log("👨‍🏫 Teacher details:", {
-        name: teacher.ustazname,
-        studentsCount: teacher.students.length,
-      });
+      console.log("Found teacher:", teacher.ustazname);
     }
 
     if (!teacher) {
-      console.log("❌ Teacher not found");
       return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
     }
 
     // If no salary payment exists, return default structure
     if (!salaryPayment) {
-      console.log("📝 Returning default salary structure");
       return NextResponse.json({
         id: teacherId,
         name: teacher.ustazname || "Unknown",
@@ -139,8 +113,6 @@ export async function GET(request: NextRequest) {
       salaryPayment.absenceDeduction -
       salaryPayment.bonuses;
 
-    console.log("🧮 Calculated base salary:", baseSalary);
-
     const response = {
       id: teacherId,
       name: teacher.ustazname || "Unknown",
@@ -153,10 +125,8 @@ export async function GET(request: NextRequest) {
       status: salaryPayment.status,
     };
 
-    console.log("✅ Returning salary data:", response);
     return NextResponse.json(response);
   } catch (error) {
-    console.error("❌ Error fetching teacher salary:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -8,13 +8,8 @@ export const dynamic = "force-dynamic";
 const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
-  console.log("Admin Stats API: Starting request");
-
   const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  console.log("Admin Stats API: Session:", session);
-
   if (!session || session.role !== "admin") {
-    console.log("Admin Stats API: Unauthorized - no session or wrong role");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -88,7 +83,6 @@ export async function GET(req: NextRequest) {
       pendingPaymentAmount,
     });
   } catch (error) {
-    console.error("Admin Stats API Error:", error);
     return NextResponse.json(
       { error: "Internal Server Error", details: (error as Error).message },
       { status: 500 }

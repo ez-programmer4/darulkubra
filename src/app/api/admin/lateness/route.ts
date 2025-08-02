@@ -126,7 +126,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ latenessData });
   } catch (error) {
-    console.error("Failed to calculate lateness for admin:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

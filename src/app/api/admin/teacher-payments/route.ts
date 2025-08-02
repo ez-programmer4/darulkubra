@@ -316,29 +316,20 @@ export async function GET(req: NextRequest) {
         //   await getAbsenceDeductionConfig();
         // let absenceDeduction = 0;
 
-        // console.log(
-        //   `💰 Calculating absence deduction for teacher ${t.ustazname} (${t.ustazid})`
+        // `
         // );
-        // console.log(
-        //   `📅 Date range: ${from.toISOString().split("T")[0]} to ${
+        // .split("T")[0]} to ${
         //     to.toISOString().split("T")[0]
         //   }`
         // );
-        // console.log(`💵 Deduction amount: ${deductionAmount} ETB`);
-        // console.log(
-        //   `📆 Effective months: ${
-        //     effectiveMonths.length > 0
-        //       ? effectiveMonths.join(", ")
-        //       : "All months"
+        // // //       : "All months"
         //   }`
         // );
 
         // for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
         //   const monthNumber = String(d.getMonth() + 1); // 1, 2, 3, etc.
 
-        //   console.log(
-        //     `\n📅 Checking date: ${
-        //       d.toISOString().split("T")[0]
+        //   .split("T")[0]
         //     } (month: ${monthNumber})`
         //   );
 
@@ -347,33 +338,19 @@ export async function GET(req: NextRequest) {
         //     effectiveMonths.length > 0 &&
         //     !effectiveMonths.includes(monthNumber)
         //   ) {
-        //     console.log(
-        //       `⏭️ Skipping - month ${monthNumber} not in effective months`
-        //     );
-        //     continue;
+        //     //     continue;
         //   }
 
         //   // Use centralized absence detection
         //   const absenceResult = await isTeacherAbsent(t.ustazid, d);
-        //   console.log(
-        //     `🔍 Absence result: ${
-        //       absenceResult.isAbsent ? "ABSENT" : "PRESENT"
-        //     } - ${absenceResult.reason}`
-        //   );
-
-        //   if (absenceResult.isAbsent) {
+        //   //   if (absenceResult.isAbsent) {
         //     absenceDeduction += deductionAmount;
-        //     console.log(
-        //       `💸 Adding deduction: ${deductionAmount} ETB (total: ${absenceDeduction} ETB)`
+        //     `
         //     );
         //   }
         // }
 
-        // console.log(
-        //   `💰 Final absence deduction for ${t.ustazname}: ${absenceDeduction} ETB\n`
-        // );
-
-        // Temporarily set absence deduction to 0
+        // // Temporarily set absence deduction to 0
         let absenceDeduction = 0;
         // Bonuses: aggregate from QualityAssessment, not BonusRecord
         const bonuses = await prisma.qualityassessment.aggregate({
@@ -417,7 +394,6 @@ export async function GET(req: NextRequest) {
     );
     return NextResponse.json(results);
   } catch (error: any) {
-    console.error("Error in GET teacher-payments:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

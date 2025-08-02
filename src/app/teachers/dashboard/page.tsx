@@ -82,15 +82,10 @@ export default function TeacherDashboard() {
   const [selectedSalaryMonth, setSelectedSalaryMonth] = useState(() => {
     // Default to current month
     const now = new Date();
-    console.log("📅 Current date:", now);
-    console.log("📅 Current month (0-indexed):", now.getMonth());
-    console.log("📅 Current year:", now.getFullYear());
-
     const result = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
       2,
       "0"
     )}`;
-    console.log("📅 Selected salary month:", result);
     return result;
   });
 
@@ -117,7 +112,6 @@ export default function TeacherDashboard() {
       }
       weekStart = weekStart.add(1, "week");
     }
-    console.log("📅 Generated month weeks:", weeks);
     setMonthWeeks(weeks);
   }, []);
 
@@ -131,22 +125,10 @@ export default function TeacherDashboard() {
       const currentWeekIndex = monthWeeks.findIndex(
         (w) => w === currentWeekStart
       );
-      console.log("📅 Current week start:", currentWeekStart);
-      console.log("📅 Current week index in monthWeeks:", currentWeekIndex);
-      console.log("📅 Available month weeks:", monthWeeks);
-
       if (currentWeekIndex !== -1) {
-        console.log(
-          "✅ Setting selected week to current week:",
-          monthWeeks[currentWeekIndex]
-        );
         setSelectedWeek(monthWeeks[currentWeekIndex]);
       } else {
         // If current week not found, select the last week of the month
-        console.log(
-          "⚠️ Current week not found, selecting last week:",
-          monthWeeks[monthWeeks.length - 1]
-        );
         setSelectedWeek(monthWeeks[monthWeeks.length - 1]);
       }
     }
@@ -158,48 +140,31 @@ export default function TeacherDashboard() {
       try {
         setQualityLoading(true);
         setError(null); // Clear any previous errors
-        console.log("🔍 Fetching quality data for week:", selectedWeek);
-        console.log("🔍 User ID:", user?.id);
-
         // Try Monday start first (API default)
         let res = await fetch(
           `/api/teachers/quality?weekStart=${selectedWeek}`
         );
-        console.log("📡 API Response status (Monday start):", res.status);
-
-        // If 404, try Sunday start (day before)
         if (res.status === 404) {
           const sundayStart = dayjs(selectedWeek)
             .subtract(1, "day")
             .format("YYYY-MM-DD");
-          console.log("🔄 Trying Sunday start:", sundayStart);
           res = await fetch(`/api/teachers/quality?weekStart=${sundayStart}`);
-          console.log("📡 API Response status (Sunday start):", res.status);
         }
 
         if (res.status === 404) {
-          console.log("❌ No quality data found for week:", selectedWeek);
           setQuality(null);
           // Don't set error for 404 - this is expected when no data exists
           return;
         }
         if (!res.ok) {
-          console.error("❌ API Error:", res.status, res.statusText);
           throw new Error("Failed to fetch quality data");
         }
 
         const data = await res.json();
-        console.log("✅ Quality data received:", data);
-        console.log("✅ Teachers in response:", data.teachers?.length || 0);
-
         const assessment = data.teachers.find(
           (t: any) => t.teacherId === user?.id
         );
-        console.log("🔍 Looking for teacher ID:", user?.id);
-        console.log("🔍 Found assessment:", assessment);
-
         if (assessment) {
-          console.log("✅ Processing assessment data");
           const strengths = (assessment.controllerFeedback?.positive || []).map(
             (item: any) => ({
               title: item.description || item.title || "Strength",
@@ -233,7 +198,6 @@ export default function TeacherDashboard() {
             advice: assessment.overrideNotes || "",
             examinerNotes: assessment.examinerNotes || "",
           };
-          console.log("✅ Setting quality data:", qualityData);
           setQuality(qualityData);
           setError(null);
 
@@ -254,12 +218,10 @@ export default function TeacherDashboard() {
             });
           }
         } else {
-          console.log("❌ No assessment found for teacher:", user?.id);
           setQuality(null);
           // Don't set error - just no data available
         }
       } catch (err) {
-        console.error("❌ Error in fetchQuality:", err);
         setQuality(null);
         setError("Unable to load quality data. Please try again later.");
       } finally {
@@ -290,24 +252,8 @@ export default function TeacherDashboard() {
         const selectedYear = parseInt(year);
         const selectedMonth = parseInt(month); // Keep as 1-indexed
 
-        console.log("📅 Selected salary month:", selectedSalaryMonth);
-        console.log("📅 Selected year:", selectedYear);
-        console.log("📅 Selected month (1-indexed):", selectedMonth);
-
         const from = new Date(selectedYear, selectedMonth - 1, 1); // Convert to 0-indexed for Date constructor
         const to = new Date(selectedYear, selectedMonth, 0); // Convert to 0-indexed for Date constructor
-
-        console.log("📅 From date:", from);
-        console.log("📅 To date:", to);
-        console.log("📅 From date string:", from.toISOString().split("T")[0]);
-        console.log("📅 To date string:", to.toISOString().split("T")[0]);
-
-        console.log("🔍 Fetching salary data for teacher:", user?.id);
-        console.log("🔍 User object:", user);
-        console.log("📅 Date range:", {
-          from: from.toISOString().split("T")[0],
-          to: to.toISOString().split("T")[0],
-        });
 
         const res = await fetch(
           `/api/teachers/salary?from=${from.toISOString().split("T")[0]}&to=${
@@ -315,19 +261,14 @@ export default function TeacherDashboard() {
           }`
         );
 
-        console.log("📡 API Response status:", res.status);
-
         if (!res.ok) {
           const errorText = await res.text();
-          console.error("❌ API Error:", errorText);
           throw new Error("Failed to fetch salary data");
         }
 
         const data = await res.json();
-        console.log("✅ Salary data received:", data);
         setSalaryData(data);
       } catch (error) {
-        console.error("❌ Error fetching salary data:", error);
       } finally {
         setSalaryLoading(false);
       }
@@ -601,12 +542,6 @@ ${quality.examinerNotes || "No notes provided."}
                           : "bg-white text-green-700 border-green-300"
                       }`}
                       onClick={() => {
-                        console.log(
-                          "🖱️ Week button clicked:",
-                          week,
-                          "Week",
-                          idx + 1
-                        );
                         setSelectedWeek(week);
                       }}
                     >

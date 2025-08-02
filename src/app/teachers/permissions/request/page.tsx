@@ -44,8 +44,7 @@ export default function RequestPermissionPage() {
           );
         }
       } catch (error) {
-        console.error("Failed to fetch permission reasons:", error);
-      }
+        }
     };
     fetchReasons();
 

@@ -154,7 +154,6 @@ export async function GET(
 
     return NextResponse.json(response);
   } catch (error: any) {
-    console.error("Error fetching teacher details:", error);
     return NextResponse.json(
       { error: "Failed to fetch teacher details", details: error.message },
       { status: 500 }

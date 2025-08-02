@@ -70,7 +70,6 @@ export default function ControllerEarningsPage() {
       const data = await response.json();
       setEarnings(data.earnings);
     } catch (error) {
-      console.error("Error fetching earnings:", error);
       toast.error("Failed to load earnings data");
     } finally {
       setLoading(false);

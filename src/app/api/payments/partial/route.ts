@@ -143,7 +143,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(partialPayments);
   } catch (error) {
-    console.error("Error fetching partial payments:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

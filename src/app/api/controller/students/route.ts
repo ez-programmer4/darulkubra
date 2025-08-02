@@ -16,11 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get controller's code from the session
-    console.log("Session code:", session.code);
-    console.log("Looking for controller with code:", session.code);
-
     if (!session.code) {
-      console.log("Controller code not found in session");
       return NextResponse.json(
         { error: "Controller code not found" },
         { status: 404 }
@@ -28,7 +24,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Get students for this controller
-    console.log("Searching for students with control:", session.code);
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         u_control: session.code,
@@ -41,8 +36,6 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-    console.log("Found students:", students);
-
     // Return all student data
     return NextResponse.json(
       students.map((student) => ({
@@ -51,7 +44,6 @@ export async function GET(request: NextRequest) {
       }))
     );
   } catch (error) {
-    console.error("Error fetching students:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

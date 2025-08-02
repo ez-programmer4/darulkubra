@@ -27,7 +27,6 @@ export function useAuth(options: UseAuthOptions = {}) {
   const { requiredRole, redirectTo, redirectIfFound } = options;
 
   useEffect(() => {
-    console.log("useAuth status", status, session);
     setLoading(true);
     // If still loading, do nothing
     if (status === "loading") return;
@@ -66,7 +65,6 @@ export function useAuth(options: UseAuthOptions = {}) {
     const fetchUser = async () => {
       try {
         const response = await fetch("/api/user");
-        console.log("useAuth fetchUser response", response.status);
         if (response.ok) {
           const userData = await response.json();
           setUser(userData);
@@ -75,7 +73,6 @@ export function useAuth(options: UseAuthOptions = {}) {
           setUser(null);
         }
       } catch (error) {
-        console.error("Failed to fetch user details:", error);
         setUser(null);
       } finally {
         setLoading(false);

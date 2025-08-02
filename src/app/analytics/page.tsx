@@ -163,8 +163,7 @@ export default function AnalyticsDashboard() {
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load analytics");
-      console.error("Analytics Error:", err);
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -257,14 +256,12 @@ export default function AnalyticsDashboard() {
         throw new Error(result.error || "Failed to fetch student details");
       }
 
-      console.log("Student Details API Response:", result);
       setStudentDetails(result);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load student details"
       );
-      console.error("Student Details Error:", err);
-    } finally {
+      } finally {
       setLoadingStudentDetails(false);
     }
   };
@@ -293,8 +290,7 @@ export default function AnalyticsDashboard() {
       setError(
         err instanceof Error ? err.message : "Failed to load teacher details"
       );
-      console.error("Teacher Details Error:", err);
-    } finally {
+      } finally {
       setLoadingTeacherDetails(false);
     }
   };

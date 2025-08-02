@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(ustazs, { status: 200 });
   } catch (error) {
-    console.error("Failed to fetch assigned teachers:", error);
     return NextResponse.json(
       { message: "Error fetching assigned teachers" },
       { status: 500 }

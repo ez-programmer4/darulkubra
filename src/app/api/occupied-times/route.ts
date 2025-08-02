@@ -41,7 +41,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error fetching occupied time:", error);
     return NextResponse.json(
       {
         message: "Error fetching occupied time",

@@ -139,18 +139,13 @@ export function AttendanceAnalytics({
         });
         if (controllerId) {
           params.append("controllerId", controllerId);
-          console.log("Fetching data for controllerId:", controllerId); // Debug controller selection
+          // Debug controller selection
         }
         const response = await fetch(
           `/api/admin/attendance/analytics?${params.toString()}`
         );
         if (!response.ok) throw new Error("Failed to fetch analytics data");
         const result: AnalyticsData = await response.json();
-        console.log(
-          "Raw API Data for controllerId:",
-          controllerId,
-          JSON.stringify(result, null, 2)
-        ); // Debug with formatted JSON
         // Validate and sanitize API data
         const sanitizedResult = {
           dailyTrend: Array.isArray(result.dailyTrend)
@@ -252,21 +247,9 @@ export function AttendanceAnalytics({
     .filter(isValidDataPoint)
     .slice(0, 10); // Limit to top 10
 
-  console.log(
-    "Filtered Daily Trend for controllerId:",
-    controllerId,
-    filteredDailyTrend
-  ); // Debug filtered data
-  console.log(
-    "Filtered Controller Data for controllerId:",
-    controllerId,
-    filteredControllerData
-  ); // Debug filtered data
-  console.log(
-    "Filtered Teacher Data for controllerId:",
-    controllerId,
-    filteredTeacherData
-  ); // Debug filtered data
+  // Debug filtered data
+  // Debug filtered data
+  // Debug filtered data
 
   const hasValidDailyTrend = filteredDailyTrend.length > 0;
   const hasValidControllerData = filteredControllerData.length > 0;

@@ -27,7 +27,7 @@ import {
 import { toast } from "react-hot-toast";
 import Cookies from "js-cookie";
 import { useSession } from "next-auth/react";
-import TimePicker from "@/components/ui/TimePicker";
+import { TimePicker } from "@/components/ui/TimePicker";
 import { to24Hour, validateTime } from "@/utils/timeUtils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +88,6 @@ const convertTo12Hour = (time: string): string => {
     const adjustedHour = hour % 12 || 12;
     return `${adjustedHour}:${minute.toString().padStart(2, "0")} ${period}`;
   } catch (error) {
-    console.error("Error converting to 12-hour format:", error);
     return "Invalid Time";
   }
 };
@@ -105,9 +104,7 @@ function RegistrationContent() {
   );
 
   // Debug current step
-  useEffect(() => {
-    console.log("Current step:", step);
-  }, [step]);
+  useEffect(() => {}, [step]);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -240,7 +237,6 @@ function RegistrationContent() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log("Fetching time slots...");
         const [timeResponse] = await Promise.all([fetch("/api/time-slots")]);
 
         if (!timeResponse.ok)
@@ -249,15 +245,12 @@ function RegistrationContent() {
           );
 
         const timeData: TimeSlotResponse = await timeResponse.json();
-        console.log("Fetched time slots:", timeData.timeSlots);
-        console.log("Time slots count:", timeData.timeSlots?.length || 0);
         setTimeSlots(timeData.timeSlots);
         setError(null);
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Unknown error";
         setError(errorMessage);
-        console.error("Error fetching time slots:", errorMessage);
       }
     };
     fetchData();
@@ -275,7 +268,7 @@ function RegistrationContent() {
         )}&selectedDayPackage=${encodeURIComponent(selectedDayPackage)}`
       );
       const data = await response.json();
-      console.log("Raw API Response:", data); // Log raw response to confirm
+      // Log raw response to confirm
       if (!response.ok) {
         throw new Error(
           data.message || `Teachers fetch failed: ${response.statusText}`
@@ -301,23 +294,17 @@ function RegistrationContent() {
   }, [selectedTime, selectedDayPackage, selectedTeacher]);
 
   const fetchAllTeachers = useCallback(async () => {
-    console.log("fetchAllTeachers called");
     try {
       const response = await fetch("/api/teachers");
-      console.log("API response status:", response.status);
       if (!response.ok) {
         const errorText = await response.text();
-        console.log("API error response:", errorText);
         throw new Error(`Failed to fetch teachers: ${response.statusText}`);
       }
       const data = await response.json();
-      console.log("Fetched teachers:", data);
-      console.log("Number of teachers fetched:", data.length);
       setTeachers(data);
       setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      console.log("fetchAllTeachers error:", errorMessage);
       setError(errorMessage);
       setTeachers([]);
     }
@@ -325,14 +312,11 @@ function RegistrationContent() {
 
   useEffect(() => {
     if (status !== "authenticated") return; // Wait for session to load
-    console.log("Step changed to:", step);
-    console.log("User role:", (session as any)?.role);
+    console.log("Session role:", (session as any)?.role);
     if (step === 2) {
       if ((session as any)?.role === "registral") {
-        console.log("Calling fetchAllTeachers for registral user");
         fetchAllTeachers();
       } else {
-        console.log("Calling fetchTeachers for regular user");
         fetchTeachers();
       }
     }
@@ -406,29 +390,17 @@ function RegistrationContent() {
 
   // Update teacher schedule when teacher changes
   useEffect(() => {
-    console.log("Teacher selection changed:", selectedTeacher);
-    console.log("Available teachers:", teachers);
     if (selectedTeacher) {
       const teacher = teachers.find((t) => t.ustazid === selectedTeacher);
-      console.log("Found teacher:", teacher);
       const schedule = teacher?.schedule || "";
-      console.log("Setting teacher schedule:", schedule);
       setSelectedTeacherSchedule(schedule);
     } else {
-      console.log("No teacher selected, clearing schedule");
       setSelectedTeacherSchedule("");
     }
   }, [selectedTeacher, teachers]);
 
   // Add robust logging at the top of the Registration component
-  useEffect(() => {
-    console.log("[Registration] Teachers state:", teachers);
-    console.log("[Registration] Selected teacher:", selectedTeacher);
-    console.log(
-      "[Registration] Selected teacher schedule:",
-      selectedTeacherSchedule
-    );
-  }, [teachers, selectedTeacher, selectedTeacherSchedule]);
+  useEffect(() => {}, [teachers, selectedTeacher, selectedTeacherSchedule]);
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     setIsSubmitting(true);
@@ -471,11 +443,6 @@ function RegistrationContent() {
             : undefined,
         registrationdate: editId ? undefined : new Date().toISOString(),
       };
-
-      console.log("Submitting payload:", payload);
-      console.log("Selected teacher:", selectedTeacher);
-      console.log("Selected time:", selectedTime);
-      console.log("Form data:", data);
 
       const url = editId
         ? `/api/registrations?id=${editId}`
@@ -544,12 +511,6 @@ function RegistrationContent() {
     return acc;
   }, {} as { [key: string]: TimeSlot[] });
 
-  console.log("Grouped time slots:", groupedTimeSlots);
-  console.log("Time slots array length:", timeSlots.length);
-  console.log("Time slots array:", timeSlots);
-  console.log("Day packages:", dayPackages);
-  console.log("Selected day package:", selectedDayPackage);
-
   const today = new Date().toISOString().split("T")[0];
 
   const groupedCountries = countries.reduce((acc, country) => {
@@ -570,24 +531,18 @@ function RegistrationContent() {
   useEffect(() => {
     const checkAvailability = async () => {
       if (!selectedDayPackage) return;
-      console.log(
-        "Starting availability check for day package:",
-        selectedDayPackage
-      );
       setLoadingAvailability(true);
       const availability: { [time: string]: boolean } = {};
 
       await Promise.all(
         timeSlots.map(async (slot) => {
           try {
-            console.log(`Checking availability for slot: ${slot.time}`);
             const res = await fetch(
               `/api/teachers-by-time?selectedTime=${encodeURIComponent(
                 slot.time
               )}&selectedDayPackage=${encodeURIComponent(selectedDayPackage)}`
             );
             if (!res.ok) {
-              console.log(`API error for ${slot.time}:`, res.statusText);
               availability[slot.time] = false;
               return;
             }
@@ -595,22 +550,12 @@ function RegistrationContent() {
             const teachers = Array.isArray(data) ? data : data.teachers;
             const isAvailable = teachers && teachers.length > 0;
             availability[slot.time] = isAvailable;
-            console.log(
-              `Slot ${slot.time} availability:`,
-              isAvailable,
-              `(${teachers?.length || 0} teachers)`
-            );
           } catch (error) {
-            console.error(
-              `Error checking availability for ${slot.time}:`,
-              error
-            );
             availability[slot.time] = false;
           }
         })
       );
 
-      console.log("Final availability map:", availability);
       setAvailableTimeSlots(availability);
       setLoadingAvailability(false);
     };
@@ -1058,13 +1003,6 @@ function RegistrationContent() {
                   </div>
                   {/* Time slot grid */}
                   {(() => {
-                    console.log("Rendering condition check:");
-                    console.log("- timeSlots.length:", timeSlots.length);
-                    console.log(
-                      "- timeSlots.length > 0:",
-                      timeSlots.length > 0
-                    );
-                    console.log("- Should render:", timeSlots.length > 0);
                     return timeSlots.length > 0;
                   })() && (
                     <>

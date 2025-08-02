@@ -79,7 +79,6 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error("Test data error:", error);
     return NextResponse.json(
       { error: "Failed to fetch test data", details: error },
       { status: 500 }

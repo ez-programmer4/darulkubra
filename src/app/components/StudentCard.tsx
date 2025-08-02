@@ -72,12 +72,6 @@ export default function StudentCard({
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Add console logging to debug
-  console.log("Student data:", {
-    progress: student.progress,
-    chatId: student.chatId,
-    name: student.name,
-  });
-
   const handlePaymentClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();

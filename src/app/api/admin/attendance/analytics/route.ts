@@ -71,8 +71,7 @@ export async function GET(req: NextRequest) {
       }
     );
 
-    console.log("Analytics Debug:", {
-      startDate: startDate.toISOString(),
+    return NextResponse.json({
       endDate: endDate.toISOString(),
       controllerId,
       totalRecords: attendanceRecords.length,
@@ -192,18 +191,20 @@ export async function GET(req: NextRequest) {
       },
     };
 
-    console.log("Analytics Result:", {
-      dailyTrendLength: dailyTrend.length,
-      controllerDataLength: controllerData.length,
-      teacherDataLength: teacherData.length,
-      sampleDailyTrend: dailyTrend.slice(0, 3),
+    return NextResponse.json({
+      dailyTrend,
+      controllerData,
+      teacherData,
+      dateRange: {
+        from: startDate.toISOString(),
+        to: endDate.toISOString(),
+      },
       sampleControllerData: controllerData.slice(0, 3),
       sampleTeacherData: teacherData.slice(0, 3),
     });
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Failed to fetch attendance analytics:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

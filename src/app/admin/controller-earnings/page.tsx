@@ -106,7 +106,6 @@ export default function AdminControllerEarningsPage() {
       const data = await response.json();
       setEarningsData(data);
     } catch (error) {
-      console.error("Error fetching earnings:", error);
       toast.error("Failed to load earnings data");
     } finally {
       setLoading(false);
@@ -128,7 +127,6 @@ export default function AdminControllerEarningsPage() {
       }
       setConfigHistory(data.history || []);
     } catch (error) {
-      console.error("Error fetching earnings config:", error);
       toast.error("Failed to load earnings configuration");
     } finally {
       setConfigLoading(false);
@@ -157,7 +155,6 @@ export default function AdminControllerEarningsPage() {
       // Refresh earnings data to reflect new rates
       await fetchEarnings();
     } catch (error) {
-      console.error("Error updating earnings config:", error);
       toast.error("Failed to update earnings configuration");
     } finally {
       setConfigLoading(false);

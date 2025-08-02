@@ -7,33 +7,22 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    console.log(
-      "Admin Analytics API: NEXTAUTH_SECRET exists:",
-      !!process.env.NEXTAUTH_SECRET
-    );
-
     // Fallback secret for development if NEXTAUTH_SECRET is not set
     const secret =
       process.env.NEXTAUTH_SECRET || "fallback-secret-for-development";
 
     const session = await getToken({ req, secret });
 
-    console.log("Admin Analytics API: Session token:", session);
-
     if (!session) {
-      console.log("Admin Analytics API: No session token found");
       return NextResponse.json({ error: "No session token" }, { status: 401 });
     }
 
     if (session.role !== "admin") {
-      console.log("Admin Analytics API: User role is not admin:", session.role);
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 401 }
       );
     }
-
-    console.log("Admin Analytics API: Admin access granted");
 
     const { searchParams } = new URL(req.url);
     const startDate = searchParams.get("startDate");
@@ -111,7 +100,6 @@ export async function GET(req: NextRequest) {
       paymentStatusBreakdown,
     });
   } catch (error) {
-    console.error("Error fetching analytics data:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

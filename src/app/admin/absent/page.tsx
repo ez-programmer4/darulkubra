@@ -88,8 +88,7 @@ export default function AdminAbsentConfigPage() {
         setStats(data);
       }
     } catch (error) {
-      console.error("Failed to fetch stats:", error);
-    } finally {
+      } finally {
       setLoadingStats(false);
     }
   }
@@ -103,8 +102,7 @@ export default function AdminAbsentConfigPage() {
         setRecentAbsences(data.absences || []);
       }
     } catch (error) {
-      console.error("Failed to fetch recent absences:", error);
-    } finally {
+      } finally {
       setLoadingAbsences(false);
     }
   }

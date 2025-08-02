@@ -52,15 +52,10 @@ export default function TeacherSalaryPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     // Default to current month
     const now = new Date();
-    console.log("📅 Current date:", now);
-    console.log("📅 Current month (0-indexed):", now.getMonth());
-    console.log("📅 Current year:", now.getFullYear());
-
     const result = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
       2,
       "0"
     )}`;
-    console.log("📅 Selected month:", result);
     return result;
   });
   const [error, setError] = useState<string | null>(null);
@@ -82,14 +77,6 @@ export default function TeacherSalaryPage() {
       const from = new Date(selectedYear, monthNumber - 1, 1); // Convert to 0-indexed for Date constructor
       const to = new Date(selectedYear, monthNumber, 0); // Convert to 0-indexed for Date constructor
 
-      console.log("📅 Selected month:", selectedMonth);
-      console.log("📅 Selected year:", selectedYear);
-      console.log("📅 Month number (1-indexed):", monthNumber);
-      console.log("📅 From date:", from);
-      console.log("📅 To date:", to);
-      console.log("📅 From date string:", from.toISOString().split("T")[0]);
-      console.log("📅 To date string:", to.toISOString().split("T")[0]);
-
       const res = await fetch(
         `/api/teachers/salary?from=${from.toISOString().split("T")[0]}&to=${
           to.toISOString().split("T")[0]
@@ -100,7 +87,6 @@ export default function TeacherSalaryPage() {
 
       setSalaryData(data);
     } catch (error) {
-      console.error("Error fetching salary data:", error);
       setError("Failed to load salary information. Please try again.");
     } finally {
       setLoading(false);

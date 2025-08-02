@@ -240,7 +240,6 @@ export default function PaymentManagement({
         const monthlyData = await monthlyResponse.json();
         setMonthlyPayments(monthlyData);
       } catch (err) {
-        console.error("Error fetching data:", err);
         setError(err instanceof Error ? err.message : "Failed to load data");
         if (
           err instanceof Error &&
@@ -259,10 +258,7 @@ export default function PaymentManagement({
   }, [studentId, router]);
 
   // Debug logging for user role
-  useEffect(() => {
-    console.log("Current user:", user);
-    console.log("User role:", user?.role);
-  }, [user]);
+  useEffect(() => {}, [user]);
 
   // Add useEffect to calculate amount when month or payment type changes
   useEffect(() => {
@@ -433,7 +429,6 @@ export default function PaymentManagement({
       // Show success message
       toast.success("Deposit added successfully!");
     } catch (error) {
-      console.error("Error submitting deposit:", error);
       setError(
         error instanceof Error ? error.message : "Failed to submit deposit"
       );
@@ -451,7 +446,6 @@ export default function PaymentManagement({
     // Guard: Ensure student and student.wdt_ID are present
     if (!student || (!student.id && !student.wdt_ID)) {
       toast.error("Student not loaded. Please try again.");
-      console.log("Student object at submit:", student);
       return;
     }
 
@@ -517,9 +511,6 @@ export default function PaymentManagement({
         paymentStatus: "approved",
         payment_type: paymentType,
       };
-      console.log("Student object at submit:", student);
-      console.log("Monthly payment payload:", payload);
-
       const response = await fetch("/api/payments/monthly", {
         method: "POST",
         headers: {
@@ -543,7 +534,6 @@ export default function PaymentManagement({
       });
       fetchPayments();
     } catch (error) {
-      console.error("Error submitting monthly payment:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -626,12 +616,6 @@ export default function PaymentManagement({
       setIsSubmitting(true);
 
       // Debug: Log initial state
-      console.log("Submitting prize:", {
-        month: newPrize.month,
-        percentage: newPrize.percentage,
-        reason: newPrize.reason,
-      });
-
       // Validate required fields
       if (!newPrize.month) {
         toast.error("Month is required");
@@ -657,11 +641,6 @@ export default function PaymentManagement({
       const isFullPrize = newPrize.percentage === 100;
 
       // Debug: Log validation result
-      console.log("Validation passed:", {
-        isFullPrize,
-        reasonProvided: !!newPrize.reason,
-      });
-
       // Calculate the base amount for the prize
       let baseAmount = student.classfee;
 
@@ -692,8 +671,6 @@ export default function PaymentManagement({
       const prizeAmount = (baseAmount * newPrize.percentage) / 100;
 
       // Debug: Log calculated amounts
-      console.log("Calculated amounts:", { baseAmount, prizeAmount });
-
       // Use correct studentId
       const studentId = student.wdt_ID || student.id;
 
@@ -717,8 +694,6 @@ export default function PaymentManagement({
       }
 
       // Debug: Log final payload
-      console.log("Sending payload:", payload);
-
       // Submit the prize
       const prizeResponse = await fetch("/api/payments/monthly", {
         method: "POST",
@@ -730,7 +705,6 @@ export default function PaymentManagement({
 
       if (!prizeResponse.ok) {
         const error = await prizeResponse.json();
-        console.log("API Error Response:", error);
         throw new Error(error.error || "Failed to submit prize");
       }
 
@@ -755,7 +729,6 @@ export default function PaymentManagement({
 
         if (!remainingResponse.ok) {
           const error = await remainingResponse.json();
-          console.log("API Error Response (Remaining):", error);
           throw new Error(error.error || "Failed to submit remaining payment");
         }
       }
@@ -765,7 +738,6 @@ export default function PaymentManagement({
       setNewPrize({ month: "", reason: "", percentage: 0 });
       fetchPayments();
     } catch (error) {
-      console.error("Error submitting prize:", error);
       toast.error(
         error instanceof Error ? error.message : "Failed to submit prize"
       );
@@ -784,12 +756,8 @@ export default function PaymentManagement({
           typeof deposit.paidamount === "number"
             ? deposit.paidamount
             : parseFloat(deposit.paidamount?.toString() || "0");
-        console.log(`Approved Deposit ID: ${deposit.id}, Amount: $${amount}`);
         return sum + amount;
       }
-      console.log(
-        `Unapproved Deposit ID: ${deposit.id}, Status: ${deposit.status}`
-      );
       return sum;
     }, 0);
 
@@ -806,25 +774,12 @@ export default function PaymentManagement({
           typeof payment.paid_amount === "number"
             ? payment.paid_amount
             : parseFloat(payment.paid_amount?.toString() || "0");
-        console.log(
-          `Approved Payment Month: ${payment.month}, Amount: $${amount}, Type: ${payment.payment_type}`
-        );
         return sum + amount;
       }
-      console.log(
-        `Excluded Payment Month: ${payment.month}, Status: ${payment.payment_status}, Type: ${payment.payment_type}`
-      );
       return sum;
     }, 0);
 
     const balance = totalApprovedDeposits - totalApprovedPayments;
-    console.log(
-      `Calculated Balance: Total Deposits: $${totalApprovedDeposits.toFixed(
-        2
-      )}, Total Payments: $${totalApprovedPayments.toFixed(
-        2
-      )}, Remaining: $${balance.toFixed(2)}`
-    );
     return balance;
   };
   const formatAmount = (amount: number | string): string => {
@@ -909,7 +864,6 @@ export default function PaymentManagement({
       setMonthlyPayments(monthlyData);
       setDeposits(depositsData);
     } catch (error) {
-      console.error("Error fetching payments:", error);
       setError(
         error instanceof Error ? error.message : "Failed to fetch payments"
       );

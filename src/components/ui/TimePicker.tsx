@@ -117,18 +117,15 @@ export const TimePicker: React.FC<TimePickerProps> = ({
   const [selectedTime, setSelectedTime] = useState<string>(value || "");
   const [showCustomTime, setShowCustomTime] = useState(false);
   const [customTime, setCustomTime] = useState("");
+  const [customTimeError, setCustomTimeError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log("TimePicker received teacherSchedule:", teacherSchedule);
     if (teacherSchedule) {
       const slots = generateTimeSlots(teacherSchedule, DEFAULT_PRAYER_TIMES);
-      console.log("Generated slots:", slots);
       const sortedSlots = sortTimeSlots(slots);
-      console.log("Sorted slots:", sortedSlots);
       setTimeSlots(sortedSlots);
       setGroupedSlots(groupSlotsByCategory(sortedSlots));
     } else {
-      console.log("No teacher schedule provided");
       setTimeSlots([]);
       setGroupedSlots({});
     }
@@ -153,6 +150,11 @@ export const TimePicker: React.FC<TimePickerProps> = ({
       onChange(time12Hour);
       setShowCustomTime(false);
       setCustomTime("");
+      setCustomTimeError(null);
+    } else {
+      setCustomTimeError(
+        "Please enter a valid time format (e.g., 4:00 PM or 16:00)"
+      );
     }
   };
 
@@ -180,48 +182,29 @@ export const TimePicker: React.FC<TimePickerProps> = ({
       )}
 
       {/* Time Slots Grid */}
-      {(() => {
-        console.log("Rendering TimePicker with groupedSlots:", groupedSlots);
-        console.log("Number of categories:", Object.keys(groupedSlots).length);
-        return null;
-      })()}
       {showCategories ? (
         // Grouped by prayer categories
         <div className="space-y-6">
-          {Object.entries(groupedSlots).map(([category, slots]) => {
-            (() => {
-              console.log(
-                `Rendering category: ${category} with ${slots.length} slots`
-              );
-            })();
-            return (
-              <div key={category} className="space-y-3">
-                <h3 className="font-semibold text-gray-700 flex items-center space-x-2">
-                  <span>{getCategoryIcon(category)}</span>
-                  <span>{category}</span>
-                  <Badge variant="secondary">{slots.length} slots</Badge>
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {slots.map((slot) => {
-                    (() => {
-                      console.log(
-                        `Rendering slot: ${slot.time} (${slot.time})`
-                      );
-                    })();
-                    return (
-                      <TimeSlotCard
-                        key={slot.id}
-                        slot={slot}
-                        isSelected={selectedTime === slot.time}
-                        onSelect={handleTimeSelect}
-                        disabled={disabled}
-                      />
-                    );
-                  })}
-                </div>
+          {Object.entries(groupedSlots).map(([category, slots]) => (
+            <div key={category} className="space-y-3">
+              <h3 className="font-semibold text-gray-700 flex items-center space-x-2">
+                <span>{getCategoryIcon(category)}</span>
+                <span>{category}</span>
+                <Badge variant="secondary">{slots.length} slots</Badge>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {slots.map((slot) => (
+                  <TimeSlotCard
+                    key={slot.id}
+                    slot={slot}
+                    isSelected={selectedTime === slot.time}
+                    onSelect={handleTimeSelect}
+                    disabled={disabled}
+                  />
+                ))}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       ) : (
         // Simple grid
@@ -257,19 +240,19 @@ export const TimePicker: React.FC<TimePickerProps> = ({
                   placeholder="e.g., 4:00 PM or 16:00"
                   value={customTime}
                   onChange={(e) => setCustomTime(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+                  disabled={disabled}
                 />
                 <Button
+                  variant="default"
                   onClick={handleCustomTimeSubmit}
-                  disabled={!validateTime(customTime)}
+                  disabled={disabled}
                 >
-                  Add
+                  Set
                 </Button>
               </div>
-              {customTime && !validateTime(customTime) && (
-                <p className="text-red-600 text-sm">
-                  Please enter a valid time format (e.g., 4:00 PM or 16:00)
-                </p>
+              {customTimeError && (
+                <div className="text-red-600 text-sm">{customTimeError}</div>
               )}
             </div>
           )}

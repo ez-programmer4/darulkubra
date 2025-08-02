@@ -39,11 +39,6 @@ export async function GET(req: NextRequest) {
           );
         }
         let teacherQuery = { ustazid: id };
-        console.log("/api/user teacher lookup", {
-          id,
-          teacherQuery,
-          sessionUser: session.user,
-        });
         userDetails = await prisma.wpos_wpdatatable_24.findUnique({
           where: teacherQuery,
           select: {
@@ -88,7 +83,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(finalUser);
   } catch (error) {
-    console.error("API User Error:", error);
     return NextResponse.json(
       {
         error: "Internal Server Error",

@@ -34,10 +34,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
 
-    console.log("Received request for student ID:", studentId);
-
     if (!studentId) {
-      console.error("No student ID provided in request");
       return NextResponse.json(
         { error: "Student ID is required" },
         { status: 400 }
@@ -46,14 +43,11 @@ export async function GET(request: NextRequest) {
 
     const parsedStudentId = parseInt(studentId);
     if (isNaN(parsedStudentId)) {
-      console.error("Invalid student ID format:", studentId);
       return NextResponse.json(
         { error: "Invalid student ID format" },
         { status: 400 }
       );
     }
-
-    console.log("Fetching deposits for student ID:", parsedStudentId);
 
     // First, let's check if we can find any payments for this student
     const allPayments = await prisma.payment.findMany({
@@ -73,16 +67,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log(
-      "All payments for student:",
-      JSON.stringify(allPayments, null, 2)
-    );
-    console.log("Number of payments found:", allPayments.length);
-
+    console.log("All payments found:", allPayments.length);
     // Now get deposits specifically, but first check all reasons
     const uniqueReasons = [...new Set(allPayments.map((p) => p.reason))];
-    console.log("Unique reasons found in payments:", uniqueReasons);
-
     // Get deposits with any reason that might indicate a deposit
     const deposits = await prisma.payment.findMany({
       where: {
@@ -114,17 +101,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log(
-      "Raw deposits from database:",
-      JSON.stringify(deposits, null, 2)
-    );
-    console.log("Number of deposits found:", deposits.length);
-
+    console.log("Deposits found:", deposits.length);
     // If we still don't find any deposits, let's try a more direct query
     if (deposits.length === 0) {
-      console.log(
-        "No deposits found with reason filter, trying direct query..."
-      );
       const directDeposits = await prisma.payment.findMany({
         where: {
           studentid: parsedStudentId,
@@ -145,11 +124,8 @@ export async function GET(request: NextRequest) {
           paymentdate: "desc",
         },
       });
-      console.log(
-        "Direct query results:",
-        JSON.stringify(directDeposits, null, 2)
-      );
 
+      console.log("Direct deposits found:", directDeposits.length);
       // Use the direct query results as deposits
       const formattedDeposits = directDeposits.map((deposit) => {
         const formatted = {
@@ -163,16 +139,10 @@ export async function GET(request: NextRequest) {
           payment_date: deposit.paymentdate,
           status: deposit.status || "pending",
         };
-        console.log("Formatted deposit:", formatted);
         return formatted;
       });
 
-      console.log(
-        "All formatted deposits:",
-        JSON.stringify(formattedDeposits, null, 2)
-      );
-      console.log("Number of formatted deposits:", formattedDeposits.length);
-
+      console.log("Formatted deposits:", formattedDeposits.length);
       return NextResponse.json(formattedDeposits);
     }
 
@@ -189,15 +159,9 @@ export async function GET(request: NextRequest) {
       status: deposit.status || "pending",
     }));
 
-    console.log(
-      "All formatted deposits:",
-      JSON.stringify(formattedDeposits, null, 2)
-    );
-    console.log("Number of formatted deposits:", formattedDeposits.length);
-
+    console.log("Final formatted deposits:", formattedDeposits.length);
     return NextResponse.json(formattedDeposits);
   } catch (error) {
-    console.error("Error in GET /api/payments/deposit:", error);
     return NextResponse.json(
       { error: "Failed to fetch deposits" },
       { status: 500 }
@@ -251,7 +215,6 @@ export async function POST(request: NextRequest) {
       });
 
       if (!student) {
-        console.error("Student not found:", studentId);
         return NextResponse.json(
           { error: "Student not found" },
           { status: 404 }
@@ -260,23 +223,11 @@ export async function POST(request: NextRequest) {
 
       // Check if the student belongs to this controller
       if (student.u_control !== session.code) {
-        console.error("Student does not belong to controller:", {
-          studentControl: student.u_control,
-          userControl: session.username,
-        });
         return NextResponse.json(
           { error: "You are not authorized to add deposits for this student" },
           { status: 403 }
         );
       }
-
-      console.log("Creating deposit for student:", {
-        studentId,
-        studentName: student.name,
-        amount,
-        status,
-        controller: session.username,
-      });
 
       // Create the deposit payment
       const deposit = await prisma.payment.create({
@@ -292,8 +243,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      console.log("Created new deposit:", JSON.stringify(deposit, null, 2));
-
+      console.log("Deposit created:", deposit.id);
       // Format the response to match the expected format
       const formattedDeposit = {
         ...deposit,
@@ -302,14 +252,12 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(formattedDeposit);
     } catch (error) {
-      console.error("Error creating deposit:", error);
       return NextResponse.json(
         { error: "Failed to create deposit" },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error("Error creating deposit:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -369,7 +317,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(formattedPayment);
   } catch (error) {
-    console.error("Error updating payment status:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

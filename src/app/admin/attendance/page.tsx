@@ -39,8 +39,7 @@ export default function AttendancePage() {
             : []
         );
       } catch (err) {
-        console.error(err);
-      }
+        }
     };
     fetchControllers();
   }, []);

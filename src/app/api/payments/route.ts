@@ -88,7 +88,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ payments });
     }
   } catch (error) {
-    console.error("Error processing payment request:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
@@ -132,7 +131,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(payment);
   } catch (error) {
-    console.error("Error creating payment:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
@@ -177,7 +175,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(payment);
   } catch (error) {
-    console.error("Error updating payment:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

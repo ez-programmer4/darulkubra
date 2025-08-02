@@ -182,7 +182,6 @@ export default function ReportsPage() {
       setReportData(data);
       toast.success("Report generated successfully!");
     } catch (error) {
-      console.error("Report generation error:", error);
       toast.error("Failed to generate report");
     } finally {
       setLoading(false);

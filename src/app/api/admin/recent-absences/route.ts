@@ -41,7 +41,6 @@ export async function GET(req: NextRequest) {
       absences,
     });
   } catch (error) {
-    console.error("Error fetching recent absences:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

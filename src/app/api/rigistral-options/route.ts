@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ registralOptions: options }, { status: 200 });
   } catch (error) {
-    console.error("Error fetching registral options:", error);
     return NextResponse.json(
       {
         message: "Error fetching registral options",

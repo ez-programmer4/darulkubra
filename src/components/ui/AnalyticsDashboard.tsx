@@ -86,38 +86,26 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       setLoading(true);
       try {
         // Fetch time slots data
-        console.log("Fetching time slots...");
         const timeSlotsResponse = await fetch("/api/time-slots");
-        console.log("Time slots response status:", timeSlotsResponse.status);
         let timeSlotsData = [];
         if (timeSlotsResponse.ok) {
           const data = await timeSlotsResponse.json();
           timeSlotsData = data.timeSlots || [];
           setTimeSlots(timeSlotsData);
-        } else {
-          console.error("Time slots API error:", timeSlotsResponse.status, timeSlotsResponse.statusText);
         }
 
         // Fetch attendance analytics
-        console.log("Fetching attendance analytics...");
         const attendanceResponse = await fetch("/api/analytics");
-        console.log("Attendance analytics response status:", attendanceResponse.status);
         let attendanceData = null;
         if (attendanceResponse.ok) {
           attendanceData = await attendanceResponse.json();
-        } else {
-          console.error("Attendance analytics API error:", attendanceResponse.status, attendanceResponse.statusText);
         }
 
         // Fetch admin stats
-        console.log("Fetching admin stats...");
         const statsResponse = await fetch("/api/admin/stats");
-        console.log("Admin stats response status:", statsResponse.status);
         let statsData = null;
         if (statsResponse.ok) {
           statsData = await statsResponse.json();
-        } else {
-          console.error("Admin stats API error:", statsResponse.status, statsResponse.statusText);
         }
 
         // Calculate analytics with real data
@@ -129,7 +117,6 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         setAnalyticsData(analytics);
       } catch (error) {
         console.error("Error fetching analytics:", error);
-        console.error("Error details:", error instanceof Error ? error.message : error);
       } finally {
         setLoading(false);
       }

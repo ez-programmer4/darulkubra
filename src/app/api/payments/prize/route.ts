@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(formattedPrizes);
   } catch (error) {
-    console.error("Error fetching prizes:", error);
     return NextResponse.json(
       { error: "Failed to fetch prizes" },
       { status: 500 }
@@ -153,7 +152,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(formattedPrize);
   } catch (error) {
-    console.error("Error creating prize payment:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -114,7 +114,6 @@ export async function GET(request: NextRequest) {
       studentsWithTimes,
     });
   } catch (error) {
-    console.error("Error fetching ustaz test data:", error);
     return NextResponse.json(
       { error: "Failed to fetch ustaz test data" },
       { status: 500 }

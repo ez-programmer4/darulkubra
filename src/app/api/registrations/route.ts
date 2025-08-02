@@ -64,18 +64,8 @@ const checkTeacherAvailability = async (
     }
   });
 
-  console.log(`Teacher ${teacher.ustazname} schedule times:`, scheduleTimes);
-  console.log(`Normalized schedule times:`, normalizedScheduleTimes);
-  console.log(`Looking for time: ${timeToMatch}`);
-
   // Check if teacher is available at this time
   if (!normalizedScheduleTimes.includes(timeToMatch)) {
-    console.log(
-      `Schedule check failed for ${teacher.ustazname}: ${teacher.schedule}`
-    );
-    console.log(
-      `Looking for: ${timeToMatch}, Available: ${normalizedScheduleTimes}`
-    );
     return {
       isAvailable: false,
       message: `Teacher ${teacher.ustazname} is not available at ${selectedTime}`,
@@ -156,7 +146,6 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log("Registration API received body:", body);
     const { control } = body;
 
     if (session.role === "controller" && control !== session.code) {
@@ -183,44 +172,32 @@ export async function POST(request: NextRequest) {
       registrationdate,
     } = body;
 
-    console.log("Extracted fields:");
-    console.log("- fullName:", fullName);
-    console.log("- phoneNumber:", phoneNumber);
-    console.log("- ustaz:", ustaz);
-    console.log("- selectedDayPackage:", selectedDayPackage);
-    console.log("- selectedTime:", selectedTime);
-
     // Validation
     if (!fullName || fullName.trim() === "") {
-      console.log("Validation failed: fullName is empty");
       return NextResponse.json(
         { message: "Full name is required" },
         { status: 400 }
       );
     }
     if (!phoneNumber || phoneNumber.trim() === "") {
-      console.log("Validation failed: phoneNumber is empty");
       return NextResponse.json(
         { message: "Phone number is required" },
         { status: 400 }
       );
     }
     if (!ustaz || ustaz.trim() === "") {
-      console.log("Validation failed: ustaz is empty");
       return NextResponse.json(
         { message: "Teacher is required" },
         { status: 400 }
       );
     }
     if (!selectedDayPackage || selectedDayPackage.trim() === "") {
-      console.log("Validation failed: selectedDayPackage is empty");
       return NextResponse.json(
         { message: "Day package is required" },
         { status: 400 }
       );
     }
     if (!selectedTime || selectedTime.trim() === "") {
-      console.log("Validation failed: selectedTime is empty");
       return NextResponse.json(
         { message: "Selected time is required" },
         { status: 400 }
@@ -299,11 +276,6 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      console.log(
-        `Registration created for ${fullName} by ${
-          session.code || session.username
-        } - Notification triggered`
-      );
       return registration;
     });
 
@@ -312,7 +284,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Registration error:", error);
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 }
@@ -340,7 +311,6 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log("PUT request body:", body);
     const { control } = body;
 
     // For controllers, check if they own the registration first
@@ -386,44 +356,32 @@ export async function PUT(request: NextRequest) {
       registrationdate,
     } = body;
 
-    console.log("PUT validation check:");
-    console.log("- fullName:", fullName);
-    console.log("- phoneNumber:", phoneNumber);
-    console.log("- ustaz:", ustaz);
-    console.log("- selectedDayPackage:", selectedDayPackage);
-    console.log("- selectedTime:", selectedTime);
-
     // Validation
     if (!fullName || fullName.trim() === "") {
-      console.log("Validation failed: fullName is empty");
       return NextResponse.json(
         { message: "Full name is required" },
         { status: 400 }
       );
     }
     if (!phoneNumber || phoneNumber.trim() === "") {
-      console.log("Validation failed: phoneNumber is empty");
       return NextResponse.json(
         { message: "Phone number is required" },
         { status: 400 }
       );
     }
     if (!ustaz || ustaz.trim() === "") {
-      console.log("Validation failed: ustaz is empty");
       return NextResponse.json(
         { message: "Teacher ID is required" },
         { status: 400 }
       );
     }
     if (!selectedDayPackage || selectedDayPackage.trim() === "") {
-      console.log("Validation failed: selectedDayPackage is empty");
       return NextResponse.json(
         { message: "Day package is required" },
         { status: 400 }
       );
     }
     if (!selectedTime || selectedTime.trim() === "") {
-      console.log("Validation failed: selectedTime is empty");
       return NextResponse.json(
         { message: "Selected time is required" },
         { status: 400 }
@@ -432,7 +390,6 @@ export async function PUT(request: NextRequest) {
 
     // Validate time format
     if (!validateTime(selectedTime)) {
-      console.log("Validation failed: invalid time format:", selectedTime);
       return NextResponse.json(
         { message: `Invalid time format: ${selectedTime}` },
         { status: 400 }
@@ -441,8 +398,6 @@ export async function PUT(request: NextRequest) {
 
     const timeToMatch = to24Hour(selectedTime);
     const timeSlot = to12Hour(timeToMatch);
-    console.log("Time conversion:", { selectedTime, timeToMatch, timeSlot });
-
     const existing = await prismaClient.wpos_wpdatatable_23.findUnique({
       where: { wdt_ID: parseInt(id) },
       select: {
@@ -454,7 +409,6 @@ export async function PUT(request: NextRequest) {
     });
 
     if (!existing) {
-      console.log("Registration not found for ID:", id);
       return NextResponse.json(
         { message: "Registration not found" },
         { status: 404 }
@@ -466,23 +420,8 @@ export async function PUT(request: NextRequest) {
       existing.selectedTime === timeSlot &&
       existing.daypackages === selectedDayPackage;
 
-    console.log("Change detection:", {
-      existing: {
-        ustaz: existing.ustaz,
-        selectedTime: existing.selectedTime,
-        daypackages: existing.daypackages,
-      },
-      new: {
-        ustaz,
-        selectedTime: timeSlot,
-        daypackages: selectedDayPackage,
-      },
-      hasNotChanged,
-    });
-
     if (!hasNotChanged) {
       // Check teacher availability
-      console.log("Checking teacher availability for changes...");
       const availability = await checkTeacherAvailability(
         timeToMatch,
         selectedDayPackage,
@@ -490,10 +429,7 @@ export async function PUT(request: NextRequest) {
         parseInt(id)
       );
 
-      console.log("Teacher availability result:", availability);
-
       if (!availability.isAvailable) {
-        console.log("Teacher availability check failed:", availability.message);
         return NextResponse.json(
           { message: availability.message },
           { status: 400 }
@@ -552,11 +488,6 @@ export async function PUT(request: NextRequest) {
         });
       }
 
-      console.log(
-        `Registration updated for ${fullName} by ${
-          session.code || session.username
-        } - Notification triggered`
-      );
       return registration;
     });
 
@@ -565,7 +496,6 @@ export async function PUT(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Update registration error:", error);
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 }
@@ -600,7 +530,6 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ slotCount });
     } catch (error) {
-      console.error("Error fetching student slot count:", error);
       return NextResponse.json({ slotCount: 0 });
     }
   }
@@ -793,9 +722,6 @@ export async function DELETE(request: NextRequest) {
         await tx.wpos_wpdatatable_23.delete({ where: { wdt_ID: parsedId } });
       });
 
-      console.log(
-        `Registration ${parsedId} deleted by ${session.username} - No related records except payments and occupied times.`
-      );
       return NextResponse.json(
         { message: "Registration deleted successfully" },
         { status: 200 }
@@ -844,9 +770,6 @@ export async function DELETE(request: NextRequest) {
         });
       });
 
-      console.log(
-        `Bulk deletion of ${ids.length} registrations by ${session.username} - Notification triggered`
-      );
       return NextResponse.json(
         { message: "Registrations deleted successfully" },
         { status: 200 }
@@ -858,7 +781,6 @@ export async function DELETE(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error("DELETE error:", error);
     return NextResponse.json(
       {
         message:
@@ -918,9 +840,6 @@ export async function PATCH(request: NextRequest) {
         where: { wdt_ID: parseInt(id) },
         data: { isTrained },
       });
-      console.log(
-        `Trained status updated for registration ${id} by ${session.username} - Notification triggered`
-      );
       return NextResponse.json(
         { message: "Trained status updated", registration: updated },
         { status: 200 }
@@ -981,9 +900,6 @@ export async function PATCH(request: NextRequest) {
         data: { status: status.toLowerCase() },
       });
 
-      console.log(
-        `Bulk status updated for ${ids.length} registrations by ${session.username} - Notification triggered`
-      );
       return NextResponse.json(
         { message: "Statuses updated successfully" },
         { status: 200 }
@@ -992,7 +908,6 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ message: "Invalid endpoint" }, { status: 400 });
   } catch (error) {
-    console.error("PATCH error:", error);
     return NextResponse.json(
       {
         message:

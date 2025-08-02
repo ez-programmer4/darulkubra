@@ -45,7 +45,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(transformedPermissions);
   } catch (error) {
-    console.error("Error fetching permissions:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

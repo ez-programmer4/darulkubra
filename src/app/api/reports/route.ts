@@ -91,7 +91,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(reportData);
   } catch (error: any) {
-    console.error("Report Generation Error:", error);
     return NextResponse.json(
       { error: "Failed to generate report", details: error.message },
       { status: 500 }

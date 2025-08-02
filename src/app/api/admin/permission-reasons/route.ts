@@ -12,14 +12,11 @@ export async function GET(req: NextRequest) {
     if (!token || token.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.log("🔍 Fetching permission reasons...");
     const reasons = await prisma.permissionreason.findMany({
       orderBy: { id: "asc" },
     });
-    console.log("✅ Found permission reasons:", reasons);
     return NextResponse.json(reasons);
   } catch (error: any) {
-    console.error("Error in GET permission-reasons:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -35,8 +32,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { reason } = await req.json();
-    console.log("➕ Adding permission reason:", reason);
-
     if (!reason || typeof reason !== "string" || !reason.trim()) {
       return NextResponse.json(
         { error: "Reason is required." },
@@ -48,17 +43,14 @@ export async function POST(req: NextRequest) {
       where: { reason },
     });
     if (exists) {
-      console.log("❌ Reason already exists:", reason);
       return NextResponse.json(
         { error: "Reason already exists." },
         { status: 409 }
       );
     }
     const created = await prisma.permissionreason.create({ data: { reason } });
-    console.log("✅ Created permission reason:", created);
     return NextResponse.json(created);
   } catch (error: any) {
-    console.error("❌ Error creating permission reason:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -93,7 +85,6 @@ export async function PUT(req: NextRequest) {
     });
     return NextResponse.json(updated);
   } catch (error: any) {
-    console.error("Error in PUT permission-reasons:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -112,7 +103,6 @@ export async function DELETE(req: NextRequest) {
     await prisma.permissionreason.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Error in DELETE permission-reasons:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

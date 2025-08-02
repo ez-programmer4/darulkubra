@@ -126,21 +126,17 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError(null);
-      console.log("Fetching registrations...");
       const response = await fetch("/api/registrations", {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
       });
-      console.log("Response status:", response.status);
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Error response:", errorText);
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
-      console.log("Received data:", data);
       if (!Array.isArray(data)) {
         throw new Error("Expected an array of registrations");
       }
@@ -151,7 +147,6 @@ export default function Dashboard() {
       }));
       setRegistrations(sanitizedData);
     } catch (error) {
-      console.error("Failed to fetch registrations:", error);
       setError(
         error instanceof Error ? error.message : "Failed to load registrations"
       );
@@ -202,7 +197,6 @@ export default function Dashboard() {
           setExpandedRow(null);
           setSelectedRows((prev) => prev.filter((rowId) => rowId !== id));
         } catch (error) {
-          console.error("Failed to delete registration:", error);
           setNotification({
             message:
               error instanceof Error
@@ -265,7 +259,6 @@ export default function Dashboard() {
           setSelectedRows([]);
           setExpandedRow(null);
         } catch (error) {
-          console.error("Failed to bulk delete registrations:", error);
           setNotification({
             message:
               error instanceof Error
@@ -317,7 +310,6 @@ export default function Dashboard() {
           fetchRegistrations();
           setSelectedRows([]);
         } catch (error) {
-          console.error("Failed to update statuses:", error);
           setNotification({
             message:
               error instanceof Error

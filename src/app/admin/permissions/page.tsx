@@ -68,16 +68,13 @@ export default function AdminPermissionsPage() {
     let isMounted = true;
     async function fetchReasons() {
       try {
-        console.log("🔍 Frontend: Fetching permission reasons...");
         const res = await fetch("/api/admin/permission-reasons");
         if (!res.ok) throw new Error("Failed to fetch permission reasons");
         const data = await res.json();
-        console.log("✅ Frontend: Received permission reasons:", data);
         if (isMounted) {
           setPermissionReasons(Array.isArray(data) ? data : []);
         }
       } catch (e: any) {
-        console.error("❌ Frontend: Error fetching reasons:", e);
         if (isMounted) {
           setReasonsError(e.message || "Failed to load reasons");
         }
@@ -95,7 +92,6 @@ export default function AdminPermissionsPage() {
       permissionReasons.some((r) => r.reason === newReason.trim())
     )
       return;
-    console.log("➕ Frontend: Adding reason:", newReason.trim());
     setSavingReasons(true);
     setReasonsError(null);
     try {
@@ -109,21 +105,13 @@ export default function AdminPermissionsPage() {
         throw new Error(data.error || "Failed to add reason");
       }
       const created = await res.json();
-      console.log("✅ Frontend: Created reason:", created);
       // Update local state with the new reason - don't re-fetch from server
       setPermissionReasons((prev) => {
-        console.log(
-          "🔄 Frontend: Updating state from",
-          prev.length,
-          "to",
-          prev.length + 1
-        );
         return [...prev, created];
       });
       setNewReason("");
       toast({ title: "Reason Added", description: created.reason });
     } catch (e: any) {
-      console.error("❌ Frontend: Error adding reason:", e);
       setReasonsError(e.message || "Failed to add reason");
       toast({
         title: "Error",
@@ -136,7 +124,6 @@ export default function AdminPermissionsPage() {
   }
 
   async function removeReason(reasonId: number) {
-    console.log("🗑️ Frontend: Removing reason ID:", reasonId);
     setSavingReasons(true);
     setReasonsError(null);
     try {
@@ -149,20 +136,12 @@ export default function AdminPermissionsPage() {
         const data = await res.json();
         throw new Error(data.error || "Failed to delete reason");
       }
-      console.log("✅ Frontend: Removed reason ID:", reasonId);
       // Update local state - don't re-fetch from server
       setPermissionReasons((prev) => {
-        console.log(
-          "🔄 Frontend: Removing from state, count from",
-          prev.length,
-          "to",
-          prev.length - 1
-        );
         return prev.filter((r) => r.id !== reasonId);
       });
       toast({ title: "Reason Removed" });
     } catch (e: any) {
-      console.error("❌ Frontend: Error removing reason:", e);
       setReasonsError(e.message || "Failed to remove reason");
       toast({
         title: "Error",

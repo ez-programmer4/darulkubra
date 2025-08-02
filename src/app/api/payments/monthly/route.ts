@@ -32,8 +32,6 @@ export async function GET(request: NextRequest) {
     }
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
-    console.log("Request studentId:", studentId);
-
     if (!studentId) {
       return NextResponse.json(
         { error: "Student ID is required" },
@@ -51,8 +49,6 @@ export async function GET(request: NextRequest) {
         classfee: true,
       },
     });
-    console.log("Fetched student:", student);
-
     if (!student) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
@@ -72,8 +68,6 @@ export async function GET(request: NextRequest) {
         month: "desc",
       },
     });
-    console.log("Fetched monthly payments:", monthlyPayments);
-
     const formattedPayments = monthlyPayments.map((payment) => ({
       ...payment,
       paid_amount: Number(payment.paid_amount),
@@ -85,7 +79,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(formattedPayments);
   } catch (error) {
-    console.error("Error fetching monthly payments:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -361,12 +354,7 @@ export async function POST(request: NextRequest) {
       expectedAmount = (student.classfee || 0) * (daysFromStart / daysInMonth);
       expectedAmount = Number(expectedAmount.toFixed(2)); // Round to 2 decimal places
 
-      console.log("Prorated calculation details:", {
-        daysInMonth,
-        daysFromStart,
-        classFee: student.classfee,
-        expectedAmount,
-        studentStartDate: studentStartDate.toISOString(),
+      console.log("Payment calculation:", {
         startDate: startDate.toISOString(),
         monthEnd: monthEnd.toISOString(),
       });
@@ -375,27 +363,9 @@ export async function POST(request: NextRequest) {
     // Add the new payment amount
     const newTotal = totalPaid + Number(paidAmount);
 
-    console.log("Payment validation:", {
-      totalPaid,
-      paidAmount,
-      newTotal,
-      expectedAmount,
-      difference: newTotal - expectedAmount,
-    });
-    console.log(payment_type, "payment type");
-
     // Ensure paidAmount is a number for Prisma
     const paidAmountNumber =
       typeof paidAmount === "string" ? parseFloat(paidAmount) : paidAmount;
-    console.log(
-      "Type of paidAmount before create:",
-      typeof paidAmount,
-      paidAmount,
-      "->",
-      typeof paidAmountNumber,
-      paidAmountNumber
-    );
-
     // Skip exceeding check for free payments, allow paidAmount: 0
     if (payment_type !== "free" && newTotal > expectedAmount + 0.01) {
       // Add small tolerance for floating point arithmetic, only for non-free payments
@@ -474,7 +444,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(monthlyPayment);
   } catch (error) {
-    console.error("Error creating monthly payment:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

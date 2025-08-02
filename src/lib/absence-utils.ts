@@ -20,16 +20,8 @@ export async function isTeacherAbsent(
   const checkDate = new Date(date);
   checkDate.setHours(0, 0, 0, 0);
 
-  console.log(
-    `🔍 Checking absence for teacher ${teacherId} on ${dateStr} (${dayName})`
-  );
-  console.log(`📅 Today: ${today.toISOString().split("T")[0]}`);
-  console.log(`📅 Check date: ${checkDate.toISOString().split("T")[0]}`);
-  console.log(`📅 Is future date: ${checkDate > today}`);
-
   // Don't mark teachers as absent for future dates
   if (checkDate > today) {
-    console.log(`⏰ Future date detected - skipping absence check`);
     return { isAbsent: false, reason: "Future date" };
   }
 
@@ -40,11 +32,8 @@ export async function isTeacherAbsent(
   });
 
   if (!teacher || teacher.students.length === 0) {
-    console.log(`❌ No students assigned to teacher ${teacherId}`);
     return { isAbsent: false, reason: "No students assigned" };
   }
-
-  console.log(`📚 Teacher has ${teacher.students.length} students`);
 
   // Check if this is a workday for the teacher
   const hasWorkDay = teacher.students.some((student) => {
@@ -52,36 +41,23 @@ export async function isTeacherAbsent(
 
     // Check for "All Day Package" which means every day is a workday
     if (student.daypackages.includes("All Day Package")) {
-      console.log(
-        `✅ Student ${student.wdt_ID} has "All Day Package" - every day is workday`
-      );
       return true;
     }
 
     // Check for specific day names
     const hasSpecificDay = student.daypackages.includes(dayName);
-    console.log(
-      `📅 Student ${student.wdt_ID} daypackages: "${student.daypackages}", includes ${dayName}: ${hasSpecificDay}`
-    );
     return hasSpecificDay;
   });
 
   if (!hasWorkDay) {
-    console.log(`❌ Not a workday for teacher ${teacherId}`);
     return { isAbsent: false, reason: "Not a workday" };
   }
-
-  console.log(`✅ It's a workday for teacher ${teacherId}`);
 
   // Create copies of date to avoid modifying original
   const dayStart = new Date(date);
   dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(date);
   dayEnd.setHours(23, 59, 59, 999);
-
-  console.log(
-    `🕐 Checking zoom links between ${dayStart.toISOString()} and ${dayEnd.toISOString()}`
-  );
 
   // Check for zoom link activity
   for (const student of teacher.students) {
@@ -96,14 +72,9 @@ export async function isTeacherAbsent(
       },
     });
     if (zoomLinks.length > 0) {
-      console.log(
-        `✅ Found ${zoomLinks.length} zoom links for student ${student.wdt_ID} - teacher is present`
-      );
       return { isAbsent: false, reason: "Zoom link sent" };
     }
   }
-
-  console.log(`❌ No zoom links found for any student`);
 
   // Note: Attendance check removed as per user request
   // Teachers are only considered absent if no zoom links sent and no approved permission
@@ -118,15 +89,11 @@ export async function isTeacherAbsent(
   });
 
   if (permissionRequest) {
-    console.log(`✅ Found approved permission for teacher ${teacherId}`);
     return { isAbsent: false, reason: "Approved permission" };
   }
 
-  console.log(`❌ No approved permission found`);
-
   // Teacher is absent
-  console.log(`🚨 TEACHER IS ABSENT - No zoom links, no permission`);
-  return { isAbsent: true, reason: "No activity, no permission" };
+  return { isAbsent: true, reason: "No activity or permission" };
 }
 
 /**
@@ -148,15 +115,6 @@ export async function getAbsenceDeductionConfig() {
   });
 
   const effectiveMonths = effectiveMonthsConfig?.value?.split(",") || [];
-
-  console.log(
-    `⚙️ Absence config - Deduction: ${deductionConfig?.value || 50} ETB`
-  );
-  console.log(
-    `⚙️ Effective months config: "${
-      effectiveMonthsConfig?.value || "none"
-    }" -> [${effectiveMonths.join(", ")}]`
-  );
 
   return {
     deductionAmount: deductionConfig ? Number(deductionConfig.value) : 50,

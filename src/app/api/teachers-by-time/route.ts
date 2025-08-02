@@ -21,13 +21,6 @@ const checkTeacherAvailability = async (
   const timeToMatch = to24Hour(selectedTime);
   const timeSlot = to12Hour(timeToMatch);
 
-  console.log("Checking availability:", {
-    teacherId,
-    timeToMatch,
-    timeSlot,
-    selectedDayPackage,
-  });
-
   const teacher = await prisma.wpos_wpdatatable_24.findUnique({
     where: { ustazid: teacherId },
     include: {
@@ -36,10 +29,7 @@ const checkTeacherAvailability = async (
       },
     },
   });
-  console.log("Teacher data:", teacher);
-
   if (!teacher) {
-    console.log(`Teacher with ID ${teacherId} does not exist`);
     return {
       isAvailable: false,
       message: `Teacher with ID ${teacherId} does not exist`,
@@ -70,17 +60,7 @@ const checkTeacherAvailability = async (
     }
   });
 
-  console.log(`Teacher ${teacher.ustazname} schedule times:`, scheduleTimes);
-  console.log(`Normalized schedule times:`, normalizedScheduleTimes);
-  console.log(`Looking for time: ${timeToMatch}`);
-
   if (!normalizedScheduleTimes.includes(timeToMatch)) {
-    console.log(
-      `Schedule check failed for ${teacher.ustazname}: ${teacher.schedule}`
-    );
-    console.log(
-      `Looking for: ${timeToMatch}, Available: ${normalizedScheduleTimes}`
-    );
     return {
       isAvailable: false,
       message: `Teacher ${teacher.ustazname} is not available at ${selectedTime}`,
@@ -91,8 +71,6 @@ const checkTeacherAvailability = async (
     where: { time_slot: timeSlot },
     select: { ustaz_id: true, daypackage: true },
   });
-  console.log("All bookings:", allBookings);
-
   const teacherBookings = allBookings.filter(
     (booking) => booking.ustaz_id === teacherId
   );
@@ -103,8 +81,6 @@ const checkTeacherAvailability = async (
   ) => {
     const normalize = (pkg: string) => pkg.trim().toLowerCase();
     const sel = normalize(selectedPackage);
-    console.log("Conflict check:", { teacherBookings, selectedPackage, sel });
-
     if (
       teacherBookings.some(
         (booking) =>
@@ -204,11 +180,6 @@ export async function GET(request: NextRequest) {
 
     const availableTeachers = await Promise.all(
       teachers.map(async (teacher) => {
-        console.log(`Checking teacher ${teacher.ustazname}:`, {
-          ustazid: teacher.ustazid,
-          control: teacher.control,
-        });
-
         const availability = await checkTeacherAvailability(
           selectedTime,
           selectedDayPackage,
@@ -218,10 +189,8 @@ export async function GET(request: NextRequest) {
       })
     ).then((results) => results.filter((teacher) => teacher !== null));
 
-    console.log("Available teachers with controllers:", availableTeachers);
     return NextResponse.json(availableTeachers, { status: 200 });
   } catch (error) {
-    console.error("Error fetching available teachers:", error);
     return NextResponse.json(
       {
         message: "Error fetching available teachers",

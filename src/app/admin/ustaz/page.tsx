@@ -50,7 +50,6 @@ export default function UstazRatingsPage() {
             `/api/admin/ustaz/${ustaz.ustazid}/stats`
           );
           if (!statsRes.ok) {
-            console.error(`Failed to fetch stats for ${ustaz.ustazname}`);
             return {
               id: ustaz.ustazid,
               name: ustaz.ustazname,
@@ -66,7 +65,6 @@ export default function UstazRatingsPage() {
         const allStats = await Promise.all(statsPromises);
         setStats(allStats);
       } catch (error: any) {
-        console.error("Failed to fetch ustaz ratings:", error);
         setError(error.message);
       } finally {
         setLoading(false);

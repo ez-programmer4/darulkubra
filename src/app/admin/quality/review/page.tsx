@@ -125,14 +125,6 @@ export default function AdminQualityReviewPage() {
         bonus: bonus[teacherId] !== undefined ? bonus[teacherId] : 100,
       };
 
-      console.log("Sending approval request:", {
-        teacherId,
-        weekStartStr,
-        requestBody,
-        bonusValue: bonus[teacherId],
-        bonusType: typeof bonus[teacherId],
-      });
-
       const res = await fetch(
         `${apiUrl}?teacherId=${teacherId}&weekStart=${weekStartStr}`,
         {
@@ -522,22 +514,11 @@ export default function AdminQualityReviewPage() {
                                         100,
                                         Math.max(0, inputValue)
                                       );
-                                      console.log("Bonus input change:", {
-                                        teacherId: t.teacherId,
-                                        inputValue,
-                                        clampedValue,
-                                        originalValue: e.target.value,
-                                        currentBonusState: bonus[t.teacherId],
-                                      });
                                       setBonus((prev) => {
                                         const newState = {
                                           ...prev,
                                           [t.teacherId]: clampedValue,
                                         };
-                                        console.log(
-                                          "New bonus state:",
-                                          newState
-                                        );
                                         return newState;
                                       });
                                     }}

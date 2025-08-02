@@ -7,8 +7,6 @@ const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
   try {
-    console.log("NEXTAUTH_SECRET exists:", !!process.env.NEXTAUTH_SECRET);
-
     // Fallback secret for development if NEXTAUTH_SECRET is not set
     const secret =
       process.env.NEXTAUTH_SECRET || "fallback-secret-for-development";
@@ -18,24 +16,18 @@ export async function GET(req: NextRequest) {
       secret,
     });
 
-    console.log("Session token:", session);
-
     if (!session) {
-      console.log("No session token found");
       return NextResponse.json({ error: "No session token" }, { status: 401 });
     }
 
     if (session.role !== "admin") {
-      console.log("User role is not admin:", session.role);
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 401 }
       );
     }
 
-    console.log("Admin access granted");
-  } catch (error) {
-    console.error("Error getting session token:", error);
+    } catch (error) {
     return NextResponse.json({ error: "Session error" }, { status: 401 });
   }
 
@@ -160,7 +152,6 @@ export async function GET(req: NextRequest) {
       limit,
     });
   } catch (error) {
-    console.error("Error fetching users:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
@@ -252,7 +243,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(newUser, { status: 201 });
   } catch (error: any) {
-    console.error("Error creating user:", error);
     return NextResponse.json(
       { error: "Internal Server Error", details: error.message },
       { status: 500 }
@@ -363,7 +353,6 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json(updatedUser);
   } catch (error: any) {
-    console.error("Error updating user:", error);
     return NextResponse.json(
       { error: "Internal Server Error", details: error.message },
       { status: 500 }
@@ -415,7 +404,6 @@ export async function DELETE(req: NextRequest) {
 
     return new NextResponse(null, { status: 204 });
   } catch (error: any) {
-    console.error("Error deleting user:", error);
     if (error.code === "P2025") {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }

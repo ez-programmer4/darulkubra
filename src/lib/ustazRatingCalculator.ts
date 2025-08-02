@@ -139,7 +139,6 @@ export async function calculateUstazAttendanceRating(
       rating_score: ratingScore,
     };
   } catch (error) {
-    console.error("Error calculating ustaz attendance rating:", error);
     return null;
   }
 }
@@ -159,7 +158,6 @@ export async function updateUstazAttendanceRating(
 
     return true;
   } catch (error) {
-    console.error("Error updating ustaz attendance rating:", error);
     return false;
   }
 }
@@ -209,7 +207,6 @@ export async function recalculateAllUstazRatings(
 
     return updatedCount;
   } catch (error) {
-    console.error("Error recalculating all ustaz ratings:", error);
     return 0;
   }
 }

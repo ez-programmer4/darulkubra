@@ -34,7 +34,6 @@ export async function POST(request: NextRequest) {
         );
     }
   } catch (error) {
-    console.error("Bulk operation error:", error);
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 }
@@ -77,7 +76,6 @@ async function clearTimeSlots(data: {
       count: result.count,
     });
   } catch (error) {
-    console.error("Clear time slots error:", error);
     return NextResponse.json(
       { message: "Error clearing time slots" },
       { status: 500 }
@@ -180,7 +178,6 @@ async function bulkAssign(data: {
       },
     });
   } catch (error) {
-    console.error("Bulk assign error:", error);
     return NextResponse.json(
       { message: "Error performing bulk assignment" },
       { status: 500 }
@@ -212,7 +209,6 @@ async function bulkClearStudentSlots(data: {
       count: result.count,
     });
   } catch (error) {
-    console.error("Bulk clear student slots error:", error);
     return NextResponse.json(
       { message: "Error clearing student slots" },
       { status: 500 }
@@ -278,7 +274,6 @@ export async function GET(request: NextRequest) {
       totalSlots: occupiedSlots.length,
     });
   } catch (error) {
-    console.error("Get occupied slots error:", error);
     return NextResponse.json(
       { message: "Error fetching occupied slots" },
       { status: 500 }

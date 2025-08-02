@@ -38,7 +38,6 @@ export async function GET(req: NextRequest) {
       permissionReasons: permissionReasons.map((r) => r.reason),
     });
   } catch (error) {
-    console.error("Error fetching absence settings:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
@@ -121,7 +120,6 @@ export async function POST(req: NextRequest) {
     // Create an audit log entry
     let logAdminId: string | null = null;
     const adminId = (session.user as AuthUser).id;
-    console.log("AuditLog adminId:", adminId, "session.user:", session.user);
     if (adminId) {
       const adminExists = await prisma.admin.findUnique({
         where: { id: adminId },
@@ -148,7 +146,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ message: "Settings saved successfully" });
   } catch (error) {
-    console.error("Error saving absence settings:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

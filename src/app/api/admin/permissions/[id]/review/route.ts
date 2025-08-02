@@ -115,7 +115,6 @@ export async function POST(
 
     return NextResponse.json(updatedRequest);
   } catch (error) {
-    console.error("Error reviewing permission request:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

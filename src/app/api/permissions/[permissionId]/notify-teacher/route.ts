@@ -62,7 +62,6 @@ export async function POST(
     await sendSMS(teacherPhone, message);
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error notifying teacher:", error);
     return NextResponse.json(
       { error: "Failed to notify teacher" },
       { status: 500 }
