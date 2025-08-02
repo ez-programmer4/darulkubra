@@ -113,6 +113,17 @@ export default function StudentList({
   );
   const router = useRouter();
 
+  // Helper function to safely parse dates
+  const safeParseISO = (dateStr: string | null | undefined): Date | null => {
+    if (!dateStr || dateStr === "") return null;
+    try {
+      const parsed = parseISO(dateStr);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    } catch {
+      return null;
+    }
+  };
+
   // Fetch payment history for all students
   useEffect(() => {
     const fetchPaymentHistory = async () => {
@@ -160,13 +171,17 @@ export default function StudentList({
               }
 
               const paymentHistory: MonthlyPayment[] = await response.json();
+
               const latestPayment =
                 paymentHistory.length > 0
-                  ? paymentHistory.sort(
-                      (a, b) =>
-                        parseISO(b.end_date || "").getTime() -
-                        parseISO(a.end_date || "").getTime()
-                    )[0]
+                  ? paymentHistory.sort((a, b) => {
+                      const dateA = safeParseISO(a.end_date);
+                      const dateB = safeParseISO(b.end_date);
+                      if (!dateA && !dateB) return 0;
+                      if (!dateA) return 1;
+                      if (!dateB) return -1;
+                      return dateB.getTime() - dateA.getTime();
+                    })[0]
                   : undefined;
 
               const currentMonth = format(new Date(), "yyyy-MM");
@@ -174,7 +189,12 @@ export default function StudentList({
                 (p) =>
                   p.payment_status === "rejected" ||
                   (p.payment_status !== "approved" &&
-                    parseISO(p.end_date || "").getTime() < new Date().getTime())
+                    (() => {
+                      const endDate = safeParseISO(p.end_date);
+                      return endDate
+                        ? endDate.getTime() < new Date().getTime()
+                        : false;
+                    })())
               );
               const currentMonthPaid = paymentHistory.some(
                 (p) =>
@@ -334,26 +354,37 @@ export default function StudentList({
       const matchesLastPaymentDate =
         (!lastPaymentDateFrom ||
           (latestPayment &&
-            parseISO(latestPayment.end_date || "").getTime() >=
-              new Date(lastPaymentDateFrom).getTime())) &&
+            (() => {
+              const endDate = safeParseISO(latestPayment.end_date);
+              return endDate
+                ? endDate.getTime() >= new Date(lastPaymentDateFrom).getTime()
+                : false;
+            })())) &&
         (!lastPaymentDateTo ||
           (latestPayment &&
-            parseISO(latestPayment.end_date || "").getTime() <=
-              new Date(lastPaymentDateTo).getTime()));
+            (() => {
+              const endDate = safeParseISO(latestPayment.end_date);
+              return endDate
+                ? endDate.getTime() <= new Date(lastPaymentDateTo).getTime()
+                : false;
+            })()));
 
-      // Date range filters
-      const registrationDate = parseISO(student.registrationdate);
-      const startDate = parseISO(student.startdate);
+      // Date range filters - safely parse dates
+      const registrationDate = safeParseISO(student.registrationdate);
+      const startDate = safeParseISO(student.startdate);
 
       const matchesRegistrationDate =
         (!registrationDateFrom ||
-          registrationDate >= new Date(registrationDateFrom)) &&
+          (registrationDate &&
+            registrationDate >= new Date(registrationDateFrom))) &&
         (!registrationDateTo ||
-          registrationDate <= new Date(registrationDateTo));
+          (registrationDate &&
+            registrationDate <= new Date(registrationDateTo)));
 
       const matchesStartDate =
-        (!startDateFrom || startDate >= new Date(startDateFrom)) &&
-        (!startDateTo || startDate <= new Date(startDateTo));
+        (!startDateFrom ||
+          (startDate && startDate >= new Date(startDateFrom))) &&
+        (!startDateTo || (startDate && startDate <= new Date(startDateTo)));
 
       const isMatch =
         matchesSearch &&
