@@ -413,10 +413,12 @@ export default function AdminPermissionsPage() {
                         >
                           <td className="px-6 py-4 flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center font-bold shadow-lg">
-                              {(req.teacher?.ustazname || req.teacherId)
-                                ?.split(" ")
-                                ?.map((n: string) => n[0])
-                                ?.join("") || "N/A"}
+                              {req.teacher?.ustazname || req.teacherId
+                                ? (req.teacher?.ustazname || req.teacherId)
+                                    .split(" ")
+                                    .map((n: string) => n[0])
+                                    .join("")
+                                : "N/A"}
                             </div>
                             <span className="font-semibold text-blue-900">
                               {req.teacher?.ustazname ||

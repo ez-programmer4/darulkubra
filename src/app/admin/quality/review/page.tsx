@@ -234,9 +234,11 @@ export default function AdminQualityReviewPage() {
                     >
                       <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-200 text-red-800 font-extrabold text-lg shadow">
                         {t.teacherName
-                          ?.split(" ")
-                          ?.map((n: string) => n[0])
-                          ?.join("") || "N/A"}
+                          ? t.teacherName
+                              .split(" ")
+                              .map((n: string) => n[0])
+                              .join("")
+                          : "N/A"}
                       </span>
                       <span className="text-red-900 font-semibold text-lg">
                         {t.teacherName || "Unknown Teacher"}
@@ -308,9 +310,11 @@ export default function AdminQualityReviewPage() {
                         <td className="px-6 py-5 flex items-center gap-4">
                           <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white font-extrabold text-lg shadow-lg">
                             {t.teacherName
-                              ?.split(" ")
-                              ?.map((n: string) => n[0])
-                              ?.join("") || "N/A"}
+                              ? t.teacherName
+                                  .split(" ")
+                                  .map((n: string) => n[0])
+                                  .join("")
+                              : "N/A"}
                           </span>
                           <span
                             className="font-semibold text-blue-900 truncate max-w-[180px] text-lg"

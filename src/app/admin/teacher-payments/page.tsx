@@ -929,9 +929,11 @@ export default function TeacherPaymentsPage() {
                           <td className="px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shadow-md">
                               {t.name
-                                ?.split(" ")
-                                ?.map((n: string) => n[0])
-                                ?.join("") || "N/A"}
+                                ? t.name
+                                    .split(" ")
+                                    .map((n: string) => n[0])
+                                    .join("")
+                                : "N/A"}
                             </div>
                             <span className="font-semibold text-indigo-900">
                               {t.name || "Unknown Teacher"}
