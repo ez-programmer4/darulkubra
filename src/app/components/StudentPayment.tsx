@@ -25,6 +25,8 @@ interface Student {
   teacher: {
     ustazname: string;
   };
+  progress: string;
+  chatId: string | null;
 }
 
 interface StudentPaymentProps {

@@ -298,8 +298,10 @@ export default function AttendanceList() {
   };
 
   const confirmNotify = async () => {
-    if (!studentToNotify) return;
-    const [studentId, scheduledDate] = studentToNotify.split("|");
+    if (!studentToNotify || typeof studentToNotify !== "string") return;
+    const parts = studentToNotify.split("|");
+    if (parts.length !== 2) return;
+    const [studentId, scheduledDate] = parts;
     try {
       const response = await fetch(`/api/attendance-list?notify=${studentId}`, {
         method: "GET",

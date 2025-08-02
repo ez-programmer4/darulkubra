@@ -72,7 +72,7 @@ export async function POST(
     // If reviewing after the class date, require lateReviewReason
     const today = new Date();
     const requestedDate = new Date(
-      permissionRequest.requestedDates.split(",")[0]
+      permissionRequest.requestedDates?.split(",")[0] || new Date()
     );
     if (today > requestedDate && !lateReviewReason) {
       return NextResponse.json(

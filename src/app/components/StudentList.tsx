@@ -134,15 +134,18 @@ export default function StudentList({
               };
             }
             try {
-              const response = await fetch(
-                `/api/students?studentId=${studentId}`,
-                {
-                  credentials: "include", // This handles cookies automatically if needed
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                }
-              );
+              // Use different endpoints based on user role
+              const endpoint =
+                user?.role === "controller"
+                  ? `/api/controller/students/${studentId}/payment-history`
+                  : `/api/students?studentId=${studentId}`;
+
+              const response = await fetch(endpoint, {
+                credentials: "include", // This handles cookies automatically if needed
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              });
 
               if (!response.ok) {
                 return {
@@ -204,8 +207,7 @@ export default function StudentList({
         );
 
         setStudentsWithPaymentStatus(updatedStudents);
-      } catch (error) {
-        }
+      } catch (error) {}
     };
 
     if (students.length > 0 && user) {
@@ -311,7 +313,7 @@ export default function StudentList({
         latestPayment.month
       ) {
         matchesPaymentMonth = latestPayment.month === paymentMonthFilter;
-        } else if (
+      } else if (
         !latestPayment &&
         paymentStatusFilter !== "all" &&
         paymentMonthFilter
@@ -370,7 +372,7 @@ export default function StudentList({
         matchesLastPaymentDate;
 
       if (!isMatch) {
-        }
+      }
 
       return isMatch;
     });

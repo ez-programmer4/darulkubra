@@ -88,7 +88,7 @@ export default function AdminAbsentConfigPage() {
         setStats(data);
       }
     } catch (error) {
-      } finally {
+    } finally {
       setLoadingStats(false);
     }
   }
@@ -102,7 +102,7 @@ export default function AdminAbsentConfigPage() {
         setRecentAbsences(data.absences || []);
       }
     } catch (error) {
-      } finally {
+    } finally {
       setLoadingAbsences(false);
     }
   }
@@ -266,7 +266,26 @@ export default function AdminAbsentConfigPage() {
       {/* Enhanced Recent Absence Records */}
 
       {/* Enhanced Attendance Statistics */}
-      {stats && (
+      {loadingStats ? (
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="text-blue-900">
+              📊 Attendance Analytics Dashboard
+            </CardTitle>
+            <CardDescription className="text-blue-600">
+              Loading statistics...
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading attendance data...</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : stats ? (
         <Card className="mt-8">
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -314,7 +333,7 @@ export default function AdminAbsentConfigPage() {
                       Total Absences
                     </p>
                     <p className="text-3xl font-bold text-red-700">
-                      {stats.totalAbsences}
+                      {stats.totalAbsences || 0}
                     </p>
                     <p className="text-xs text-red-600 mt-1">Last 30 days</p>
                   </div>
@@ -330,7 +349,7 @@ export default function AdminAbsentConfigPage() {
                       Total Deductions
                     </p>
                     <p className="text-3xl font-bold text-orange-700">
-                      {stats.totalDeductions} ETB
+                      {stats.totalDeductions || 0} ETB
                     </p>
                     <p className="text-xs text-orange-600 mt-1">
                       Financial impact
@@ -348,7 +367,7 @@ export default function AdminAbsentConfigPage() {
                       Teachers Affected
                     </p>
                     <p className="text-3xl font-bold text-yellow-700">
-                      {stats.teachersWithAbsences}
+                      {stats.teachersWithAbsences || 0}
                     </p>
                     <p className="text-xs text-yellow-600 mt-1">
                       Unique teachers
@@ -368,7 +387,8 @@ export default function AdminAbsentConfigPage() {
                     <p className="text-3xl font-bold text-blue-700">
                       {stats.teachersWithAbsences > 0
                         ? (
-                            stats.totalAbsences / stats.teachersWithAbsences
+                            (stats.totalAbsences || 0) /
+                            (stats.teachersWithAbsences || 1)
                           ).toFixed(1)
                         : 0}
                     </p>
@@ -382,37 +402,39 @@ export default function AdminAbsentConfigPage() {
             </div>
 
             {/* Most Absent Teacher */}
-            <div className="mb-8">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                🏆 Most Absent Teacher
-              </h4>
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-xl font-bold text-blue-600">
-                        {stats.mostAbsentTeacher.name.charAt(0).toUpperCase()}
-                      </span>
+            {stats.mostAbsentTeacher && (
+              <div className="mb-8">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  🏆 Most Absent Teacher
+                </h4>
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-xl font-bold text-blue-600">
+                          {stats.mostAbsentTeacher.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <h5 className="text-lg font-semibold text-gray-900">
+                          {stats.mostAbsentTeacher.name}
+                        </h5>
+                        <p className="text-sm text-gray-600">
+                          {stats.mostAbsentTeacher.absences} absences •{" "}
+                          {stats.mostAbsentTeacher.deductions} ETB deducted
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h5 className="text-lg font-semibold text-gray-900">
-                        {stats.mostAbsentTeacher.name}
-                      </h5>
-                      <p className="text-sm text-gray-600">
-                        {stats.mostAbsentTeacher.absences} absences •{" "}
-                        {stats.mostAbsentTeacher.deductions} ETB deducted
-                      </p>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-red-600">
+                        {stats.mostAbsentTeacher.absences}
+                      </div>
+                      <div className="text-sm text-gray-500">absences</div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-red-600">
-                      {stats.mostAbsentTeacher.absences}
-                    </div>
-                    <div className="text-sm text-gray-500">absences</div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Absences by Day */}
             <div className="mb-8">
@@ -438,7 +460,7 @@ export default function AdminAbsentConfigPage() {
                       {day.slice(0, 3)}
                     </div>
                     <div className="text-2xl font-bold text-blue-600">
-                      {stats.absencesByDay[day] || 0}
+                      {stats.absencesByDay?.[day] || 0}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">absences</div>
                   </div>
@@ -460,7 +482,7 @@ export default function AdminAbsentConfigPage() {
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
     </div>
   );
 }
