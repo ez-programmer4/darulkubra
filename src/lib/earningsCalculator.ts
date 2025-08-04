@@ -108,22 +108,36 @@ export class EarningsCalculator {
     try {
       // Get the current earnings configuration
       const config = await this.getEarningsConfig();
-      // Get all controllers from students table
-      const students = await prisma.wpos_wpdatatable_23.findMany({
-        where: {
-          u_control: {
-            not: null,
-          },
-        },
-        select: {
-          u_control: true,
-        },
-        distinct: ["u_control"],
-      });
+      // Get controllers based on parameters
+      let controllerIds: string[] = [];
 
-      const controllerIds = students
-        .map((s) => s.u_control)
-        .filter(Boolean) as string[];
+      console.log("EarningsCalculator: params:", params);
+
+      if (params.controllerId) {
+        // If specific controller is requested, use only that one
+        controllerIds = [params.controllerId];
+        console.log(
+          "EarningsCalculator: Using specific controller:",
+          params.controllerId
+        );
+      } else {
+        // Get all controllers from students table
+        const students = await prisma.wpos_wpdatatable_23.findMany({
+          where: {
+            u_control: {
+              not: null,
+            },
+          },
+          select: {
+            u_control: true,
+          },
+          distinct: ["u_control"],
+        });
+
+        controllerIds = students
+          .map((s) => s.u_control)
+          .filter(Boolean) as string[];
+      }
       // For each controller, calculate earnings
       const earnings = await Promise.all(
         controllerIds.map(async (controllerId) => {

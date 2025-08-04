@@ -419,21 +419,21 @@ export async function POST(request: NextRequest) {
     // Controller Earnings Logic
     if (
       paymentStatus === "paid" &&
-      student.refer &&
+      student.u_control &&
       Number(paidAmount) > 0 &&
       ["full", "partial", "prizepartial"].includes(payment_type)
     ) {
       // Only one earning per student per month
       const existingEarning = await prisma.controllerearning.findFirst({
         where: {
-          controllerUsername: student.refer,
+          controllerUsername: student.u_control,
           studentId: parseInt(studentId),
         },
       });
       if (!existingEarning) {
         await prisma.controllerearning.create({
           data: {
-            controllerUsername: student.refer,
+            controllerUsername: student.u_control,
             studentId: parseInt(studentId),
             paymentId: monthlyPayment.id,
             amount: (Number(paidAmount) * 0.1).toFixed(2), // 10% commission

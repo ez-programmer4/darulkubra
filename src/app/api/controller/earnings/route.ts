@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { EarningsCalculator } from "@/lib/earningsCalculator";
+import { prisma } from "@/lib/prisma";
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
@@ -26,14 +27,39 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const yearMonth = searchParams.get("month") || undefined;
-    const controllerId = session.username; // Use session username as controller ID
+
+    // Get the controller's code from the database using username
+    const controller = await prisma.wpos_wpdatatable_28.findFirst({
+      where: {
+        username: session.username,
+      },
+      select: {
+        code: true,
+      },
+    });
+
+    if (!controller?.code) {
+      return NextResponse.json(
+        { message: "Controller not found" },
+        { status: 404 }
+      );
+    }
+
+    const controllerId = controller.code; // Use controller code as ID
 
     try {
+      console.log(
+        "Controller Earnings API: Calculating for controller:",
+        controllerId,
+        "month:",
+        yearMonth
+      );
       const calculator = new EarningsCalculator(yearMonth);
       const earnings = await calculator.calculateControllerEarnings({
         controllerId,
         yearMonth,
       });
+      console.log("Controller Earnings API: Found earnings:", earnings.length);
 
       if (earnings.length === 0) {
         return NextResponse.json({
