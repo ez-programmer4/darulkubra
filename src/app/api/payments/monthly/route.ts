@@ -168,11 +168,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate payment status
-    if (!["pending", "approved", "rejected"].includes(paymentStatus)) {
+    if (!["pending", "paid", "rejected"].includes(paymentStatus)) {
       return NextResponse.json(
         {
           error:
-            "Invalid payment status. Must be 'pending', 'approved', or 'rejected'",
+            "Invalid payment status. Must be 'pending', 'paid', or 'rejected'",
         },
         { status: 400 }
       );
@@ -418,7 +418,7 @@ export async function POST(request: NextRequest) {
 
     // Controller Earnings Logic
     if (
-      paymentStatus === "approved" &&
+      paymentStatus === "paid" &&
       student.refer &&
       Number(paidAmount) > 0 &&
       ["full", "partial", "prizepartial"].includes(payment_type)

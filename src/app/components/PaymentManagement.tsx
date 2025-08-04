@@ -54,7 +54,7 @@ interface Payment {
   status: string;
   month?: string;
   payment_type?: "full" | "partial" | "free";
-  payment_status?: "pending" | "approved" | "rejected";
+  payment_status?: "pending" | "paid" | "rejected";
 }
 
 interface MonthlyPayment {
@@ -304,7 +304,7 @@ export default function PaymentManagement({
       (payment) =>
         payment.month === selectedMonth &&
         payment.payment_type === "free" &&
-        payment.payment_status === "approved"
+        payment.payment_status === "paid"
     );
 
     if (isFreeMonth) {
@@ -340,7 +340,7 @@ export default function PaymentManagement({
       (payment) =>
         payment.month === month &&
         payment.is_free_month &&
-        payment.payment_status === "approved"
+        payment.payment_status === "paid"
     );
 
     return !!monthPayment;
@@ -508,7 +508,7 @@ export default function PaymentManagement({
         studentId,
         month: newMonthlyPayment.month,
         paidAmount: amount.toFixed(2),
-        paymentStatus: "approved",
+        paymentStatus: "paid",
         payment_type: paymentType,
       };
       const response = await fetch("/api/payments/monthly", {
@@ -548,7 +548,7 @@ export default function PaymentManagement({
       (payment) =>
         payment.month === month &&
         ["full", "partial"].includes(payment.payment_type) &&
-        payment.payment_status === "approved"
+        payment.payment_status === "paid"
     );
   };
 
@@ -679,7 +679,7 @@ export default function PaymentManagement({
         studentId,
         month: newPrize.month,
         paidAmount: isFullPrize ? 0 : prizeAmount.toFixed(2),
-        paymentStatus: "approved",
+        paymentStatus: "paid",
         payment_type: isFullPrize ? "free" : "prizepartial",
         free_month_reason: isFullPrize
           ? "Full prize"
@@ -721,7 +721,7 @@ export default function PaymentManagement({
             studentId,
             month: newPrize.month,
             paidAmount: remainingAmount.toFixed(2),
-            paymentStatus: "approved",
+            paymentStatus: "paid",
             payment_type: "partial",
             reason: `Remaining payment after ${newPrize.percentage}% prize`,
           }),
@@ -761,10 +761,10 @@ export default function PaymentManagement({
       return sum;
     }, 0);
 
-    // Calculate total from approved monthly payments (excluding free months and prize-related partials)
-    const totalApprovedPayments = monthlyPayments.reduce((sum, payment) => {
+    // Calculate total from paid monthly payments (excluding free months and prize-related partials)
+    const totalPaidPayments = monthlyPayments.reduce((sum, payment) => {
       if (
-        payment.payment_status === "approved" &&
+        payment.payment_status === "paid" &&
         payment.payment_type !== "free" &&
         (payment.payment_type === "full" ||
           (payment.payment_type === "partial" &&
@@ -779,7 +779,7 @@ export default function PaymentManagement({
       return sum;
     }, 0);
 
-    const balance = totalApprovedDeposits - totalApprovedPayments;
+    const balance = totalApprovedDeposits - totalPaidPayments;
     return balance;
   };
   const formatAmount = (amount: number | string): string => {
@@ -1018,7 +1018,7 @@ export default function PaymentManagement({
                       monthlyPayments
                         .filter(
                           (payment) =>
-                            payment.payment_status === "approved" &&
+                            payment.payment_status === "paid" &&
                             payment.payment_type !== "free" &&
                             (payment.payment_type === "full" ||
                               (payment.payment_type === "partial" &&
@@ -1034,15 +1034,14 @@ export default function PaymentManagement({
                     {
                       monthlyPayments.filter(
                         (p) =>
-                          p.payment_status === "approved" &&
+                          p.payment_status === "paid" &&
                           p.payment_type !== "free"
                       ).length
                     }{" "}
                     payment
                     {monthlyPayments.filter(
                       (p) =>
-                        p.payment_status === "approved" &&
-                        p.payment_type !== "free"
+                        p.payment_status === "paid" && p.payment_type !== "free"
                     ).length !== 1
                       ? "s"
                       : ""}
@@ -1066,7 +1065,7 @@ export default function PaymentManagement({
                         monthlyPayments
                           .filter(
                             (payment) =>
-                              payment.payment_status === "approved" &&
+                              payment.payment_status === "paid" &&
                               payment.payment_type !== "free" &&
                               (payment.payment_type === "full" ||
                                 (payment.payment_type === "partial" &&
@@ -1189,7 +1188,7 @@ export default function PaymentManagement({
                       monthlyPayments
                         .filter(
                           (payment) =>
-                            payment.payment_status === "approved" &&
+                            payment.payment_status === "paid" &&
                             (payment.payment_type === "full" ||
                               (payment.payment_type === "partial" &&
                                 !payment.reason?.includes("prize")))
@@ -1643,7 +1642,7 @@ export default function PaymentManagement({
                                 return sum;
                               }, 0) -
                               monthlyPayments.reduce((sum, payment) => {
-                                if (payment.payment_status === "approved") {
+                                if (payment.payment_status === "paid") {
                                   return (
                                     sum +
                                     (parseFloat(
@@ -1968,7 +1967,7 @@ export default function PaymentManagement({
                                 return sum;
                               }, 0) -
                               monthlyPayments.reduce((sum, payment) => {
-                                if (payment.payment_status === "approved") {
+                                if (payment.payment_status === "paid") {
                                   return (
                                     sum +
                                     (parseFloat(
@@ -2474,7 +2473,7 @@ export default function PaymentManagement({
                             $
                             {monthlyPayments
                               .reduce((sum, payment) => {
-                                if (payment.payment_status === "approved") {
+                                if (payment.payment_status === "paid") {
                                   return (
                                     sum +
                                     (parseFloat(

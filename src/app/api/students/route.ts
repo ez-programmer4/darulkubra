@@ -6,7 +6,7 @@ interface MonthlyPayment {
   studentid: number;
   month: string; // e.g., "2025-06"
   paid_amount: number;
-  payment_status: string; // e.g., "approved", "rejected", "pending"
+  payment_status: string; // e.g., "paid", "rejected", "pending"
   payment_type: string; // e.g., "free", "paid"
   start_date: string | null; // e.g., "2025-06-01"
   end_date: string | null; // e.g., "2025-06-30"
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
       studentid: 11,
       month: "2025-06",
       paid_amount: 100.0,
-      payment_status: "approved",
+      payment_status: "paid",
       payment_type: "paid",
       start_date: "2025-06-01",
       end_date: "2025-06-30",

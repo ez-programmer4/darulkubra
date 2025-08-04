@@ -188,7 +188,7 @@ export default function StudentList({
               const hasOverdue = paymentHistory.some(
                 (p) =>
                   p.payment_status === "rejected" ||
-                  (p.payment_status !== "approved" &&
+                  (p.payment_status !== "paid" &&
                     (() => {
                       const endDate = safeParseISO(p.end_date);
                       return endDate
@@ -199,7 +199,7 @@ export default function StudentList({
               const currentMonthPaid = paymentHistory.some(
                 (p) =>
                   p.month === currentMonth &&
-                  p.payment_status === "approved" &&
+                  p.payment_status === "paid" &&
                   p.payment_type !== "free"
               );
 

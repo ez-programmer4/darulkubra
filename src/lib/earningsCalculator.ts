@@ -184,20 +184,19 @@ export class EarningsCalculator {
                 in: students.map((s) => s.wdt_ID),
               },
               month: this.yearMonth,
-              payment_status: "approved",
+              payment_status: "paid",
             },
           });
 
           const paidThisMonthArr = students.filter((s) =>
             payments.some(
-              (p) => p.studentid === s.wdt_ID && p.payment_status === "approved"
+              (p) => p.studentid === s.wdt_ID && p.payment_status === "paid"
             )
           );
           const unpaidActiveArr = activeStudentsArr.filter(
             (s) =>
               !payments.some(
-                (p) =>
-                  p.studentid === s.wdt_ID && p.payment_status === "approved"
+                (p) => p.studentid === s.wdt_ID && p.payment_status === "paid"
               )
           );
 
@@ -223,7 +222,7 @@ export class EarningsCalculator {
               months_table: {
                 where: {
                   month: this.yearMonth,
-                  payment_status: "approved",
+                  payment_status: "paid",
                 },
               },
             },
