@@ -27,6 +27,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('error', function(e) {
+                if (e.message.includes('ChunkLoadError') || e.message.includes('Loading chunk')) {
+                  console.log('Chunk loading error detected, reloading page...');
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1000);
+                }
+              });
+            `,
+          }}
+        />
+      </head>
       <body className={inter.className} suppressHydrationWarning>
         <ErrorBoundary>
           <SessionProvider>
