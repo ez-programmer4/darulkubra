@@ -36,6 +36,9 @@ export async function GET(req: NextRequest) {
     { daypackages: { contains: selectedDayName } },
     { daypackages: { contains: "all" } },
     { daypackages: { contains: "All" } },
+    { daypackages: { contains: "All days" } },
+    { daypackages: { contains: "MWF" } },
+    { daypackages: { contains: "TTS" } },
   ];
 
   const where: any = {

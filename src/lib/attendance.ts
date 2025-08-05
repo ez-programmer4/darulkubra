@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 
 export const DAY_PACKAGES = {
-  "All Day Package": "All Day Package",
-  "Monday, Wednesday, Friday": "Monday, Wednesday, Friday",
-  "Tuesday, Thursday, Saturday": "Tuesday, Thursday, Saturday",
+  "All days": "All days",
+  MWF: "MWF",
+  TTS: "TTS",
 } as const;
 
 export type DayPackage = keyof typeof DAY_PACKAGES;
@@ -15,11 +15,11 @@ export function isValidAttendanceDay(
   const day = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
   switch (dayPackage) {
-    case "All Day Package":
+    case "All days":
       return true;
-    case "Monday, Wednesday, Friday":
+    case "MWF":
       return day === 1 || day === 3 || day === 5;
-    case "Tuesday, Thursday, Saturday":
+    case "TTS":
       return day === 2 || day === 4 || day === 6;
     default:
       return false;
@@ -186,4 +186,35 @@ export async function calculateLatenessAndDeduction({
       } => rec !== null
     );
   return latenessRecords;
+}
+
+const dayPackageMap: { [key: string]: string } = {
+  "All days": "All days",
+  MWF: "MWF",
+  TTS: "TTS",
+};
+
+export function getDayPackageDisplayName(dayPackage: string): string {
+  return dayPackageMap[dayPackage] || dayPackage;
+}
+
+export function getDayPackageDays(dayPackage: string): string[] {
+  switch (dayPackage) {
+    case "All days":
+      return [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ];
+    case "MWF":
+      return ["Monday", "Wednesday", "Friday"];
+    case "TTS":
+      return ["Tuesday", "Thursday", "Saturday"];
+    default:
+      return [];
+  }
 }

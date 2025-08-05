@@ -77,7 +77,7 @@ export default function StudentList({
   user,
 }: StudentListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [dayPackageFilter, setDayPackageFilter] = useState("all");
   const [timeSlotFilter, setTimeSlotFilter] = useState("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
@@ -445,7 +445,7 @@ export default function StudentList({
   // Reset all filters
   const resetFilters = () => {
     setSearchQuery("");
-    setStatusFilter("all");
+    setStatusFilter("active");
     setDayPackageFilter("all");
     setTimeSlotFilter("all");
     setSubjectFilter("all");

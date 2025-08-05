@@ -34,11 +34,17 @@ async function main(dateArg?: string) {
   const students = await prisma.wpos_wpdatatable_23.findMany({
     include: {
       teacher: true,
+      occupiedTimes: {
+        select: {
+          time_slot: true,
+        },
+      },
     },
   });
 
   for (const student of students) {
-    if (!student.selectedTime || !student.ustaz) continue;
+    const timeSlot = student.occupiedTimes?.[0]?.time_slot;
+    if (!timeSlot || !student.ustaz) continue;
     // Only process for today
     const scheduledTime = (() => {
       // Convert selectedTime (12h or 24h) to Date for today
@@ -56,7 +62,7 @@ async function main(dateArg?: string) {
         }
         return time12h; // already 24h
       }
-      const time24 = to24Hour(student.selectedTime);
+      const time24 = to24Hour(timeSlot);
       return new Date(`${dateStr}T${time24}:00.000Z`);
     })();
 

@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
     });
+
     if (!session || session.role !== "controller") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

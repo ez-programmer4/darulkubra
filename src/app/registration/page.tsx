@@ -123,7 +123,7 @@ function RegistrationContent() {
     setValue,
   } = useForm<FormData>({
     defaultValues: {
-      daypackages: "All Day Package",
+      daypackages: "All days",
       package: "",
     },
   });
@@ -132,11 +132,7 @@ function RegistrationContent() {
 
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]); // Ensure initialized as empty array
-  const [dayPackages] = useState<string[]>([
-    "All Day Package",
-    "Monday, Wednesday, Friday",
-    "Tuesday, Thursday, Saturday",
-  ]);
+  const [dayPackages] = useState<string[]>(["All days", "MWF", "TTS"]);
 
   const [error, setError] = useState<string | null>(null);
   const [editingTeacherName, setEditingTeacherName] = useState<string>("");
@@ -363,7 +359,7 @@ function RegistrationContent() {
           setValue("subject", data.subject || "");
           setValue("country", data.country || "");
           setValue("rigistral", data.rigistral || "");
-          setValue("daypackages", data.daypackages || "All Day Package");
+          setValue("daypackages", data.daypackages || "All days");
           setValue("refer", data.refer || "");
           setValue("package", data.package || "");
           setSelectedTime(fetchedSelectedTime);

@@ -52,6 +52,11 @@ export async function GET(req: NextRequest) {
         where: { ustaz: teacherId },
         include: {
           zoom_links: true,
+          occupiedTimes: {
+            select: {
+              time_slot: true,
+            },
+          },
         },
       });
       // For each day in the range, calculate lateness for each student
@@ -63,7 +68,8 @@ export async function GET(req: NextRequest) {
       ) {
         const dateStr = d.toISOString().split("T")[0];
         for (const student of students) {
-          if (!student.selectedTime) continue;
+          const timeSlot = student.occupiedTimes?.[0]?.time_slot;
+          if (!timeSlot) continue;
           // Convert selectedTime (12h or 24h) to Date for the day
           function to24Hour(time12h: string) {
             if (!time12h) return "00:00";
@@ -80,7 +86,7 @@ export async function GET(req: NextRequest) {
             }
             return time12h; // already 24h
           }
-          const time24 = to24Hour(student.selectedTime);
+          const time24 = to24Hour(timeSlot);
           const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
           // Find the earliest sent_time for this student/date
           const sentTimes = (student.zoom_links || [])
@@ -242,7 +248,15 @@ export async function GET(req: NextRequest) {
         // Get all students for this teacher
         const students = await prisma.wpos_wpdatatable_23.findMany({
           where: { ustaz: t.ustazid },
-          include: { zoom_links: true, attendance_progress: true },
+          include: {
+            zoom_links: true,
+            attendance_progress: true,
+            occupiedTimes: {
+              select: {
+                time_slot: true,
+              },
+            },
+          },
         });
         let latenessDeduction = 0;
         const numStudents = studentCountMap[t.ustazid] || 0;
@@ -250,7 +264,8 @@ export async function GET(req: NextRequest) {
         for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
           const dateStr = d.toISOString().split("T")[0];
           for (const student of students) {
-            if (!student.selectedTime) continue;
+            const timeSlot = student.occupiedTimes?.[0]?.time_slot;
+            if (!timeSlot) continue;
             function to24Hour(time12h: string) {
               if (!time12h) return "00:00";
               if (
@@ -266,7 +281,7 @@ export async function GET(req: NextRequest) {
               }
               return time12h;
             }
-            const time24 = to24Hour(student.selectedTime);
+            const time24 = to24Hour(timeSlot);
             const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
             // Find the earliest sent_time for this student/date
             const sentTimes = (student.zoom_links || [])

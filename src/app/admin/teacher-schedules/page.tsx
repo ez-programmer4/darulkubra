@@ -13,6 +13,12 @@ import {
   FiCalendar,
   FiPlus,
   FiInfo,
+  FiTrendingUp,
+  FiShield,
+  FiStar,
+  FiCheckCircle,
+  FiLoader,
+  FiAlertTriangle,
 } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,8 +102,7 @@ export default function AdminTeacherSchedules() {
         const data = await response.json();
         setControllers(data.controllers || []);
       }
-    } catch (error) {
-      }
+    } catch (error) {}
   };
 
   const fetchTimeSlots = async () => {
@@ -107,8 +112,7 @@ export default function AdminTeacherSchedules() {
         const data = await response.json();
         setTimeSlots(data.timeSlots || []);
       }
-    } catch (error) {
-      }
+    } catch (error) {}
   };
 
   const handleUpdateSchedule = async (teacher: Teacher) => {
@@ -162,22 +166,40 @@ export default function AdminTeacherSchedules() {
 
   const getCategoryColor = (category: string) => {
     const colors: { [key: string]: string } = {
-      Fajr: "bg-blue-100 text-blue-800",
-      Dhuhr: "bg-green-100 text-green-800",
-      Asr: "bg-yellow-100 text-yellow-800",
-      Maghrib: "bg-orange-100 text-orange-800",
-      Isha: "bg-purple-100 text-purple-800",
+      Fajr: "bg-blue-100 text-blue-800 border-blue-200",
+      Dhuhr: "bg-green-100 text-green-800 border-green-200",
+      Asr: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      Maghrib: "bg-orange-100 text-orange-800 border-orange-200",
+      Isha: "bg-purple-100 text-purple-800 border-purple-200",
     };
-    return colors[category] || "bg-gray-100 text-gray-800";
+    return colors[category] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
   if (status === "loading" || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-teal-50 flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-teal-500 mb-4"></div>
-          <p className="text-gray-600">Loading teacher schedules...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-teal-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center"
+        >
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600 mb-6"></div>
+            <div
+              className="absolute inset-0 rounded-full border-4 border-transparent border-t-teal-500 animate-spin"
+              style={{
+                animationDirection: "reverse",
+                animationDuration: "1.5s",
+              }}
+            ></div>
+          </div>
+          <p className="text-indigo-700 font-medium text-lg">
+            Loading teacher schedules...
+          </p>
+          <p className="text-indigo-500 text-sm mt-2">
+            Please wait while we fetch the data
+          </p>
+        </motion.div>
       </div>
     );
   }
@@ -187,9 +209,90 @@ export default function AdminTeacherSchedules() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-teal-50 p-4 md:p-8">
-      <section className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-blue-100 p-8 animate-slide-in">
-        <div className="mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-teal-50 p-4 md:p-8">
+      {/* Enhanced Header Section */}
+      <motion.section
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-indigo-100 p-8 mb-8 animate-slide-in"
+      >
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8">
+          <div className="flex-1">
+            <motion.h1
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-teal-600 bg-clip-text text-transparent mb-4"
+            >
+              Teacher Schedule Management
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              className="text-lg text-indigo-700 leading-relaxed"
+            >
+              Manage teacher schedules to create available time slots for
+              registral users. Optimize scheduling efficiency and ensure
+              seamless coordination.
+            </motion.p>
+          </div>
+
+          {/* Stats Cards */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="grid grid-cols-2 lg:grid-cols-3 gap-4"
+          >
+            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-4 text-white shadow-lg">
+              <div className="flex items-center gap-3">
+                <FiUser className="h-6 w-6" />
+                <div>
+                  <p className="text-sm opacity-90">Total Teachers</p>
+                  <p className="text-2xl font-bold">{teachers.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gradient-to-br from-teal-500 to-emerald-600 rounded-2xl p-4 text-white shadow-lg">
+              <div className="flex items-center gap-3">
+                <FiClock className="h-6 w-6" />
+                <div>
+                  <p className="text-sm opacity-90">Time Slots</p>
+                  <p className="text-2xl font-bold">{timeSlots.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-4 text-white shadow-lg lg:col-span-1">
+              <div className="flex items-center gap-3">
+                <FiCheckCircle className="h-6 w-6" />
+                <div>
+                  <p className="text-sm opacity-90">Scheduled</p>
+                  <p className="text-2xl font-bold">
+                    {teachers.filter((t) => t.schedule).length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Enhanced Date Range Picker */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.8 }}
+          className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-200"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl">
+              <FiCalendar className="h-5 w-5 text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-indigo-900">
+              Date Range Filter
+            </h3>
+          </div>
           <DateRangePicker
             startDate={dateRange.startDate}
             endDate={dateRange.endDate}
@@ -197,208 +300,300 @@ export default function AdminTeacherSchedules() {
               setDateRange({ startDate, endDate })
             }
           />
-        </div>
-        <AnalyticsDashboard />
-      </section>
-      <div className="max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Teacher Schedule Management
-          </h1>
-          <p className="text-gray-600">
-            Manage teacher schedules to create available time slots for
-            registral users.
-          </p>
         </motion.div>
+      </motion.section>
 
+      {/* Analytics Dashboard */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 1.0 }}
+        className="mb-8"
+      >
+        <AnalyticsDashboard />
+      </motion.section>
+
+      <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Teachers List */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Teachers ({teachers.length})</span>
-                <Badge variant="secondary">
-                  {teachers.filter((t) => t.schedule).length} with schedules
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {teachers.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <FiUser className="mx-auto h-12 w-12 mb-4" />
-                  <p>No teachers found.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {teachers.map((teacher) => (
-                    <motion.div
-                      key={teacher.ustazid}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`p-4 border rounded-lg ${
-                        teacher.schedule
-                          ? "bg-white border-gray-200"
-                          : "bg-gray-50 border-gray-200"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {teacher.ustazname}
-                          </h3>
-                          <p className="text-sm text-gray-600">
-                            ID: {teacher.ustazid}
-                          </p>
-                          {teacher.controller && (
-                            <p className="text-sm text-gray-500">
-                              Controller: {teacher.controller.name}
+          {/* Enhanced Teachers List */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 1.2 }}
+          >
+            <Card className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-indigo-100 overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FiUser className="h-6 w-6" />
+                    <span className="text-xl">
+                      Teachers ({teachers.length})
+                    </span>
+                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="bg-white/20 text-white border-white/30"
+                  >
+                    {teachers.filter((t) => t.schedule).length} with schedules
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                {teachers.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-center py-12 text-indigo-500"
+                  >
+                    <FiUser className="mx-auto h-16 w-16 mb-4 opacity-50" />
+                    <p className="text-xl font-semibold mb-2">
+                      No teachers found
+                    </p>
+                    <p className="text-sm opacity-75">
+                      Teachers will appear here once added to the system
+                    </p>
+                  </motion.div>
+                ) : (
+                  <div className="space-y-4">
+                    {teachers.map((teacher, index) => (
+                      <motion.div
+                        key={teacher.ustazid}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: index * 0.1 }}
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
+                          teacher.schedule
+                            ? "bg-gradient-to-r from-white to-indigo-50 border-indigo-200 shadow-lg hover:shadow-xl"
+                            : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg text-indigo-900 mb-1">
+                              {teacher.ustazname}
+                            </h3>
+                            <p className="text-sm text-indigo-600 mb-2">
+                              ID: {teacher.ustazid}
                             </p>
-                          )}
-                        </div>
-                        <Button
-                          onClick={() => setEditingTeacher(teacher)}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <FiEdit className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      {teacher.schedule && (
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <FiClock className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm font-medium text-gray-700">
-                              Schedule:
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {parseSchedule(teacher.schedule).map(
-                              (time, index) => (
-                                <Badge
-                                  key={index}
-                                  variant="outline"
-                                  className="text-xs"
-                                >
-                                  {time}
-                                </Badge>
-                              )
+                            {teacher.controller && (
+                              <div className="flex items-center gap-2">
+                                <FiShield className="h-4 w-4 text-teal-600" />
+                                <p className="text-sm text-teal-700">
+                                  Controller: {teacher.controller.name}
+                                </p>
+                              </div>
                             )}
                           </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Available Time Slots */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <FiClock className="mr-2" />
-                Available Time Slots ({timeSlots.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {timeSlots.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <FiClock className="mx-auto h-12 w-12 mb-4" />
-                  <p>No time slots available.</p>
-                  <p className="text-sm">
-                    Add teacher schedules to generate time slots.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {Object.entries(
-                    timeSlots.reduce((acc, slot) => {
-                      acc[slot.category] = acc[slot.category] || [];
-                      acc[slot.category].push(slot);
-                      return acc;
-                    }, {} as { [key: string]: TimeSlot[] })
-                  ).map(([category, slots]) => (
-                    <div key={category} className="space-y-2">
-                      <h4 className="font-semibold text-gray-800 flex items-center">
-                        <span
-                          className={`w-3 h-3 rounded-full mr-2 ${
-                            getCategoryColor(category).split(" ")[0]
-                          }`}
-                        ></span>
-                        {category}
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {slots.map((slot) => (
-                          <Badge
-                            key={slot.id}
-                            className={`${getCategoryColor(category)} text-xs`}
+                          <Button
+                            onClick={() => setEditingTeacher(teacher)}
+                            variant="outline"
+                            size="sm"
+                            className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-0 hover:from-indigo-600 hover:to-purple-700 shadow-lg"
                           >
-                            {slot.time}
+                            <FiEdit className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
+                        </div>
+
+                        {teacher.schedule && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            className="space-y-3"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <FiClock className="h-4 w-4 text-indigo-500" />
+                              <span className="text-sm font-semibold text-indigo-700">
+                                Schedule:
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {parseSchedule(teacher.schedule).map(
+                                (time, index) => (
+                                  <motion.div
+                                    key={index}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: index * 0.05 }}
+                                  >
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs bg-gradient-to-r from-indigo-100 to-purple-100 border-indigo-300 text-indigo-800 font-medium"
+                                    >
+                                      {time}
+                                    </Badge>
+                                  </motion.div>
+                                )
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Enhanced Available Time Slots */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 1.4 }}
+          >
+            <Card className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-indigo-100 overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white">
+                <CardTitle className="flex items-center gap-3">
+                  <FiClock className="h-6 w-6" />
+                  <span className="text-xl">
+                    Available Time Slots ({timeSlots.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                {timeSlots.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-center py-12 text-teal-500"
+                  >
+                    <FiClock className="mx-auto h-16 w-16 mb-4 opacity-50" />
+                    <p className="text-xl font-semibold mb-2">
+                      No time slots available
+                    </p>
+                    <p className="text-sm opacity-75">
+                      Add teacher schedules to generate time slots
+                    </p>
+                  </motion.div>
+                ) : (
+                  <div className="space-y-6">
+                    {Object.entries(
+                      timeSlots.reduce((acc, slot) => {
+                        acc[slot.category] = acc[slot.category] || [];
+                        acc[slot.category].push(slot);
+                        return acc;
+                      }, {} as { [key: string]: TimeSlot[] })
+                    ).map(([category, slots], categoryIndex) => (
+                      <motion.div
+                        key={category}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.5,
+                          delay: categoryIndex * 0.1,
+                        }}
+                        className="space-y-3"
+                      >
+                        <h4 className="font-bold text-lg text-indigo-900 flex items-center">
+                          <span
+                            className={`w-4 h-4 rounded-full mr-3 ${
+                              getCategoryColor(category).split(" ")[0]
+                            }`}
+                          ></span>
+                          {category}
+                          <Badge className="ml-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+                            {slots.length} slots
                           </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {slots.map((slot, slotIndex) => (
+                            <motion.div
+                              key={slot.id}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: slotIndex * 0.05 }}
+                              whileHover={{ scale: 1.05 }}
+                            >
+                              <Badge
+                                className={`${getCategoryColor(
+                                  category
+                                )} text-sm font-medium border-2 shadow-md hover:shadow-lg transition-all duration-200`}
+                              >
+                                {slot.time}
+                              </Badge>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
 
-        {/* Edit Teacher Schedule Modal */}
+        {/* Enhanced Edit Teacher Schedule Modal */}
         {editingTeacher && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl p-8 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl border border-indigo-200"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">
-                  Edit Schedule: {editingTeacher.ustazname}
-                </h3>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-indigo-900">
+                    Edit Schedule: {editingTeacher.ustazname}
+                  </h3>
+                  <p className="text-indigo-600 mt-1">
+                    Configure available time slots for this teacher
+                  </p>
+                </div>
                 <Button
                   onClick={() => setEditingTeacher(null)}
                   variant="ghost"
                   size="sm"
+                  className="p-2 rounded-full hover:bg-indigo-100"
                 >
-                  <FiX className="h-4 w-4" />
+                  <FiX className="h-6 w-6" />
                 </Button>
               </div>
 
-              {/* Instructions */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <div className="flex items-start space-x-2">
-                  <FiInfo className="h-5 w-5 text-blue-600 mt-0.5" />
+              {/* Enhanced Instructions */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6 mb-6"
+              >
+                <div className="flex items-start space-x-4">
+                  <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl">
+                    <FiInfo className="h-6 w-6 text-white" />
+                  </div>
                   <div>
-                    <h4 className="font-semibold text-blue-800 mb-1">
+                    <h4 className="font-bold text-blue-900 mb-3 text-lg">
                       How to add time slots:
                     </h4>
-                    <ul className="text-sm text-blue-700 space-y-1">
-                      <li>
-                        • Use 12-hour format with AM/PM (e.g., "4:00 AM", "2:30
+                    <ul className="text-blue-800 space-y-2">
+                      <li className="flex items-center gap-2">
+                        <FiCheckCircle className="h-4 w-4 text-blue-600" />
+                        Use 12-hour format with AM/PM (e.g., "4:00 AM", "2:30
                         PM")
                       </li>
-                      <li>• Separate multiple times with commas</li>
-                      <li>• Example: "4:00 AM, 5:00 AM, 2:00 PM, 3:00 PM"</li>
-                      <li>
-                        • Times will be automatically categorized by prayer
+                      <li className="flex items-center gap-2">
+                        <FiCheckCircle className="h-4 w-4 text-blue-600" />
+                        Separate multiple times with commas
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <FiCheckCircle className="h-4 w-4 text-blue-600" />
+                        Example: "4:00 AM, 5:00 AM, 2:00 PM, 3:00 PM"
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <FiCheckCircle className="h-4 w-4 text-blue-600" />
+                        Times will be automatically categorized by prayer
                         periods
                       </li>
                     </ul>
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-semibold text-indigo-900 mb-3">
                     Current Schedule (comma-separated)
                   </label>
                   <textarea
@@ -410,16 +605,16 @@ export default function AdminTeacherSchedules() {
                       })
                     }
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    className="w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 text-lg transition-all duration-200 resize-none"
                     placeholder="Example: 4:00 AM, 5:00 AM, 2:00 PM, 3:00 PM"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-semibold text-indigo-900 mb-4">
                     Quick Add Time Slots
                   </label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
                     {[
                       "4:00 AM",
                       "5:00 AM",
@@ -462,7 +657,7 @@ export default function AdminTeacherSchedules() {
                             });
                           }
                         }}
-                        className="text-xs"
+                        className="text-xs bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 text-indigo-700 hover:from-indigo-100 hover:to-purple-100 hover:border-indigo-300 transition-all duration-200"
                       >
                         {time}
                       </Button>
@@ -470,18 +665,18 @@ export default function AdminTeacherSchedules() {
                   </div>
                 </div>
 
-                <div className="flex space-x-2 pt-4">
+                <div className="flex space-x-4 pt-6">
                   <Button
                     onClick={() => handleUpdateSchedule(editingTeacher)}
-                    className="flex-1 bg-teal-600 hover:bg-teal-700"
+                    className="flex-1 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white font-semibold py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200"
                   >
-                    <FiSave className="mr-2" />
+                    <FiSave className="mr-2 h-5 w-5" />
                     Save Schedule
                   </Button>
                   <Button
                     onClick={() => setEditingTeacher(null)}
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-semibold py-3 rounded-2xl transition-all duration-200"
                   >
                     Cancel
                   </Button>
@@ -491,6 +686,22 @@ export default function AdminTeacherSchedules() {
           </div>
         )}
       </div>
+
+      <style jsx global>{`
+        @keyframes slide-in {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-in {
+          animation: slide-in 0.5s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

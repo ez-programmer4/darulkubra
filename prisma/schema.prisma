@@ -54,7 +54,6 @@ model wpos_wpdatatable_23 {
   daypackages         String?                       @db.VarChar(255)
   refer               String?                       @db.VarChar(255)
   registrationdate    DateTime?                     @default(now()) @db.DateTime(0)
-  selectedTime        String?                       @db.VarChar(255)
   isTrained           Boolean?                      @default(false)
   chatId              String?                       @map("chat_id") @db.VarChar(64)
   progress            String?                       @db.VarChar(64)

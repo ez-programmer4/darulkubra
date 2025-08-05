@@ -91,7 +91,6 @@ export async function PUT(
         package: pkg,
         subject,
         daypackages,
-        selectedTime,
       },
       include: {
         teacher: {

@@ -79,7 +79,7 @@ export default function Dashboard() {
   } | null>(null);
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("active");
   const [filterPackage, setFilterPackage] = useState<string>("all");
   const [filterTrained, setFilterTrained] = useState<string>("all");
   const [filterDayPackage, setFilterDayPackage] = useState<string>("all");
@@ -1025,11 +1025,9 @@ export default function Dashboard() {
                       className="w-full p-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
                     >
                       <option value="all">All Day Packages</option>
-                      {dayPackages.map((pkg, index) => (
-                        <option key={index} value={pkg}>
-                          {pkg}
-                        </option>
-                      ))}
+                      <option value="All days">All days</option>
+                      <option value="MWF">MWF</option>
+                      <option value="TTS">TTS</option>
                     </select>
                   </div>
                   <div>

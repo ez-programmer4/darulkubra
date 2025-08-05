@@ -39,8 +39,8 @@ export async function isTeacherAbsent(
   const hasWorkDay = teacher.students.some((student) => {
     if (!student.daypackages) return false;
 
-    // Check for "All Day Package" which means every day is a workday
-    if (student.daypackages.includes("All Day Package")) {
+    // Check for "All days" which means every day is a workday
+    if (student.daypackages.includes("All days")) {
       return true;
     }
 

@@ -50,13 +50,23 @@ export async function GET(req: NextRequest) {
     { daypackages: { contains: "all" } },
     { daypackages: { contains: "All" } },
     { daypackages: { contains: "ALL" } },
+    { daypackages: { contains: "All days" } },
+    { daypackages: { contains: "MWF" } },
+    { daypackages: { contains: "TTS" } },
   ];
 
   // Simplified where clause for testing
   if (notify) {
     const student = await prisma.wpos_wpdatatable_23.findUnique({
       where: { wdt_ID: notify },
-      include: { teacher: true },
+      include: {
+        teacher: true,
+        occupiedTimes: {
+          select: {
+            time_slot: true,
+          },
+        },
+      },
     });
     if (student && student.teacher) {
       // Send SMS to teacher using AfroMessage
@@ -84,7 +94,9 @@ export async function GET(req: NextRequest) {
       ለ ተማሪ ${student.name} የ ዙም ሊንክ በ ሰአቱ አልተላከም ፡፡ በ ተቻለ ፍጥነት ይላኩ ፡፡
 
       ==================================================
-      የ ተማሪው የ ቂርአት ሰአት ፡ ${student.selectedTime}
+      የ ተማሪው የ ቂርአት ሰአት ፡ ${
+        student.occupiedTimes?.[0]?.time_slot || "Not specified"
+      }
 
       ====================================================
 
@@ -142,6 +154,11 @@ export async function GET(req: NextRequest) {
         zoom_links: true,
         attendance_progress: true,
         controller: true,
+        occupiedTimes: {
+          select: {
+            time_slot: true,
+          },
+        },
       },
       skip: (page - 1) * limit,
       take: limit,
@@ -166,7 +183,7 @@ export async function GET(req: NextRequest) {
         }
         return `${hours.padStart(2, "0")}:${minutes}`;
       }
-      const time24 = to24Hour(record.selectedTime || "");
+      const time24 = to24Hour(record.occupiedTimes?.[0]?.time_slot || "");
       const scheduledAt = `${date}T${time24}:00.000Z`;
 
       // Filter all zoom_links for this student for the selected day

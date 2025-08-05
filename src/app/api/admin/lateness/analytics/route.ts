@@ -67,6 +67,11 @@ export async function GET(req: NextRequest) {
       teacher: true,
       controller: true,
       zoom_links: true,
+      occupiedTimes: {
+        select: {
+          time_slot: true,
+        },
+      },
     },
   });
 
@@ -85,7 +90,8 @@ export async function GET(req: NextRequest) {
     let absentCount = 0;
     // For each student scheduled for this day
     for (const student of students) {
-      if (!student.selectedTime || !student.ustaz) continue;
+      const timeSlot = student.occupiedTimes?.[0]?.time_slot;
+      if (!timeSlot || !student.ustaz) continue;
       if (!isValidAttendanceDay(student.daypackages ?? "", d)) continue;
       if (controllerId && String(student.controller?.wdt_ID) !== controllerId)
         continue;
@@ -104,7 +110,7 @@ export async function GET(req: NextRequest) {
         }
         return time12h; // already 24h
       }
-      const time24 = to24Hour(student.selectedTime);
+      const time24 = to24Hour(timeSlot);
       const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
       // Find earliest sent_time for this student/teacher/date
       const sentTimes = (student.zoom_links || [])

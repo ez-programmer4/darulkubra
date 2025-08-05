@@ -47,6 +47,11 @@ export async function calculateUstazAttendanceRating(
             },
           },
         },
+        occupiedTimes: {
+          select: {
+            time_slot: true,
+          },
+        },
       },
     });
 
@@ -89,8 +94,8 @@ export async function calculateUstazAttendanceRating(
     let scheduledTime = "00:00";
     let expectedDeadline = new Date(date);
 
-    if (students.length > 0 && students[0].selectedTime) {
-      scheduledTime = students[0].selectedTime;
+    if (students.length > 0 && students[0].occupiedTimes?.[0]?.time_slot) {
+      scheduledTime = students[0].occupiedTimes[0].time_slot;
       const [hours, minutes] = scheduledTime.split(":");
       expectedDeadline = new Date(date);
       expectedDeadline.setHours(parseInt(hours), parseInt(minutes) + 15, 0, 0); // 15 minutes after scheduled time

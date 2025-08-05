@@ -37,8 +37,12 @@ export async function GET(request: NextRequest) {
           select: {
             wdt_ID: true,
             name: true,
-            selectedTime: true,
             u_control: true,
+            occupiedTimes: {
+              select: {
+                time_slot: true,
+              },
+            },
           },
         },
         wpos_wpdatatable_24: {
@@ -76,17 +80,12 @@ export async function GET(request: NextRequest) {
 
     // Get students with their scheduled times
     const studentsWithTimes = await prisma.wpos_wpdatatable_23.findMany({
-      where: {
-        selectedTime: {
-          not: null,
+      include: {
+        occupiedTimes: {
+          select: {
+            time_slot: true,
+          },
         },
-      },
-      select: {
-        wdt_ID: true,
-        name: true,
-        selectedTime: true,
-        u_control: true,
-        ustaz: true,
       },
       take: 10,
     });
@@ -102,7 +101,9 @@ export async function GET(request: NextRequest) {
         student: {
           id: link.wpos_wpdatatable_23.wdt_ID,
           name: link.wpos_wpdatatable_23.name,
-          selectedTime: link.wpos_wpdatatable_23.selectedTime,
+          selectedTime:
+            link.wpos_wpdatatable_23.occupiedTimes?.[0]?.time_slot ||
+            "Not specified",
           control: link.wpos_wpdatatable_23.u_control,
         },
         teacher: {

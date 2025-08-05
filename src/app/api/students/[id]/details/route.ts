@@ -55,6 +55,11 @@ export async function GET(
           },
           orderBy: { sent_time: "desc" },
         },
+        occupiedTimes: {
+          select: {
+            time_slot: true,
+          },
+        },
       },
     });
 
@@ -81,7 +86,7 @@ export async function GET(
     const attendanceHistory = student.attendance_progress.map((record) => ({
       date: record.date.toISOString(),
       status: record.attendance_status,
-      scheduledTime: student.selectedTime || null,
+      scheduledTime: student.occupiedTimes?.[0]?.time_slot || null,
       notes: record.notes || null,
       surah: record.surah || null,
       pages_read: record.pages_read || null,
@@ -106,7 +111,7 @@ export async function GET(
         package: student.package,
         subject: student.subject,
         daypackages: student.daypackages,
-        selectedTime: student.selectedTime,
+        selectedTime: student.occupiedTimes?.[0]?.time_slot || "Not specified",
       },
       period: {
         startDate,

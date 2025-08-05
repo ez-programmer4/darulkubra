@@ -91,38 +91,23 @@ const checkTeacherAvailability = async (
     const normalize = (pkg: string) => pkg.trim().toLowerCase();
     const sel = normalize(selectedPackage);
 
-    if (
-      teacherBookings.some(
-        (booking) =>
-          normalize(booking.daypackage) === "all day package" ||
-          sel === "all day package"
-      )
-    ) {
-      return true;
+    // Check each existing booking for conflicts with the new booking
+    for (const booking of teacherBookings) {
+      const booked = normalize(booking.daypackage);
+
+      // If either the existing booking or the new booking is "All days", there's a conflict
+      if (booked === "all days" || sel === "all days") {
+        return true;
+      }
+
+      // Check for exact package matches
+      if (booked === sel) {
+        return true;
+      }
     }
 
-    if (
-      teacherBookings.some((booking) => normalize(booking.daypackage) === sel)
-    ) {
-      return true;
-    }
-
-    if (
-      teacherBookings.length > 0 &&
-      teacherBookings.every((booking) => {
-        const booked = normalize(booking.daypackage);
-        return (
-          (booked === "monday, wednesday, friday" &&
-            sel === "tuesday, thursday, saturday") ||
-          (booked === "tuesday, thursday, saturday" &&
-            sel === "monday, wednesday, friday")
-        );
-      })
-    ) {
-      return false;
-    }
-
-    return teacherBookings.length > 0;
+    // MWF and TTS are mutually exclusive, so no conflict between them
+    return false;
   };
 
   if (hasConflict(teacherBookings, selectedDayPackage)) {
@@ -229,13 +214,69 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if the selected time slot is available for the teacher
+    const isTimeSlotAvailable =
+      await prismaClient.wpos_ustaz_occupied_times.findFirst({
+        where: {
+          ustaz_id: ustaz,
+          time_slot: timeSlot,
+          daypackage: selectedDayPackage,
+        },
+      });
+
+    if (isTimeSlotAvailable) {
+      return NextResponse.json(
+        { error: "This time slot is already occupied by another student" },
+        { status: 400 }
+      );
+    }
+
+    // Check for conflicts with existing bookings
+    const existingBookings =
+      await prismaClient.wpos_ustaz_occupied_times.findMany({
+        where: {
+          ustaz_id: ustaz,
+          time_slot: timeSlot,
+        },
+      });
+
+    // Check for day package conflicts
+    const hasConflict = existingBookings.some((booking) => {
+      const normalize = (pkg: string) => pkg.trim().toLowerCase();
+      const sel = selectedDayPackage.toLowerCase();
+      const booked = booking.daypackage.toLowerCase();
+
+      // If either the existing booking or the new booking is "All days", there's a conflict
+      if (booked === "all days" || sel === "all days") {
+        return true;
+      }
+
+      // Check for exact package matches
+      if (booked === sel) {
+        return true;
+      }
+
+      // MWF and TTS are mutually exclusive, so no conflict between them
+      return false;
+    });
+
+    if (hasConflict) {
+      return NextResponse.json(
+        {
+          error:
+            "This time slot is already booked for a conflicting day package.",
+        },
+        { status: 400 }
+      );
+    }
+
     // Determine the u_control value
     let u_control = null;
     if (session.role === "controller") {
       u_control = session.code;
     } else if (control) {
       // Look up the controller's code based on username
-      const controller = await prisma.wpos_wpdatatable_28.findFirst({
+      const controller = await prismaClient.wpos_wpdatatable_28.findFirst({
         where: { username: control },
         select: { code: true },
       });
@@ -258,7 +299,6 @@ export async function POST(request: NextRequest) {
           rigistral,
           daypackages: selectedDayPackage,
           refer: refer || null,
-          selectedTime: timeSlot, // Store in 12-hour format for display
           registrationdate: registrationdate
             ? new Date(registrationdate)
             : new Date(),
@@ -402,7 +442,6 @@ export async function PUT(request: NextRequest) {
       where: { wdt_ID: parseInt(id) },
       select: {
         ustaz: true,
-        selectedTime: true,
         daypackages: true,
         rigistral: true,
       },
@@ -416,9 +455,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const hasNotChanged =
-      existing.ustaz === ustaz &&
-      existing.selectedTime === timeSlot &&
-      existing.daypackages === selectedDayPackage;
+      existing.ustaz === ustaz && existing.daypackages === selectedDayPackage;
 
     if (!hasNotChanged) {
       // Check teacher availability
@@ -437,6 +474,19 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // Determine the u_control value for update
+    let u_control = null;
+    if (session.role === "controller") {
+      u_control = session.code;
+    } else if (control) {
+      // Look up the controller's code based on username
+      const controller = await prismaClient.wpos_wpdatatable_28.findFirst({
+        where: { username: control },
+        select: { code: true },
+      });
+      u_control = controller?.code || null;
+    }
+
     const updatedRegistration = await prismaClient.$transaction(async (tx) => {
       const registration = await tx.wpos_wpdatatable_23.update({
         where: { wdt_ID: parseInt(id) },
@@ -445,8 +495,7 @@ export async function PUT(request: NextRequest) {
           phoneno: phoneNumber,
           classfee: classfee ? parseFloat(classfee) : null,
           startdate: startdate ? new Date(startdate) : null,
-          u_control:
-            session.role === "controller" ? session.code : control || null,
+          u_control,
           status: status?.toLowerCase() || "pending",
           ustaz,
           package: regionPackage || null,
@@ -458,7 +507,6 @@ export async function PUT(request: NextRequest) {
               : existing.rigistral,
           daypackages: selectedDayPackage,
           refer: refer || null,
-          selectedTime: timeSlot,
           registrationdate: registrationdate
             ? new Date(registrationdate)
             : undefined,
@@ -471,7 +519,6 @@ export async function PUT(request: NextRequest) {
           where: {
             student_id: parseInt(id),
             ustaz_id: existing.ustaz || "",
-            time_slot: existing.selectedTime || "",
             daypackage: existing.daypackages || "",
           },
         });
@@ -553,9 +600,14 @@ export async function GET(request: NextRequest) {
         daypackages: true,
         refer: true,
         registrationdate: true,
-        selectedTime: true,
         isTrained: true,
         teacher: { select: { ustazname: true } },
+        occupiedTimes: {
+          select: {
+            time_slot: true,
+            daypackage: true,
+          },
+        },
       },
     });
 
@@ -576,10 +628,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get the time slot from occupied times
+    const timeSlot =
+      registration.occupiedTimes?.[0]?.time_slot || "Not specified";
+
     return NextResponse.json({
       ...registration,
       id: registration.wdt_ID,
       ustazname: registration.teacher?.ustazname || "Not assigned",
+      selectedTime: timeSlot, // Keep for backward compatibility
     });
   }
 
@@ -605,9 +662,14 @@ export async function GET(request: NextRequest) {
       daypackages: true,
       refer: true,
       registrationdate: true,
-      selectedTime: true,
       isTrained: true,
       teacher: { select: { ustazname: true } },
+      occupiedTimes: {
+        select: {
+          time_slot: true,
+          daypackage: true,
+        },
+      },
     },
     where: whereClause,
     orderBy: { registrationdate: "desc" },
@@ -617,6 +679,7 @@ export async function GET(request: NextRequest) {
     ...reg,
     id: reg.wdt_ID,
     ustazname: reg.teacher?.ustazname || "Not assigned",
+    selectedTime: reg.occupiedTimes?.[0]?.time_slot || "Not specified", // Keep for backward compatibility
   }));
 
   return NextResponse.json(flatRegistrations);

@@ -18,6 +18,10 @@ import {
   FiLoader,
   FiPlus,
   FiPieChart,
+  FiTrendingUp,
+  FiClock,
+  FiShield,
+  FiStar,
 } from "react-icons/fi";
 import {
   BarChart,
@@ -48,6 +52,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { toast } from "@/components/ui/use-toast";
 import { DashboardSkeleton } from "./components/DashboardSkeleton";
 import { PrismaClient } from "@prisma/client";
+import { motion } from "framer-motion";
 
 const prisma = new PrismaClient();
 
@@ -355,6 +360,7 @@ export default function AdminDashboardPage() {
       label: "Active Users",
       value: totalUsers,
       icon: <FiUsers className="text-indigo-500 w-6 h-6" />,
+      color: "from-indigo-500 to-indigo-600",
     },
     {
       label: "Attendance Today",
@@ -362,36 +368,43 @@ export default function AdminDashboardPage() {
         attendanceToday.present + attendanceToday.absent
       }`,
       icon: <FiUserCheck className="text-teal-500 w-6 h-6" />,
+      color: "from-teal-500 to-teal-600",
     },
     {
       label: "Unread Notifications",
       value: unreadNotifications,
       icon: <FiBell className="text-yellow-500 w-6 h-6" />,
+      color: "from-yellow-500 to-yellow-600",
     },
     {
       label: "Pending Permissions",
       value: pendingPermissions,
       icon: <FiClipboard className="text-indigo-500 w-6 h-6" />,
+      color: "from-indigo-500 to-purple-600",
     },
     {
       label: "Unprocessed Absences",
       value: recentAbsences.filter((a) => !a.processed).length,
       icon: <FiAlertTriangle className="text-red-500 w-6 h-6" />,
+      color: "from-red-500 to-red-600",
     },
     {
       label: "Pending Payments",
       value: `${stats.pendingPaymentCount} ($${stats.pendingPaymentAmount})`,
       icon: <FiDollarSign className="text-teal-500 w-6 h-6" />,
+      color: "from-teal-500 to-emerald-600",
     },
     {
       label: "Students",
       value: stats.students,
       icon: <FiBookOpen className="text-indigo-500 w-6 h-6" />,
+      color: "from-indigo-500 to-blue-600",
     },
     {
       label: "Total Revenue",
       value: `$${stats.totalRevenue.approved}`,
       icon: <FiDollarSign className="text-teal-500 w-6 h-6" />,
+      color: "from-teal-500 to-green-600",
     },
   ];
 
@@ -410,59 +423,80 @@ export default function AdminDashboardPage() {
   const PIE_COLORS = ["#4F46E5", "#10B981", "#F59E0B", "#EF4444"];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-teal-50 flex flex-col">
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 sm:space-y-12">
-        {/* Hero Overview */}
-        <section className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 px-6 sm:px-8 lg:px-10 py-6 sm:py-8 animate-slide-in">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 sm:gap-8">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-teal-50">
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 sm:space-y-12">
+        {/* Enhanced Hero Overview */}
+        <section className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-indigo-100 px-6 sm:px-8 lg:px-10 py-8 sm:py-10 animate-slide-in">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8 sm:gap-10">
             <div className="flex-1">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 mb-3 sm:mb-4">
-                <span className="flex items-center gap-2 text-teal-600 font-semibold text-sm sm:text-base">
-                  <span className="w-3 h-3 rounded-full bg-teal-500 animate-pulse"></span>
-                  All Systems Operational
-                </span>
-                <span className="mt-2 sm:mt-0 sm:ml-6 text-xs sm:text-sm text-indigo-500">
-                  Last login: 2024-07-22 09:15
-                </span>
-                <span className="mt-2 sm:mt-0 sm:ml-6 text-xs sm:text-sm text-indigo-500">
-                  Last updated: {format(new Date(), "PPpp")}
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 mb-6">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-2 text-teal-600 font-semibold text-sm sm:text-base">
+                    <span className="w-3 h-3 rounded-full bg-teal-500 animate-pulse"></span>
+                    All Systems Operational
+                  </span>
+                  <div className="hidden sm:block w-px h-6 bg-indigo-200"></div>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-xs sm:text-sm text-indigo-500">
+                  <span>Last login: {format(new Date(), "PPpp")}</span>
+                  <span>Last updated: {format(new Date(), "PPpp")}</span>
+                </div>
               </div>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-indigo-900 mb-2 sm:mb-3 flex items-center gap-3">
-                <FiUsers className="text-indigo-500 h-8 sm:h-10 w-8 sm:w-10" />
+
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-indigo-900 mb-4 sm:mb-6 flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl">
+                  <FiUsers className="text-white h-8 sm:h-10 w-8 sm:w-10" />
+                </div>
                 Welcome, Admin
               </h1>
-              <p className="text-indigo-700 text-sm sm:text-base md:text-lg mb-4 sm:mb-6 max-w-2xl">
-                Monitor your system’s health, user activity, and key metrics in
-                real time.
+
+              <p className="text-indigo-700 text-base sm:text-lg md:text-xl mb-8 sm:mb-10 max-w-3xl leading-relaxed">
+                Monitor your system's health, user activity, and key metrics in
+                real time with our comprehensive dashboard.
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+
+              {/* Enhanced Stats Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 sm:gap-6">
                 {statsBar.map((stat, idx) => (
-                  <div
+                  <motion.div
                     key={idx}
-                    className="flex flex-col items-center p-4 bg-indigo-50/95 backdrop-blur-md rounded-lg shadow-sm hover:shadow-md transition-all animate-slide-in"
-                    style={{ animationDelay: `${idx * 50}ms` }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: idx * 0.1 }}
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    className="group relative bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm p-6 rounded-2xl shadow-lg hover:shadow-xl border border-white/20 transition-all duration-300 overflow-hidden"
                   >
-                    <div className="mb-2">{stat.icon}</div>
-                    <div className="text-xl sm:text-2xl font-extrabold text-indigo-900">
-                      {stat.value}
+                    <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${stat.color}"></div>
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-center mb-4">
+                        <div className="p-3 bg-gradient-to-r ${stat.color} rounded-xl text-white shadow-lg">
+                          {stat.icon}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl sm:text-3xl font-extrabold text-indigo-900 mb-2">
+                          {stat.value}
+                        </div>
+                        <div className="text-indigo-700 text-sm font-semibold">
+                          {stat.label}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-indigo-700 text-xs sm:text-sm font-semibold mt-1 text-center">
-                      {stat.label}
-                    </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
-            <div className="flex flex-col gap-3 items-stretch sm:items-end">
+
+            {/* Enhanced Action Panel */}
+            <div className="flex flex-col gap-4 items-stretch sm:items-end">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full sm:w-64 justify-start text-left font-normal border-indigo-200 bg-white/95 hover:bg-indigo-50 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg text-sm sm:text-base transition-all"
+                    className="w-full sm:w-72 justify-start text-left font-normal border-indigo-200 bg-white/95 hover:bg-indigo-50 focus:ring-2 focus:ring-indigo-500 shadow-lg hover:shadow-xl text-sm sm:text-base transition-all rounded-xl"
                     aria-label="Select date range"
                   >
-                    <FiCalendar className="mr-2 h-5 w-5 text-indigo-500" />
+                    <FiCalendar className="mr-3 h-5 w-5 text-indigo-500" />
                     {date?.from ? (
                       date.to ? (
                         <>
@@ -478,7 +512,7 @@ export default function AdminDashboardPage() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-auto p-0 bg-white/95 border-indigo-200 shadow-lg rounded-2xl"
+                  className="w-auto p-0 bg-white/95 border-indigo-200 shadow-xl rounded-2xl"
                   align="end"
                 >
                   <Calendar
@@ -492,26 +526,30 @@ export default function AdminDashboardPage() {
                   />
                 </PopoverContent>
               </Popover>
+
               {[
                 {
                   text: "Add New User",
                   icon: <FiUserPlus className="w-5 h-5" />,
                   action: () => {},
+                  color: "from-indigo-600 to-purple-600",
                 },
                 {
                   text: "Process Absences",
                   icon: <FiAlertTriangle className="w-5 h-5" />,
                   action: () => {},
+                  color: "from-red-600 to-orange-600",
                 },
                 {
                   text: "Review Permissions",
                   icon: <FiClipboard className="w-5 h-5" />,
                   action: () => {},
+                  color: "from-teal-600 to-emerald-600",
                 },
               ].map((btn, idx) => (
                 <Button
                   key={idx}
-                  className="w-full sm:w-64 bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-2 rounded-lg shadow-md hover:shadow-lg hover:scale-105 transition-all text-sm sm:text-base"
+                  className={`w-full sm:w-72 bg-gradient-to-r ${btn.color} text-white hover:shadow-xl flex items-center gap-3 rounded-xl shadow-lg hover:scale-105 transition-all text-sm sm:text-base font-semibold`}
                   onClick={btn.action}
                   aria-label={btn.text}
                 >
@@ -522,12 +560,18 @@ export default function AdminDashboardPage() {
           </div>
         </section>
 
-        {/* Alerts */}
+        {/* Enhanced Alerts */}
         {badQualityTeachers.length > 0 && (
-          <section className="p-4 sm:p-6 bg-red-50/95 backdrop-blur-md rounded-2xl shadow-lg border border-red-100 flex items-center gap-4 mb-8 animate-slide-in">
-            <FiAlertTriangle className="text-red-600 h-6 sm:h-8 w-6 sm:w-8 animate-pulse" />
-            <div>
-              <div className="font-semibold text-red-900 text-base sm:text-lg">
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-6 sm:p-8 bg-gradient-to-r from-red-50 to-orange-50 backdrop-blur-md rounded-3xl shadow-xl border border-red-100 flex items-center gap-6 mb-8 animate-slide-in"
+          >
+            <div className="p-4 bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl">
+              <FiAlertTriangle className="text-white h-8 w-8 animate-pulse" />
+            </div>
+            <div className="flex-1">
+              <div className="font-bold text-red-900 text-lg sm:text-xl mb-2">
                 Teachers Requiring Review
               </div>
               <div className="text-sm sm:text-base text-red-700">
@@ -536,7 +580,10 @@ export default function AdminDashboardPage() {
                   .join(", ") || "No teachers"}
               </div>
             </div>
-          </section>
+            <Button className="bg-gradient-to-r from-red-600 to-orange-600 text-white hover:shadow-lg rounded-xl">
+              Review Now
+            </Button>
+          </motion.section>
         )}
 
         {/* Main Grid */}

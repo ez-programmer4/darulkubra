@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
   try {
-    const dayPackages = ["All days Package"];
+    const dayPackages = ["All days", "MWF", "TTS"];
     return NextResponse.json({ dayPackages }, { status: 200 });
   } catch (error) {
     return NextResponse.json(

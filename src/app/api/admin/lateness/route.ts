@@ -53,13 +53,19 @@ export async function GET(req: NextRequest) {
             },
           },
         },
+        occupiedTimes: {
+          select: {
+            time_slot: true,
+          },
+        },
       },
     });
 
     // 3. Calculate lateness for each student
     const latenessData = students
       .map((student) => {
-        if (!student.selectedTime || !student.ustaz) return null;
+        const timeSlot = student.occupiedTimes?.[0]?.time_slot;
+        if (!timeSlot || !student.ustaz) return null;
         // Convert selectedTime (12h or 24h) to Date for the day
         function to24Hour(time12h: string) {
           if (!time12h) return "00:00";
@@ -76,7 +82,7 @@ export async function GET(req: NextRequest) {
           }
           return time12h; // already 24h
         }
-        const time24 = to24Hour(student.selectedTime);
+        const time24 = to24Hour(timeSlot);
         const scheduledTime = new Date(`${date}T${time24}:00.000Z`);
         // Find the earliest sent_time for this student/teacher/date
         const sentTimes = (student.zoom_links || [])

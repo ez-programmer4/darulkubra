@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 const checkTeacherAvailability = async (
   selectedTime: string,
-  selectedDayPackage: string,
+  selectedPackage: string,
   teacherId: string
 ) => {
   // Validate time format
@@ -75,47 +75,27 @@ const checkTeacherAvailability = async (
     (booking) => booking.ustaz_id === teacherId
   );
 
-  const hasConflict = (
-    teacherBookings: { daypackage: string }[],
-    selectedPackage: string
-  ) => {
+  // Check for day package conflicts
+  const hasConflict = teacherBookings.some((booking) => {
     const normalize = (pkg: string) => pkg.trim().toLowerCase();
     const sel = normalize(selectedPackage);
-    if (
-      teacherBookings.some(
-        (booking) =>
-          normalize(booking.daypackage) === "all day package" ||
-          sel === "all day package"
-      )
-    ) {
+    const booked = normalize(booking.daypackage);
+
+    // If either the existing booking or the new booking is "All days", there's a conflict
+    if (booked === "all days" || sel === "all days") {
       return true;
     }
 
-    if (
-      teacherBookings.some((booking) => normalize(booking.daypackage) === sel)
-    ) {
+    // Check for exact package matches
+    if (booked === sel) {
       return true;
     }
 
-    if (
-      teacherBookings.length > 0 &&
-      teacherBookings.every((booking) => {
-        const booked = normalize(booking.daypackage);
-        return (
-          (booked === "monday, wednesday, friday" &&
-            sel === "tuesday, thursday, saturday") ||
-          (booked === "tuesday, thursday, saturday" &&
-            sel === "monday, wednesday, friday")
-        );
-      })
-    ) {
-      return false;
-    }
+    // MWF and TTS are mutually exclusive, so no conflict between them
+    return false;
+  });
 
-    return teacherBookings.length > 0;
-  };
-
-  const isAvailable = !hasConflict(teacherBookings, selectedDayPackage);
+  const isAvailable = !hasConflict;
 
   if (!isAvailable) {
     return {
@@ -146,9 +126,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const selectedTime = searchParams.get("selectedTime");
-    const selectedDayPackage = searchParams.get("selectedDayPackage");
+    const selectedPackage = searchParams.get("selectedDayPackage");
 
-    if (!selectedTime || !selectedDayPackage) {
+    if (!selectedTime || !selectedPackage) {
       return NextResponse.json(
         { message: "Selected time and day package are required" },
         { status: 400 }
@@ -182,7 +162,7 @@ export async function GET(request: NextRequest) {
       teachers.map(async (teacher) => {
         const availability = await checkTeacherAvailability(
           selectedTime,
-          selectedDayPackage,
+          selectedPackage,
           teacher.ustazid
         );
         return availability.isAvailable ? availability.teacher : null;
