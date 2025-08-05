@@ -22,13 +22,14 @@ export async function calculateUstazAttendanceRating(
   date: Date
 ): Promise<UstazRatingCalculation | null> {
   try {
-    // Get all students for this ustaz on this date
+    // Get all active students for this ustaz on this date
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         ustaz: ustazId,
         daypackages: {
           contains: date.toLocaleDateString("en-US", { weekday: "long" }),
         },
+        status: { equals: "active" }, // Only active students
       },
       include: {
         attendance_progress: {

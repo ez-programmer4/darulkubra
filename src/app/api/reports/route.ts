@@ -21,7 +21,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const students = await prisma.wpos_wpdatatable_23.findMany({
-      where: { u_control: { equals: session.code } },
+      where: {
+        u_control: { equals: session.code },
+        status: { equals: "active" }, // Only active students
+      },
       include: {
         teacher: true,
         attendance_progress: {
@@ -40,12 +43,16 @@ export async function GET(req: NextRequest) {
         students: {
           some: {
             u_control: { equals: session.code },
+            status: { equals: "active" }, // Only active students
           },
         },
       },
       include: {
         students: {
-          where: { u_control: { equals: session.code } },
+          where: {
+            u_control: { equals: session.code },
+            status: { equals: "active" }, // Only active students
+          },
           include: {
             attendance_progress: {
               where: {

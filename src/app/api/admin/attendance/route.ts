@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
 
   const where: any = {
     OR: dayPackageOr,
+    status: { equals: "active" }, // Only active students
   };
 
   if (controllerId) {

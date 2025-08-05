@@ -23,10 +23,14 @@ async function processAbsences(targetDate: Date) {
     );
   }
 
-  // 2. Get All Teachers
+  // 2. Get All Teachers with their active students
   const teachers = await prisma.wpos_wpdatatable_24.findMany({
     include: {
-      students: true,
+      students: {
+        where: {
+          status: { equals: "active" }, // Only consider active students
+        },
+      },
     },
   });
 

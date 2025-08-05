@@ -24,10 +24,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get students for this controller
+    // Get active students for this controller
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         u_control: session.code,
+        status: { equals: "active" }, // Only active students
       },
       include: {
         teacher: {

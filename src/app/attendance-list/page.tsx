@@ -647,6 +647,10 @@ export default function AttendanceList() {
           <p className="text-xs text-indigo-600">
             Showing attendance statistics for the selected date
           </p>
+          <p className="text-xs text-indigo-500 mt-1">
+            📋 <strong>Note:</strong> Only active students are included in
+            attendance tracking and analytics.
+          </p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4">
           <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-4 shadow flex flex-col items-center">

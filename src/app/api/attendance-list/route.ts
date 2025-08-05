@@ -144,10 +144,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Simplified query to test basic functionality
+    // Fetch only active students for attendance
     const records = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         u_control: { equals: session.code },
+        status: { equals: "active" }, // Only active students
       },
       include: {
         teacher: true,
@@ -245,7 +246,10 @@ export async function GET(req: NextRequest) {
     });
 
     const total = await prisma.wpos_wpdatatable_23.count({
-      where: { u_control: { equals: session.code } },
+      where: {
+        u_control: { equals: session.code },
+        status: { equals: "active" }, // Only count active students
+      },
     });
 
     // Calculate stats using the new links array

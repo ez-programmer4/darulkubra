@@ -36,12 +36,15 @@ export async function GET(req: NextRequest) {
       searchParams.get("endDate") || new Date().toISOString().split("T")[0];
     const period = searchParams.get("period") || "monthly"; // monthly, weekly, daily
 
-    // Get all students - for admin, get all students; for controller, get only their students
+    // Get active students - for admin, get all active students; for controller, get only their active students
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where:
         session.role === "admin"
-          ? {} // Admin can see all students
-          : { u_control: { equals: session.code } }, // Controller only sees their students
+          ? { status: { equals: "active" } } // Admin can see all active students
+          : {
+              u_control: { equals: session.code },
+              status: { equals: "active" }, // Controller only sees their active students
+            },
       include: {
         teacher: true,
         attendance_progress: {
@@ -98,8 +101,11 @@ export async function GET(req: NextRequest) {
         students: {
           where:
             session.role === "admin"
-              ? {} // Admin can see all students
-              : { u_control: { equals: session.code } }, // Controller only sees their students
+              ? { status: { equals: "active" } } // Admin can see all active students
+              : {
+                  u_control: { equals: session.code },
+                  status: { equals: "active" }, // Controller only sees their active students
+                },
           include: {
             attendance_progress: {
               where: {

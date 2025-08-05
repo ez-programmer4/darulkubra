@@ -30,8 +30,11 @@ async function main(dateArg?: string) {
     }
   });
 
-  // 2. Get all students with their teacher and scheduled time
+  // 2. Get all active students with their teacher and scheduled time
   const students = await prisma.wpos_wpdatatable_23.findMany({
+    where: {
+      status: { equals: "active" }, // Only active students
+    },
     include: {
       teacher: true,
       occupiedTimes: {

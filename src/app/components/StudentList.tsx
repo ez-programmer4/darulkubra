@@ -238,7 +238,7 @@ export default function StudentList({
   // Get unique values for filters dynamically from student data
   const statuses = useMemo(() => {
     const uniqueStatuses = [
-      ...new Set(students.map((student) => student.status)),
+      ...new Set(students.map((student) => student.status).filter(Boolean)),
     ];
     return ["all", ...uniqueStatuses];
   }, [students]);
@@ -280,14 +280,16 @@ export default function StudentList({
     return ["all", ...uniqueUstazes.filter(Boolean)];
   }, [students]);
 
-  // Filter and search students with debug logs
-  const filteredStudents = useMemo(() => {
-    return studentsWithPaymentStatus.filter((student) => {
+  // Filter and search students
+  const filteredStudents = useMemo((): Student[] => {
+    const filtered = studentsWithPaymentStatus.filter((student) => {
       const matchesSearch =
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         student.phoneno.includes(searchQuery);
       const matchesStatus =
-        statusFilter === "all" || student.status === statusFilter;
+        statusFilter === "all" ||
+        (student.status &&
+          student.status.toLowerCase() === statusFilter.toLowerCase());
       const matchesDayPackage =
         dayPackageFilter === "all" || student.daypackages === dayPackageFilter;
       const matchesPackage =
@@ -403,10 +405,13 @@ export default function StudentList({
         matchesLastPaymentDate;
 
       if (!isMatch) {
+        // Student filtered out
       }
 
       return isMatch;
     });
+
+    return filtered;
   }, [
     studentsWithPaymentStatus,
     searchQuery,
@@ -1023,12 +1028,20 @@ export default function StudentList({
 
       {/* Results Count and Timestamp */}
       <div className="flex flex-col md:flex-row items-center justify-between bg-white rounded-xl shadow-sm p-4 border border-gray-100 text-sm sm:text-base">
-        <div className="flex items-center gap-2 mb-2 md:mb-0">
-          <FiUsers className="text-blue-500" />
-          <span className="text-gray-600">
-            Showing {paginatedStudents.length} of {filteredStudents.length}{" "}
-            students
-          </span>
+        <div className="flex flex-col gap-1 mb-2 md:mb-0">
+          <div className="flex items-center gap-2">
+            <FiUsers className="text-blue-500" />
+            <span className="text-gray-600">
+              Showing {paginatedStudents.length} of {filteredStudents.length}{" "}
+              students
+            </span>
+          </div>
+          {statusFilter === "active" && (
+            <p className="text-xs text-indigo-500">
+              📋 <strong>Note:</strong> Only active students are shown by
+              default
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <FiCalendar className="text-blue-500" />

@@ -20,7 +20,7 @@ model wpos_wpdatatable_24 {
   phone                   String?                     @db.VarChar(32)
   schedule                String?                     @db.Text
   password                String                      @db.VarChar(255)
-  controlId               Int?
+  controlId               String?                     @map("control") @db.VarChar(255)
   created_at              DateTime?                   @default(now()) @db.Timestamp(0)
   absencerecord           absencerecord[]
   attendancesubmissionlog attendancesubmissionlog[]
@@ -32,7 +32,7 @@ model wpos_wpdatatable_24 {
   teachersalarypayment    teachersalarypayment[]
   occupied_times          wpos_ustaz_occupied_times[]
   students                wpos_wpdatatable_23[]       @relation("fk_student_ustaz")
-  control                 wpos_wpdatatable_28?        @relation(fields: [controlId], references: [wdt_ID])
+  control                 wpos_wpdatatable_28?        @relation(fields: [controlId], references: [code])
   zoom_links              wpos_zoom_links[]
 
   @@index([ustazid], map: "idx_ustazid")
@@ -77,7 +77,7 @@ model wpos_wpdatatable_28 {
   name                     String?                    @unique @db.VarChar(255)
   username                 String?                    @unique @db.VarChar(255)
   password                 String                     @db.VarChar(255)
-  code                     String?                    @unique @db.VarChar(32)
+  code                     String?                    @unique @db.VarChar(255)
   absencerecord            absencerecord[]
   attendancesubmissionlog  attendancesubmissionlog[]
   auditlog                 auditlog[]
