@@ -252,7 +252,7 @@ export async function POST(req: NextRequest) {
             ustazid,
             ustazname: name,
             schedule,
-            control: controlIdStr,
+            controller: { connect: { code: controlIdStr } }, // Use relation connect
             phone,
             password: hashedPassword,
           },
