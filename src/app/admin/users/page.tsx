@@ -45,6 +45,7 @@ interface User {
   schedule?: string;
   controlId?: string;
   phone?: string;
+  code?: string;
 }
 
 const RoleBadge = ({ role }: { role: UserRole }) => {
@@ -176,6 +177,15 @@ export default function UserManagementPage() {
     const data = Object.fromEntries(formData.entries());
 
     if ((editingUser ? editingUser.role : newUserRole) === "teacher") {
+      // Validate that a valid controller is selected
+      if (
+        !teacherControlId ||
+        teacherControlId === "" ||
+        teacherControlId === "0"
+      ) {
+        setError("Please select a valid controller for the teacher");
+        return;
+      }
       data.controlId = teacherControlId;
       data.schedule = teacherSchedule;
       data.phone = teacherPhone;
@@ -658,11 +668,22 @@ export default function UserManagementPage() {
                       aria-label="Select controller"
                     >
                       <option value="">Select Controller</option>
-                      {(controllers || []).map((ctrl) => (
-                        <option key={ctrl.id} value={ctrl.id}>
-                          {ctrl.name}
-                        </option>
-                      ))}
+                      {(controllers || []).map((ctrl) => {
+                        const controllerCode = ctrl.code;
+                        // Skip controllers with invalid codes
+                        if (
+                          !controllerCode ||
+                          controllerCode === "0" ||
+                          controllerCode === ""
+                        ) {
+                          return null;
+                        }
+                        return (
+                          <option key={ctrl.id} value={controllerCode}>
+                            {ctrl.name} ({controllerCode})
+                          </option>
+                        );
+                      })}
                     </select>
                     <p className="text-sm text-blue-600 mt-2 ml-1">
                       Assign a controller to this teacher. All active

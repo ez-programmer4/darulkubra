@@ -275,12 +275,26 @@ export async function POST(request: NextRequest) {
     if (session.role === "controller") {
       u_control = session.code;
     } else if (control) {
-      // Look up the controller's code based on username
-      const controller = await prismaClient.wpos_wpdatatable_28.findFirst({
-        where: { username: control },
-        select: { code: true },
-      });
-      u_control = controller?.code || null;
+      // If control looks like a code (length >= 3, all uppercase, or matches a code in DB), use it directly
+      if (/^[A-Z0-9]{3,}$/.test(control)) {
+        u_control = control;
+      } else {
+        // Look up the controller's code based on username as fallback
+        const controller = await prismaClient.wpos_wpdatatable_28.findFirst({
+          where: { username: control },
+          select: { code: true },
+        });
+        u_control = controller?.code || null;
+      }
+    }
+    if (!u_control) {
+      return NextResponse.json(
+        {
+          message:
+            "Controller assignment failed. Please select a valid controller.",
+        },
+        { status: 400 }
+      );
     }
 
     const newRegistration = await prismaClient.$transaction(async (tx) => {
@@ -479,12 +493,17 @@ export async function PUT(request: NextRequest) {
     if (session.role === "controller") {
       u_control = session.code;
     } else if (control) {
-      // Look up the controller's code based on username
-      const controller = await prismaClient.wpos_wpdatatable_28.findFirst({
-        where: { username: control },
-        select: { code: true },
-      });
-      u_control = controller?.code || null;
+      // If control looks like a code (length >= 3, all uppercase, or matches a code in DB), use it directly
+      if (/^[A-Z0-9]{3,}$/.test(control)) {
+        u_control = control;
+      } else {
+        // Look up the controller's code based on username as fallback
+        const controller = await prismaClient.wpos_wpdatatable_28.findFirst({
+          where: { username: control },
+          select: { code: true },
+        });
+        u_control = controller?.code || null;
+      }
     }
 
     const updatedRegistration = await prismaClient.$transaction(async (tx) => {

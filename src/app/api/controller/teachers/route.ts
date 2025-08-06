@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   try {
     const controller = await prisma.wpos_wpdatatable_28.findUnique({
       where: { username: controllerUsername },
-      select: { wdt_ID: true },
+      select: { code: true },
     });
 
     if (!controller) {
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     const ustazs = await prisma.wpos_wpdatatable_24.findMany({
       where: {
-        controlId: controller.wdt_ID,
+        control: controller.code,
       },
       select: {
         ustazid: true,

@@ -13,11 +13,11 @@ CREATE TABLE `wpos_wpdatatable_24` (
     `phone` VARCHAR(32) NULL,
     `schedule` TEXT NULL,
     `password` VARCHAR(255) NOT NULL,
-    `controlId` INTEGER NULL,
+    `control` VARCHAR(255) NULL,
     `created_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
 
     INDEX `idx_ustazid`(`ustazid`),
-    INDEX `wpos_wpdatatable_24_controlId_fkey`(`controlId`),
+    INDEX `wpos_wpdatatable_24_control_fkey`(`control`),
     PRIMARY KEY (`ustazid`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -37,7 +37,6 @@ CREATE TABLE `wpos_wpdatatable_23` (
     `daypackages` VARCHAR(255) NULL,
     `refer` VARCHAR(255) NULL,
     `registrationdate` DATETIME(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
-    `selectedTime` VARCHAR(255) NULL,
     `isTrained` BOOLEAN NULL DEFAULT false,
     `chat_id` VARCHAR(64) NULL,
     `progress` VARCHAR(64) NULL,
@@ -54,7 +53,7 @@ CREATE TABLE `wpos_wpdatatable_28` (
     `name` VARCHAR(255) NULL,
     `username` VARCHAR(255) NULL,
     `password` VARCHAR(255) NOT NULL,
-    `code` VARCHAR(32) NULL,
+    `code` VARCHAR(255) NULL,
 
     UNIQUE INDEX `wpos_wpdatatable_28_name_key`(`name`),
     UNIQUE INDEX `wpos_wpdatatable_28_username_key`(`username`),
@@ -166,7 +165,7 @@ CREATE TABLE `test` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `absenceRecord` (
+CREATE TABLE `AbsenceRecord` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `teacherId` VARCHAR(191) NOT NULL,
     `classDate` DATETIME(3) NOT NULL,
@@ -187,7 +186,7 @@ CREATE TABLE `absenceRecord` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `attendanceSubmissionLog` (
+CREATE TABLE `AttendanceSubmissionLog` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `teacherId` VARCHAR(191) NOT NULL,
     `classDate` DATETIME(3) NOT NULL,
@@ -205,7 +204,7 @@ CREATE TABLE `attendanceSubmissionLog` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `auditLog` (
+CREATE TABLE `AuditLog` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `actionType` VARCHAR(191) NOT NULL,
     `adminId` VARCHAR(191) NULL,
@@ -220,7 +219,7 @@ CREATE TABLE `auditLog` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `bonusRecord` (
+CREATE TABLE `BonusRecord` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `teacherId` VARCHAR(191) NOT NULL,
     `period` VARCHAR(191) NOT NULL,
@@ -250,7 +249,7 @@ CREATE TABLE `controllerEarning` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `controllerearningsconfig` (
+CREATE TABLE `ControllerEarningsConfig` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `mainBaseRate` DOUBLE NOT NULL DEFAULT 40,
     `referralBaseRate` DOUBLE NOT NULL DEFAULT 40,
@@ -272,7 +271,7 @@ CREATE TABLE `controllerearningsconfig` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `deductionBonusConfig` (
+CREATE TABLE `DeductionBonusConfig` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `configType` VARCHAR(191) NOT NULL,
     `key` VARCHAR(191) NOT NULL,
@@ -288,7 +287,7 @@ CREATE TABLE `deductionBonusConfig` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `latenessDeductionConfig` (
+CREATE TABLE `LatenessDeductionConfig` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `excusedThreshold` INTEGER NOT NULL,
     `tier` INTEGER NOT NULL,
@@ -309,7 +308,7 @@ CREATE TABLE `latenessDeductionConfig` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `latenessRecord` (
+CREATE TABLE `LatenessRecord` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `teacherId` VARCHAR(191) NOT NULL,
     `classDate` DATETIME(3) NOT NULL,
@@ -362,7 +361,7 @@ CREATE TABLE `Payment` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `permissionReason` (
+CREATE TABLE `PermissionReason` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `reason` VARCHAR(191) NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -416,7 +415,7 @@ CREATE TABLE `QualityAssessment` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `qualityDescription` (
+CREATE TABLE `QualityDescription` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `type` VARCHAR(191) NOT NULL,
     `description` VARCHAR(191) NOT NULL,
@@ -441,7 +440,7 @@ CREATE TABLE `setting` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `teacherSalaryPayment` (
+CREATE TABLE `TeacherSalaryPayment` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `teacherId` VARCHAR(255) NOT NULL,
     `period` VARCHAR(191) NOT NULL,
@@ -498,7 +497,7 @@ CREATE TABLE `testresult` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE `wpos_wpdatatable_24` ADD CONSTRAINT `wpos_wpdatatable_24_controlId_fkey` FOREIGN KEY (`controlId`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `wpos_wpdatatable_24` ADD CONSTRAINT `wpos_wpdatatable_24_control_fkey` FOREIGN KEY (`control`) REFERENCES `wpos_wpdatatable_28`(`code`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `wpos_wpdatatable_23` ADD CONSTRAINT `wpos_wpdatatable_23_u_control_fkey` FOREIGN KEY (`u_control`) REFERENCES `wpos_wpdatatable_28`(`code`) ON DELETE SET NULL ON UPDATE CASCADE;
@@ -525,70 +524,70 @@ ALTER TABLE `wpos_zoom_links` ADD CONSTRAINT `wpos_zoom_links_studentid_fkey` FO
 ALTER TABLE `wpos_zoom_links` ADD CONSTRAINT `wpos_zoom_links_ustazid_fkey` FOREIGN KEY (`ustazid`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `absenceRecord` ADD CONSTRAINT `AbsenceRecord_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `AbsenceRecord` ADD CONSTRAINT `AbsenceRecord_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `absenceRecord` ADD CONSTRAINT `AbsenceRecord_permissionRequestId_fkey` FOREIGN KEY (`permissionRequestId`) REFERENCES `PermissionRequest`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `AbsenceRecord` ADD CONSTRAINT `AbsenceRecord_permissionRequestId_fkey` FOREIGN KEY (`permissionRequestId`) REFERENCES `PermissionRequest`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `absenceRecord` ADD CONSTRAINT `AbsenceRecord_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `AbsenceRecord` ADD CONSTRAINT `AbsenceRecord_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `absenceRecord` ADD CONSTRAINT `AbsenceRecord_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `AbsenceRecord` ADD CONSTRAINT `AbsenceRecord_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `attendanceSubmissionLog` ADD CONSTRAINT `AttendanceSubmissionLog_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `AttendanceSubmissionLog` ADD CONSTRAINT `AttendanceSubmissionLog_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `attendanceSubmissionLog` ADD CONSTRAINT `AttendanceSubmissionLog_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `AttendanceSubmissionLog` ADD CONSTRAINT `AttendanceSubmissionLog_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `attendanceSubmissionLog` ADD CONSTRAINT `AttendanceSubmissionLog_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `AttendanceSubmissionLog` ADD CONSTRAINT `AttendanceSubmissionLog_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `auditLog` ADD CONSTRAINT `AuditLog_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `AuditLog` ADD CONSTRAINT `AuditLog_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `auditLog` ADD CONSTRAINT `AuditLog_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `AuditLog` ADD CONSTRAINT `AuditLog_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `bonusRecord` ADD CONSTRAINT `BonusRecord_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `BonusRecord` ADD CONSTRAINT `BonusRecord_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `bonusRecord` ADD CONSTRAINT `BonusRecord_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `BonusRecord` ADD CONSTRAINT `BonusRecord_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `bonusRecord` ADD CONSTRAINT `BonusRecord_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `BonusRecord` ADD CONSTRAINT `BonusRecord_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `controllerearningsconfig` ADD CONSTRAINT `ControllerEarningsConfig_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `ControllerEarningsConfig` ADD CONSTRAINT `ControllerEarningsConfig_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `controllerearningsconfig` ADD CONSTRAINT `ControllerEarningsConfig_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `ControllerEarningsConfig` ADD CONSTRAINT `ControllerEarningsConfig_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `deductionBonusConfig` ADD CONSTRAINT `DeductionBonusConfig_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `DeductionBonusConfig` ADD CONSTRAINT `DeductionBonusConfig_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `deductionBonusConfig` ADD CONSTRAINT `DeductionBonusConfig_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `DeductionBonusConfig` ADD CONSTRAINT `DeductionBonusConfig_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `latenessDeductionConfig` ADD CONSTRAINT `LatenessDeductionConfig_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `LatenessDeductionConfig` ADD CONSTRAINT `LatenessDeductionConfig_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `latenessDeductionConfig` ADD CONSTRAINT `LatenessDeductionConfig_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `LatenessDeductionConfig` ADD CONSTRAINT `LatenessDeductionConfig_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `latenessDeductionConfig` ADD CONSTRAINT `LatenessDeductionConfig_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `LatenessDeductionConfig` ADD CONSTRAINT `LatenessDeductionConfig_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `latenessRecord` ADD CONSTRAINT `LatenessRecord_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `LatenessRecord` ADD CONSTRAINT `LatenessRecord_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `latenessRecord` ADD CONSTRAINT `LatenessRecord_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `LatenessRecord` ADD CONSTRAINT `LatenessRecord_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `latenessRecord` ADD CONSTRAINT `LatenessRecord_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `LatenessRecord` ADD CONSTRAINT `LatenessRecord_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Payment` ADD CONSTRAINT `Payment_sendername_fkey` FOREIGN KEY (`sendername`) REFERENCES `wpos_wpdatatable_28`(`username`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -615,19 +614,19 @@ ALTER TABLE `QualityAssessment` ADD CONSTRAINT `QualityAssessment_teacherId_fkey
 ALTER TABLE `QualityAssessment` ADD CONSTRAINT `QualityAssessment_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `qualityDescription` ADD CONSTRAINT `QualityDescription_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `QualityDescription` ADD CONSTRAINT `QualityDescription_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `qualityDescription` ADD CONSTRAINT `QualityDescription_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `QualityDescription` ADD CONSTRAINT `QualityDescription_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `teacherSalaryPayment` ADD CONSTRAINT `TeacherSalaryPayment_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `TeacherSalaryPayment` ADD CONSTRAINT `TeacherSalaryPayment_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `teacherSalaryPayment` ADD CONSTRAINT `TeacherSalaryPayment_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `TeacherSalaryPayment` ADD CONSTRAINT `TeacherSalaryPayment_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `teacherSalaryPayment` ADD CONSTRAINT `TeacherSalaryPayment_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `TeacherSalaryPayment` ADD CONSTRAINT `TeacherSalaryPayment_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `testappointment` ADD CONSTRAINT `testAppointment_studentId_fkey` FOREIGN KEY (`studentId`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE RESTRICT ON UPDATE CASCADE;

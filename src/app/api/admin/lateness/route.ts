@@ -43,6 +43,9 @@ export async function GET(req: NextRequest) {
   try {
     // 2. Get all students with their teacher and zoom links for the day
     const students = await prisma.wpos_wpdatatable_23.findMany({
+      where: {
+        status: { in: ["active", "not yet"] },
+      },
       include: {
         teacher: true,
         zoom_links: {

@@ -1,9 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { getToken } from "next-auth/jwt";
 import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,8 +24,7 @@ export async function GET(req: NextRequest) {
         { status: 401 }
       );
     }
-
-    } catch (error) {
+  } catch (error) {
     return NextResponse.json({ error: "Session error" }, { status: 401 });
   }
 
@@ -68,6 +65,12 @@ export async function GET(req: NextRequest) {
         ? prisma.wpos_wpdatatable_28.findMany({
             ...baseQueryArgs,
             where: whereClause,
+            select: {
+              wdt_ID: true,
+              name: true,
+              username: true,
+              code: true,
+            },
           })
         : prisma.wpos_wpdatatable_28.findMany({ where: { wdt_ID: -1 } }),
       roleFilter === "teacher" || !roleFilter
@@ -78,7 +81,7 @@ export async function GET(req: NextRequest) {
               ustazid: true,
               ustazname: true,
               phone: true,
-              controlId: true,
+              control: true,
               schedule: true,
             },
           })
@@ -113,7 +116,12 @@ export async function GET(req: NextRequest) {
       await Promise.all(countQueries);
 
     type Admin = { id: string; name: string; username: string | null };
-    type Controller = { wdt_ID: number; name: string; username: string };
+    type Controller = {
+      wdt_ID: number;
+      name: string;
+      username: string;
+      code: string;
+    };
     type Teacher = { ustazid: string; ustazname: string; phone?: string };
     type Registral = { wdt_ID: number; name: string; username: string };
 
@@ -125,14 +133,14 @@ export async function GET(req: NextRequest) {
       })),
       ...(controllers as Controller[]).map((u) => ({
         ...u,
-        id: u.wdt_ID.toString(),
+        id: u.code || u.wdt_ID.toString(),
         role: "controller" as const,
       })),
       ...(teachers as any[]).map((u) => ({
         id: u.ustazid,
         name: u.ustazname,
         phone: u.phone || "",
-        controlId: u.controlId ? String(u.controlId) : "",
+        controlId: u.control || "",
         schedule: u.schedule || "",
         role: "teacher" as const,
       })),
@@ -152,8 +160,12 @@ export async function GET(req: NextRequest) {
       limit,
     });
   } catch (error) {
+    console.error("Admin users API error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      {
+        error: "Internal Server Error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
@@ -201,15 +213,31 @@ export async function POST(req: NextRequest) {
         });
         break;
       case "teacher":
-        if (!controlId) {
+        // Validate controlId is not empty, "0", or 0
+        if (
+          !controlId ||
+          controlId === "0" ||
+          controlId === 0 ||
+          controlId === ""
+        ) {
           return NextResponse.json(
             { error: "Controller is required" },
             { status: 400 }
           );
         }
-        // Validate controller exists
+
+        // Convert controlId to string and validate it's not just whitespace
+        const controlIdStr = String(controlId).trim();
+        if (!controlIdStr) {
+          return NextResponse.json(
+            { error: "Controller is required" },
+            { status: 400 }
+          );
+        }
+
+        // Validate controller exists by code and get its ID
         const controller = await prisma.wpos_wpdatatable_28.findUnique({
-          where: { wdt_ID: Number(controlId) },
+          where: { code: controlIdStr },
         });
         if (!controller) {
           return NextResponse.json(
@@ -218,12 +246,13 @@ export async function POST(req: NextRequest) {
           );
         }
         const ustazid = name.toLowerCase().replace(/\s+/g, "") + Date.now();
+
         newUser = await prisma.wpos_wpdatatable_24.create({
           data: {
             ustazid,
             ustazname: name,
             schedule,
-            controlId: Number(controlId),
+            control: controlIdStr,
             phone,
             password: hashedPassword,
           },
@@ -243,6 +272,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(newUser, { status: 201 });
   } catch (error: any) {
+    console.error("Admin users POST error:", error);
     return NextResponse.json(
       { error: "Internal Server Error", details: error.message },
       { status: 500 }
@@ -282,7 +312,7 @@ export async function PUT(req: NextRequest) {
       passcode?: string;
       password?: string;
       schedule?: string;
-      controlId?: number;
+      control?: string;
       phone?: string;
     } = {
       name,
@@ -312,15 +342,31 @@ export async function PUT(req: NextRequest) {
         });
         break;
       case "teacher":
-        if (!controlId) {
+        // Validate controlId is not empty, "0", or 0
+        if (
+          !controlId ||
+          controlId === "0" ||
+          controlId === 0 ||
+          controlId === ""
+        ) {
           return NextResponse.json(
             { error: "Controller is required" },
             { status: 400 }
           );
         }
-        // Validate controller exists
+
+        // Convert controlId to string and validate it's not just whitespace
+        const controlIdStr = String(controlId).trim();
+        if (!controlIdStr) {
+          return NextResponse.json(
+            { error: "Controller is required" },
+            { status: 400 }
+          );
+        }
+
+        // Validate controller exists by code and get its ID
         const controller = await prisma.wpos_wpdatatable_28.findUnique({
-          where: { wdt_ID: Number(controlId) },
+          where: { code: controlIdStr },
         });
         if (!controller) {
           return NextResponse.json(
@@ -333,7 +379,7 @@ export async function PUT(req: NextRequest) {
           data: {
             ustazname: name,
             schedule,
-            controlId: Number(controlId),
+            control: controlIdStr,
             phone,
           },
         });

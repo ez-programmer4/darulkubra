@@ -6,7 +6,7 @@ import { AttendanceAnalytics } from "./components/AttendanceAnalytics";
 import { useSession } from "next-auth/react";
 
 interface Controller {
-  id: string;
+  code: string;
   name: string;
 }
 
@@ -38,8 +38,7 @@ export default function AttendancePage() {
             ? controllerData.controllers
             : []
         );
-      } catch (err) {
-        }
+      } catch (err) {}
     };
     fetchControllers();
   }, []);
@@ -93,7 +92,7 @@ export default function AttendancePage() {
               <option value="">All Controllers</option>
               {Array.isArray(controllers) &&
                 controllers.map((c) => (
-                  <option key={c.id} value={c.id}>
+                  <option key={c.code} value={c.code}>
                     {c.name}
                   </option>
                 ))}
@@ -102,7 +101,7 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      <AttendanceAnalytics controllerId={selectedController} />
+      <AttendanceAnalytics controllerCode={selectedController} />
     </main>
   );
 }

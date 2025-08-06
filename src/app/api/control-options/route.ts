@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   }
   try {
     const controllers = await prisma.wpos_wpdatatable_28.findMany({
-      select: { username: true, name: true },
+      select: { username: true, name: true, code: true },
       orderBy: { name: "asc" },
     });
     return NextResponse.json({ controllers });

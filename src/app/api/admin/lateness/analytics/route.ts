@@ -63,6 +63,9 @@ export async function GET(req: NextRequest) {
 
   // 2. Get all students with their teacher, controller, and day package
   const students = await prisma.wpos_wpdatatable_23.findMany({
+    where: {
+      status: { in: ["active", "not yet"] },
+    },
     include: {
       teacher: true,
       controller: true,

@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
             ustazname: true,
             phone: true,
             schedule: true,
-            controlId: true,
+            control: true,
           },
         });
         break;

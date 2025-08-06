@@ -63,8 +63,14 @@ export async function GET(
       },
     });
 
-    if (!student) {
-      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+    if (
+      !student ||
+      !["active", "not yet"].includes((student.status || "").toLowerCase())
+    ) {
+      return NextResponse.json(
+        { error: "Student not found or not eligible" },
+        { status: 404 }
+      );
     }
 
     console.log(

@@ -55,7 +55,7 @@ interface TimeSlot {
 interface Teacher {
   ustazid: string;
   ustazname: string;
-  control?: { wdt_ID: number; username: string }; // Made optional
+  control?: { code: string }; // Made optional
   schedule?: string; // Added schedule field
 }
 
@@ -145,7 +145,7 @@ function RegistrationContent() {
 
   // Add state for controllers
   const [controllers, setControllers] = useState<
-    { username: string; name: string }[]
+    { username: string; name: string; code: string }[]
   >([]);
   const [loadingControllers, setLoadingControllers] = useState(false);
   const [controllersError, setControllersError] = useState<string | null>(null);
@@ -280,7 +280,9 @@ function RegistrationContent() {
       ) {
         setSelectedTeacher("");
       }
-      setTeachers(teacherData.teachers || []);
+      setTeachers(
+        (teacherData.teachers || []).filter((t: Teacher) => t.control)
+      );
       setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
@@ -414,7 +416,7 @@ function RegistrationContent() {
         : undefined;
 
       const selectedUstaz = teachers.find((t) => t.ustazid === selectedTeacher);
-      const control = selectedUstaz?.control?.username || null;
+      const control = selectedUstaz?.control?.code || null;
 
       const payload = {
         fullName: data.fullName,
@@ -1272,7 +1274,7 @@ function RegistrationContent() {
                               </p>
                               <p className="text-xs text-gray-600 mt-1.5">
                                 Available (Controller:{" "}
-                                {teacher.control?.username || "Unknown"})
+                                {teacher.control?.code || "Unknown"})
                               </p>
                             </div>
                           </div>
@@ -1653,8 +1655,8 @@ function RegistrationContent() {
                               Select controller
                             </option>
                             {controllers.map((ctrl) => (
-                              <option key={ctrl.username} value={ctrl.username}>
-                                {ctrl.name} ({ctrl.username})
+                              <option key={ctrl.code} value={ctrl.code}>
+                                {ctrl.name} ({ctrl.code})
                               </option>
                             ))}
                           </select>

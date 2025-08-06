@@ -65,13 +65,17 @@ export async function GET(request: NextRequest) {
       ustazs = await prisma.wpos_wpdatatable_24.findMany({
         select: { schedule: true },
         where: {
-          controlId: {
+          control: {
             in: await prisma.wpos_wpdatatable_28
               .findMany({
                 where: { username: session.username },
-                select: { wdt_ID: true },
+                select: { code: true },
               })
-              .then((controllers) => controllers.map((c) => c.wdt_ID)),
+              .then((controllers) =>
+                controllers
+                  .map((c) => c.code)
+                  .filter((code): code is string => code !== null)
+              ),
           },
           schedule: {
             not: "",

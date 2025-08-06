@@ -24,8 +24,8 @@ const checkTeacherAvailability = async (
   const teacher = await prisma.wpos_wpdatatable_24.findUnique({
     where: { ustazid: teacherId },
     include: {
-      control: {
-        select: { wdt_ID: true, username: true },
+      controller: {
+        select: { code: true },
       },
     },
   });
@@ -109,7 +109,7 @@ const checkTeacherAvailability = async (
     teacher: {
       ustazid: teacher.ustazid,
       ustazname: teacher.ustazname,
-      control: teacher.control,
+      control: teacher.controller, // Map to 'control' for frontend compatibility
     },
   };
 };
@@ -148,8 +148,8 @@ export async function GET(request: NextRequest) {
         ustazid: true,
         ustazname: true,
         schedule: true,
-        control: {
-          select: { wdt_ID: true, username: true },
+        controller: {
+          select: { code: true },
         },
       },
     });

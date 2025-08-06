@@ -32,11 +32,12 @@ export async function GET(req: NextRequest) {
         ustazname: true,
         phone: true,
         schedule: true,
-        controlId: true,
-        control: {
+        control: true, // This is the controller code
+        controller: {
           select: {
-            wdt_ID: true,
+            name: true,
             username: true,
+            code: true,
           },
         },
       },
@@ -49,15 +50,22 @@ export async function GET(req: NextRequest) {
         ustazname: teacher.ustazname,
         phone: teacher.phone || "",
         schedule: teacher.schedule || "",
-        control: teacher.control,
+        control: teacher.control, // Controller code
+        controller: teacher.controller, // Controller details
       };
     });
 
     return NextResponse.json(transformedTeachers);
   } catch (error) {
+    console.error("Error fetching teachers:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      {
+        error: "Internal Server Error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
