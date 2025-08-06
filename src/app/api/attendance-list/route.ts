@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
   const page = parseInt(searchParams.get("page") || "1", 10);
   const limit = parseInt(searchParams.get("limit") || "10", 10);
   const notify = searchParams.get("notify")
-    ? parseInt(searchParams.get("notify"), 10)
-    : null;
+    ? parseInt(searchParams.get("notify") || "0", 10)
+    : 0;
   const controllerId = searchParams.get("controllerId") || session.code;
 
   const dayStart = startOfDay(new Date(date));
