@@ -29,7 +29,13 @@ export async function GET(req: NextRequest) {
   const notify = searchParams.get("notify")
     ? parseInt(searchParams.get("notify") || "0", 10)
     : 0;
-  const controllerId = searchParams.get("controllerId") || session.code;
+  const controllerId = searchParams.get("controllerId") || session.code || "";
+  if (!controllerId) {
+    return NextResponse.json(
+      { error: "Controller ID is required" },
+      { status: 400 }
+    );
+  }
 
   const dayStart = startOfDay(new Date(date));
   const dayEnd = endOfDay(new Date(date));
@@ -61,6 +67,15 @@ export async function GET(req: NextRequest) {
         ]
       : []),
   ];
+
+  console.log("dayPackageOr filter:", JSON.stringify(dayPackageOr, null, 2));
+  console.log(
+    "Raw daypackages in database:",
+    await prisma.wpos_wpdatatable_23.findMany({
+      where: { u_control: controllerId, status: { in: ["Active", "Not Yet"] } },
+      select: { wdt_ID: true, name: true, daypackages: true },
+    })
+  );
 
   // Log all students for debugging
   const allStudents = await prisma.wpos_wpdatatable_23.findMany({
