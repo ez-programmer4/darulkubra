@@ -274,9 +274,7 @@ export async function GET(req: NextRequest) {
         }
       }
       const time24 = record.occupiedTimes?.[0]?.time_slot;
-      const scheduledAt = time24
-        ? `${date}T${time24}.000Z`
-        : `${date}T00:00:00.000Z`;
+      const scheduledAt = time24 ? `${date}T${time24}.000Z` : null;
 
       const linksForDay = (record.zoom_links || []).map((zl: any) => ({
         id: zl.id,

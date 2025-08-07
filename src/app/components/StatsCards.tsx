@@ -62,7 +62,9 @@ export default function StatsCards({
             <FiClock size={24} />
           </div>
           <div className="ml-4">
-            <p className="text-sm font-medium text-gray-600">New Students</p>
+            <p className="text-sm font-medium text-gray-600">
+              Not Yet Students
+            </p>
             <p className="text-2xl font-semibold text-gray-900">
               {notYetStudents}
             </p>

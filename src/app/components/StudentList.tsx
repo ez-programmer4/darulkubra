@@ -483,24 +483,7 @@ export default function StudentList({
   return (
     <div className="space-y-6">
       {/* Status Filter Dropdown */}
-      <div className="flex flex-col sm:flex-row items-center gap-4 mb-2">
-        <label htmlFor="statusFilter" className="font-medium text-gray-700">
-          Student Status:
-        </label>
-        <select
-          id="statusFilter"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
-        >
-          <option value="active">Active</option>
-          <option value="leave">Leave</option>
-          <option value="ramadan leave">Ramadan Leave</option>
-          <option value="notyet">Not Yet</option>
-          <option value="fresh">Fresh</option>
-          <option value="all">All</option>
-        </select>
-      </div>
+
       {/* Search Section */}
       <div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 border border-gray-100">
         <div className="flex flex-col md:flex-row items-center gap-4">
