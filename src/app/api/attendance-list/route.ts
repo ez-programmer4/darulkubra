@@ -273,10 +273,9 @@ export async function GET(req: NextRequest) {
           return "00:00";
         }
       }
-      const time24 = to24Hour(record.occupiedTimes?.[0]?.time_slot || null);
-      const scheduledAt = record.occupiedTimes?.[0]?.time_slot 
-        ? `${date}T${time24}:00.000Z` 
-        : null;
+
+      const time24 = record.occupiedTimes?.[0]?.time_slot;
+      const scheduledAt = time24 ? `${date}T${time24}.000Z` : null;
 
       const linksForDay = (record.zoom_links || []).map((zl: any) => ({
         id: zl.id,
