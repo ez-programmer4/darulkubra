@@ -35,7 +35,7 @@ interface IntegratedRecord {
   student_id: number;
   studentName: string;
   ustazName: string;
-  scheduledAt: string;
+  scheduledAt: string | null;
   links: Array<{
     id: number;
     link: string;
@@ -327,8 +327,8 @@ export default function AttendanceList() {
 
   const totalPages = Math.ceil(total / limit);
 
-  const formatDateSafely = (dateStr: string) => {
-    if (!dateStr || dateStr === "Not Sent" || dateStr === "N/A") {
+  const formatDateSafely = (dateStr: string | null) => {
+    if (!dateStr || dateStr === "Not Sent" || dateStr === "N/A" || dateStr === "null") {
       return "N/A";
     }
     try {
