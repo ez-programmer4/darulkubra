@@ -273,7 +273,7 @@ export async function GET(req: NextRequest) {
           return "00:00";
         }
       }
-      const time24 = to24Hour(record.occupiedTimes?.[0]?.time_slot || null);
+      const time24 = record.occupiedTimes?.[0]?.time_slot;
       const scheduledAt = time24
         ? `${date}T${time24}:00.000Z`
         : `${date}T00:00:00.000Z`;
