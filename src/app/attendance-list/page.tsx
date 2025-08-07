@@ -362,10 +362,10 @@ export default function AttendanceList() {
       acc: {
         [key: string]: number;
         total: number;
-        present: number;
-        absent: number;
-        permission: number;
-        "not-taken": number;
+        Present: number;
+        Absent: number;
+        Permission: number;
+        "Not Taken": number;
       },
       record
     ) => {
@@ -373,12 +373,12 @@ export default function AttendanceList() {
       acc[record.attendance_status] = (acc[record.attendance_status] || 0) + 1;
       return acc;
     },
-    { total: 0, present: 0, absent: 0, permission: 0, "not-taken": 0 }
+    { total: 0, Present: 0, Absent: 0, Permission: 0, "Not Taken": 0 }
   );
 
   const attendanceRate =
     attendanceStats.total > 0
-      ? ((attendanceStats.present / attendanceStats.total) * 100).toFixed(1) +
+      ? ((attendanceStats.Present / attendanceStats.total) * 100).toFixed(1) +
         "%"
       : "N/A";
 
@@ -406,7 +406,7 @@ export default function AttendanceList() {
 
   const totalStudents = filteredData.length;
   const presentCount = filteredData.filter(
-    (record) => record.attendance_status === "present"
+    (record) => record.attendance_status === "Present"
   ).length;
   const averageAttendanceRate =
     totalStudents > 0
@@ -575,10 +575,10 @@ export default function AttendanceList() {
               className="w-full px-3 py-2 border border-yellow-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-300 shadow-sm"
             >
               <option value="">All</option>
-              <option value="present">Present</option>
-              <option value="absent">Absent</option>
-              <option value="permission">Permission</option>
-              <option value="not-taken">Not Taken</option>
+              <option value="Present">Present</option>
+              <option value="Absent">Absent</option>
+              <option value="Permission">Permission</option>
+              <option value="Not Taken">Not Taken</option>
             </select>
           </div>
           {/* Sent/Clicked Status Group */}
@@ -663,25 +663,25 @@ export default function AttendanceList() {
           </div>
           <div className="bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-4 shadow flex flex-col items-center">
             <span className="text-2xl font-bold text-green-700">
-              {attendanceStats.present}
+              {attendanceStats.Present}
             </span>
             <span className="text-xs text-green-800 mt-1">Present</span>
           </div>
           <div className="bg-gradient-to-br from-red-100 to-red-200 rounded-xl p-4 shadow flex flex-col items-center">
             <span className="text-2xl font-bold text-red-700">
-              {attendanceStats.absent}
+              {attendanceStats.Absent}
             </span>
             <span className="text-xs text-red-800 mt-1">Absent</span>
           </div>
           <div className="bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-xl p-4 shadow flex flex-col items-center">
             <span className="text-2xl font-bold text-yellow-700">
-              {attendanceStats.permission}
+              {attendanceStats.Permission}
             </span>
             <span className="text-xs text-yellow-800 mt-1">Permission</span>
           </div>
           <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-4 shadow flex flex-col items-center">
             <span className="text-2xl font-bold text-gray-700">
-              {attendanceStats["not-taken"]}
+              {attendanceStats["Not Taken"]}
             </span>
             <span className="text-xs text-gray-800 mt-1">Not Taken</span>
           </div>
@@ -730,7 +730,7 @@ export default function AttendanceList() {
               </span>
             </div>
             <p className="text-gray-600 mt-1">
-              {attendanceStats.present} out of {attendanceStats.total} students
+              {attendanceStats.Present} out of {attendanceStats.total} students
               present
             </p>
           </div>
@@ -740,13 +740,13 @@ export default function AttendanceList() {
                 Absent Students
               </span>
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                {attendanceStats.absent}
+                {attendanceStats.Absent}
               </span>
             </div>
             <p className="text-gray-600 mt-1">
-              {attendanceStats.absent > 0
+              {attendanceStats.Absent > 0
                 ? `${(
-                    (attendanceStats.absent / attendanceStats.total) *
+                    (attendanceStats.Absent / attendanceStats.total) *
                     100
                   ).toFixed(1)}% of total students`
                 : "All students accounted for"}
@@ -756,11 +756,11 @@ export default function AttendanceList() {
             <div className="flex items-center justify-between">
               <span className="text-indigo-600 font-medium">Action Items</span>
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                {attendanceStats.absent + attendanceStats.permission}
+                {attendanceStats.Absent + attendanceStats.Permission}
               </span>
             </div>
             <p className="text-gray-600 mt-1">
-              {attendanceStats.absent + attendanceStats.permission > 0
+              {attendanceStats.Absent + attendanceStats.Permission > 0
                 ? "Students need follow-up"
                 : "No immediate actions needed"}
             </p>
@@ -996,9 +996,9 @@ export default function AttendanceList() {
                         <span
                           className={`px-3 py-1 inline-flex text-xs font-medium rounded-full shadow-sm
                             ${
-                              record.attendance_status === "present"
+                              record.attendance_status === "Present"
                                 ? "bg-green-100 text-green-800"
-                                : record.attendance_status === "absent"
+                                : record.attendance_status === "Absent"
                                 ? "bg-red-100 text-red-800"
                                 : "bg-gray-100 text-gray-800"
                             }
