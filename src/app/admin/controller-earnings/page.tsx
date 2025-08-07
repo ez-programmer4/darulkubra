@@ -252,13 +252,13 @@ export default function AdminControllerEarningsPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+        <div className="mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="flex flex-col gap-1 sm:gap-2">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
                 Controller Earnings Analytics
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-xs sm:text-sm text-gray-600">
                 Overview of all controllers' earnings for{" "}
                 {new Date(selectedMonth + "-01").toLocaleDateString("en-US", {
                   year: "numeric",
@@ -266,26 +266,34 @@ export default function AdminControllerEarningsPage() {
                 })}
               </p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <input
                 type="month"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-xs sm:text-sm min-h-[36px] sm:min-h-[40px]"
               />
-              <Button onClick={fetchEarnings} variant="outline">
+              <Button
+                onClick={fetchEarnings}
+                variant="outline"
+                className="w-full sm:w-auto text-xs sm:text-sm min-h-[36px] sm:min-h-[40px] px-3 sm:px-4"
+              >
                 Refresh
               </Button>
               <Button
                 onClick={() => setShowConfig(!showConfig)}
                 variant="outline"
-                className="bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100"
+                className="w-full sm:w-auto bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100 text-xs sm:text-sm min-h-[36px] sm:min-h-[40px] px-3 sm:px-4"
               >
-                <FiTarget className="mr-2" />
+                <FiTarget className="mr-2 h-4 w-4" />
                 Earnings Config
               </Button>
-              <Button onClick={exportToCSV} variant="outline">
-                <FiDownload className="mr-2" />
+              <Button
+                onClick={exportToCSV}
+                variant="outline"
+                className="w-full sm:w-auto text-xs sm:text-sm min-h-[36px] sm:min-h-[40px] px-3 sm:px-4"
+              >
+                <FiDownload className="mr-2 h-4 w-4" />
                 Export CSV
               </Button>
             </div>

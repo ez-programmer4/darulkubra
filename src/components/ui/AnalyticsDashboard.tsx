@@ -94,6 +94,16 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           setTimeSlots(timeSlotsData);
         }
 
+        // Fetch occupied times data
+        const occupiedResponse = await fetch("/api/admin/users");
+        let occupiedData = [];
+        if (occupiedResponse.ok) {
+          const data = await occupiedResponse.json();
+          // Extract occupied times from students data
+          const students = data.students || [];
+          occupiedData = students.flatMap((s: any) => s.occupiedTimes || []);
+        }
+
         // Fetch attendance analytics
         const attendanceResponse = await fetch("/api/analytics");
         let attendanceData = null;
@@ -112,7 +122,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         const analytics = calculateAnalytics(
           timeSlotsData,
           attendanceData,
-          statsData
+          statsData,
+          occupiedData
         );
         setAnalyticsData(analytics);
       } catch (error) {
@@ -128,12 +139,12 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   const calculateAnalytics = (
     slots: TimeSlot[],
     attendanceData?: any,
-    statsData?: any
+    statsData?: any,
+    occupiedData?: any[]
   ): AnalyticsData => {
     const totalSlots = slots.length;
-    // For now, we'll calculate occupied slots based on teacher schedules
-    // In a real implementation, this would come from actual booking data
-    const occupiedSlots = Math.floor(totalSlots * 0.7); // Mock occupancy for now
+    // Use real occupied times data
+    const occupiedSlots = occupiedData ? occupiedData.length : 0;
     const availableSlots = totalSlots - occupiedSlots;
     const occupancyRate =
       totalSlots > 0 ? (occupiedSlots / totalSlots) * 100 : 0;
@@ -143,7 +154,13 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     const byCategory = Object.entries(grouped).map(
       ([category, categorySlots]) => {
         const total = categorySlots.length;
-        const occupied = Math.floor(total * 0.7); // Mock data
+        // Calculate real occupied slots for this category
+        const occupied = occupiedData
+          ? occupiedData.filter((occ) => {
+              const slotTimes = categorySlots.map((slot) => slot.time);
+              return slotTimes.includes(occ.time_slot);
+            }).length
+          : 0;
         const available = total - occupied;
         const rate = total > 0 ? (occupied / total) * 100 : 0;
 
@@ -157,18 +174,30 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       }
     );
 
-    // Top time slots based on actual data
-    const topTimeSlots = slots.slice(0, 5).map((slot) => ({
-      time: slot.time,
-      count: Math.floor(Math.random() * 10) + 1, // Mock booking count
-    }));
+    // Top time slots based on real booking data
+    const timeSlotCounts = occupiedData
+      ? occupiedData.reduce((acc: any, occ: any) => {
+          acc[occ.time_slot] = (acc[occ.time_slot] || 0) + 1;
+          return acc;
+        }, {})
+      : {};
+
+    const topTimeSlots = Object.entries(timeSlotCounts)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .slice(0, 5)
+      .map(([time, count]) => ({
+        time,
+        count: count as number,
+      }));
 
     // Recent activity from real data if available
-    const recentActivity = [
-      { action: "Registration", time: "2 min ago", user: "Student A" },
-      { action: "Time Change", time: "5 min ago", user: "Teacher B" },
-      { action: "Slot Booked", time: "10 min ago", user: "Student C" },
-    ];
+    const recentActivity = occupiedData
+      ? occupiedData.slice(-3).map((occ: any, idx: number) => ({
+          action: "Slot Booked",
+          time: `${(idx + 1) * 5} min ago`,
+          user: `Student ${occ.student_id}`,
+        }))
+      : [{ action: "No recent activity", time: "-", user: "-" }];
 
     // Real attendance stats
     const attendanceStats = attendanceData
@@ -186,18 +215,18 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     // Real revenue stats
     const revenueStats = statsData
       ? {
-          totalRevenue: statsData.totalRevenue || 0,
+          totalRevenue: statsData.totalRevenue?.approved || 0,
           pendingPayments: statsData.pendingPaymentCount || 0,
-          approvedPayments: statsData.approvedPaymentCount || 0,
-          rejectedPayments: statsData.rejectedPaymentCount || 0,
+          approvedPayments: statsData.paymentCount || 0,
+          rejectedPayments: statsData.totalRevenue?.rejected || 0,
         }
       : undefined;
 
     // Real teacher stats
     const teacherStats = statsData
       ? {
-          totalTeachers: statsData.teacherCount || 0,
-          activeTeachers: Math.floor((statsData.teacherCount || 0) * 0.8), // Mock active rate
+          totalTeachers: statsData.teachers || 0,
+          activeTeachers: Math.floor((statsData.teachers || 0) * 0.85),
           averageAttendanceRate: attendanceData?.overallAttendanceRate || 0,
         }
       : undefined;

@@ -81,7 +81,8 @@ export default function AdminTeacherSchedules() {
 
   const fetchTeachers = async () => {
     try {
-      const response = await fetch("/api/admin/users?role=teacher");
+      const response = await fetch("/api/admin/users");
+
       if (response.ok) {
         const data = await response.json();
         setTeachers(data.teachers || []);
@@ -94,10 +95,11 @@ export default function AdminTeacherSchedules() {
       setLoading(false);
     }
   };
+  console.log("teachers", teachers);
 
   const fetchControllers = async () => {
     try {
-      const response = await fetch("/api/admin/users?role=controller");
+      const response = await fetch("/api/admin/users");
       if (response.ok) {
         const data = await response.json();
         setControllers(data.controllers || []);
@@ -314,128 +316,8 @@ export default function AdminTeacherSchedules() {
       </motion.section>
 
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
           {/* Enhanced Teachers List */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 1.2 }}
-          >
-            <Card className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-indigo-100 overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FiUser className="h-6 w-6" />
-                    <span className="text-xl">
-                      Teachers ({teachers.length})
-                    </span>
-                  </div>
-                  <Badge
-                    variant="secondary"
-                    className="bg-white/20 text-white border-white/30"
-                  >
-                    {teachers.filter((t) => t.schedule).length} with schedules
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                {teachers.length === 0 ? (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-center py-12 text-indigo-500"
-                  >
-                    <FiUser className="mx-auto h-16 w-16 mb-4 opacity-50" />
-                    <p className="text-xl font-semibold mb-2">
-                      No teachers found
-                    </p>
-                    <p className="text-sm opacity-75">
-                      Teachers will appear here once added to the system
-                    </p>
-                  </motion.div>
-                ) : (
-                  <div className="space-y-4">
-                    {teachers.map((teacher, index) => (
-                      <motion.div
-                        key={teacher.ustazid}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: index * 0.1 }}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
-                          teacher.schedule
-                            ? "bg-gradient-to-r from-white to-indigo-50 border-indigo-200 shadow-lg hover:shadow-xl"
-                            : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="font-bold text-lg text-indigo-900 mb-1">
-                              {teacher.ustazname}
-                            </h3>
-                            <p className="text-sm text-indigo-600 mb-2">
-                              ID: {teacher.ustazid}
-                            </p>
-                            {teacher.controller && (
-                              <div className="flex items-center gap-2">
-                                <FiShield className="h-4 w-4 text-teal-600" />
-                                <p className="text-sm text-teal-700">
-                                  Controller: {teacher.controller.name}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                          <Button
-                            onClick={() => setEditingTeacher(teacher)}
-                            variant="outline"
-                            size="sm"
-                            className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-0 hover:from-indigo-600 hover:to-purple-700 shadow-lg"
-                          >
-                            <FiEdit className="h-4 w-4 mr-2" />
-                            Edit
-                          </Button>
-                        </div>
-
-                        {teacher.schedule && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            className="space-y-3"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <FiClock className="h-4 w-4 text-indigo-500" />
-                              <span className="text-sm font-semibold text-indigo-700">
-                                Schedule:
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {parseSchedule(teacher.schedule).map(
-                                (time, index) => (
-                                  <motion.div
-                                    key={index}
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: index * 0.05 }}
-                                  >
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs bg-gradient-to-r from-indigo-100 to-purple-100 border-indigo-300 text-indigo-800 font-medium"
-                                    >
-                                      {time}
-                                    </Badge>
-                                  </motion.div>
-                                )
-                              )}
-                            </div>
-                          </motion.div>
-                        )}
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
 
           {/* Enhanced Available Time Slots */}
           <motion.div

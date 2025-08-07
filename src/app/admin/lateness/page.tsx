@@ -84,6 +84,13 @@ export default function AdminLatenessAnalyticsPage() {
   const [expandedTeacherId, setExpandedTeacherId] = useState<string | null>(
     null
   );
+  
+  // Pagination states
+  const [controllerPage, setControllerPage] = useState(1);
+  const [teacherPage, setTeacherPage] = useState(1);
+  const [dailyPage, setDailyPage] = useState(1);
+  const [dailyTotal, setDailyTotal] = useState(0);
+  const itemsPerPage = 10;
 
   // Fetch controllers for filter
   useEffect(() => {
@@ -120,6 +127,11 @@ export default function AdminLatenessAnalyticsPage() {
       .finally(() => setLoading(false));
   }, [date, controllerId]);
 
+  // Reset pagination when filters change
+  useEffect(() => {
+    setDailyPage(1);
+  }, [dailyDate, dailyControllerId, dailyTeacherId]);
+
   // Fetch daily lateness records
   useEffect(() => {
     async function fetchDaily() {
@@ -128,6 +140,8 @@ export default function AdminLatenessAnalyticsPage() {
       try {
         const params = new URLSearchParams({
           date: format(dailyDate, "yyyy-MM-dd"),
+          page: dailyPage.toString(),
+          limit: itemsPerPage.toString(),
         });
         if (dailyControllerId) params.append("controllerId", dailyControllerId);
         if (dailyTeacherId) params.append("teacherId", dailyTeacherId);
@@ -135,6 +149,7 @@ export default function AdminLatenessAnalyticsPage() {
         if (!res.ok) throw new Error("Failed to fetch daily lateness records");
         const data = await res.json();
         setDailyRecords(data.latenessData || []);
+        setDailyTotal(data.total || 0);
       } catch (e: any) {
         setDailyError(e.message);
       } finally {
@@ -142,7 +157,7 @@ export default function AdminLatenessAnalyticsPage() {
       }
     }
     fetchDaily();
-  }, [dailyDate, dailyControllerId, dailyTeacherId]);
+  }, [dailyDate, dailyControllerId, dailyTeacherId, dailyPage]);
 
   // Sorting logic
   function sortData<T>(data: T[], key: string, dir: "asc" | "desc") {
@@ -533,8 +548,9 @@ export default function AdminLatenessAnalyticsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-indigo-100">
-                      {sortData(analytics.controllerData, sortKey, sortDir).map(
-                        (c: any, i: number) => (
+                      {sortData(analytics.controllerData, sortKey, sortDir)
+                        .slice((controllerPage - 1) * itemsPerPage, controllerPage * itemsPerPage)
+                        .map((c: any, i: number) => (
                           <tr
                             key={c.name}
                             className={`hover:bg-indigo-50 transition-all animate-slide-in ${
@@ -564,7 +580,26 @@ export default function AdminLatenessAnalyticsPage() {
                       )}
                     </tbody>
                   </table>
-                  <div className="flex justify-end p-4">
+                  <div className="flex justify-between items-center p-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setControllerPage(Math.max(1, controllerPage - 1))}
+                        disabled={controllerPage === 1}
+                        className="px-3 py-1 rounded bg-indigo-100 text-indigo-800 disabled:opacity-50 text-sm"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-sm text-indigo-700">
+                        Page {controllerPage} of {Math.ceil((analytics?.controllerData?.length || 0) / itemsPerPage)}
+                      </span>
+                      <button
+                        onClick={() => setControllerPage(controllerPage + 1)}
+                        disabled={controllerPage >= Math.ceil((analytics?.controllerData?.length || 0) / itemsPerPage)}
+                        className="px-3 py-1 rounded bg-indigo-100 text-indigo-800 disabled:opacity-50 text-sm"
+                      >
+                        Next
+                      </button>
+                    </div>
                     <button
                       className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-md hover:bg-indigo-200 hover:scale-105 transition-all text-sm"
                       onClick={() =>
@@ -622,8 +657,9 @@ export default function AdminLatenessAnalyticsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-indigo-100">
-                      {sortData(analytics.teacherData, sortKey, sortDir).map(
-                        (t: any, i: number) => (
+                      {sortData(analytics.teacherData, sortKey, sortDir)
+                        .slice((teacherPage - 1) * itemsPerPage, teacherPage * itemsPerPage)
+                        .map((t: any, i: number) => (
                           <React.Fragment key={t.name}>
                             <tr
                               className={`cursor-pointer hover:bg-indigo-50 transition-all animate-slide-in ${
@@ -990,7 +1026,26 @@ export default function AdminLatenessAnalyticsPage() {
                       )}
                     </tbody>
                   </table>
-                  <div className="flex justify-end p-4">
+                  <div className="flex justify-between items-center p-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setTeacherPage(Math.max(1, teacherPage - 1))}
+                        disabled={teacherPage === 1}
+                        className="px-3 py-1 rounded bg-indigo-100 text-indigo-800 disabled:opacity-50 text-sm"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-sm text-indigo-700">
+                        Page {teacherPage} of {Math.ceil((analytics?.teacherData?.length || 0) / itemsPerPage)}
+                      </span>
+                      <button
+                        onClick={() => setTeacherPage(teacherPage + 1)}
+                        disabled={teacherPage >= Math.ceil((analytics?.teacherData?.length || 0) / itemsPerPage)}
+                        className="px-3 py-1 rounded bg-indigo-100 text-indigo-800 disabled:opacity-50 text-sm"
+                      >
+                        Next
+                      </button>
+                    </div>
                     <button
                       className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-md hover:bg-indigo-200 hover:scale-105 transition-all text-sm"
                       onClick={() =>
@@ -1175,7 +1230,26 @@ export default function AdminLatenessAnalyticsPage() {
                   )}
                 </tbody>
               </table>
-              <div className="flex justify-end p-4">
+              <div className="flex justify-between items-center p-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setDailyPage(Math.max(1, dailyPage - 1))}
+                    disabled={dailyPage === 1}
+                    className="px-3 py-1 rounded bg-indigo-100 text-indigo-800 disabled:opacity-50 text-sm"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-indigo-700">
+                    Page {dailyPage} of {Math.ceil(dailyTotal / itemsPerPage)}
+                  </span>
+                  <button
+                    onClick={() => setDailyPage(dailyPage + 1)}
+                    disabled={dailyPage >= Math.ceil(dailyTotal / itemsPerPage)}
+                    className="px-3 py-1 rounded bg-indigo-100 text-indigo-800 disabled:opacity-50 text-sm"
+                  >
+                    Next
+                  </button>
+                </div>
                 <button
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-md hover:bg-indigo-200 hover:scale-105 transition-all text-sm"
                   onClick={() =>

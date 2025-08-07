@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
     const [studentCount, payments, pendingPaymentCount] =
       await prisma.$transaction([
-        prisma.wpos_wpdatatable_23.count({ where: studentWhere }),
+        prisma.wpos_wpdatatable_23.count(),
         prisma.payment.findMany({
           where: paymentWhere,
           select: { status: true, paidamount: true },
@@ -46,16 +46,10 @@ export async function GET(req: NextRequest) {
         }),
       ]);
 
-    const adminCount = hasDateFilter ? 0 : await prisma.admin.count();
-    const controllerCount = hasDateFilter
-      ? 0
-      : await prisma.wpos_wpdatatable_28.count();
-    const teacherCount = hasDateFilter
-      ? 0
-      : await prisma.wpos_wpdatatable_24.count();
-    const registralCount = hasDateFilter
-      ? 0
-      : await prisma.wpos_wpdatatable_33.count();
+    const adminCount = await prisma.admin.count();
+    const controllerCount = await prisma.wpos_wpdatatable_28.count();
+    const teacherCount = await prisma.wpos_wpdatatable_24.count();
+    const registralCount = await prisma.wpos_wpdatatable_33.count();
 
     const revenueByStatus = payments.reduce(
       (acc, p) => {
