@@ -251,17 +251,17 @@ export default function AttendanceList() {
         // Calculate time difference
         let diffLabel = "N/A";
         if (link && link.sent_time && record.scheduledAt) {
-          const scheduled = parseISO(record.scheduledAt);
-          const sent = parseISO(link.sent_time);
-          if (isValid(scheduled) && isValid(sent)) {
-            const diff = Math.round(
-              (sent.getTime() - scheduled.getTime()) / 60000
-            );
-            if (diff < 0) diffLabel = `${Math.abs(diff)} min early`;
-            else if (diff <= 3) diffLabel = "Early";
-            else if (diff <= 5) diffLabel = "On Time";
-            else diffLabel = "Very Late";
-          }
+          const scheduled = new Date(record.scheduledAt);
+          const sent = new Date(link.sent_time);
+          // if (isValid(scheduled) && isValid(sent)) {
+          const diff = Math.round(
+            (sent.getTime() - scheduled.getTime()) / 60000
+          );
+          if (diff < 0) diffLabel = `${Math.abs(diff)} min early`;
+          else if (diff <= 3) diffLabel = "Early";
+          else if (diff <= 5) diffLabel = "On Time";
+          else diffLabel = "Very Late";
+          // }
         }
         return [
           record.studentName,
