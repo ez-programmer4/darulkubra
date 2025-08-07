@@ -161,8 +161,12 @@ export default function Controller() {
 
   // Calculate statistics
   const totalStudents = students.length;
-  const activeStudents = students.filter((s) => s.status === "active").length;
-  const notYetStudents = students.filter((s) => s.status === "not yet").length;
+  const activeStudents = students.filter(
+    (s) => s.status == "active" || s.status == "Active"
+  ).length;
+  const notYetStudents = students.filter(
+    (s) => s.status == "not yet" || s.status == "Not yet"
+  ).length;
 
   if (loading) {
     return (
