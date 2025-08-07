@@ -167,8 +167,11 @@ export default function AttendanceList() {
             })[0];
           }
           // Parse scheduledAt
-          let scheduled: Date | null = parseISO(record.scheduledAt);
-          if (!isValid(scheduled)) scheduled = null;
+          let scheduled: Date | null = null;
+          if (record.scheduledAt && record.scheduledAt !== 'null') {
+            scheduled = parseISO(record.scheduledAt);
+            if (!isValid(scheduled)) scheduled = null;
+          }
           return {
             ...record,
             scheduledDateObj: scheduled,
