@@ -67,7 +67,7 @@ export default function AttendanceList() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd")); // 2025-06-20
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [ustaz, setUstaz] = useState("");
@@ -94,8 +94,10 @@ export default function AttendanceList() {
   const [selectedLinks, setSelectedLinks] = useState<{
     [studentId: number]: number;
   }>({});
+  // Remove studentStatusFilter state
 
   useEffect(() => {
+    // Save notified student-date keys to localStorage whenever they change
     if (typeof window !== "undefined") {
       localStorage.setItem(
         "notifiedStudentDateKeys",
@@ -122,9 +124,7 @@ export default function AttendanceList() {
       });
       const response = await fetch(
         `/api/attendance-list?${params.toString()}`,
-        {
-          credentials: "include",
-        }
+        { credentials: "include" }
       );
       const result = await response.json();
       console.log(
@@ -154,6 +154,7 @@ export default function AttendanceList() {
         setTotal(0);
       } else {
         const updatedData = result.integratedData.map((record: any) => {
+          // Default to the latest link (by sent_time desc)
           let selectedLink = null;
           if (record.links && record.links.length > 0) {
             selectedLink = [...record.links].sort((a, b) => {
@@ -165,12 +166,13 @@ export default function AttendanceList() {
               );
             })[0];
           }
+          // Parse scheduledAt
           let scheduled: Date | null = parseISO(record.scheduledAt);
           if (!isValid(scheduled)) scheduled = null;
           return {
             ...record,
             scheduledDateObj: scheduled,
-            selectedLink,
+            selectedLink, // for convenience
           };
         });
         setData(updatedData);
@@ -190,11 +192,13 @@ export default function AttendanceList() {
     fetchData();
   }, [date, ustaz, attendanceStatus, sentStatus, clickedStatus, page, limit]);
 
+  // Early returns after all hooks
   if (status === "loading") return <div>Loading...</div>;
   if (status === "unauthenticated") return <div>Unauthorized</div>;
 
   const user = session?.user;
 
+  // Quick-select for days
   const daysOfWeek = [
     { label: "Today", getDate: () => format(new Date(), "yyyy-MM-dd") },
     ...[
@@ -209,6 +213,7 @@ export default function AttendanceList() {
       label: day,
       getDate: () => {
         const now = new Date();
+        // startOfWeek with { weekStartsOn: 1 } for Monday
         const weekStart = startOfWeek(now, { weekStartsOn: 1 });
         return format(addDays(weekStart, idx), "yyyy-MM-dd");
       },
@@ -243,6 +248,7 @@ export default function AttendanceList() {
             : sortedLinks && sortedLinks.length === 1
             ? sortedLinks[0]
             : null;
+        // Calculate time difference
         let diffLabel = "N/A";
         if (link && link.sent_time && record.scheduledAt) {
           const scheduled = new Date(record.scheduledAt);
@@ -254,6 +260,7 @@ export default function AttendanceList() {
           else if (diff <= 3) diffLabel = "Early";
           else if (diff <= 5) diffLabel = "On Time";
           else diffLabel = "Very Late";
+
         }
         return [
           record.studentName,
@@ -287,20 +294,13 @@ export default function AttendanceList() {
   };
 
   const handleNotifyClick = (studentId: number, scheduledDate: string) => {
-    setStudentToNotify(`${studentId}|${scheduledDate}`);
+    setStudentToNotify(`${studentId}|${scheduledDate ?? ""}`);
   };
 
   const confirmNotify = async () => {
-    if (!studentToNotify || typeof studentToNotify !== "string") {
-      setStudentToNotify(null);
-      return;
-    }
+    if (!studentToNotify || typeof studentToNotify !== "string") return;
     const parts = studentToNotify.split("|");
-    if (parts.length !== 2) {
-      toast.error("Invalid notification data");
-      setStudentToNotify(null);
-      return;
-    }
+    if (parts.length !== 2) return;
     const [studentId, scheduledDate] = parts;
     try {
       const response = await fetch(`/api/attendance-list?notify=${studentId}`, {
@@ -321,7 +321,7 @@ export default function AttendanceList() {
     } catch (err) {
       toast.error("An unexpected error occurred while sending the SMS.");
     } finally {
-      setStudentToNotify(null);
+      setStudentToNotify(null); // Close the modal
     }
   };
 
@@ -332,6 +332,8 @@ export default function AttendanceList() {
       return "N/A";
     }
     try {
+      // Directly format the UTC string to avoid local timezone conversion
+      // Input: "2025-06-20T16:00:00.000Z" -> Output: "2025-06-20 16:00"
       const datePart = dateStr.substring(0, 10);
       const timePart = dateStr.substring(11, 16);
       return `${datePart} ${timePart}`;
@@ -340,8 +342,18 @@ export default function AttendanceList() {
     }
   };
 
+  // Filter data based on search query
   const filteredData = data.filter((record) =>
     record.studentName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Attendance statistics calculation based on selected date
+  console.log(
+    "Filtered data:",
+    filteredData.map((r) => ({
+      name: r.studentName,
+      status: r.attendance_status,
+    }))
   );
 
   const attendanceStats = filteredData.reduce(
@@ -357,10 +369,7 @@ export default function AttendanceList() {
       record
     ) => {
       acc.total++;
-      const status =
-        record.attendance_status.charAt(0).toUpperCase() +
-        record.attendance_status.slice(1);
-      acc[status] = (acc[status] || 0) + 1;
+      acc[record.attendance_status] = (acc[record.attendance_status] || 0) + 1;
       return acc;
     },
     { total: 0, Present: 0, Absent: 0, Permission: 0, "Not Taken": 0 }
@@ -373,6 +382,7 @@ export default function AttendanceList() {
       : "N/A";
 
   if (loading) {
+    // Table skeleton loader
     return <AttendanceListSkeleton />;
   }
 
@@ -414,6 +424,7 @@ export default function AttendanceList() {
             <FiArrowLeft className="group-hover:-translate-x-1 transition-transform duration-300" />
             <span>Back to Dashboard</span>
           </button>
+
           <button
             onClick={() => router.push("/analytics")}
             className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-indigo-400 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white font-medium transition-all duration-300 shadow-md hover:shadow-lg flex items-center"
@@ -421,6 +432,7 @@ export default function AttendanceList() {
             <FiBarChart className="mr-2" />
             <span>Analytics</span>
           </button>
+
           <button
             onClick={() => router.push("/reports")}
             className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-400 to-purple-500 hover:from-purple-500 hover:to-purple-600 text-white font-medium transition-all duration-300 shadow-md hover:shadow-lg flex items-center"
@@ -447,13 +459,15 @@ export default function AttendanceList() {
                 date === d.getDate()
                   ? "bg-indigo-500 text-white border-indigo-600 shadow"
                   : "bg-white text-gray-700 border-gray-300 hover:bg-indigo-100"
-              }`}
+              }
+            `}
           >
             {d.label}
           </button>
         ))}
       </div>
 
+      {/* Search and Actions Row */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
         <div className="flex-1">
           <div className="relative max-w-xs">
@@ -489,12 +503,14 @@ export default function AttendanceList() {
         </div>
       </div>
 
+      {/* Advanced Filter Bar */}
       <div className="mb-6 p-2 sm:p-4 rounded-2xl shadow-lg bg-gradient-to-br from-gray-50 to-white border border-gray-200">
         <div className="flex items-center gap-2 mb-4">
           <FiFilter className="text-indigo-500 text-xl" />
           <span className="text-lg font-semibold text-indigo-700">Filters</span>
         </div>
         <div className="flex flex-wrap gap-4">
+          {/* Date Range Group */}
           <div className="flex flex-col gap-2 bg-blue-50 rounded-xl p-3 min-w-[200px]">
             <span className="text-xs font-semibold text-blue-700 mb-1">
               Absent Days Range
@@ -517,6 +533,7 @@ export default function AttendanceList() {
               className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300 shadow-sm"
             />
           </div>
+          {/* Single Date Group */}
           <div className="flex flex-col gap-2 bg-indigo-50 rounded-xl p-3 min-w-[160px]">
             <span className="text-xs font-semibold text-indigo-700 mb-1">
               Single Date
@@ -528,6 +545,7 @@ export default function AttendanceList() {
               className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
             />
           </div>
+          {/* Ustadz Group */}
           <div className="flex flex-col gap-2 bg-green-50 rounded-xl p-3 min-w-[160px]">
             <span className="text-xs font-semibold text-green-700 mb-1">
               Ustadz
@@ -545,6 +563,7 @@ export default function AttendanceList() {
               ))}
             </select>
           </div>
+          {/* Attendance Status Group */}
           <div className="flex flex-col gap-2 bg-yellow-50 rounded-xl p-3 min-w-[160px]">
             <span className="text-xs font-semibold text-yellow-700 mb-1">
               Attendance Status
@@ -561,6 +580,7 @@ export default function AttendanceList() {
               <option value="Not Taken">Not Taken</option>
             </select>
           </div>
+          {/* Sent/Clicked Status Group */}
           <div className="flex flex-col gap-2 bg-purple-50 rounded-xl p-3 min-w-[160px]">
             <span className="text-xs font-semibold text-purple-700 mb-1">
               Link Status
@@ -587,6 +607,7 @@ export default function AttendanceList() {
         </div>
       </div>
 
+      {/* Absent Days Info Section */}
       {startDate && endDate && (
         <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <h3 className="text-sm font-semibold text-blue-800 mb-2">
@@ -618,6 +639,7 @@ export default function AttendanceList() {
         </div>
       )}
 
+      {/* Attendance Analytics Section */}
       <div className="mb-8">
         <div className="mb-4 p-2 sm:p-3 bg-indigo-50 rounded-lg border border-indigo-200">
           <h3 className="text-sm font-semibold text-indigo-800 mb-2">
@@ -673,6 +695,7 @@ export default function AttendanceList() {
         </div>
       </div>
 
+      {/* Quick Analytics Insights */}
       <div className="mb-6 p-2 sm:p-4 rounded-xl shadow-lg bg-gradient-to-br from-indigo-50 to-white border border-indigo-200">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold text-indigo-800 flex items-center">
@@ -748,6 +771,9 @@ export default function AttendanceList() {
           teacher performance, and comprehensive reports.
         </div>
       </div>
+
+      {/* Add dropdown above the table */}
+      {/* Remove the dropdown above the table */}
 
       <div className="overflow-x-auto rounded-lg shadow-lg">
         <table className="min-w-[900px] w-full divide-y divide-gray-200 text-xs sm:text-sm">
@@ -934,12 +960,20 @@ export default function AttendanceList() {
                               : null;
                           let colorClass = "bg-gray-100 text-gray-800";
                           let diffLabel = "N/A";
-                          if (link && link.sent_time && record.scheduledAt) {
-                            const scheduled = new Date(record.scheduledAt);
+                          if (link && link.sent_time && record.scheduledAt && record.scheduledAt !== 'null') {
+                            // Fix malformed scheduledAt format
+                            let fixedScheduledAt = record.scheduledAt.replace(/T(\d{1,2}):(\d{2}) (AM|PM)\.000Z/, (match, hour, min, period) => {
+                              let h = parseInt(hour);
+                              if (period === 'PM' && h !== 12) h += 12;
+                              if (period === 'AM' && h === 12) h = 0;
+                              return `T${h.toString().padStart(2, '0')}:${min}:00.000Z`;
+                            });
+                            const scheduled = new Date(fixedScheduledAt);
                             const sent = new Date(link.sent_time);
-                            const diff = Math.round(
-                              (sent.getTime() - scheduled.getTime()) / 60000
-                            );
+                            if (!isNaN(scheduled.getTime()) && !isNaN(sent.getTime())) {
+                              const diff = Math.round(
+                                (sent.getTime() - scheduled.getTime()) / 60000
+                              );
                             if (diff < 0) {
                               diffLabel = `${Math.abs(diff)} min early`;
                               colorClass = "bg-green-100 text-green-800";
@@ -949,10 +983,12 @@ export default function AttendanceList() {
                             } else if (diff <= 5) {
                               diffLabel = `On Time (${diff} min)`;
                               colorClass = "bg-blue-100 text-blue-800";
-                            } else {
-                              diffLabel = `Very Late (${diff} min)`;
-                              colorClass = "bg-red-100 text-red-800";
+                              } else {
+                                diffLabel = `Very Late (${diff} min)`;
+                                colorClass = "bg-red-100 text-red-800";
+                              }
                             }
+
                           }
                           return (
                             <span
@@ -966,13 +1002,14 @@ export default function AttendanceList() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                         <span
                           className={`px-3 py-1 inline-flex text-xs font-medium rounded-full shadow-sm
-                          ${
-                            record.attendance_status === "Present"
-                              ? "bg-green-100 text-green-800"
-                              : record.attendance_status === "Absent"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
+                            ${
+                              record.attendance_status === "present"
+                                ? "bg-green-100 text-green-800"
+                                : record.attendance_status === "absent"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
+                            }
+                          `}
                         >
                           {record.attendance_status
                             .replace("-", " ")
@@ -1106,6 +1143,7 @@ export default function AttendanceList() {
         onCancel={() => setStudentToNotify(null)}
       />
 
+      {/* Attendance Details Modal/Expandable Row */}
       {typeof window !== "undefined" && expandedStudentId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 max-w-md w-full relative">
@@ -1159,9 +1197,9 @@ export default function AttendanceList() {
                     {(() => {
                       if (!link || !link.sent_time || !student.scheduledAt)
                         return "N/A";
-                      const scheduled = parseISO(student.scheduledAt);
-                      const sent = parseISO(link.sent_time);
-                      if (!isValid(scheduled) || !isValid(sent)) return "N/A";
+                      const scheduled = new Date(student.scheduledAt);
+                      const sent = new Date(link.sent_time);
+
                       const diff = Math.round(
                         (sent.getTime() - scheduled.getTime()) / 60000
                       );
