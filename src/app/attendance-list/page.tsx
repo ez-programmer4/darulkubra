@@ -962,26 +962,26 @@ export default function AttendanceList() {
                           let colorClass = "bg-gray-100 text-gray-800";
                           let diffLabel = "N/A";
                           if (link && link.sent_time && record.scheduledAt) {
-                            const scheduled = parseISO(record.scheduledAt);
-                            const sent = parseISO(link.sent_time);
-                            if (isValid(scheduled) && isValid(sent)) {
-                              const diff = Math.round(
-                                (sent.getTime() - scheduled.getTime()) / 60000
-                              );
-                              if (diff < 0) {
-                                diffLabel = `${Math.abs(diff)} min early`;
-                                colorClass = "bg-green-100 text-green-800";
-                              } else if (diff <= 3) {
-                                diffLabel = `Early (${diff} min)`;
-                                colorClass = "bg-green-100 text-green-800";
-                              } else if (diff <= 5) {
-                                diffLabel = `On Time (${diff} min)`;
-                                colorClass = "bg-blue-100 text-blue-800";
-                              } else {
-                                diffLabel = `Very Late (${diff} min)`;
-                                colorClass = "bg-red-100 text-red-800";
-                              }
+                            const scheduled = new Date(record.scheduledAt);
+                            const sent = new Date(link.sent_time);
+                            // if (isValid(scheduled) && isValid(sent)) {
+                            const diff = Math.round(
+                              (sent.getTime() - scheduled.getTime()) / 60000
+                            );
+                            if (diff < 0) {
+                              diffLabel = `${Math.abs(diff)} min early`;
+                              colorClass = "bg-green-100 text-green-800";
+                            } else if (diff <= 3) {
+                              diffLabel = `Early (${diff} min)`;
+                              colorClass = "bg-green-100 text-green-800";
+                            } else if (diff <= 5) {
+                              diffLabel = `On Time (${diff} min)`;
+                              colorClass = "bg-blue-100 text-blue-800";
+                            } else {
+                              diffLabel = `Very Late (${diff} min)`;
+                              colorClass = "bg-red-100 text-red-800";
                             }
+                            // }
                           }
                           return (
                             <span
