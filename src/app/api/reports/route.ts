@@ -120,7 +120,7 @@ async function generateComprehensiveReport(
     (sum, student) =>
       sum +
       student.attendance_progress.filter(
-        (ap: any) => ap.attendance_status === "present"
+        (ap: any) => ap.attendance_status === "Present"
       ).length,
     0
   );
@@ -128,7 +128,7 @@ async function generateComprehensiveReport(
     (sum, student) =>
       sum +
       student.attendance_progress.filter(
-        (ap: any) => ap.attendance_status === "absent"
+        (ap: any) => ap.attendance_status === "Absent"
       ).length,
     0
   );
@@ -136,7 +136,7 @@ async function generateComprehensiveReport(
     (sum, student) =>
       sum +
       student.attendance_progress.filter(
-        (ap: any) => ap.attendance_status === "permission"
+        (ap: any) => ap.attendance_status === "Permission"
       ).length,
     0
   );
@@ -150,13 +150,13 @@ async function generateComprehensiveReport(
     .map((student) => {
       const totalSessions = student.attendance_progress.length;
       const presentSessions = student.attendance_progress.filter(
-        (ap: any) => ap.attendance_status === "present"
+        (ap: any) => ap.attendance_status === "Present"
       ).length;
       const absentSessions = student.attendance_progress.filter(
-        (ap: any) => ap.attendance_status === "absent"
+        (ap: any) => ap.attendance_status === "Absent"
       ).length;
       const permissionSessions = student.attendance_progress.filter(
-        (ap: any) => ap.attendance_status === "permission"
+        (ap: any) => ap.attendance_status === "Permission"
       ).length;
       const attendanceRate =
         totalSessions > 0
@@ -186,13 +186,13 @@ async function generateComprehensiveReport(
       );
       const totalSessions = allAttendance.length;
       const presentSessions = allAttendance.filter(
-        (ap: any) => ap.attendance_status === "present"
+        (ap: any) => ap.attendance_status === "Present"
       ).length;
       const absentSessions = allAttendance.filter(
-        (ap: any) => ap.attendance_status === "absent"
+        (ap: any) => ap.attendance_status === "Absent"
       ).length;
       const permissionSessions = allAttendance.filter(
-        (ap: any) => ap.attendance_status === "permission"
+        (ap: any) => ap.attendance_status === "Permission"
       ).length;
       const attendanceRate =
         totalSessions > 0
@@ -227,13 +227,13 @@ async function generateComprehensiveReport(
 
     const totalDay = dayAttendance.length;
     const presentDay = dayAttendance.filter(
-      (ap: any) => ap.attendance_status === "present"
+      (ap: any) => ap.attendance_status === "Present"
     ).length;
     const absentDay = dayAttendance.filter(
-      (ap: any) => ap.attendance_status === "absent"
+      (ap: any) => ap.attendance_status === "Absent"
     ).length;
     const permissionDay = dayAttendance.filter(
-      (ap: any) => ap.attendance_status === "permission"
+      (ap: any) => ap.attendance_status === "Permission"
     ).length;
 
     dailyTrends.push({
@@ -259,7 +259,7 @@ async function generateComprehensiveReport(
     acc[packageName].count++;
     acc[packageName].totalSessions += student.attendance_progress.length;
     acc[packageName].presentSessions += student.attendance_progress.filter(
-      (ap: any) => ap.attendance_status === "present"
+      (ap: any) => ap.attendance_status === "Present"
     ).length;
     return acc;
   }, {});
@@ -305,13 +305,13 @@ async function generateStudentReport(
     .map((student) => {
       const totalSessions = student.attendance_progress.length;
       const presentSessions = student.attendance_progress.filter(
-        (ap: any) => ap.attendance_status === "present"
+        (ap: any) => ap.attendance_status === "Present"
       ).length;
       const absentSessions = student.attendance_progress.filter(
-        (ap: any) => ap.attendance_status === "absent"
+        (ap: any) => ap.attendance_status === "Absent"
       ).length;
       const permissionSessions = student.attendance_progress.filter(
-        (ap: any) => ap.attendance_status === "permission"
+        (ap: any) => ap.attendance_status === "Permission"
       ).length;
       const attendanceRate =
         totalSessions > 0
@@ -379,13 +379,13 @@ async function generateTeacherReport(
       );
       const totalSessions = allAttendance.length;
       const presentSessions = allAttendance.filter(
-        (ap: any) => ap.attendance_status === "present"
+        (ap: any) => ap.attendance_status === "Present"
       ).length;
       const absentSessions = allAttendance.filter(
-        (ap: any) => ap.attendance_status === "absent"
+        (ap: any) => ap.attendance_status === "Absent"
       ).length;
       const permissionSessions = allAttendance.filter(
-        (ap: any) => ap.attendance_status === "permission"
+        (ap: any) => ap.attendance_status === "Permission"
       ).length;
       const attendanceRate =
         totalSessions > 0
@@ -395,7 +395,7 @@ async function generateTeacherReport(
       const studentBreakdown = teacher.students.map((student: any) => {
         const studentSessions = student.attendance_progress.length;
         const studentPresent = student.attendance_progress.filter(
-          (ap: any) => ap.attendance_status === "present"
+          (ap: any) => ap.attendance_status === "Present"
         ).length;
         const studentRate =
           studentSessions > 0
@@ -452,13 +452,13 @@ async function generateDailyReport(
 
     const totalDay = dayAttendance.length;
     const presentDay = dayAttendance.filter(
-      (ap: any) => ap.attendance_status === "present"
+      (ap: any) => ap.attendance_status === "Present"
     ).length;
     const absentDay = dayAttendance.filter(
-      (ap: any) => ap.attendance_status === "absent"
+      (ap: any) => ap.attendance_status === "Absent"
     ).length;
     const permissionDay = dayAttendance.filter(
-      (ap: any) => ap.attendance_status === "permission"
+      (ap: any) => ap.attendance_status === "Permission"
     ).length;
 
     const teacherBreakdown = students.reduce((acc: any, student) => {

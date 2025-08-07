@@ -141,8 +141,8 @@ export async function GET(req: NextRequest) {
         acc[dateStr] = { date: dateStr, Present: 0, Absent: 0, Total: 0 };
       }
       acc[dateStr].Total++;
-      if (record.attendance_status === "present") acc[dateStr].Present++;
-      else if (record.attendance_status === "absent") acc[dateStr].Absent++;
+      if (record.attendance_status === "Present") acc[dateStr].Present++;
+      else if (record.attendance_status === "Absent") acc[dateStr].Absent++;
       return acc;
     }, {});
 
@@ -170,9 +170,9 @@ export async function GET(req: NextRequest) {
           };
         }
         acc[controllerName].Total++;
-        if (record.attendance_status === "present")
+        if (record.attendance_status === "Present")
           acc[controllerName].Present++;
-        else if (record.attendance_status === "absent")
+        else if (record.attendance_status === "Absent")
           acc[controllerName].Absent++;
         return acc;
       },
@@ -203,8 +203,8 @@ export async function GET(req: NextRequest) {
           };
         }
         acc[teacherName].Total++;
-        if (record.attendance_status === "present") acc[teacherName].Present++;
-        else if (record.attendance_status === "absent")
+        if (record.attendance_status === "Present") acc[teacherName].Present++;
+        else if (record.attendance_status === "Absent")
           acc[teacherName].Absent++;
         return acc;
       },

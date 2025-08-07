@@ -83,10 +83,10 @@ export async function GET(
       );
 
       const studentSessions = student.attendance_progress.length;
-      const studentPresent = attendanceBreakdown.present || 0;
-      const studentAbsent = attendanceBreakdown.absent || 0;
-      const studentPermission = attendanceBreakdown.permission || 0;
-      const studentNotTaken = attendanceBreakdown["not-taken"] || 0;
+      const studentPresent = attendanceBreakdown.Present || 0;
+      const studentAbsent = attendanceBreakdown.Absent || 0;
+      const studentPermission = attendanceBreakdown.Permission || 0;
+      const studentNotTaken = attendanceBreakdown["Not Taken"] || 0;
       const studentLinksSent = student.zoom_links.length;
       const studentLinksClicked = student.zoom_links.filter(
         (link) => link.clicked_at

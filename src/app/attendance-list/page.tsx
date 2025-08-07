@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import ConfirmModal from "../components/ConfirmModal";
 import { Toaster, toast } from "react-hot-toast";
-import AttendanceListSkeleton from "./AttendanceListSkeleton";
 import {
   FiArrowLeft,
   FiUser,
@@ -20,6 +18,7 @@ import {
   FiFilter,
   FiBarChart,
   FiFileText,
+  FiCheck,
 } from "react-icons/fi";
 import {
   format,
@@ -35,6 +34,7 @@ interface IntegratedRecord {
   student_id: number;
   studentName: string;
   ustazName: string;
+  controllerName: string;
   scheduledAt: string;
   links: Array<{
     id: number;
@@ -47,9 +47,7 @@ interface IntegratedRecord {
   }>;
   attendance_status: string;
   absentDaysCount?: number;
-  scheduledDateObj?: Date | null;
-  clickedDateObj?: Date | null;
-  sentRaw?: string;
+  daypackages: string;
 }
 
 interface Stats {
@@ -59,6 +57,82 @@ interface Stats {
   missedDeadlines: number;
   responseRate: string;
 }
+
+// Utility to format attendance status
+const formatAttendanceStatus = (status: string): string => {
+  const validStatuses = ["Present", "Absent", "Permission", "Not Taken"];
+  const normalizedStatus =
+    status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  return validStatuses.includes(normalizedStatus)
+    ? normalizedStatus
+    : "Not Taken";
+};
+
+// Modal component for confirmations
+const ConfirmModal: React.FC<{
+  open: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}> = ({ open, title, message, onConfirm, onCancel }) => {
+  if (!open) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+    >
+      <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-4 sm:p-6 max-w-md w-full border border-indigo-100">
+        <h3 className="text-lg sm:text-xl font-semibold text-indigo-900 mb-4">
+          {title}
+        </h3>
+        <p className="text-sm text-indigo-700 mb-6">{message}</p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold rounded-lg transition-all duration-300"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-all duration-300"
+            aria-label="Confirm"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Skeleton component for loading state
+const AttendanceListSkeleton: React.FC = () => {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-teal-50 p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-4 sm:p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-indigo-200 rounded w-1/4 mb-6"></div>
+          <div className="flex flex-wrap gap-2 mb-6">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="h-10 bg-indigo-100 rounded w-20"></div>
+            ))}
+          </div>
+          <div className="h-10 bg-indigo-100 rounded mb-4"></div>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-12 bg-indigo-50 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function AttendanceList() {
   const { data: session, status } = useSession();
@@ -72,6 +146,7 @@ export default function AttendanceList() {
   const [endDate, setEndDate] = useState("");
   const [ustaz, setUstaz] = useState("");
   const [attendanceStatus, setAttendanceStatus] = useState("");
+  const [dayPackageFilter, setDayPackageFilter] = useState("all");
   const [sentStatus, setSentStatus] = useState("");
   const [clickedStatus, setClickedStatus] = useState("");
   const [page, setPage] = useState(1);
@@ -94,6 +169,21 @@ export default function AttendanceList() {
   const [selectedLinks, setSelectedLinks] = useState<{
     [studentId: number]: number;
   }>({});
+  const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+
+  const selectedDayName = useMemo(
+    () => new Date(date).toLocaleDateString("en-US", { weekday: "long" }),
+    [date]
+  );
+
+  const dayPackages = useMemo(() => {
+    const uniquePackages = [
+      ...new Set(data.map((record) => record.daypackages)),
+    ];
+    return ["all", ...uniquePackages.filter(Boolean).sort()];
+  }, [data]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -116,18 +206,24 @@ export default function AttendanceList() {
         clickedStatus,
         page: page.toString(),
         limit: limit.toString(),
+        controllerId: session?.user?.id || "",
         ...(startDate && { startDate }),
         ...(endDate && { endDate }),
         ...(notifyStudentId && { notify: notifyStudentId.toString() }),
       });
       const response = await fetch(
         `/api/attendance-list?${params.toString()}`,
-        { credentials: "include" }
+        {
+          credentials: "include",
+        }
       );
       const result = await response.json();
       console.log("API response:", result);
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(
+          result.error || `HTTP error! status: ${response.status}`
+        );
+      }
       if (notifyStudentId) {
         if (result.message === "Notification sent to teacher") {
           toast.success("SMS notification sent to teacher!");
@@ -143,11 +239,12 @@ export default function AttendanceList() {
       if (!result.integratedData || !Array.isArray(result.integratedData)) {
         setData([]);
         setTotal(0);
+        setError("No attendance data available");
       } else {
         const updatedData = result.integratedData.map((record: any) => {
           let selectedLink = null;
           if (record.links && record.links.length > 0) {
-            selectedLink = [...record.links].sort((a, b) => {
+            selectedLink = [...record.links].sort((a: any, b: any) => {
               if (!a.sent_time) return 1;
               if (!b.sent_time) return -1;
               return (
@@ -167,6 +264,7 @@ export default function AttendanceList() {
             ...record,
             scheduledDateObj: scheduled,
             selectedLink,
+            attendance_status: formatAttendanceStatus(record.attendance_status),
           };
         });
         setData(updatedData);
@@ -174,17 +272,71 @@ export default function AttendanceList() {
         setStats(result.stats || null);
       }
     } catch (err) {
+      console.error("Fetch error:", err);
       setError(
-        err instanceof Error ? err.message : "Failed to load attendance list"
+        err instanceof Error
+          ? `Failed to load attendance list: ${err.message}`
+          : "Failed to load attendance list"
       );
+      setData([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleBulkUpdate = async () => {
+    if (selectedStudents.length === 0 || !bulkStatus) {
+      toast.error("Please select students and a status to update.");
+      return;
+    }
+
+    try {
+      const updates = selectedStudents.map((studentId) => ({
+        student_id: studentId,
+        date,
+        attendance_status: bulkStatus,
+      }));
+
+      const response = await fetch("/api/attendance-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update attendance");
+      }
+
+      toast.success("Attendance updated successfully!");
+      setSelectedStudents([]);
+      setBulkStatus("");
+      setShowBulkConfirm(false);
+      fetchData();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update attendance"
+      );
+    }
+  };
+
   useEffect(() => {
-    fetchData();
-  }, [date, ustaz, attendanceStatus, sentStatus, clickedStatus, page, limit]);
+    if (status === "authenticated" && session?.user?.id) {
+      fetchData();
+    }
+  }, [
+    date,
+    ustaz,
+    attendanceStatus,
+    sentStatus,
+    clickedStatus,
+    page,
+    limit,
+    status,
+    session,
+  ]);
 
   if (status === "loading") return <AttendanceListSkeleton />;
   if (status === "unauthenticated") {
@@ -218,7 +370,7 @@ export default function AttendanceList() {
 
   const exportToCSV = () => {
     const headers = [
-      "Student Name,Ustadz Name,Link,Scheduled At,Sent Time,Clicked Time,Time Difference,Attendance Status",
+      "Student Name,Ustadz Name,Controller Name,Link,Scheduled At,Sent Time,Clicked Time,Time Difference,Attendance Status,Day Package",
     ];
     const rows = filteredData.map((record) => {
       const sortedLinks = [...record.links].sort((a, b) => {
@@ -257,12 +409,14 @@ export default function AttendanceList() {
       return [
         record.studentName,
         record.ustazName,
+        record.controllerName,
         link ? link.link : "N/A",
         formatDateSafely(record.scheduledAt),
         link && link.sent_time ? formatDateSafely(link.sent_time) : "N/A",
         link && link.clicked_at ? formatDateSafely(link.clicked_at) : "N/A",
         diffLabel,
-        record.attendance_status || "N/A",
+        record.attendance_status,
+        record.daypackages,
       ].join(",");
     });
     const csvContent = [headers, ...rows].join("\n");
@@ -279,12 +433,15 @@ export default function AttendanceList() {
     setDate(format(new Date(), "yyyy-MM-dd"));
     setUstaz("");
     setAttendanceStatus("");
+    setDayPackageFilter("all");
     setSentStatus("");
     setClickedStatus("");
     setSearchQuery("");
     setStartDate("");
     setEndDate("");
     setPage(1);
+    setSelectedStudents([]);
+    setBulkStatus("");
   };
 
   const handleNotifyClick = (studentId: number, scheduledDate: string) => {
@@ -332,15 +489,50 @@ export default function AttendanceList() {
     }
   };
 
-  // Modified filter to include relevant attendance statuses
-  const filteredData = data
-    .filter((record) =>
-      record.studentName.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    .filter((record) => {
-      const status = record.attendance_status.toLowerCase();
-      return ["present", "absent", "permission", "not-taken"].includes(status);
-    });
+  const filteredData = useMemo(() => {
+    return data
+      .filter((record) =>
+        record.studentName.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .filter((record) => {
+        if (!attendanceStatus) return true;
+        return (
+          record.attendance_status.toLowerCase() ===
+          attendanceStatus.toLowerCase()
+        );
+      })
+      .filter((record) => {
+        if (dayPackageFilter === "all") return true;
+        if (!record.daypackages) return dayPackageFilter === "All days";
+        const daypackagesLower = record.daypackages.toLowerCase();
+        return (
+          daypackagesLower.includes(dayPackageFilter.toLowerCase()) ||
+          dayPackageFilter.toLowerCase() === "all days" ||
+          (["Monday", "Wednesday", "Friday"].includes(selectedDayName) &&
+            daypackagesLower.includes("mwf")) ||
+          (["Tuesday", "Thursday", "Saturday"].includes(selectedDayName) &&
+            daypackagesLower.includes("tts"))
+        );
+      })
+      .filter((record) => {
+        if (!sentStatus) return true;
+        const hasSentLink = record.links.some((l) => l.sent_time);
+        return sentStatus === "sent" ? hasSentLink : !hasSentLink;
+      })
+      .filter((record) => {
+        if (!clickedStatus) return true;
+        const hasClickedLink = record.links.some((l) => l.clicked_at);
+        return clickedStatus === "clicked" ? hasClickedLink : !hasClickedLink;
+      });
+  }, [
+    data,
+    searchQuery,
+    dayPackageFilter,
+    selectedDayName,
+    attendanceStatus,
+    sentStatus,
+    clickedStatus,
+  ]);
 
   const attendanceStats = filteredData.reduce(
     (
@@ -349,25 +541,20 @@ export default function AttendanceList() {
         present: number;
         absent: number;
         permission: number;
-        "not-taken": number;
+        notTaken: number;
       },
       record
     ) => {
       acc.total++;
-      const status = record.attendance_status as keyof typeof acc;
-      if (status in acc) {
-        acc[status] = (acc[status] || 0) + 1;
-      }
+      const status = record.attendance_status.toLowerCase();
+      if (status === "present") acc.present++;
+      else if (status === "absent") acc.absent++;
+      else if (status === "permission") acc.permission++;
+      else if (status === "not taken") acc.notTaken++;
       return acc;
     },
-    { total: 0, present: 0, absent: 0, permission: 0, "not-taken": 0 }
+    { total: 0, present: 0, absent: 0, permission: 0, notTaken: 0 }
   );
-
-  const attendanceRate =
-    attendanceStats.total > 0
-      ? ((attendanceStats.present / attendanceStats.total) * 100).toFixed(1) +
-        "%"
-      : "N/A";
 
   if (loading) {
     return <AttendanceListSkeleton />;
@@ -380,7 +567,7 @@ export default function AttendanceList() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="max-w-7xl mx-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-4 sm:p-6 animate-slide-in"
+          className="max-w-7xl mx-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-4 sm:p-6"
         >
           <h2 className="text-lg sm:text-xl font-semibold text-red-700 mb-2">
             Error
@@ -405,7 +592,7 @@ export default function AttendanceList() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="max-w-7xl mx-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-4 sm:p-6 animate-slide-in"
+        className="max-w-7xl mx-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-4 sm:p-6"
       >
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
@@ -556,7 +743,7 @@ export default function AttendanceList() {
                 aria-label="Filter by Ustadz"
               >
                 <option value="">All</option>
-                {[...new Set(data.map((d) => d.ustazName))].map((u) => (
+                {[...new Set(data.map((d) => d.ustazName))].sort().map((u) => (
                   <option key={u} value={u}>
                     {u}
                   </option>
@@ -574,10 +761,27 @@ export default function AttendanceList() {
                 aria-label="Filter by attendance status"
               >
                 <option value="">All</option>
-                <option value="present">Present</option>
-                <option value="absent">Absent</option>
-                <option value="permission">Permission</option>
-                <option value="not-taken">Not Taken</option>
+                <option value="Present">Present</option>
+                <option value="Absent">Absent</option>
+                <option value="Permission">Permission</option>
+                <option value="Not Taken">Not Taken</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-2 bg-indigo-50 rounded-xl p-3 min-w-[160px]">
+              <span className="text-xs font-semibold text-indigo-700 mb-1">
+                Day Package
+              </span>
+              <select
+                value={dayPackageFilter}
+                onChange={(e) => setDayPackageFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
+                aria-label="Filter by day package"
+              >
+                {dayPackages.map((pkg) => (
+                  <option key={pkg} value={pkg}>
+                    {pkg === "all" ? "All Days" : pkg}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="flex flex-col gap-2 bg-indigo-50 rounded-xl p-3 min-w-[160px]">
@@ -605,6 +809,40 @@ export default function AttendanceList() {
                 <option value="notClicked">Not Clicked</option>
               </select>
             </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="mb-4 sm:mb-6 p-4 sm:p-6 bg-white border border-indigo-100 rounded-2xl shadow-lg"
+        >
+          <h3 className="text-lg sm:text-xl font-semibold text-indigo-900 mb-2 sm:mb-4">
+            Bulk Update Attendance
+          </h3>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <select
+              value={bulkStatus}
+              onChange={(e) => setBulkStatus(e.target.value)}
+              className="w-full sm:w-48 px-3 py-2 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
+              aria-label="Select bulk update status"
+            >
+              <option value="">Select Status</option>
+              <option value="Present">Present</option>
+              <option value="Absent">Absent</option>
+              <option value="Permission">Permission</option>
+              <option value="Not Taken">Not Taken</option>
+            </select>
+            <button
+              onClick={() => setShowBulkConfirm(true)}
+              disabled={selectedStudents.length === 0 || !bulkStatus}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:bg-gray-200 disabled:text-gray-400 focus:ring-2 focus:ring-indigo-500"
+              aria-label="Apply bulk update"
+            >
+              <FiCheck className="mr-2 inline" /> Apply to{" "}
+              {selectedStudents.length} Student(s)
+            </button>
           </div>
         </motion.div>
 
@@ -659,12 +897,8 @@ export default function AttendanceList() {
             <p className="text-sm text-indigo-600">
               Showing attendance statistics for the selected date
             </p>
-            <p className="text-sm text-indigo-600 mt-1 sm:mt-2">
-              📋 <strong>Note:</strong> Only relevant attendance statuses are
-              included in analytics.
-            </p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {[
               {
                 label: "Total Students",
@@ -684,13 +918,8 @@ export default function AttendanceList() {
               },
               {
                 label: "Not Taken",
-                value: attendanceStats["not-taken"],
+                value: attendanceStats.notTaken,
                 color: "gray",
-              },
-              {
-                label: "Attendance Rate",
-                value: attendanceRate,
-                color: "indigo",
               },
             ].map((stat, index) => (
               <motion.div
@@ -711,104 +940,75 @@ export default function AttendanceList() {
               </motion.div>
             ))}
           </div>
+          {stats && (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="bg-blue-50 rounded-2xl p-4 shadow-md border border-blue-100">
+                <span className="text-sm text-blue-800">Total Links</span>
+                <span className="text-xl font-bold text-blue-700">
+                  {stats.totalLinks}
+                </span>
+              </div>
+              <div className="bg-green-50 rounded-2xl p-4 shadow-md border border-green-100">
+                <span className="text-sm text-green-800">Links Sent</span>
+                <span className="text-xl font-bold text-green-700">
+                  {stats.totalSent}
+                </span>
+              </div>
+              <div className="bg-purple-50 rounded-2xl p-4 shadow-md border border-purple-100">
+                <span className="text-sm text-purple-800">Links Clicked</span>
+                <span className="text-xl font-bold text-purple-700">
+                  {stats.totalClicked}
+                </span>
+              </div>
+              <div className="bg-red-50 rounded-2xl p-4 shadow-md border border-red-100">
+                <span className="text-sm text-red-800">Missed Deadlines</span>
+                <span className="text-xl font-bold text-red-700">
+                  {stats.missedDeadlines}
+                </span>
+              </div>
+              <div className="bg-teal-50 rounded-2xl p-4 shadow-md border border-teal-100">
+                <span className="text-sm text-teal-800">Response Rate</span>
+                <span className="text-xl font-bold text-teal-700">
+                  {stats.responseRate}
+                </span>
+              </div>
+            </div>
+          )}
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.5 }}
-          className="mb-4 sm:mb-6 p-4 sm:p-6 rounded-2xl shadow-lg bg-white border border-indigo-100"
-        >
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <h3 className="text-lg sm:text-xl font-semibold text-indigo-900 flex items-center">
-              <FiBarChart className="mr-2 w-5 h-5 sm:w-6 sm:h-6" />
-              Quick Analytics Insights for{" "}
-              {format(parseISO(date), "MMMM dd, yyyy")}
-            </h3>
-            <button
-              onClick={() => router.push("/analytics")}
-              className="px-3 sm:px-4 py-1 sm:py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 focus:ring-2 focus:ring-indigo-500"
-              aria-label="View full analytics"
-            >
-              View Full Analytics
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="bg-white rounded-2xl p-3 sm:p-4 border border-indigo-100">
-              <div className="flex items-center justify-between">
-                <span className="text-indigo-600 font-medium">
-                  {format(parseISO(date), "MMM dd")} Performance
-                </span>
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    parseFloat(attendanceRate) >= 80
-                      ? "bg-green-100 text-green-800"
-                      : parseFloat(attendanceRate) >= 60
-                      ? "bg-yellow-100 text-yellow-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {attendanceRate}
-                </span>
-              </div>
-              <p className="text-indigo-700 mt-1">
-                {attendanceStats.present} out of {attendanceStats.total}{" "}
-                students present
-              </p>
-            </div>
-            <div className="bg-white rounded-2xl p-3 sm:p-4 border border-indigo-100">
-              <div className="flex items-center justify-between">
-                <span className="text-indigo-600 font-medium">
-                  Absent Students
-                </span>
-                <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                  {attendanceStats.absent}
-                </span>
-              </div>
-              <p className="text-indigo-700 mt-1">
-                {attendanceStats.absent > 0
-                  ? `${(
-                      (attendanceStats.absent / attendanceStats.total) *
-                      100
-                    ).toFixed(1)}% of total students`
-                  : "All students accounted for"}
-              </p>
-            </div>
-            <div className="bg-white rounded-2xl p-3 sm:p-4 border border-indigo-100">
-              <div className="flex items-center justify-between">
-                <span className="text-indigo-600 font-medium">
-                  Action Items
-                </span>
-                <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                  {attendanceStats.absent + attendanceStats.permission}
-                </span>
-              </div>
-              <p className="text-indigo-700 mt-1">
-                {attendanceStats.absent + attendanceStats.permission > 0
-                  ? "Students need follow-up"
-                  : "No immediate actions needed"}
-              </p>
-            </div>
-          </div>
-          <div className="mt-3 sm:mt-4 text-sm text-indigo-600">
-            💡 <strong>Tip:</strong> Change the date above to see analytics for
-            different days. Use the full Analytics Dashboard for detailed
-            trends, teacher performance, and comprehensive reports.
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
           className="overflow-x-auto rounded-2xl shadow-lg border border-indigo-100"
         >
           <table className="min-w-[900px] w-full divide-y divide-indigo-100 text-sm">
             <thead className="bg-indigo-50 sticky top-0 z-10">
               <tr>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-indigo-900 uppercase tracking-wider">
+                  <input
+                    type="checkbox"
+                    checked={
+                      selectedStudents.length === filteredData.length &&
+                      filteredData.length > 0
+                    }
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedStudents(
+                          filteredData.map((record) => record.student_id)
+                        );
+                      } else {
+                        setSelectedStudents([]);
+                      }
+                    }}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    aria-label="Select all students"
+                  />
+                </th>
                 {[
                   "Student Name",
                   "Ustadz Name",
+                  "Controller",
                   "Link",
                   "Scheduled At",
                   "Sent Time",
@@ -816,6 +1016,7 @@ export default function AttendanceList() {
                   "Time Difference",
                   "Attendance Status",
                   "Absent Days",
+                  "Day Package",
                   "Actions",
                 ].map((header) => (
                   <th
@@ -861,11 +1062,35 @@ export default function AttendanceList() {
                       className="hover:bg-indigo-50 transition-all duration-200"
                       onClick={() => setExpandedStudentId(record.student_id)}
                     >
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudents.includes(record.student_id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStudents((prev) => [
+                                ...prev,
+                                record.student_id,
+                              ]);
+                            } else {
+                              setSelectedStudents((prev) =>
+                                prev.filter((id) => id !== record.student_id)
+                              );
+                            }
+                          }}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          aria-label={`Select ${record.studentName}`}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
                         {record.studentName}
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
                         {record.ustazName}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
+                        {record.controllerName}
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
                         {sortedLinks && sortedLinks.length > 1 ? (
@@ -883,6 +1108,7 @@ export default function AttendanceList() {
                               }
                               className="border border-indigo-200 rounded-lg px-2 py-1 text-indigo-700 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                               aria-label="Select link"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               {sortedLinks.map((l) => (
                                 <option key={l.id} value={l.id}>
@@ -976,21 +1202,56 @@ export default function AttendanceList() {
                         })()}
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
-                        <span
-                          className={`px-3 py-1 inline-flex text-xs font-medium rounded-full shadow-sm ${
-                            record.attendance_status === "present"
-                              ? "bg-green-100 text-green-800"
-                              : record.attendance_status === "absent"
-                              ? "bg-red-100 text-red-800"
-                              : record.attendance_status === "permission"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
+                        <select
+                          value={record.attendance_status}
+                          onChange={async (e) => {
+                            const newStatus = e.target.value;
+                            try {
+                              const response = await fetch(
+                                "/api/attendance-list",
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    updates: [
+                                      {
+                                        student_id: record.student_id,
+                                        date,
+                                        attendance_status: newStatus,
+                                      },
+                                    ],
+                                  }),
+                                  credentials: "include",
+                                }
+                              );
+                              if (!response.ok) {
+                                const errorData = await response.json();
+                                throw new Error(
+                                  errorData.error ||
+                                    "Failed to update attendance"
+                                );
+                              }
+                              toast.success("Attendance updated successfully!");
+                              fetchData();
+                            } catch (err) {
+                              toast.error(
+                                err instanceof Error
+                                  ? err.message
+                                  : "Failed to update attendance"
+                              );
+                            }
+                          }}
+                          className="border border-indigo-200 rounded-lg px-2 py-1 text-indigo-700 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          aria-label="Update attendance status"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          {record.attendance_status
-                            .replace("-", " ")
-                            .replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </span>
+                          <option value="Present">Present</option>
+                          <option value="Absent">Absent</option>
+                          <option value="Permission">Permission</option>
+                          <option value="Not Taken">Not Taken</option>
+                        </select>
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
                         {startDate && endDate ? (
@@ -1024,6 +1285,9 @@ export default function AttendanceList() {
                         )}
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
+                        {record.daypackages || "All days"}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
                         {(() => {
                           const isNotified =
                             notifiedStudentDateKeys.includes(notifyKey);
@@ -1031,10 +1295,11 @@ export default function AttendanceList() {
                             (!record.links ||
                               record.links.length === 0 ||
                               !record.links.some((l) => l.sent_time)) &&
-                            record.scheduledDateObj &&
+                            record.scheduledAt &&
                             new Date() >
                               new Date(
-                                record.scheduledDateObj.getTime() + 5 * 60000
+                                new Date(record.scheduledAt).getTime() +
+                                  5 * 60000
                               );
                           if (isNotified) {
                             return (
@@ -1078,7 +1343,7 @@ export default function AttendanceList() {
               ) : (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={12}
                     className="px-4 sm:px-6 py-8 text-center text-indigo-500 bg-white rounded-b-2xl"
                   >
                     No data available. Try adjusting filters or refreshing the
@@ -1129,10 +1394,21 @@ export default function AttendanceList() {
           onCancel={() => setStudentToNotify(null)}
         />
 
-        {typeof window !== "undefined" && expandedStudentId && (
+        <ConfirmModal
+          open={showBulkConfirm}
+          title="Confirm Bulk Update"
+          message={`Are you sure you want to update the attendance status to "${formatAttendanceStatus(
+            bulkStatus
+          )}" for ${selectedStudents.length} student(s)?`}
+          onConfirm={handleBulkUpdate}
+          onCancel={() => setShowBulkConfirm(false)}
+        />
+
+        {expandedStudentId && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.3 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
           >
@@ -1152,82 +1428,76 @@ export default function AttendanceList() {
                   (r) => r.student_id === expandedStudentId
                 );
                 if (!student)
-                  return <div className="text-indigo-700">Not found</div>;
-                let link =
-                  student.links &&
-                  student.links.length > 1 &&
-                  selectedLinks[student.student_id]
-                    ? student.links.find(
-                        (l) => l.id === selectedLinks[student.student_id]
-                      )
-                    : student.links && student.links.length === 1
-                    ? student.links[0]
-                    : null;
+                  return <p className="text-indigo-700">Student not found.</p>;
                 return (
-                  <div className="space-y-2 text-sm text-indigo-700">
-                    <div>
-                      <b>Name:</b> {student.studentName}
-                    </div>
-                    <div>
-                      <b>Ustadz:</b> {student.ustazName}
-                    </div>
-                    <div>
-                      <b>Scheduled At:</b>{" "}
+                  <div className="space-y-4 text-sm text-indigo-700">
+                    <p>
+                      <strong>Student Name:</strong> {student.studentName}
+                    </p>
+                    <p>
+                      <strong>Ustadz Name:</strong> {student.ustazName}
+                    </p>
+                    <p>
+                      <strong>Controller Name:</strong> {student.controllerName}
+                    </p>
+                    <p>
+                      <strong>Day Package:</strong>{" "}
+                      {student.daypackages || "All days"}
+                    </p>
+                    <p>
+                      <strong>Scheduled At:</strong>{" "}
                       {formatDateSafely(student.scheduledAt)}
-                    </div>
+                    </p>
+                    <p>
+                      <strong>Attendance Status:</strong>{" "}
+                      {student.attendance_status}
+                    </p>
+                    <p>
+                      <strong>Absent Days:</strong>{" "}
+                      {student.absentDaysCount !== undefined
+                        ? `${student.absentDaysCount} (from ${format(
+                            parseISO(startDate),
+                            "MMM dd"
+                          )} to ${format(parseISO(endDate), "MMM dd")})`
+                        : "Set date range to view"}
+                    </p>
                     <div>
-                      <b>Sent Time:</b>{" "}
-                      {link && link.sent_time
-                        ? formatDateSafely(link.sent_time)
-                        : "N/A"}
-                    </div>
-                    <div>
-                      <b>Clicked Time:</b>{" "}
-                      {link && link.clicked_at
-                        ? formatDateSafely(link.clicked_at)
-                        : "N/A"}
-                    </div>
-                    <div>
-                      <b>Time Difference:</b>{" "}
-                      {(() => {
-                        if (!link || !link.sent_time || !student.scheduledAt)
-                          return "N/A";
-                        try {
-                          const scheduled = parseISO(student.scheduledAt);
-                          const sent = parseISO(link.sent_time);
-                          if (!isValid(scheduled) || !isValid(sent))
-                            return "N/A";
-                          const diff = Math.round(
-                            (sent.getTime() - scheduled.getTime()) / 60000
-                          );
-                          if (diff < 0) return `${Math.abs(diff)} min early`;
-                          if (diff <= 3) return `Early (${diff} min)`;
-                          if (diff <= 5) return `On Time (${diff} min)`;
-                          return `Very Late (${diff} min)`;
-                        } catch {
-                          return "N/A";
-                        }
-                      })()}
-                    </div>
-                    <div>
-                      <b>Status:</b>{" "}
-                      {student.attendance_status
-                        .replace("-", " ")
-                        .replace(/\b\w/g, (c) => c.toUpperCase())}
-                    </div>
-                    <div>
-                      <b>Link:</b>{" "}
-                      {link ? (
-                        <a
-                          href={link.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-indigo-600 hover:underline"
-                        >
-                          Open
-                        </a>
+                      <strong>Zoom Links:</strong>
+                      {student.links.length > 0 ? (
+                        <ul className="mt-2 space-y-2">
+                          {student.links.map((link) => (
+                            <li
+                              key={link.id}
+                              className="border-t border-indigo-100 pt-2"
+                            >
+                              <p>
+                                <strong>Link:</strong>{" "}
+                                <a
+                                  href={link.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-indigo-600 hover:underline"
+                                >
+                                  {link.link.substring(0, 30)}...
+                                </a>
+                              </p>
+                              <p>
+                                <strong>Sent Time:</strong>{" "}
+                                {link.sent_time
+                                  ? formatDateSafely(link.sent_time)
+                                  : "Not Sent"}
+                              </p>
+                              <p>
+                                <strong>Clicked Time:</strong>{" "}
+                                {link.clicked_at
+                                  ? formatDateSafely(link.clicked_at)
+                                  : "Not Clicked"}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
                       ) : (
-                        "N/A"
+                        <p className="mt-2">No links available.</p>
                       )}
                     </div>
                   </div>
@@ -1237,22 +1507,6 @@ export default function AttendanceList() {
           </motion.div>
         )}
       </motion.div>
-
-      <style jsx global>{`
-        @keyframes slide-in {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-slide-in {
-          animation: slide-in 0.5s ease-out;
-        }
-      `}</style>
     </div>
   );
 }

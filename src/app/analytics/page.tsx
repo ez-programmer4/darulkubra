@@ -163,7 +163,7 @@ export default function AnalyticsDashboard() {
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load analytics");
-      } finally {
+    } finally {
       setLoading(false);
     }
   };
@@ -261,7 +261,7 @@ export default function AnalyticsDashboard() {
       setError(
         err instanceof Error ? err.message : "Failed to load student details"
       );
-      } finally {
+    } finally {
       setLoadingStudentDetails(false);
     }
   };
@@ -290,7 +290,7 @@ export default function AnalyticsDashboard() {
       setError(
         err instanceof Error ? err.message : "Failed to load teacher details"
       );
-      } finally {
+    } finally {
       setLoadingTeacherDetails(false);
     }
   };
@@ -849,8 +849,8 @@ export default function AnalyticsDashboard() {
                             Attendance Rate: {data.attendanceRate}%
                           </p>
                           <p className="text-sm text-gray-600">
-                            Present: {data.present} | Absent: {data.absent} |
-                            Permission: {data.permission}
+                            Present: {data.Present} | Absent: {data.Absent} |
+                            Permission: {data.Permission}
                           </p>
                           <p className="text-sm text-gray-600">
                             Total: {data.total} students
@@ -993,11 +993,11 @@ export default function AnalyticsDashboard() {
                               </div>
                               <span
                                 className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                  session.status === "present"
+                                  session.status === "Present"
                                     ? "bg-green-100 text-green-800"
-                                    : session.status === "absent"
+                                    : session.status === "Absent"
                                     ? "bg-red-100 text-red-800"
-                                    : session.status === "permission"
+                                    : session.status === "Permission"
                                     ? "bg-yellow-100 text-yellow-800"
                                     : "bg-gray-100 text-gray-800"
                                 }`}

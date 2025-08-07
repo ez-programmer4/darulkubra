@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
       .map((student) => {
         const totalSessions = student.attendance_progress.length;
         const presentSessions = student.attendance_progress.filter(
-          (ap) => ap.attendance_status === "present"
+          (ap) => ap.attendance_status === "Present"
         ).length;
         const attendanceRate =
           totalSessions > 0 ? (presentSessions / totalSessions) * 100 : 0;
@@ -75,10 +75,10 @@ export async function GET(req: NextRequest) {
           totalSessions,
           presentSessions,
           absentSessions: student.attendance_progress.filter(
-            (ap) => ap.attendance_status === "absent"
+            (ap) => ap.attendance_status === "Absent"
           ).length,
           permissionSessions: student.attendance_progress.filter(
-            (ap) => ap.attendance_status === "permission"
+            (ap) => ap.attendance_status === "Permission"
           ).length,
           attendanceRate: Math.round(attendanceRate * 100) / 100,
         };
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
         );
         const totalSessions = allAttendance.length;
         const presentSessions = allAttendance.filter(
-          (ap) => ap.attendance_status === "present"
+          (ap) => ap.attendance_status === "Present"
         ).length;
         const attendanceRate =
           totalSessions > 0 ? (presentSessions / totalSessions) * 100 : 0;
@@ -138,10 +138,10 @@ export async function GET(req: NextRequest) {
           totalSessions,
           presentSessions,
           absentSessions: allAttendance.filter(
-            (ap) => ap.attendance_status === "absent"
+            (ap) => ap.attendance_status === "Absent"
           ).length,
           permissionSessions: allAttendance.filter(
-            (ap) => ap.attendance_status === "permission"
+            (ap) => ap.attendance_status === "Permission"
           ).length,
           attendanceRate: Math.round(attendanceRate * 100) / 100,
           studentCount: teacher.students.length,
@@ -165,13 +165,13 @@ export async function GET(req: NextRequest) {
 
       const totalDay = dayAttendance.length;
       const presentDay = dayAttendance.filter(
-        (ap) => ap.attendance_status === "present"
+        (ap) => ap.attendance_status === "Present"
       ).length;
       const absentDay = dayAttendance.filter(
-        (ap) => ap.attendance_status === "absent"
+        (ap) => ap.attendance_status === "Absent"
       ).length;
       const permissionDay = dayAttendance.filter(
-        (ap) => ap.attendance_status === "permission"
+        (ap) => ap.attendance_status === "Permission"
       ).length;
 
       attendanceTrends.push({
@@ -199,7 +199,7 @@ export async function GET(req: NextRequest) {
       (sum, student) =>
         sum +
         student.attendance_progress.filter(
-          (ap) => ap.attendance_status === "present"
+          (ap) => ap.attendance_status === "Present"
         ).length,
       0
     );

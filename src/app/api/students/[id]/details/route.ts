@@ -124,10 +124,10 @@ export async function GET(
         endDate,
       },
       attendanceBreakdown: {
-        presentSessions: attendanceBreakdown.present || 0,
-        absentSessions: attendanceBreakdown.absent || 0,
-        permissionSessions: attendanceBreakdown.permission || 0,
-        notTakenSessions: attendanceBreakdown["not-taken"] || 0,
+        presentSessions: attendanceBreakdown.Present || 0,
+        absentSessions: attendanceBreakdown.Absent || 0,
+        permissionSessions: attendanceBreakdown.Permission || 0,
+        notTakenSessions: attendanceBreakdown["Not Taken"] || 0,
         totalSessions: student.attendance_progress.length,
       },
       attendanceHistory,
@@ -136,7 +136,7 @@ export async function GET(
         attendanceRate:
           student.attendance_progress.length > 0
             ? Math.round(
-                ((attendanceBreakdown.present || 0) /
+                ((attendanceBreakdown.Present || 0) /
                   student.attendance_progress.length) *
                   100
               )
