@@ -64,6 +64,11 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    const controllers = await prisma.wpos_wpdatatable_28.findMany({
+      select: { username: true, name: true, code: true },
+      orderBy: { name: "asc" },
+    });
+
     // 3. Calculate lateness for each student
     const latenessData = students
       .map((student) => {
