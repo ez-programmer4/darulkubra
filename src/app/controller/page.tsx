@@ -162,7 +162,7 @@ export default function Controller() {
   // Calculate statistics
   const totalStudents = students.length;
   const activeStudents = students.filter((s) => s.status === "active").length;
-  const newStudents = students.filter((s) => s.status === "fresh").length;
+  const notYetStudents = students.filter((s) => s.status === "not yet").length;
 
   if (loading) {
     return (
@@ -214,7 +214,7 @@ export default function Controller() {
           <StatsCards
             totalStudents={totalStudents}
             activeStudents={activeStudents}
-            newStudents={newStudents}
+            notYetStudents={notYetStudents}
           />
         </section>
         <section className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-6 sm:p-8 animate-slide-in">

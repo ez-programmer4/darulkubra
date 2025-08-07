@@ -4,13 +4,13 @@ import { FiUsers, FiCheckCircle, FiClock } from "react-icons/fi";
 interface StatsCardsProps {
   totalStudents: number;
   activeStudents: number;
-  newStudents: number;
+  notYetStudents: number;
 }
 
 export default function StatsCards({
   totalStudents,
   activeStudents,
-  newStudents,
+  notYetStudents,
 }: StatsCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -64,7 +64,7 @@ export default function StatsCards({
           <div className="ml-4">
             <p className="text-sm font-medium text-gray-600">New Students</p>
             <p className="text-2xl font-semibold text-gray-900">
-              {newStudents}
+              {notYetStudents}
             </p>
           </div>
         </div>

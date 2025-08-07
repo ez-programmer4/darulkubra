@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         u_control: session.code,
-        status: { equals: "active" }, // Only active students
       },
       include: {
         teacher: {
