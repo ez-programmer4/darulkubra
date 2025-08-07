@@ -6,109 +6,127 @@ import { startOfDay, endOfDay, isValid } from "date-fns";
 const prisma = new PrismaClient();
 
 // Utility to format attendance status
-const formatAttendanceStatus = (status: string): string => {
+const formatAttendanceStatus = (status: string | null | undefined): string => {
   const validStatuses = ["Present", "Absent", "Permission", "Not Taken"];
-  if (!validStatuses.includes(status.toLowerCase())) {
-    return "Not Taken";
-  }
-  return status.replace("-", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  if (!status) return "Not Taken";
+  const normalizedStatus =
+    status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  return validStatuses.includes(normalizedStatus)
+    ? normalizedStatus
+    : "Not Taken";
 };
 
 export async function GET(req: NextRequest) {
-  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  if (
-    !session ||
-    !["controller", "registral", "admin"].includes(session.role) ||
-    !session.username
-  ) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(req.url);
-  const date =
-    searchParams.get("date") || new Date().toISOString().split("T")[0];
-  const startDate = searchParams.get("startDate") || "";
-  const endDate = searchParams.get("endDate") || "";
-  const ustaz = searchParams.get("ustaz") || "";
-  const attendanceStatus = searchParams.get("attendanceStatus") || "";
-  const sentStatus = searchParams.get("sentStatus") || "";
-  const clickedStatus = searchParams.get("clickedStatus") || "";
-  const page = parseInt(searchParams.get("page") || "1", 10);
-  const limit = parseInt(searchParams.get("limit") || "10", 10);
-  const notify = searchParams.get("notify")
-    ? parseInt(searchParams.get("notify") || "0", 10)
-    : 0;
-  const controllerId = searchParams.get("controllerId") || session.code || "";
-
-  if (!controllerId) {
-    return NextResponse.json(
-      { error: "Controller ID is required" },
-      { status: 400 }
-    );
-  }
-
-  // Validate date
-  let dayStart, dayEnd;
   try {
-    const parsedDate = new Date(date);
-    if (!isValid(parsedDate)) {
-      throw new Error("Invalid date provided");
-    }
-    dayStart = startOfDay(parsedDate);
-    dayEnd = endOfDay(parsedDate);
-  } catch (error) {
-    console.error("Invalid date format:", date, error);
-    return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
-  }
-
-  // Determine day packages for the selected day
-  const selectedDayName = new Date(date).toLocaleDateString("en-US", {
-    weekday: "long",
-  });
-  const isMWFDay = ["Monday", "Wednesday", "Friday"].includes(selectedDayName);
-  const isTTSDay = ["Tuesday", "Thursday", "Saturday"].includes(
-    selectedDayName
-  );
-  const dayPackageOr = [
-    { daypackages: { contains: selectedDayName, mode: "insensitive" } },
-    { daypackages: { contains: "all", mode: "insensitive" } },
-    { daypackages: { contains: "All", mode: "insensitive" } },
-    { daypackages: { contains: "ALL", mode: "insensitive" } },
-    { daypackages: { contains: "All days", mode: "insensitive" } },
-    ...(isMWFDay
-      ? [
-          { daypackages: { contains: "MWF", mode: "insensitive" } },
-          { daypackages: { contains: "mwf", mode: "insensitive" } },
-        ]
-      : []),
-    ...(isTTSDay
-      ? [
-          { daypackages: { contains: "TTS", mode: "insensitive" } },
-          { daypackages: { contains: "tts", mode: "insensitive" } },
-        ]
-      : []),
-  ];
-
-  console.log("Query Parameters:", { date, controllerId, selectedDayName });
-  console.log("dayPackageOr filter:", JSON.stringify(dayPackageOr, null, 2));
-  console.log(
-    "Raw daypackages in database:",
-    await prisma.wpos_wpdatatable_23.findMany({
-      where: { u_control: controllerId, status: { in: ["Active", "Not Yet"] } },
-      select: { wdt_ID: true, name: true, daypackages: true },
-    })
-  );
-
-  // Notify logic
-  if (notify) {
-    const student = await prisma.wpos_wpdatatable_23.findUnique({
-      where: { wdt_ID: notify },
-      include: {
-        teacher: true,
-        occupiedTimes: { select: { time_slot: true } },
-      },
+    const session = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET,
     });
-    if (student && student.teacher) {
+    if (
+      !session ||
+      !["controller", "registral", "admin"].includes(session.role) ||
+      !session.username
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const date =
+      searchParams.get("date") || new Date().toISOString().split("T")[0];
+    const startDate = searchParams.get("startDate") || "";
+    const endDate = searchParams.get("endDate") || "";
+    const ustaz = searchParams.get("ustaz") || "";
+    const attendanceStatus = searchParams.get("attendanceStatus") || "";
+    const sentStatus = searchParams.get("sentStatus") || "";
+    const clickedStatus = searchParams.get("clickedStatus") || "";
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "10", 10);
+    const notify = searchParams.get("notify")
+      ? parseInt(searchParams.get("notify") || "0", 10)
+      : 0;
+    const controllerId = searchParams.get("controllerId") || session.code || "";
+
+    if (!controllerId) {
+      return NextResponse.json(
+        { error: "Controller ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate date
+    let dayStart, dayEnd;
+    try {
+      const parsedDate = new Date(date);
+      if (!isValid(parsedDate)) {
+        throw new Error("Invalid date provided");
+      }
+      dayStart = startOfDay(parsedDate);
+      dayEnd = endOfDay(parsedDate);
+    } catch (error) {
+      console.error("Invalid date format:", date, error);
+      return NextResponse.json(
+        { error: "Invalid date format" },
+        { status: 400 }
+      );
+    }
+
+    // Determine day packages for the selected day
+    const selectedDayName = new Date(date).toLocaleDateString("en-US", {
+      weekday: "long",
+    });
+    // Build day package filters based on selected day
+    const dayPackageOr = [];
+
+    // Always include "All days" students
+    dayPackageOr.push({ daypackages: { contains: "All days" } });
+    dayPackageOr.push({ daypackages: { contains: "all days" } });
+
+    // Add specific day name
+    dayPackageOr.push({ daypackages: { contains: selectedDayName } });
+
+    // Add package-specific filters based on the day
+    if (["Monday", "Wednesday", "Friday"].includes(selectedDayName)) {
+      dayPackageOr.push({ daypackages: { contains: "MWF" } });
+      dayPackageOr.push({ daypackages: { contains: "mwf" } });
+    }
+
+    if (["Tuesday", "Thursday", "Saturday"].includes(selectedDayName)) {
+      dayPackageOr.push({ daypackages: { contains: "TTS" } });
+      dayPackageOr.push({ daypackages: { contains: "tts" } });
+    }
+
+    // Include null/empty for backward compatibility
+    dayPackageOr.push({ daypackages: null });
+    dayPackageOr.push({ daypackages: "" });
+
+    console.log("Query Parameters:", {
+      date,
+      controllerId,
+      selectedDayName,
+      ustaz,
+      attendanceStatus,
+      sentStatus,
+      clickedStatus,
+      page,
+      limit,
+    });
+    console.log("dayPackageOr filter:", JSON.stringify(dayPackageOr, null, 2));
+
+    // Notify logic
+    if (notify) {
+      const student = await prisma.wpos_wpdatatable_23.findUnique({
+        where: { wdt_ID: notify },
+        include: {
+          teacher: true,
+          occupiedTimes: { select: { time_slot: true } },
+        },
+      });
+      if (!student || !student.teacher) {
+        return NextResponse.json(
+          { error: "Student or teacher not found" },
+          { status: 404 }
+        );
+      }
       const teacherPhone = student.teacher.phone;
       if (!teacherPhone) {
         return NextResponse.json(
@@ -168,13 +186,7 @@ export async function GET(req: NextRequest) {
         );
       }
     }
-    return NextResponse.json(
-      { message: "Student or teacher not found" },
-      { status: 404 }
-    );
-  }
 
-  try {
     // Build where clause
     const whereClause: any = {
       u_control: controllerId,
@@ -186,11 +198,23 @@ export async function GET(req: NextRequest) {
       whereClause.ustaz = ustaz;
     }
 
+    if (attendanceStatus) {
+      whereClause.attendance_progress = {
+        some: {
+          date: {
+            gte: dayStart,
+            lte: dayEnd,
+          },
+          attendance_status: { equals: attendanceStatus },
+        },
+      };
+    }
+
     // Fetch students with matching day packages
     const records = await prisma.wpos_wpdatatable_23.findMany({
       where: whereClause,
       include: {
-        teacher: { select: { ustazname: true } },
+        teacher: { select: { ustazname: true, phone: true } },
         zoom_links: {
           where: {
             sent_time: {
@@ -227,31 +251,32 @@ export async function GET(req: NextRequest) {
       take: limit,
     });
 
-    if (records.length > 0) {
-      console.log(
-        `Controller ${controllerId}: Filtered students for ${selectedDayName}`,
-        records.map((r) => ({ name: r.name, daypackages: r.daypackages }))
-      );
-    } else {
-      console.log(
-        `Controller ${controllerId}: No students found for ${selectedDayName}`
-      );
-    }
+    console.log(
+      `Controller ${controllerId}: Filtered students for ${selectedDayName}`,
+      records.map((r) => ({ name: r.name, daypackages: r.daypackages }))
+    );
 
     const integratedData = records.map((record: any) => {
-      function to24Hour(time12h: string) {
-        if (!time12h) return "00:00";
-        const [time, modifier] = time12h.split(" ");
-        let [hours, minutes] = time.split(":");
-        if (hours === "12") {
-          hours = modifier === "AM" ? "00" : "12";
-        } else if (modifier === "PM") {
-          hours = String(parseInt(hours, 10) + 12);
+      function to24Hour(time12h: string | null | undefined) {
+        if (!time12h || !/\d{1,2}:\d{2}\s?(AM|PM)/i.test(time12h))
+          return "00:00";
+        try {
+          const [time, modifier] = time12h.split(" ");
+          let [hours, minutes] = time.split(":");
+          if (hours === "12") {
+            hours = modifier.toUpperCase() === "AM" ? "00" : "12";
+          } else if (modifier.toUpperCase() === "PM") {
+            hours = String(parseInt(hours, 10) + 12);
+          }
+          return `${hours.padStart(2, "0")}:${minutes}`;
+        } catch {
+          return "00:00";
         }
-        return `${hours.padStart(2, "0")}:${minutes}`;
       }
-      const time24 = to24Hour(record.occupiedTimes?.[0]?.time_slot || "");
-      const scheduledAt = `${date}T${time24}:00.000Z`;
+      const time24 = to24Hour(record.occupiedTimes?.[0]?.time_slot || null);
+      const scheduledAt = time24
+        ? `${date}T${time24}:00.000Z`
+        : `${date}T00:00:00.000Z`;
 
       const linksForDay = (record.zoom_links || []).map((zl: any) => ({
         id: zl.id,
@@ -265,9 +290,9 @@ export async function GET(req: NextRequest) {
         tracking_token: zl.tracking_token || null,
       }));
 
-      const dailyAttendance = record.attendance_progress[0];
+      const dailyAttendance = record.attendance_progress?.[0];
       const attendance_status = formatAttendanceStatus(
-        dailyAttendance?.attendance_status || "not-taken"
+        dailyAttendance?.attendance_status
       );
 
       let absentDaysCount = 0;
@@ -282,7 +307,7 @@ export async function GET(req: NextRequest) {
           return (
             attendanceDate >= new Date(startDate) &&
             attendanceDate <= new Date(endDate) &&
-            ap.attendance_status === "absent"
+            ap.attendance_status?.toLowerCase() === "absent"
           );
         }).length;
       }
@@ -339,7 +364,7 @@ export async function GET(req: NextRequest) {
                 integratedData.length) *
               100
             ).toFixed(2)}%`
-          : "0%",
+          : "0.00%",
     };
 
     return NextResponse.json({
@@ -348,10 +373,10 @@ export async function GET(req: NextRequest) {
       stats,
     });
   } catch (error: any) {
-    console.error("Error in /api/attendance-list GET:", {
+    console.error("Error in /api/attendance-list:", {
       message: error.message,
       stack: error.stack,
-      query: { date, controllerId, ustaz, page, limit },
+      queryParams: Object.fromEntries(new URL(req.url).searchParams),
     });
     return NextResponse.json(
       { error: "Failed to fetch attendance data", details: error.message },
@@ -363,58 +388,63 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  if (
-    !session ||
-    !["controller", "registral", "admin"].includes(session.role) ||
-    !session.username
-  ) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
-    const body = await req.json();
-    const { updates } = body; // Expecting array of { student_id, date, attendance_status }
+    const session = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (
+      !session ||
+      !["controller", "registral", "admin"].includes(session.role)
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { updates } = await req.json();
     if (!Array.isArray(updates) || updates.length === 0) {
       return NextResponse.json(
-        { error: "Invalid updates format" },
+        { error: "Invalid or empty updates array" },
         { status: 400 }
       );
     }
 
-    const validStatuses = ["Present", "Absent", "Permission", "Not Taken"];
-    const formattedUpdates = updates.map((update: any) => ({
-      student_id: parseInt(update.student_id, 10),
-      date: new Date(update.date),
-      attendance_status: validStatuses.includes(
-        update.attendance_status.toLowerCase()
-      )
-        ? update.attendance_status.toLowerCase()
-        : "Not Taken",
-    }));
+    for (const update of updates) {
+      const { student_id, date, attendance_status } = update;
+      if (!student_id || !date || !attendance_status) {
+        return NextResponse.json(
+          { error: "Missing required fields in update" },
+          { status: 400 }
+        );
+      }
 
-    await prisma.$transaction(
-      formattedUpdates.map((update: any) =>
-        prisma.student_attendance_progress.upsert({
-          where: {
-            id: update.student_id,
-            date: startOfDay(update.date),
-          },
-          update: {
-            attendance_status: update.attendance_status,
-          },
-          create: {
-            student_id: update.student_id,
-            date: startOfDay(update.date),
-            attendance_status: update.attendance_status,
-          },
-        })
-      )
-    );
+      const parsedDate = new Date(date);
+      if (!isValid(parsedDate)) {
+        return NextResponse.json(
+          { error: `Invalid date format for student ${student_id}` },
+          { status: 400 }
+        );
+      }
+
+      const formattedStatus = formatAttendanceStatus(attendance_status);
+      await prisma.student_attendance_progress.upsert({
+        where: {
+          id: student_id,
+          date: startOfDay(parsedDate),
+        },
+        update: {
+          attendance_status: formattedStatus,
+        },
+        create: {
+          student_id,
+          date: startOfDay(parsedDate),
+          attendance_status: formattedStatus,
+        },
+      });
+    }
 
     return NextResponse.json({ message: "Attendance updated successfully" });
   } catch (error: any) {
-    console.error("Error in /api/attendance-list POST:", {
+    console.error("Error in POST /api/attendance-list:", {
       message: error.message,
       stack: error.stack,
     });

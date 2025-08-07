@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import ConfirmModal from "../components/ConfirmModal";
 import { Toaster, toast } from "react-hot-toast";
+import AttendanceListSkeleton from "./AttendanceListSkeleton";
 import {
   FiArrowLeft,
   FiUser,
@@ -18,7 +20,6 @@ import {
   FiFilter,
   FiBarChart,
   FiFileText,
-  FiCheck,
 } from "react-icons/fi";
 import {
   format,
@@ -34,7 +35,6 @@ interface IntegratedRecord {
   student_id: number;
   studentName: string;
   ustazName: string;
-  controllerName: string;
   scheduledAt: string;
   links: Array<{
     id: number;
@@ -47,7 +47,9 @@ interface IntegratedRecord {
   }>;
   attendance_status: string;
   absentDaysCount?: number;
-  daypackages: string;
+  scheduledDateObj?: Date | null;
+  clickedDateObj?: Date | null;
+  sentRaw?: string;
 }
 
 interface Stats {
@@ -58,82 +60,6 @@ interface Stats {
   responseRate: string;
 }
 
-// Utility to format attendance status
-const formatAttendanceStatus = (status: string): string => {
-  const validStatuses = ["Present", "Absent", "Permission", "Not Taken"];
-  const normalizedStatus =
-    status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-  return validStatuses.includes(normalizedStatus)
-    ? normalizedStatus
-    : "Not Taken";
-};
-
-// Modal component for confirmations
-const ConfirmModal: React.FC<{
-  open: boolean;
-  title: string;
-  message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}> = ({ open, title, message, onConfirm, onCancel }) => {
-  if (!open) return null;
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
-    >
-      <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-4 sm:p-6 max-w-md w-full border border-indigo-100">
-        <h3 className="text-lg sm:text-xl font-semibold text-indigo-900 mb-4">
-          {title}
-        </h3>
-        <p className="text-sm text-indigo-700 mb-6">{message}</p>
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold rounded-lg transition-all duration-300"
-            aria-label="Cancel"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-all duration-300"
-            aria-label="Confirm"
-          >
-            Confirm
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-// Skeleton component for loading state
-const AttendanceListSkeleton: React.FC = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-teal-50 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-4 sm:p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-indigo-200 rounded w-1/4 mb-6"></div>
-          <div className="flex flex-wrap gap-2 mb-6">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-10 bg-indigo-100 rounded w-20"></div>
-            ))}
-          </div>
-          <div className="h-10 bg-indigo-100 rounded mb-4"></div>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-12 bg-indigo-50 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export default function AttendanceList() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -141,12 +67,11 @@ export default function AttendanceList() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd")); // 2025-06-20
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [ustaz, setUstaz] = useState("");
   const [attendanceStatus, setAttendanceStatus] = useState("");
-  const [dayPackageFilter, setDayPackageFilter] = useState("all");
   const [sentStatus, setSentStatus] = useState("");
   const [clickedStatus, setClickedStatus] = useState("");
   const [page, setPage] = useState(1);
@@ -169,23 +94,10 @@ export default function AttendanceList() {
   const [selectedLinks, setSelectedLinks] = useState<{
     [studentId: number]: number;
   }>({});
-  const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
-  const [bulkStatus, setBulkStatus] = useState("");
-  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
-
-  const selectedDayName = useMemo(
-    () => new Date(date).toLocaleDateString("en-US", { weekday: "long" }),
-    [date]
-  );
-
-  const dayPackages = useMemo(() => {
-    const uniquePackages = [
-      ...new Set(data.map((record) => record.daypackages)),
-    ];
-    return ["all", ...uniquePackages.filter(Boolean).sort()];
-  }, [data]);
+  // Remove studentStatusFilter state
 
   useEffect(() => {
+    // Save notified student-date keys to localStorage whenever they change
     if (typeof window !== "undefined") {
       localStorage.setItem(
         "notifiedStudentDateKeys",
@@ -206,24 +118,25 @@ export default function AttendanceList() {
         clickedStatus,
         page: page.toString(),
         limit: limit.toString(),
-        controllerId: session?.user?.id || "",
         ...(startDate && { startDate }),
         ...(endDate && { endDate }),
         ...(notifyStudentId && { notify: notifyStudentId.toString() }),
       });
       const response = await fetch(
         `/api/attendance-list?${params.toString()}`,
-        {
-          credentials: "include",
-        }
+        { credentials: "include" }
       );
       const result = await response.json();
-      console.log("API response:", result);
-      if (!response.ok) {
-        throw new Error(
-          result.error || `HTTP error! status: ${response.status}`
-        );
-      }
+      console.log(
+        "Attendance data:",
+        result.integratedData?.map((r: any) => ({
+          student: r.studentName,
+          status: r.attendance_status,
+          date: date,
+        }))
+      );
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
       if (notifyStudentId) {
         if (result.message === "Notification sent to teacher") {
           toast.success("SMS notification sent to teacher!");
@@ -239,12 +152,12 @@ export default function AttendanceList() {
       if (!result.integratedData || !Array.isArray(result.integratedData)) {
         setData([]);
         setTotal(0);
-        setError("No attendance data available");
       } else {
         const updatedData = result.integratedData.map((record: any) => {
+          // Default to the latest link (by sent_time desc)
           let selectedLink = null;
           if (record.links && record.links.length > 0) {
-            selectedLink = [...record.links].sort((a: any, b: any) => {
+            selectedLink = [...record.links].sort((a, b) => {
               if (!a.sent_time) return 1;
               if (!b.sent_time) return -1;
               return (
@@ -253,18 +166,13 @@ export default function AttendanceList() {
               );
             })[0];
           }
-          let scheduled: Date | null = null;
-          try {
-            scheduled = parseISO(record.scheduledAt);
-            if (!isValid(scheduled)) scheduled = null;
-          } catch {
-            scheduled = null;
-          }
+          // Parse scheduledAt
+          let scheduled: Date | null = parseISO(record.scheduledAt);
+          if (!isValid(scheduled)) scheduled = null;
           return {
             ...record,
             scheduledDateObj: scheduled,
-            selectedLink,
-            attendance_status: formatAttendanceStatus(record.attendance_status),
+            selectedLink, // for convenience
           };
         });
         setData(updatedData);
@@ -272,78 +180,25 @@ export default function AttendanceList() {
         setStats(result.stats || null);
       }
     } catch (err) {
-      console.error("Fetch error:", err);
       setError(
-        err instanceof Error
-          ? `Failed to load attendance list: ${err.message}`
-          : "Failed to load attendance list"
+        err instanceof Error ? err.message : "Failed to load attendance list"
       );
-      setData([]);
-      setTotal(0);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleBulkUpdate = async () => {
-    if (selectedStudents.length === 0 || !bulkStatus) {
-      toast.error("Please select students and a status to update.");
-      return;
-    }
-
-    try {
-      const updates = selectedStudents.map((studentId) => ({
-        student_id: studentId,
-        date,
-        attendance_status: bulkStatus,
-      }));
-
-      const response = await fetch("/api/attendance-list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ updates }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update attendance");
-      }
-
-      toast.success("Attendance updated successfully!");
-      setSelectedStudents([]);
-      setBulkStatus("");
-      setShowBulkConfirm(false);
-      fetchData();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to update attendance"
-      );
-    }
-  };
-
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.id) {
-      fetchData();
-    }
-  }, [
-    date,
-    ustaz,
-    attendanceStatus,
-    sentStatus,
-    clickedStatus,
-    page,
-    limit,
-    status,
-    session,
-  ]);
+    fetchData();
+  }, [date, ustaz, attendanceStatus, sentStatus, clickedStatus, page, limit]);
 
-  if (status === "loading") return <AttendanceListSkeleton />;
-  if (status === "unauthenticated") {
-    router.push("/login");
-    return null;
-  }
+  // Early returns after all hooks
+  if (status === "loading") return <div>Loading...</div>;
+  if (status === "unauthenticated") return <div>Unauthorized</div>;
 
+  const user = session?.user;
+
+  // Quick-select for days
   const daysOfWeek = [
     { label: "Today", getDate: () => format(new Date(), "yyyy-MM-dd") },
     ...[
@@ -358,6 +213,7 @@ export default function AttendanceList() {
       label: day,
       getDate: () => {
         const now = new Date();
+        // startOfWeek with { weekStartsOn: 1 } for Monday
         const weekStart = startOfWeek(now, { weekStartsOn: 1 });
         return format(addDays(weekStart, idx), "yyyy-MM-dd");
       },
@@ -370,27 +226,31 @@ export default function AttendanceList() {
 
   const exportToCSV = () => {
     const headers = [
-      "Student Name,Ustadz Name,Controller Name,Link,Scheduled At,Sent Time,Clicked Time,Time Difference,Attendance Status,Day Package",
+      "Student Name, Ustadz Name, Link, Scheduled At, Sent Time, Clicked Time, Time Difference, Attendance Status",
     ];
-    const rows = filteredData.map((record) => {
-      const sortedLinks = [...record.links].sort((a, b) => {
-        if (!a.sent_time) return 1;
-        if (!b.sent_time) return -1;
-        return (
-          new Date(b.sent_time).getTime() - new Date(a.sent_time).getTime()
-        );
-      });
-      let link =
-        sortedLinks &&
-        sortedLinks.length > 1 &&
-        selectedLinks[record.student_id]
-          ? sortedLinks.find((l) => l.id === selectedLinks[record.student_id])
-          : sortedLinks && sortedLinks.length === 1
-          ? sortedLinks[0]
-          : null;
-      let diffLabel = "N/A";
-      if (link && link.sent_time && record.scheduledAt) {
-        try {
+    const rows = data
+      .filter((record) =>
+        record.studentName.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .map((record) => {
+        const sortedLinks = [...record.links].sort((a, b) => {
+          if (!a.sent_time) return 1;
+          if (!b.sent_time) return -1;
+          return (
+            new Date(b.sent_time).getTime() - new Date(a.sent_time).getTime()
+          );
+        });
+        let link =
+          sortedLinks &&
+          sortedLinks.length > 1 &&
+          selectedLinks[record.student_id]
+            ? sortedLinks.find((l) => l.id === selectedLinks[record.student_id])
+            : sortedLinks && sortedLinks.length === 1
+            ? sortedLinks[0]
+            : null;
+        // Calculate time difference
+        let diffLabel = "N/A";
+        if (link && link.sent_time && record.scheduledAt) {
           const scheduled = parseISO(record.scheduledAt);
           const sent = parseISO(link.sent_time);
           if (isValid(scheduled) && isValid(sent)) {
@@ -402,23 +262,18 @@ export default function AttendanceList() {
             else if (diff <= 5) diffLabel = "On Time";
             else diffLabel = "Very Late";
           }
-        } catch {
-          diffLabel = "N/A";
         }
-      }
-      return [
-        record.studentName,
-        record.ustazName,
-        record.controllerName,
-        link ? link.link : "N/A",
-        formatDateSafely(record.scheduledAt),
-        link && link.sent_time ? formatDateSafely(link.sent_time) : "N/A",
-        link && link.clicked_at ? formatDateSafely(link.clicked_at) : "N/A",
-        diffLabel,
-        record.attendance_status,
-        record.daypackages,
-      ].join(",");
-    });
+        return [
+          record.studentName,
+          record.ustazName,
+          link ? link.link : "N/A",
+          formatDateSafely(record.scheduledAt),
+          link && link.sent_time ? formatDateSafely(link.sent_time) : "N/A",
+          link && link.clicked_at ? formatDateSafely(link.clicked_at) : "N/A",
+          diffLabel,
+          record.attendance_status || "N/A",
+        ].join(",");
+      });
     const csvContent = [headers, ...rows].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -433,15 +288,10 @@ export default function AttendanceList() {
     setDate(format(new Date(), "yyyy-MM-dd"));
     setUstaz("");
     setAttendanceStatus("");
-    setDayPackageFilter("all");
     setSentStatus("");
     setClickedStatus("");
     setSearchQuery("");
-    setStartDate("");
-    setEndDate("");
     setPage(1);
-    setSelectedStudents([]);
-    setBulkStatus("");
   };
 
   const handleNotifyClick = (studentId: number, scheduledDate: string) => {
@@ -464,13 +314,15 @@ export default function AttendanceList() {
         setNotifiedStudentDateKeys((prev) => [...prev, studentToNotify]);
       } else {
         toast.error(
-          `Failed to send notification: ${result.error || "Unknown error"}`
+          `Failed to send notification: ${
+            result.error || result.response?.errors?.[0] || "Unknown error"
+          }`
         );
       }
     } catch (err) {
       toast.error("An unexpected error occurred while sending the SMS.");
     } finally {
-      setStudentToNotify(null);
+      setStudentToNotify(null); // Close the modal
     }
   };
 
@@ -481,556 +333,494 @@ export default function AttendanceList() {
       return "N/A";
     }
     try {
+      // Directly format the UTC string to avoid local timezone conversion
+      // Input: "2025-06-20T16:00:00.000Z" -> Output: "2025-06-20 16:00"
       const datePart = dateStr.substring(0, 10);
       const timePart = dateStr.substring(11, 16);
       return `${datePart} ${timePart}`;
-    } catch {
+    } catch (e) {
       return "N/A";
     }
   };
 
-  const filteredData = useMemo(() => {
-    return data
-      .filter((record) =>
-        record.studentName.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-      .filter((record) => {
-        if (!attendanceStatus) return true;
-        return (
-          record.attendance_status.toLowerCase() ===
-          attendanceStatus.toLowerCase()
-        );
-      })
-      .filter((record) => {
-        if (dayPackageFilter === "all") return true;
-        if (!record.daypackages) return dayPackageFilter === "All days";
-        const daypackagesLower = record.daypackages.toLowerCase();
-        return (
-          daypackagesLower.includes(dayPackageFilter.toLowerCase()) ||
-          dayPackageFilter.toLowerCase() === "all days" ||
-          (["Monday", "Wednesday", "Friday"].includes(selectedDayName) &&
-            daypackagesLower.includes("mwf")) ||
-          (["Tuesday", "Thursday", "Saturday"].includes(selectedDayName) &&
-            daypackagesLower.includes("tts"))
-        );
-      })
-      .filter((record) => {
-        if (!sentStatus) return true;
-        const hasSentLink = record.links.some((l) => l.sent_time);
-        return sentStatus === "sent" ? hasSentLink : !hasSentLink;
-      })
-      .filter((record) => {
-        if (!clickedStatus) return true;
-        const hasClickedLink = record.links.some((l) => l.clicked_at);
-        return clickedStatus === "clicked" ? hasClickedLink : !hasClickedLink;
-      });
-  }, [
-    data,
-    searchQuery,
-    dayPackageFilter,
-    selectedDayName,
-    attendanceStatus,
-    sentStatus,
-    clickedStatus,
-  ]);
+  // Filter data based on search query
+  const filteredData = data.filter((record) =>
+    record.studentName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Attendance statistics calculation based on selected date
+  console.log(
+    "Filtered data:",
+    filteredData.map((r) => ({
+      name: r.studentName,
+      status: r.attendance_status,
+    }))
+  );
 
   const attendanceStats = filteredData.reduce(
     (
       acc: {
+        [key: string]: number;
         total: number;
         present: number;
         absent: number;
         permission: number;
-        notTaken: number;
+        "not-taken": number;
       },
       record
     ) => {
       acc.total++;
-      const status = record.attendance_status.toLowerCase();
-      if (status === "present") acc.present++;
-      else if (status === "absent") acc.absent++;
-      else if (status === "permission") acc.permission++;
-      else if (status === "not taken") acc.notTaken++;
+      acc[record.attendance_status] = (acc[record.attendance_status] || 0) + 1;
       return acc;
     },
-    { total: 0, present: 0, absent: 0, permission: 0, notTaken: 0 }
+    { total: 0, present: 0, absent: 0, permission: 0, "not-taken": 0 }
   );
 
+  const attendanceRate =
+    attendanceStats.total > 0
+      ? ((attendanceStats.present / attendanceStats.total) * 100).toFixed(1) +
+        "%"
+      : "N/A";
+
   if (loading) {
+    // Table skeleton loader
     return <AttendanceListSkeleton />;
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-teal-50 p-4 sm:p-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="max-w-7xl mx-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-4 sm:p-6"
-        >
-          <h2 className="text-lg sm:text-xl font-semibold text-red-700 mb-2">
-            Error
-          </h2>
-          <p className="text-sm sm:text-base text-red-600 mb-4">{error}</p>
+      <div className="max-w-7xl mx-auto p-6 bg-white min-h-screen">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 shadow-md">
+          <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
+          <p className="text-red-700">{error}</p>
           <button
-            onClick={handleRefresh}
-            className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-red-600 hover:bg-red-700 text-white text-sm sm:text-base font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 focus:ring-2 focus:ring-red-500"
-            aria-label="Retry loading data"
+            onClick={() => router.push("/controller")}
+            className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center shadow-md transition-transform hover:scale-105"
           >
-            <FiRefreshCw className="mr-2" /> Retry
+            <FiArrowLeft className="mr-2" /> Back to Dashboard
           </button>
-        </motion.div>
+        </div>
       </div>
     );
   }
 
+  const totalStudents = filteredData.length;
+  const presentCount = filteredData.filter(
+    (record) => record.attendance_status === "present"
+  ).length;
+  const averageAttendanceRate =
+    totalStudents > 0
+      ? ((presentCount / totalStudents) * 100).toFixed(2) + "%"
+      : "N/A";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-teal-50 p-4 sm:p-6">
+    <div className="max-w-7xl mx-auto p-2 sm:p-6 bg-white min-h-screen">
       <Toaster position="top-center" reverseOrder={false} />
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-7xl mx-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-4 sm:p-6"
-      >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-            <button
-              onClick={() => router.push("/controller")}
-              className="group flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm sm:text-base font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 focus:ring-2 focus:ring-indigo-500"
-              aria-label="Back to dashboard"
-            >
-              <FiArrowLeft className="group-hover:-translate-x-1 transition-transform duration-300" />
-              Back to Dashboard
-            </button>
-            <button
-              onClick={() => router.push("/analytics")}
-              className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm sm:text-base font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 focus:ring-2 focus:ring-indigo-500"
-              aria-label="View analytics"
-            >
-              <FiBarChart className="mr-2" />
-              Analytics
-            </button>
-            <button
-              onClick={() => router.push("/reports")}
-              className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm sm:text-base font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 focus:ring-2 focus:ring-indigo-500"
-              aria-label="View reports"
-            >
-              <FiFileText className="mr-2" />
-              Reports
-            </button>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3 bg-indigo-50/60 border border-indigo-100 px-3 sm:px-4 py-2 rounded-lg shadow-sm">
-            <FiCalendar className="text-indigo-500 w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="text-sm sm:text-base font-medium text-indigo-700">
-              Selected Date: {format(parseISO(date), "MMMM dd, yyyy")}
-            </span>
-          </div>
-        </div>
-
-        <div className="mb-4 sm:mb-6 flex flex-wrap gap-1 sm:gap-2 items-center">
-          {daysOfWeek.map((d) => (
-            <button
-              key={d.label}
-              onClick={() => setDate(d.getDate())}
-              className={`px-3 sm:px-4 py-1 sm:py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                date === d.getDate()
-                  ? "bg-indigo-600 text-white border-indigo-700 shadow-md"
-                  : "bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300"
-              }`}
-              aria-label={`Select ${d.label}`}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
-          <div className="flex-1 max-w-xs">
-            <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-indigo-500 w-5 h-5 sm:w-6 sm:h-6" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by student name..."
-                className="w-full pl-10 pr-4 py-2 sm:py-3 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
-                aria-label="Search students"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2 sm:gap-3 justify-end">
-            <button
-              onClick={handleRefresh}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm sm:text-base font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 focus:ring-2 focus:ring-indigo-500"
-              aria-label="Refresh data"
-            >
-              <FiRefreshCw className="mr-2" /> Refresh
-            </button>
-            <button
-              onClick={exportToCSV}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm sm:text-base font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 focus:ring-2 focus:ring-indigo-500"
-              aria-label="Export to CSV"
-            >
-              <FiDownload className="mr-2" /> Export CSV
-            </button>
-            <button
-              onClick={clearFilters}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-white hover:bg-indigo-50 text-indigo-700 text-sm sm:text-base font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 border border-indigo-200 hover:border-indigo-300 transform hover:scale-105"
-              aria-label="Clear filters"
-            >
-              <FiX className="mr-2" /> Clear Filters
-            </button>
-          </div>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="mb-4 sm:mb-6 p-4 sm:p-6 rounded-2xl shadow-lg bg-white border border-indigo-100"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <FiFilter className="text-indigo-500 w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="text-lg sm:text-xl font-semibold text-indigo-900">
-              Filters
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex flex-col gap-2 bg-indigo-50 rounded-xl p-3 min-w-[160px]">
-              <span className="text-xs font-semibold text-indigo-700 mb-1">
-                Absent Days Range
-              </span>
-              <p className="text-xs text-indigo-600 mb-2">
-                Select date range to see absent days count
-              </p>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
-                aria-label="Start date for absent days range"
-              />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
-                aria-label="End date for absent days range"
-              />
-            </div>
-            <div className="flex flex-col gap-2 bg-indigo-50 rounded-xl p-3 min-w-[160px]">
-              <span className="text-xs font-semibold text-indigo-700 mb-1">
-                Single Date
-              </span>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
-                aria-label="Select date"
-              />
-            </div>
-            <div className="flex flex-col gap-2 bg-indigo-50 rounded-xl p-3 min-w-[160px]">
-              <span className="text-xs font-semibold text-indigo-700 mb-1">
-                Ustadz
-              </span>
-              <select
-                value={ustaz}
-                onChange={(e) => setUstaz(e.target.value)}
-                className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
-                aria-label="Filter by Ustadz"
-              >
-                <option value="">All</option>
-                {[...new Set(data.map((d) => d.ustazName))].sort().map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-2 bg-indigo-50 rounded-xl p-3 min-w-[160px]">
-              <span className="text-xs font-semibold text-indigo-700 mb-1">
-                Attendance Status
-              </span>
-              <select
-                value={attendanceStatus}
-                onChange={(e) => setAttendanceStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
-                aria-label="Filter by attendance status"
-              >
-                <option value="">All</option>
-                <option value="Present">Present</option>
-                <option value="Absent">Absent</option>
-                <option value="Permission">Permission</option>
-                <option value="Not Taken">Not Taken</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-2 bg-indigo-50 rounded-xl p-3 min-w-[160px]">
-              <span className="text-xs font-semibold text-indigo-700 mb-1">
-                Day Package
-              </span>
-              <select
-                value={dayPackageFilter}
-                onChange={(e) => setDayPackageFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
-                aria-label="Filter by day package"
-              >
-                {dayPackages.map((pkg) => (
-                  <option key={pkg} value={pkg}>
-                    {pkg === "all" ? "All Days" : pkg}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-2 bg-indigo-50 rounded-xl p-3 min-w-[160px]">
-              <span className="text-xs font-semibold text-indigo-700 mb-1">
-                Link Status
-              </span>
-              <select
-                value={sentStatus}
-                onChange={(e) => setSentStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
-                aria-label="Filter by sent status"
-              >
-                <option value="">Sent (all)</option>
-                <option value="sent">Sent</option>
-                <option value="notSent">Not Sent</option>
-              </select>
-              <select
-                value={clickedStatus}
-                onChange={(e) => setClickedStatus(e.target.value)}
-                className="w-full mt-1 px-3 py-2 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
-                aria-label="Filter by clicked status"
-              >
-                <option value="">Clicked? (all)</option>
-                <option value="clicked">Clicked</option>
-                <option value="notClicked">Not Clicked</option>
-              </select>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="mb-4 sm:mb-6 p-4 sm:p-6 bg-white border border-indigo-100 rounded-2xl shadow-lg"
-        >
-          <h3 className="text-lg sm:text-xl font-semibold text-indigo-900 mb-2 sm:mb-4">
-            Bulk Update Attendance
-          </h3>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <select
-              value={bulkStatus}
-              onChange={(e) => setBulkStatus(e.target.value)}
-              className="w-full sm:w-48 px-3 py-2 border border-indigo-200 rounded-lg bg-white text-indigo-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
-              aria-label="Select bulk update status"
-            >
-              <option value="">Select Status</option>
-              <option value="Present">Present</option>
-              <option value="Absent">Absent</option>
-              <option value="Permission">Permission</option>
-              <option value="Not Taken">Not Taken</option>
-            </select>
-            <button
-              onClick={() => setShowBulkConfirm(true)}
-              disabled={selectedStudents.length === 0 || !bulkStatus}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:bg-gray-200 disabled:text-gray-400 focus:ring-2 focus:ring-indigo-500"
-              aria-label="Apply bulk update"
-            >
-              <FiCheck className="mr-2 inline" /> Apply to{" "}
-              {selectedStudents.length} Student(s)
-            </button>
-          </div>
-        </motion.div>
-
-        {startDate && endDate && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mb-4 sm:mb-6 p-4 sm:p-6 bg-white border border-indigo-100 rounded-2xl shadow-lg"
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <button
+            onClick={() => router.push("/controller")}
+            className="group flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white font-medium transition-all duration-300 shadow-md hover:shadow-lg"
           >
-            <h3 className="text-lg sm:text-xl font-semibold text-indigo-900 mb-2 sm:mb-4">
-              Absent Days Legend
-            </h3>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 bg-green-100 border border-green-300 rounded-full"></span>
-                <span className="text-indigo-700">
-                  Green: Perfect attendance (0 absent)
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 bg-yellow-100 border border-yellow-300 rounded-full"></span>
-                <span className="text-indigo-700">
-                  Yellow: Moderate (1-3 absent)
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 bg-red-100 border border-red-300 rounded-full"></span>
-                <span className="text-indigo-700">
-                  Red: Concerning (4+ absent)
-                </span>
-              </div>
-            </div>
-            <p className="text-sm text-indigo-600 mt-2 sm:mt-4">
-              Showing absent days from{" "}
-              {format(parseISO(startDate), "MMMM dd, yyyy")} to{" "}
-              {format(parseISO(endDate), "MMMM dd, yyyy")}
-            </p>
-          </motion.div>
-        )}
+            <FiArrowLeft className="group-hover:-translate-x-1 transition-transform duration-300" />
+            <span>Back to Dashboard</span>
+          </button>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mb-4 sm:mb-6"
-        >
-          <div className="mb-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-200">
-            <h3 className="text-lg sm:text-xl font-semibold text-indigo-900 mb-2 sm:mb-4">
-              📊 Analytics for {format(parseISO(date), "MMMM dd, yyyy")}
-            </h3>
-            <p className="text-sm text-indigo-600">
-              Showing attendance statistics for the selected date
-            </p>
+          <button
+            onClick={() => router.push("/analytics")}
+            className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-indigo-400 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white font-medium transition-all duration-300 shadow-md hover:shadow-lg flex items-center"
+          >
+            <FiBarChart className="mr-2" />
+            <span>Analytics</span>
+          </button>
+
+          <button
+            onClick={() => router.push("/reports")}
+            className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-400 to-purple-500 hover:from-purple-500 hover:to-purple-600 text-white font-medium transition-all duration-300 shadow-md hover:shadow-lg flex items-center"
+          >
+            <FiFileText className="mr-2" />
+            <span>Reports</span>
+          </button>
+        </div>
+        <div className="flex items-center gap-3 bg-blue-50/60 border border-blue-100 px-4 py-2 rounded-lg shadow-sm">
+          <FiCalendar className="text-blue-400" />
+          <span className="text-sm font-medium text-blue-600">
+            Selected Date: {format(parseISO(date), "MMMM dd, yyyy")}
+          </span>
+        </div>
+      </div>
+
+      <div className="mb-6 flex flex-wrap gap-1 sm:gap-2 items-center">
+        {daysOfWeek.map((d) => (
+          <button
+            key={d.label}
+            onClick={() => setDate(d.getDate())}
+            className={`px-3 py-1 rounded-lg text-sm font-medium border transition-all duration-200
+              ${
+                date === d.getDate()
+                  ? "bg-indigo-500 text-white border-indigo-600 shadow"
+                  : "bg-white text-gray-700 border-gray-300 hover:bg-indigo-100"
+              }
+            `}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Search and Actions Row */}
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+        <div className="flex-1">
+          <div className="relative max-w-xs">
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by student name..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+            />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {[
-              {
-                label: "Total Students",
-                value: attendanceStats.total,
-                color: "blue",
-              },
-              {
-                label: "Present",
-                value: attendanceStats.present,
-                color: "green",
-              },
-              { label: "Absent", value: attendanceStats.absent, color: "red" },
-              {
-                label: "Permission",
-                value: attendanceStats.permission,
-                color: "yellow",
-              },
-              {
-                label: "Not Taken",
-                value: attendanceStats.notTaken,
-                color: "gray",
-              },
-            ].map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
-                className={`bg-${stat.color}-50 rounded-2xl p-4 shadow-md flex flex-col items-center border border-${stat.color}-100`}
+        </div>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={handleRefresh}
+            className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white rounded-lg hover:from-indigo-600 hover:to-indigo-800 flex items-center shadow-md transition-transform hover:scale-105"
+          >
+            <FiRefreshCw className="mr-2" /> Refresh
+          </button>
+          <button
+            onClick={exportToCSV}
+            className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-lg hover:from-green-600 hover:to-green-800 flex items-center shadow-md transition-transform hover:scale-105"
+          >
+            <FiDownload className="mr-2" /> Export CSV
+          </button>
+          <button
+            onClick={clearFilters}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 flex items-center shadow-md transition-transform hover:scale-105"
+          >
+            <FiX className="mr-2" /> Clear Filters
+          </button>
+        </div>
+      </div>
+
+      {/* Advanced Filter Bar */}
+      <div className="mb-6 p-2 sm:p-4 rounded-2xl shadow-lg bg-gradient-to-br from-gray-50 to-white border border-gray-200">
+        <div className="flex items-center gap-2 mb-4">
+          <FiFilter className="text-indigo-500 text-xl" />
+          <span className="text-lg font-semibold text-indigo-700">Filters</span>
+        </div>
+        <div className="flex flex-wrap gap-4">
+          {/* Date Range Group */}
+          <div className="flex flex-col gap-2 bg-blue-50 rounded-xl p-3 min-w-[200px]">
+            <span className="text-xs font-semibold text-blue-700 mb-1">
+              Absent Days Range
+            </span>
+            <p className="text-xs text-blue-600 mb-2">
+              Select date range to see absent days count
+            </p>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              placeholder="Start date"
+              className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300 shadow-sm"
+            />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              placeholder="End date"
+              className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300 shadow-sm"
+            />
+          </div>
+          {/* Single Date Group */}
+          <div className="flex flex-col gap-2 bg-indigo-50 rounded-xl p-3 min-w-[160px]">
+            <span className="text-xs font-semibold text-indigo-700 mb-1">
+              Single Date
+            </span>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
+            />
+          </div>
+          {/* Ustadz Group */}
+          <div className="flex flex-col gap-2 bg-green-50 rounded-xl p-3 min-w-[160px]">
+            <span className="text-xs font-semibold text-green-700 mb-1">
+              Ustadz
+            </span>
+            <select
+              value={ustaz}
+              onChange={(e) => setUstaz(e.target.value)}
+              className="w-full px-3 py-2 border border-green-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-300 shadow-sm"
+            >
+              <option value="">All</option>
+              {[...new Set(data.map((d) => d.ustazName))].map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* Attendance Status Group */}
+          <div className="flex flex-col gap-2 bg-yellow-50 rounded-xl p-3 min-w-[160px]">
+            <span className="text-xs font-semibold text-yellow-700 mb-1">
+              Attendance Status
+            </span>
+            <select
+              value={attendanceStatus}
+              onChange={(e) => setAttendanceStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-yellow-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-300 shadow-sm"
+            >
+              <option value="">All</option>
+              <option value="present">Present</option>
+              <option value="absent">Absent</option>
+              <option value="permission">Permission</option>
+              <option value="not-taken">Not Taken</option>
+            </select>
+          </div>
+          {/* Sent/Clicked Status Group */}
+          <div className="flex flex-col gap-2 bg-purple-50 rounded-xl p-3 min-w-[160px]">
+            <span className="text-xs font-semibold text-purple-700 mb-1">
+              Link Status
+            </span>
+            <select
+              value={sentStatus}
+              onChange={(e) => setSentStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-purple-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-300 shadow-sm"
+            >
+              <option value="">Sent (all)</option>
+              <option value="sent">Sent</option>
+              <option value="notSent">Not Sent</option>
+            </select>
+            <select
+              value={clickedStatus}
+              onChange={(e) => setClickedStatus(e.target.value)}
+              className="w-full mt-1 px-3 py-2 border border-purple-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-300 shadow-sm"
+            >
+              <option value="">Clicked? (all)</option>
+              <option value="clicked">Clicked</option>
+              <option value="notClicked">Not Clicked</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Absent Days Info Section */}
+      {startDate && endDate && (
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h3 className="text-sm font-semibold text-blue-800 mb-2">
+            Absent Days Legend
+          </h3>
+          <div className="flex flex-wrap gap-4 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 bg-green-100 border border-green-300 rounded-full"></span>
+              <span className="text-green-700">
+                Green: Perfect attendance (0 absent)
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 bg-yellow-100 border border-yellow-300 rounded-full"></span>
+              <span className="text-yellow-700">
+                Yellow: Moderate (1-3 absent)
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 bg-red-100 border border-red-300 rounded-full"></span>
+              <span className="text-red-700">Red: Concerning (4+ absent)</span>
+            </div>
+          </div>
+          <p className="text-xs text-blue-600 mt-2">
+            Showing absent days from{" "}
+            {format(parseISO(startDate), "MMMM dd, yyyy")} to{" "}
+            {format(parseISO(endDate), "MMMM dd, yyyy")}
+          </p>
+        </div>
+      )}
+
+      {/* Attendance Analytics Section */}
+      <div className="mb-8">
+        <div className="mb-4 p-2 sm:p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+          <h3 className="text-sm font-semibold text-indigo-800 mb-2">
+            📊 Analytics for {format(parseISO(date), "MMMM dd, yyyy")}
+          </h3>
+          <p className="text-xs text-indigo-600">
+            Showing attendance statistics for the selected date
+          </p>
+          <p className="text-xs text-indigo-500 mt-1">
+            📋 <strong>Note:</strong> Only active students are included in
+            attendance tracking and analytics.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4">
+          <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-blue-700">
+              {attendanceStats.total}
+            </span>
+            <span className="text-xs text-blue-800 mt-1">Total Students</span>
+          </div>
+          <div className="bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-green-700">
+              {attendanceStats.present}
+            </span>
+            <span className="text-xs text-green-800 mt-1">Present</span>
+          </div>
+          <div className="bg-gradient-to-br from-red-100 to-red-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-red-700">
+              {attendanceStats.absent}
+            </span>
+            <span className="text-xs text-red-800 mt-1">Absent</span>
+          </div>
+          <div className="bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-yellow-700">
+              {attendanceStats.permission}
+            </span>
+            <span className="text-xs text-yellow-800 mt-1">Permission</span>
+          </div>
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-gray-700">
+              {attendanceStats["not-taken"]}
+            </span>
+            <span className="text-xs text-gray-800 mt-1">Not Taken</span>
+          </div>
+          <div className="bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-xl p-4 shadow flex flex-col items-center">
+            <span className="text-2xl font-bold text-indigo-700">
+              {attendanceRate}
+            </span>
+            <span className="text-xs text-indigo-800 mt-1">
+              Attendance Rate
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Analytics Insights */}
+      <div className="mb-6 p-2 sm:p-4 rounded-xl shadow-lg bg-gradient-to-br from-indigo-50 to-white border border-indigo-200">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-indigo-800 flex items-center">
+            <FiBarChart className="mr-2" />
+            Quick Analytics Insights for{" "}
+            {format(parseISO(date), "MMMM dd, yyyy")}
+          </h3>
+          <button
+            onClick={() => router.push("/analytics")}
+            className="px-3 py-1 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-sm font-medium transition-all duration-200"
+          >
+            View Full Analytics
+          </button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="bg-white rounded-lg p-3 border border-indigo-100">
+            <div className="flex items-center justify-between">
+              <span className="text-indigo-600 font-medium">
+                {format(parseISO(date), "MMM dd")} Performance
+              </span>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  parseFloat(attendanceRate) >= 80
+                    ? "bg-green-100 text-green-800"
+                    : parseFloat(attendanceRate) >= 60
+                    ? "bg-yellow-100 text-yellow-800"
+                    : "bg-red-100 text-red-800"
+                }`}
               >
-                <span
-                  className={`text-xl sm:text-2xl font-bold text-${stat.color}-700`}
-                >
-                  {stat.value}
-                </span>
-                <span className={`text-sm text-${stat.color}-800 mt-1`}>
-                  {stat.label}
-                </span>
-              </motion.div>
-            ))}
-          </div>
-          {stats && (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="bg-blue-50 rounded-2xl p-4 shadow-md border border-blue-100">
-                <span className="text-sm text-blue-800">Total Links</span>
-                <span className="text-xl font-bold text-blue-700">
-                  {stats.totalLinks}
-                </span>
-              </div>
-              <div className="bg-green-50 rounded-2xl p-4 shadow-md border border-green-100">
-                <span className="text-sm text-green-800">Links Sent</span>
-                <span className="text-xl font-bold text-green-700">
-                  {stats.totalSent}
-                </span>
-              </div>
-              <div className="bg-purple-50 rounded-2xl p-4 shadow-md border border-purple-100">
-                <span className="text-sm text-purple-800">Links Clicked</span>
-                <span className="text-xl font-bold text-purple-700">
-                  {stats.totalClicked}
-                </span>
-              </div>
-              <div className="bg-red-50 rounded-2xl p-4 shadow-md border border-red-100">
-                <span className="text-sm text-red-800">Missed Deadlines</span>
-                <span className="text-xl font-bold text-red-700">
-                  {stats.missedDeadlines}
-                </span>
-              </div>
-              <div className="bg-teal-50 rounded-2xl p-4 shadow-md border border-teal-100">
-                <span className="text-sm text-teal-800">Response Rate</span>
-                <span className="text-xl font-bold text-teal-700">
-                  {stats.responseRate}
-                </span>
-              </div>
+                {attendanceRate}
+              </span>
             </div>
-          )}
-        </motion.div>
+            <p className="text-gray-600 mt-1">
+              {attendanceStats.present} out of {attendanceStats.total} students
+              present
+            </p>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-indigo-100">
+            <div className="flex items-center justify-between">
+              <span className="text-indigo-600 font-medium">
+                Absent Students
+              </span>
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                {attendanceStats.absent}
+              </span>
+            </div>
+            <p className="text-gray-600 mt-1">
+              {attendanceStats.absent > 0
+                ? `${(
+                    (attendanceStats.absent / attendanceStats.total) *
+                    100
+                  ).toFixed(1)}% of total students`
+                : "All students accounted for"}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-indigo-100">
+            <div className="flex items-center justify-between">
+              <span className="text-indigo-600 font-medium">Action Items</span>
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                {attendanceStats.absent + attendanceStats.permission}
+              </span>
+            </div>
+            <p className="text-gray-600 mt-1">
+              {attendanceStats.absent + attendanceStats.permission > 0
+                ? "Students need follow-up"
+                : "No immediate actions needed"}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 text-xs text-indigo-600">
+          💡 <strong>Tip:</strong> Change the date above to see analytics for
+          different days. Use the full Analytics Dashboard for detailed trends,
+          teacher performance, and comprehensive reports.
+        </div>
+      </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="overflow-x-auto rounded-2xl shadow-lg border border-indigo-100"
-        >
-          <table className="min-w-[900px] w-full divide-y divide-indigo-100 text-sm">
-            <thead className="bg-indigo-50 sticky top-0 z-10">
-              <tr>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-indigo-900 uppercase tracking-wider">
-                  <input
-                    type="checkbox"
-                    checked={
-                      selectedStudents.length === filteredData.length &&
-                      filteredData.length > 0
-                    }
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedStudents(
-                          filteredData.map((record) => record.student_id)
-                        );
-                      } else {
-                        setSelectedStudents([]);
-                      }
-                    }}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    aria-label="Select all students"
-                  />
-                </th>
-                {[
-                  "Student Name",
-                  "Ustadz Name",
-                  "Controller",
-                  "Link",
-                  "Scheduled At",
-                  "Sent Time",
-                  "Clicked Time",
-                  "Time Difference",
-                  "Attendance Status",
-                  "Absent Days",
-                  "Day Package",
-                  "Actions",
-                ].map((header) => (
-                  <th
-                    key={header}
-                    className="px-4 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-indigo-900 uppercase tracking-wider"
-                  >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-indigo-100">
-              {filteredData.length > 0 ? (
-                filteredData.map((record) => {
+      {/* Add dropdown above the table */}
+      {/* Remove the dropdown above the table */}
+
+      <div className="overflow-x-auto rounded-lg shadow-lg">
+        <table className="min-w-[900px] w-full divide-y divide-gray-200 text-xs sm:text-sm">
+          <thead className="bg-gradient-to-r from-indigo-100 to-white sticky top-0 z-10">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider">
+                Student Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider">
+                Ustadz Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider">
+                Link
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider">
+                Scheduled At
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider">
+                Sent Time
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider">
+                Clicked Time
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider">
+                Time Difference
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider">
+                Attendance Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider">
+                Absent Days
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {filteredData.length > 0 ? (
+              filteredData.map(
+                (
+                  record: IntegratedRecord & {
+                    scheduledDateObj?: Date | null;
+                    clickedDateObj?: Date | null;
+                  }
+                ) => {
                   const sortedLinks = [...record.links].sort((a, b) => {
                     if (!a.sent_time) return 1;
                     if (!b.sent_time) return -1;
@@ -1054,142 +844,143 @@ export default function AttendanceList() {
                     : "";
                   const notifyKey = `${record.student_id}|${scheduledDateStr}`;
                   return (
-                    <motion.tr
+                    <tr
                       key={record.student_id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                      className="hover:bg-indigo-50 transition-all duration-200"
-                      onClick={() => setExpandedStudentId(record.student_id)}
+                      className="hover:bg-gray-50 transition-all duration-200"
                     >
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                        <input
-                          type="checkbox"
-                          checked={selectedStudents.includes(record.student_id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedStudents((prev) => [
-                                ...prev,
-                                record.student_id,
-                              ]);
-                            } else {
-                              setSelectedStudents((prev) =>
-                                prev.filter((id) => id !== record.student_id)
-                              );
-                            }
-                          }}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                          aria-label={`Select ${record.studentName}`}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                         {record.studentName}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                         {record.ustazName}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
-                        {record.controllerName}
-                      </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                         {sortedLinks && sortedLinks.length > 1 ? (
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={
-                                selectedLinks[record.student_id] ??
-                                sortedLinks[0]?.id
-                              }
-                              onChange={(e) =>
-                                setSelectedLinks((prev) => ({
-                                  ...prev,
-                                  [record.student_id]: Number(e.target.value),
-                                }))
-                              }
-                              className="border border-indigo-200 rounded-lg px-2 py-1 text-indigo-700 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                              aria-label="Select link"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {sortedLinks.map((l) => (
-                                <option key={l.id} value={l.id}>
-                                  {l.sent_time
-                                    ? formatDateSafely(l.sent_time)
-                                    : "No Sent Time"}
-                                </option>
-                              ))}
-                            </select>
-                            <a
-                              href={
-                                sortedLinks.find(
-                                  (l) =>
-                                    l.id ===
-                                    (selectedLinks[record.student_id] ??
-                                      sortedLinks[0]?.id)
-                                )?.link
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-600 hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              Open
-                            </a>
-                          </div>
+                          <select
+                            value={
+                              selectedLinks[record.student_id] ??
+                              sortedLinks[0]?.id
+                            }
+                            onChange={(e) =>
+                              setSelectedLinks((prev) => ({
+                                ...prev,
+                                [record.student_id]: Number(e.target.value),
+                              }))
+                            }
+                            className="border rounded px-2 py-1 text-blue-700 bg-white"
+                          >
+                            {sortedLinks.map((l) => (
+                              <option key={l.id} value={l.id}>
+                                {l.sent_time
+                                  ? formatDateSafely(l.sent_time)
+                                  : "No Sent Time"}
+                              </option>
+                            ))}
+                          </select>
                         ) : sortedLinks && sortedLinks.length === 1 ? (
                           <a
                             href={sortedLinks[0].link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-indigo-600 hover:underline"
-                            onClick={(e) => e.stopPropagation()}
+                            className="text-blue-600 hover:underline"
                           >
                             Link
                           </a>
                         ) : (
                           "N/A"
                         )}
+                        {sortedLinks && sortedLinks.length > 1 && (
+                          <a
+                            href={
+                              sortedLinks.find(
+                                (l) =>
+                                  l.id ===
+                                  (selectedLinks[record.student_id] ??
+                                    sortedLinks[0]?.id)
+                              )?.link
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 text-blue-600 hover:underline"
+                          >
+                            Open
+                          </a>
+                        )}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                         {formatDateSafely(record.scheduledAt)}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
-                        {link && link.sent_time
-                          ? formatDateSafely(link.sent_time)
-                          : "N/A"}
-                      </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
-                        {link && link.clicked_at
-                          ? formatDateSafely(link.clicked_at)
-                          : "N/A"}
-                      </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                         {(() => {
+                          let link =
+                            sortedLinks && sortedLinks.length > 1
+                              ? sortedLinks.find(
+                                  (l) =>
+                                    l.id ===
+                                    (selectedLinks[record.student_id] ??
+                                      sortedLinks[0]?.id)
+                                )
+                              : sortedLinks && sortedLinks.length === 1
+                              ? sortedLinks[0]
+                              : null;
+                          return link && link.sent_time
+                            ? formatDateSafely(link.sent_time)
+                            : "N/A";
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {(() => {
+                          let link =
+                            sortedLinks && sortedLinks.length > 1
+                              ? sortedLinks.find(
+                                  (l) =>
+                                    l.id ===
+                                    (selectedLinks[record.student_id] ??
+                                      sortedLinks[0]?.id)
+                                )
+                              : sortedLinks && sortedLinks.length === 1
+                              ? sortedLinks[0]
+                              : null;
+                          return link && link.clicked_at
+                            ? formatDateSafely(link.clicked_at)
+                            : "N/A";
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {(() => {
+                          let link =
+                            sortedLinks && sortedLinks.length > 1
+                              ? sortedLinks.find(
+                                  (l) =>
+                                    l.id ===
+                                    (selectedLinks[record.student_id] ??
+                                      sortedLinks[0]?.id)
+                                )
+                              : sortedLinks && sortedLinks.length === 1
+                              ? sortedLinks[0]
+                              : null;
                           let colorClass = "bg-gray-100 text-gray-800";
                           let diffLabel = "N/A";
                           if (link && link.sent_time && record.scheduledAt) {
-                            try {
-                              const scheduled = parseISO(record.scheduledAt);
-                              const sent = parseISO(link.sent_time);
-                              if (isValid(scheduled) && isValid(sent)) {
-                                const diff = Math.round(
-                                  (sent.getTime() - scheduled.getTime()) / 60000
-                                );
-                                if (diff < 0) {
-                                  diffLabel = `${Math.abs(diff)} min early`;
-                                  colorClass = "bg-green-100 text-green-800";
-                                } else if (diff <= 3) {
-                                  diffLabel = `Early (${diff} min)`;
-                                  colorClass = "bg-green-100 text-green-800";
-                                } else if (diff <= 5) {
-                                  diffLabel = `On Time (${diff} min)`;
-                                  colorClass = "bg-blue-100 text-blue-800";
-                                } else {
-                                  diffLabel = `Very Late (${diff} min)`;
-                                  colorClass = "bg-red-100 text-red-800";
-                                }
+                            const scheduled = parseISO(record.scheduledAt);
+                            const sent = parseISO(link.sent_time);
+                            if (isValid(scheduled) && isValid(sent)) {
+                              const diff = Math.round(
+                                (sent.getTime() - scheduled.getTime()) / 60000
+                              );
+                              if (diff < 0) {
+                                diffLabel = `${Math.abs(diff)} min early`;
+                                colorClass = "bg-green-100 text-green-800";
+                              } else if (diff <= 3) {
+                                diffLabel = `Early (${diff} min)`;
+                                colorClass = "bg-green-100 text-green-800";
+                              } else if (diff <= 5) {
+                                diffLabel = `On Time (${diff} min)`;
+                                colorClass = "bg-blue-100 text-blue-800";
+                              } else {
+                                diffLabel = `Very Late (${diff} min)`;
+                                colorClass = "bg-red-100 text-red-800";
                               }
-                            } catch {
-                              diffLabel = "N/A";
                             }
                           }
                           return (
@@ -1201,59 +992,24 @@ export default function AttendanceList() {
                           );
                         })()}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
-                        <select
-                          value={record.attendance_status}
-                          onChange={async (e) => {
-                            const newStatus = e.target.value;
-                            try {
-                              const response = await fetch(
-                                "/api/attendance-list",
-                                {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    updates: [
-                                      {
-                                        student_id: record.student_id,
-                                        date,
-                                        attendance_status: newStatus,
-                                      },
-                                    ],
-                                  }),
-                                  credentials: "include",
-                                }
-                              );
-                              if (!response.ok) {
-                                const errorData = await response.json();
-                                throw new Error(
-                                  errorData.error ||
-                                    "Failed to update attendance"
-                                );
-                              }
-                              toast.success("Attendance updated successfully!");
-                              fetchData();
-                            } catch (err) {
-                              toast.error(
-                                err instanceof Error
-                                  ? err.message
-                                  : "Failed to update attendance"
-                              );
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        <span
+                          className={`px-3 py-1 inline-flex text-xs font-medium rounded-full shadow-sm
+                            ${
+                              record.attendance_status === "present"
+                                ? "bg-green-100 text-green-800"
+                                : record.attendance_status === "absent"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
                             }
-                          }}
-                          className="border border-indigo-200 rounded-lg px-2 py-1 text-indigo-700 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          aria-label="Update attendance status"
-                          onClick={(e) => e.stopPropagation()}
+                          `}
                         >
-                          <option value="Present">Present</option>
-                          <option value="Absent">Absent</option>
-                          <option value="Permission">Permission</option>
-                          <option value="Not Taken">Not Taken</option>
-                        </select>
+                          {record.attendance_status
+                            .replace("-", " ")
+                            .replace(/\b\w/g, (c) => c.toUpperCase())}
+                        </span>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                         {startDate && endDate ? (
                           <div className="flex flex-col items-start">
                             <span
@@ -1268,26 +1024,23 @@ export default function AttendanceList() {
                             >
                               {record.absentDaysCount || 0} absent
                             </span>
-                            <span className="text-xs text-indigo-500 mt-1">
+                            <span className="text-xs text-gray-500 mt-1">
                               {format(parseISO(startDate), "MMM dd")} -{" "}
                               {format(parseISO(endDate), "MMM dd")}
                             </span>
                           </div>
                         ) : (
                           <div className="flex flex-col items-start">
-                            <span className="text-indigo-500 text-xs">
+                            <span className="text-gray-400 text-xs">
                               No date range set
                             </span>
-                            <span className="text-xs text-indigo-500">
+                            <span className="text-xs text-gray-400">
                               Set range above to see absent count
                             </span>
                           </div>
                         )}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
-                        {record.daypackages || "All days"}
-                      </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-indigo-700 font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                         {(() => {
                           const isNotified =
                             notifiedStudentDateKeys.includes(notifyKey);
@@ -1295,18 +1048,16 @@ export default function AttendanceList() {
                             (!record.links ||
                               record.links.length === 0 ||
                               !record.links.some((l) => l.sent_time)) &&
-                            record.scheduledAt &&
+                            record.scheduledDateObj &&
                             new Date() >
                               new Date(
-                                new Date(record.scheduledAt).getTime() +
-                                  5 * 60000
+                                record.scheduledDateObj.getTime() + 5 * 60000
                               );
                           if (isNotified) {
                             return (
                               <button
                                 disabled
                                 className="px-3 py-1 bg-green-200 text-green-800 rounded-lg flex items-center shadow-sm cursor-not-allowed"
-                                aria-label="Notification already sent"
                               >
                                 <FiCheckSquare className="mr-1" /> Notified
                               </button>
@@ -1315,198 +1066,172 @@ export default function AttendanceList() {
                           if (canNotify) {
                             return (
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
+                                onClick={() =>
                                   handleNotifyClick(
                                     record.student_id,
                                     scheduledDateStr
-                                  );
-                                }}
-                                className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg flex items-center shadow-md transition-all duration-300 transform hover:scale-105 focus:ring-2 focus:ring-yellow-500"
+                                  )
+                                }
+                                className="px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 flex items-center shadow-md transition-transform hover:scale-105"
                                 title="Notify the teacher that the link was not sent after 5 minutes past scheduled time"
-                                aria-label="Notify teacher"
                               >
                                 <FiBell className="mr-1" /> Notify Teacher
                               </button>
                             );
                           }
                           return (
-                            <span className="px-3 py-1 text-xs text-indigo-500">
+                            <span className="px-3 py-1 text-xs text-gray-500">
                               No Action
                             </span>
                           );
                         })()}
                       </td>
-                    </motion.tr>
+                    </tr>
                   );
-                })
-              ) : (
-                <tr>
-                  <td
-                    colSpan={12}
-                    className="px-4 sm:px-6 py-8 text-center text-indigo-500 bg-white rounded-b-2xl"
-                  >
-                    No data available. Try adjusting filters or refreshing the
-                    data.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </motion.div>
+                }
+              )
+            ) : (
+              <tr>
+                <td
+                  colSpan={10}
+                  className="px-6 py-8 text-center text-gray-500 bg-gray-50 rounded-b-lg"
+                >
+                  No data available.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
-        {total > limit && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.7 }}
-            className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-4"
+      {total > limit && (
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-2">
+          <button
+            onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+            disabled={page === 1}
+            className="px-4 py-2 bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-800 rounded-lg hover:from-indigo-200 hover:to-indigo-300 disabled:bg-gray-200 disabled:text-gray-400 font-medium shadow-sm transition-all"
           >
-            <button
-              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-              disabled={page === 1}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm sm:text-base font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:bg-gray-200 disabled:text-gray-400 focus:ring-2 focus:ring-indigo-500"
-              aria-label="Previous page"
-            >
-              Previous
-            </button>
-            <span className="text-sm sm:text-base text-indigo-700 font-medium">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              onClick={() =>
-                setPage((prev) => (prev < totalPages ? prev + 1 : prev))
-              }
-              disabled={page === totalPages}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm sm:text-base font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:bg-gray-200 disabled:text-gray-400 focus:ring-2 focus:ring-indigo-500"
-              aria-label="Next page"
-            >
-              Next
-            </button>
-          </motion.div>
-        )}
-
-        <ConfirmModal
-          open={!!studentToNotify}
-          title="Confirm Notification"
-          message="Are you sure you want to send an SMS reminder to this teacher?"
-          onConfirm={confirmNotify}
-          onCancel={() => setStudentToNotify(null)}
-        />
-
-        <ConfirmModal
-          open={showBulkConfirm}
-          title="Confirm Bulk Update"
-          message={`Are you sure you want to update the attendance status to "${formatAttendanceStatus(
-            bulkStatus
-          )}" for ${selectedStudents.length} student(s)?`}
-          onConfirm={handleBulkUpdate}
-          onCancel={() => setShowBulkConfirm(false)}
-        />
-
-        {expandedStudentId && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+            Previous
+          </button>
+          <span className="text-sm text-gray-700 font-medium">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() =>
+              setPage((prev) => (prev < totalPages ? prev + 1 : prev))
+            }
+            disabled={page === totalPages}
+            className="px-4 py-2 bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-800 rounded-lg hover:from-indigo-200 hover:to-indigo-300 disabled:bg-gray-200 disabled:text-gray-400 font-medium shadow-sm transition-all"
           >
-            <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-4 sm:p-6 max-w-md w-full relative border border-indigo-100">
-              <button
-                className="absolute top-2 right-2 text-indigo-500 hover:text-indigo-700"
-                onClick={() => setExpandedStudentId(null)}
-                aria-label="Close details"
-              >
-                <FiX className="w-5 h-5 sm:w-6 sm:h-6" />
-              </button>
-              <h3 className="text-lg sm:text-xl font-semibold text-indigo-900 mb-4">
-                Attendance Details
-              </h3>
-              {(() => {
-                const student = data.find(
-                  (r) => r.student_id === expandedStudentId
-                );
-                if (!student)
-                  return <p className="text-indigo-700">Student not found.</p>;
-                return (
-                  <div className="space-y-4 text-sm text-indigo-700">
-                    <p>
-                      <strong>Student Name:</strong> {student.studentName}
-                    </p>
-                    <p>
-                      <strong>Ustadz Name:</strong> {student.ustazName}
-                    </p>
-                    <p>
-                      <strong>Controller Name:</strong> {student.controllerName}
-                    </p>
-                    <p>
-                      <strong>Day Package:</strong>{" "}
-                      {student.daypackages || "All days"}
-                    </p>
-                    <p>
-                      <strong>Scheduled At:</strong>{" "}
-                      {formatDateSafely(student.scheduledAt)}
-                    </p>
-                    <p>
-                      <strong>Attendance Status:</strong>{" "}
-                      {student.attendance_status}
-                    </p>
-                    <p>
-                      <strong>Absent Days:</strong>{" "}
-                      {student.absentDaysCount !== undefined
-                        ? `${student.absentDaysCount} (from ${format(
-                            parseISO(startDate),
-                            "MMM dd"
-                          )} to ${format(parseISO(endDate), "MMM dd")})`
-                        : "Set date range to view"}
-                    </p>
-                    <div>
-                      <strong>Zoom Links:</strong>
-                      {student.links.length > 0 ? (
-                        <ul className="mt-2 space-y-2">
-                          {student.links.map((link) => (
-                            <li
-                              key={link.id}
-                              className="border-t border-indigo-100 pt-2"
-                            >
-                              <p>
-                                <strong>Link:</strong>{" "}
-                                <a
-                                  href={link.link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-indigo-600 hover:underline"
-                                >
-                                  {link.link.substring(0, 30)}...
-                                </a>
-                              </p>
-                              <p>
-                                <strong>Sent Time:</strong>{" "}
-                                {link.sent_time
-                                  ? formatDateSafely(link.sent_time)
-                                  : "Not Sent"}
-                              </p>
-                              <p>
-                                <strong>Clicked Time:</strong>{" "}
-                                {link.clicked_at
-                                  ? formatDateSafely(link.clicked_at)
-                                  : "Not Clicked"}
-                              </p>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="mt-2">No links available.</p>
-                      )}
-                    </div>
+            Next
+          </button>
+        </div>
+      )}
+
+      <ConfirmModal
+        open={!!studentToNotify}
+        title="Confirm Notification"
+        message="Are you sure you want to send an SMS reminder to this teacher?"
+        onConfirm={confirmNotify}
+        onCancel={() => setStudentToNotify(null)}
+      />
+
+      {/* Attendance Details Modal/Expandable Row */}
+      {typeof window !== "undefined" && expandedStudentId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 max-w-md w-full relative">
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              onClick={() => setExpandedStudentId(null)}
+            >
+              <FiX />
+            </button>
+            <h3 className="text-lg font-bold mb-4">Attendance Details</h3>
+            {(() => {
+              const student = data.find(
+                (r) => r.student_id === expandedStudentId
+              );
+              if (!student) return <div>Not found</div>;
+              let link =
+                student.links &&
+                student.links.length > 1 &&
+                selectedLinks[student.student_id]
+                  ? student.links.find(
+                      (l) => l.id === selectedLinks[student.student_id]
+                    )
+                  : student.links && student.links.length === 1
+                  ? student.links[0]
+                  : null;
+              return (
+                <div className="space-y-2">
+                  <div>
+                    <b>Name:</b> {student.studentName}
                   </div>
-                );
-              })()}
-            </div>
-          </motion.div>
-        )}
-      </motion.div>
+                  <div>
+                    <b>Ustadz:</b> {student.ustazName}
+                  </div>
+                  <div>
+                    <b>Scheduled At:</b> {formatDateSafely(student.scheduledAt)}
+                  </div>
+                  <div>
+                    <b>Sent Time:</b>{" "}
+                    {link && link.sent_time
+                      ? formatDateSafely(link.sent_time)
+                      : "N/A"}
+                  </div>
+                  <div>
+                    <b>Clicked Time:</b>{" "}
+                    {link && link.clicked_at
+                      ? formatDateSafely(link.clicked_at)
+                      : "N/A"}
+                  </div>
+                  <div>
+                    <b>Time Difference:</b>{" "}
+                    {(() => {
+                      if (!link || !link.sent_time || !student.scheduledAt)
+                        return "N/A";
+                      const scheduled = parseISO(student.scheduledAt);
+                      const sent = parseISO(link.sent_time);
+                      if (!isValid(scheduled) || !isValid(sent)) return "N/A";
+                      const diff = Math.round(
+                        (sent.getTime() - scheduled.getTime()) / 60000
+                      );
+                      if (diff < 0) return `${Math.abs(diff)} min early`;
+                      if (diff <= 3) return `Early (${diff} min)`;
+                      if (diff <= 5) return `On Time (${diff} min)`;
+                      return `Very Late (${diff} min)`;
+                    })()}
+                  </div>
+                  <div>
+                    <b>Status:</b> {student.attendance_status}
+                  </div>
+                  <div>
+                    <b>Link:</b>{" "}
+                    {link ? (
+                      <a
+                        href={link.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline"
+                      >
+                        Open
+                      </a>
+                    ) : (
+                      "N/A"
+                    )}
+                  </div>
+                  <div>
+                    <b>Attendance Status:</b>{" "}
+                    {student.attendance_status
+                      .replace("-", " ")
+                      .replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
