@@ -282,7 +282,7 @@ export default function AttendanceList() {
     setAttendanceStatus("");
     setSentStatus("");
     setClickedStatus("");
-    setSearchQuote("");
+    setSearchQuery("");
     setPage(1);
   };
 
