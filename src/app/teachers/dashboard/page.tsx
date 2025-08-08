@@ -348,7 +348,7 @@ ${quality.examinerNotes || "No notes provided."}
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-indigo-50 text-slate-900">
+    <div className="flex min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-rose-50 text-slate-900">
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-800 text-white flex flex-col transition-transform duration-300 ease-in-out md:static md:translate-x-0 shadow-xl ${
@@ -357,35 +357,35 @@ ${quality.examinerNotes || "No notes provided."}
       >
         <div className="flex items-center justify-center h-20 border-b border-slate-700 bg-slate-900">
           <span className="text-2xl font-extrabold flex items-center gap-3">
-            <FiUser className="h-8 w-8 text-emerald-400" />
+            <FiUser className="h-8 w-8 text-indigo-400" />
             <span>Teacher Portal</span>
           </span>
           <button
-            className="md:hidden text-emerald-300 hover:text-white absolute right-4"
+            className="md:hidden text-indigo-300 hover:text-white absolute right-4"
             onClick={() => setSidebarOpen(false)}
             aria-label="Close sidebar"
           >
             <FiX size={24} />
           </button>
         </div>
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-emerald-700 scrollbar-track-slate-900">
-          <button onClick={() => setActiveTab("dashboard")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "dashboard" ? "bg-emerald-600 text-white" : "text-emerald-200 hover:bg-slate-700 hover:text-white"}`}>
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-700 scrollbar-track-slate-900">
+          <button onClick={() => setActiveTab("dashboard")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "dashboard" ? "bg-indigo-600 text-white" : "text-indigo-200 hover:bg-slate-700 hover:text-white"}`}>
             <FiHome className="h-5 w-5" /> Dashboard
           </button>
-          <button onClick={() => setActiveTab("students")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "students" ? "bg-emerald-600 text-white" : "text-emerald-200 hover:bg-slate-700 hover:text-white"}`}>
+          <button onClick={() => setActiveTab("students")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "students" ? "bg-indigo-600 text-white" : "text-indigo-200 hover:bg-slate-700 hover:text-white"}`}>
             <FiUsers className="h-5 w-5" /> Students
           </button>
-          <button onClick={() => setActiveTab("permissions")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "permissions" ? "bg-emerald-600 text-white" : "text-emerald-200 hover:bg-slate-700 hover:text-white"}`}>
+          <button onClick={() => setActiveTab("permissions")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "permissions" ? "bg-indigo-600 text-white" : "text-indigo-200 hover:bg-slate-700 hover:text-white"}`}>
             <FiClipboard className="h-5 w-5" /> Permissions
           </button>
-          <button onClick={() => setActiveTab("salary")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "salary" ? "bg-emerald-600 text-white" : "text-emerald-200 hover:bg-slate-700 hover:text-white"}`}>
+          <button onClick={() => setActiveTab("salary")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "salary" ? "bg-indigo-600 text-white" : "text-indigo-200 hover:bg-slate-700 hover:text-white"}`}>
             <FiTrendingUp className="h-5 w-5" /> Salary
           </button>
         </nav>
         <div className="px-4 py-4 border-t border-slate-700 bg-slate-900">
           <button
             onClick={() => signOut({ callbackUrl: "/teachers/login" })}
-            className="w-full flex items-center gap-3 p-3 text-base font-medium text-emerald-200 hover:bg-red-600 hover:text-white rounded-lg transition-all duration-200"
+            className="w-full flex items-center gap-3 p-3 text-base font-medium text-indigo-200 hover:bg-red-600 hover:text-white rounded-lg transition-all duration-200"
             aria-label="Logout"
           >
             <FiLogOut className="w-5 h-5" />
@@ -397,24 +397,24 @@ ${quality.examinerNotes || "No notes provided."}
       {/* Main content */}
       <div className="flex-1 flex flex-col pb-16 md:pb-0">
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md shadow-lg border-b border-emerald-100">
+        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md shadow-lg border-b border-indigo-100">
           <div className="flex items-center justify-between p-4 max-w-7xl mx-auto">
             <div className="flex items-center gap-4">
               <button
-                className="md:hidden text-emerald-600 hover:text-emerald-700"
+                className="md:hidden text-indigo-600 hover:text-indigo-700"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open sidebar"
               >
                 <FiMenu size={24} />
               </button>
-              <span className="text-2xl font-extrabold text-emerald-900 hidden sm:block">
+              <span className="text-2xl font-extrabold text-indigo-900 hidden sm:block">
                 Welcome, {user && user.name && typeof user.name === "string" ? user.name : "Teacher"}
               </span>
             </div>
             <div className="flex items-center gap-6">
               <div className="relative group">
                 <button
-                  className="text-emerald-600 hover:text-emerald-700 relative p-2 rounded-full hover:bg-emerald-100 focus:ring-2 focus:ring-emerald-500 transition-all"
+                  className="text-indigo-600 hover:text-indigo-700 relative p-2 rounded-full hover:bg-indigo-100 focus:ring-2 focus:ring-indigo-500 transition-all"
                   onClick={() => setShowNotifications(!showNotifications)}
                   aria-label="Notifications"
                   aria-haspopup="true"
@@ -427,8 +427,8 @@ ${quality.examinerNotes || "No notes provided."}
                   )}
                 </button>
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white/95 backdrop-blur-md rounded-lg shadow-xl border border-emerald-200 p-4 z-50 max-h-96 overflow-y-auto animate-fade-in">
-                    <h3 className="text-lg font-bold text-green-900 mb-3">
+                  <div className="absolute right-0 mt-2 w-80 bg-white/95 backdrop-blur-md rounded-lg shadow-xl border border-indigo-200 p-4 z-50 max-h-96 overflow-y-auto animate-fade-in">
+                    <h3 className="text-lg font-bold text-indigo-900 mb-3">
                       Notifications
                     </h3>
                     {notifications.length === 0 ? (
@@ -441,7 +441,7 @@ ${quality.examinerNotes || "No notes provided."}
                           key={notification.id}
                           className={`p-3 rounded-lg mb-2 flex items-center gap-3 animate-slide-in ${
                             notification.type === "success"
-                              ? "bg-green-50 text-green-700"
+                              ? "bg-indigo-50 text-indigo-700"
                               : notification.type === "error"
                               ? "bg-red-50 text-red-700"
                               : "bg-blue-50 text-blue-700"
@@ -449,7 +449,7 @@ ${quality.examinerNotes || "No notes provided."}
                           style={{ animationDelay: `${idx * 50}ms` }}
                         >
                           {notification.type === "success" && (
-                            <FiCheckCircle className="text-green-500" />
+                            <FiCheckCircle className="text-indigo-500" />
                           )}
                           {notification.type === "error" && (
                             <FiAlertTriangle className="text-red-500" />
@@ -471,12 +471,12 @@ ${quality.examinerNotes || "No notes provided."}
                 )}
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center text-white font-bold shadow-md">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold shadow-md">
                   {user && user.name && typeof user.name === "string"
                     ? user.name.charAt(0)
                     : "T"}
                 </div>
-                <span className="text-sm font-semibold text-green-900 hidden md:block">
+                <span className="text-sm font-semibold text-indigo-900 hidden md:block">
                   {user && user.name && typeof user.name === "string"
                     ? user.name
                     : "Teacher"}
@@ -489,7 +489,7 @@ ${quality.examinerNotes || "No notes provided."}
         {/* Main content */}
         <main className="flex-1 p-4 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-8">
           {activeTab === "students" && (
-            <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-green-100 p-4">
+            <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-4">
               <AssignedStudents />
             </div>
           )}
@@ -526,7 +526,7 @@ ${quality.examinerNotes || "No notes provided."}
                 <Button
                   key={idx}
                   asChild
-                  className="flex-1 min-w-[180px] bg-gradient-to-br from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-semibold py-4 rounded-xl shadow-lg transition-all hover:scale-105 focus:ring-2 focus:ring-green-400 focus:outline-none flex items-center justify-center gap-3 text-base"
+                  className="flex-1 min-w-[180px] bg-gradient-to-br from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white font-semibold py-4 rounded-xl shadow-lg transition-all hover:scale-105 focus:ring-2 focus:ring-indigo-400 focus:outline-none flex items-center justify-center gap-3 text-base"
                 >
                   <Link
                     href={action.href}
@@ -542,19 +542,19 @@ ${quality.examinerNotes || "No notes provided."}
           </div>
 
           {/* Today Classes */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-green-100 p-6 mb-6 animate-slide-in">
-            <h2 className="text-xl font-bold text-green-900 mb-3">Today’s Classes</h2>
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-6 mb-6 animate-slide-in">
+            <h2 className="text-xl font-bold text-indigo-900 mb-3">Today’s Classes</h2>
             {todayClasses.length === 0 ? (
               <div className="text-gray-500">No classes scheduled for today.</div>
             ) : (
               <div className="space-y-2">
                 {todayClasses.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-green-100">
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-indigo-100">
                     <div>
-                      <div className="font-semibold text-green-800">{c.studentName}</div>
+                      <div className="font-semibold text-indigo-800">{c.studentName}</div>
                       <div className="text-xs text-gray-500">{c.subject || "-"} • {c.daypackage}</div>
                     </div>
-                    <div className="text-green-700 font-bold">{c.time}</div>
+                    <div className="text-indigo-700 font-bold">{c.time}</div>
                   </div>
                 ))}
               </div>
@@ -562,9 +562,9 @@ ${quality.examinerNotes || "No notes provided."}
           </div>
 
           {/* Week Selector */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-green-100 p-6 mb-8 animate-slide-in">
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-6 mb-8 animate-slide-in">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <label className="font-semibold text-green-900 text-lg">
+              <label className="font-semibold text-indigo-900 text-lg">
                 Select Week:
               </label>
               <div className="flex gap-2 flex-wrap">
@@ -579,10 +579,10 @@ ${quality.examinerNotes || "No notes provided."}
                       variant={isSelected ? "default" : "outline"}
                       className={`rounded-full px-4 py-2 text-sm font-semibold ${
                         isSelected
-                          ? "bg-green-600 text-white"
+                          ? "bg-indigo-600 text-white"
                           : isCurrentWeek
                           ? "bg-blue-100 text-blue-700 border-blue-300"
-                          : "bg-white text-green-700 border-green-300"
+                          : "bg-white text-indigo-700 border-indigo-300"
                       }`}
                       onClick={() => {
                         setSelectedWeek(week);
@@ -597,7 +597,7 @@ ${quality.examinerNotes || "No notes provided."}
               {quality && (
                 <Button
                   onClick={downloadReport}
-                  className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 rounded-lg shadow-md hover:scale-105 transition-all"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-md hover:scale-105 transition-all"
                   aria-label="Download quality report"
                 >
                   <FiDownload className="w-5 h-5" />
@@ -610,13 +610,13 @@ ${quality.examinerNotes || "No notes provided."}
           {/* Stats Cards */}
           <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
             <StatsCard
-              icon={<FiUsers size={24} className="text-green-600" />}
+              icon={<FiUsers size={24} className="text-indigo-600" />}
               label="Total Students"
               value={studentCount}
-              color="green"
+              color="indigo"
             />
             <StatsCard
-              icon={<FiCheckCircle size={24} className="text-teal-600" />}
+              icon={<FiCheckCircle size={24} className="text-violet-600" />}
               label="Pass Rate"
               value={
                 quality
@@ -625,7 +625,7 @@ ${quality.examinerNotes || "No notes provided."}
                     )
                   : 0
               }
-              color="teal"
+              color="violet"
               unit="%"
             />
             <StatsCard
@@ -645,38 +645,38 @@ ${quality.examinerNotes || "No notes provided."}
           </div>
 
           {/* Quality Overview */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-green-100 p-8 mb-8 animate-slide-in">
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-8 mb-8 animate-slide-in">
             {qualityLoading ? (
               <PageLoading />
             ) : quality ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-8">
-                  <h2 className="text-2xl font-extrabold text-green-900 mb-4 flex items-center gap-3 animate-slide-in">
-                    <FiCheckCircle className="text-green-600 h-8 w-8" />
+                  <h2 className="text-2xl font-extrabold text-indigo-900 mb-4 flex items-center gap-3 animate-slide-in">
+                    <FiCheckCircle className="text-indigo-600 h-8 w-8" />
                     Quality:{" "}
-                    <span className="text-green-600">{quality.rating}</span>
+                    <span className="text-indigo-600">{quality.rating}</span>
                   </h2>
                   {/* Positive Feedback Dropdown */}
-                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-green-200 shadow-sm">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200 shadow-sm">
                     <button
                       onClick={() =>
                         setPositiveFeedbackOpen(!positiveFeedbackOpen)
                       }
-                      className="w-full p-4 flex items-center justify-between text-left hover:bg-green-50/50 transition-colors rounded-xl"
+                      className="w-full p-4 flex items-center justify-between text-left hover:bg-indigo-50/50 transition-colors rounded-xl"
                       aria-expanded={positiveFeedbackOpen}
                       aria-label="Toggle positive feedback"
                     >
                       <div className="flex items-center gap-3">
-                        <FiCheckCircle className="text-green-600 h-6 w-6" />
-                        <h3 className="text-xl font-bold text-green-700">
+                        <FiCheckCircle className="text-indigo-600 h-6 w-6" />
+                        <h3 className="text-xl font-bold text-indigo-700">
                           Strengths ({quality.strengths.length})
                         </h3>
                       </div>
                       <div className="flex items-center gap-2">
                         {positiveFeedbackOpen ? (
-                          <FiChevronUp className="text-green-600 h-5 w-5" />
+                          <FiChevronUp className="text-indigo-600 h-5 w-5" />
                         ) : (
-                          <FiChevronDown className="text-green-600 h-5 w-5" />
+                          <FiChevronDown className="text-indigo-600 h-5 w-5" />
                         )}
                       </div>
                     </button>
@@ -687,14 +687,14 @@ ${quality.examinerNotes || "No notes provided."}
                             {quality.strengths.map((s, i) => (
                               <li
                                 key={i}
-                                className="bg-green-50/50 border border-green-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all hover:scale-[1.02] animate-slide-in"
+                                className="bg-indigo-50/50 border border-indigo-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all hover:scale-[1.02] animate-slide-in"
                                 style={{ animationDelay: `${i * 50}ms` }}
                               >
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                  <span className="font-semibold text-green-800 text-lg">
+                                  <span className="font-semibold text-indigo-800 text-lg">
                                     {s.title}
                                     {typeof s.rating === "number" && (
-                                      <span className="ml-2 text-sm text-green-600 font-medium">
+                                      <span className="ml-2 text-sm text-indigo-600 font-medium">
                                         ({s.rating}/10)
                                       </span>
                                     )}
@@ -780,8 +780,8 @@ ${quality.examinerNotes || "No notes provided."}
                 </div>
                 <div className="space-y-6">
                   {quality.bonusAmount ? (
-                    <div className="relative bg-gradient-to-r from-green-500 via-teal-500 to-indigo-500 p-8 rounded-2xl text-center text-white shadow-2xl border border-green-300 overflow-hidden animate-slide-in">
-                      <div className="absolute inset-0 bg-gradient-to-r from-green-500 via-teal-500 to-indigo-500 animate-gradient-bg"></div>
+                    <div className="relative bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 p-8 rounded-2xl text-center text-white shadow-2xl border border-indigo-300 overflow-hidden animate-slide-in">
+                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 animate-gradient-bg"></div>
                       <div className="relative z-10">
                         <h3 className="text-2xl font-extrabold mb-3 flex items-center justify-center gap-3">
                           <FiAward className="w-8 h-8 animate-pulse" />
@@ -801,7 +801,7 @@ ${quality.examinerNotes || "No notes provided."}
                               confettiNumber: 100,
                             })
                           }
-                          className="mt-4 bg-white text-green-600 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg shadow-md hover:scale-105 transition-all"
+                          className="mt-4 bg-white text-indigo-600 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg shadow-md hover:scale-105 transition-all"
                           aria-label="Celebrate bonus"
                         >
                           Celebrate Again!
@@ -816,8 +816,8 @@ ${quality.examinerNotes || "No notes provided."}
                     </div>
                   )}
                   {quality.examinerNotes && (
-                    <div className="bg-white/95 backdrop-blur-md p-6 rounded-lg shadow-lg border border-green-100 animate-slide-in">
-                      <p className="font-semibold text-green-900 text-lg">
+                    <div className="bg-white/95 backdrop-blur-md p-6 rounded-lg shadow-lg border border-indigo-100 animate-slide-in">
+                      <p className="font-semibold text-indigo-900 text-lg">
                         Examiner Notes:
                       </p>
                       <p className="text-gray-600 mt-2">
@@ -838,12 +838,12 @@ ${quality.examinerNotes || "No notes provided."}
         </main>
 
         {/* Bottom Navigation (Mobile) */}
-        <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 border-t border-green-100 shadow-lg flex justify-around py-2 z-50">
-          <button onClick={() => setActiveTab("dashboard")} className={`flex flex-col items-center text-xs ${activeTab === "dashboard" ? "text-green-700" : "text-gray-500"}`}>
+        <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 border-t border-indigo-100 shadow-lg flex justify-around py-2 z-50">
+          <button onClick={() => setActiveTab("dashboard")} className={`flex flex-col items-center text-xs ${activeTab === "dashboard" ? "text-indigo-700" : "text-gray-500"}`}>
             <FiHome className="w-5 h-5" />
             Dashboard
           </button>
-          <button onClick={() => setActiveTab("students")} className={`flex flex-col items-center text-xs ${activeTab === "students" ? "text-green-700" : "text-gray-500"}`}>
+          <button onClick={() => setActiveTab("students")} className={`flex flex-col items-center text-xs ${activeTab === "students" ? "text-indigo-700" : "text-gray-500"}`}>
             <FiUsers className="w-5 h-5" />
             Students
           </button>
@@ -922,23 +922,18 @@ function StatsCard({
   unit?: string;
 }) {
   const colorMap: Record<string, { bg: string; text: string }> = {
-    green: { bg: "bg-green-100", text: "text-green-600" },
-    teal: { bg: "bg-teal-100", text: "text-teal-600" },
-    yellow: { bg: "bg-yellow-100", text: "text-yellow-600" },
-    purple: { bg: "bg-purple-100", text: "text-purple-600" },
-    blue: { bg: "bg-blue-100", text: "text-blue-600" },
-    red: { bg: "bg-red-100", text: "text-red-600" },
     indigo: { bg: "bg-indigo-100", text: "text-indigo-600" },
-    orange: { bg: "bg-orange-100", text: "text-orange-600" },
+    violet: { bg: "bg-violet-100", text: "text-violet-600" },
+    rose: { bg: "bg-rose-100", text: "text-rose-600" },
   };
-  const classes = colorMap[color] || colorMap.green;
+  const classes = colorMap[color] || colorMap.indigo;
   return (
-    <div className={`bg-white/95 backdrop-blur-md p-4 sm:p-6 rounded-2xl shadow-lg border border-green-100 flex items-center gap-3 sm:gap-4 hover:shadow-xl transition-all hover:scale-[1.02] animate-slide-in min-w-0`}>
+    <div className={`bg-white/95 backdrop-blur-md p-4 sm:p-6 rounded-2xl shadow-lg border border-indigo-100 flex items-center gap-3 sm:gap-4 hover:shadow-xl transition-all hover:scale-[1.02] animate-slide-in min-w-0`}>
       <div className={`rounded-lg ${classes.bg} p-2 sm:p-3 shadow-sm flex-shrink-0`}>
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="text-xs sm:text-sm font-semibold text-green-600 truncate" title={label}>
+        <h3 className="text-xs sm:text-sm font-semibold text-indigo-600 truncate" title={label}>
           {label}
         </h3>
         <p className={`text-lg sm:text-2xl font-bold ${classes.text} break-words truncate overflow-hidden`} title={String(value) + (unit || "")}>
