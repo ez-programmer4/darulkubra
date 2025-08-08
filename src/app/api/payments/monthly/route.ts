@@ -445,6 +445,21 @@ export async function POST(request: NextRequest) {
 
     const endDate = new Date(parseInt(year), parseInt(monthNum), 0, 23, 59, 59);
 
+    // Check if controllerEarning table exists (production DB may not have it)
+    let controllerEarningTableExists = false;
+    try {
+      const rows = (await prisma.$queryRaw`
+        SELECT COUNT(*) as cnt
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+          AND table_name = 'controllerEarning'
+      `) as Array<{ cnt: bigint | number }>;
+      const cnt = rows && rows.length > 0 ? Number((rows[0] as any).cnt) : 0;
+      controllerEarningTableExists = cnt > 0;
+    } catch {
+      controllerEarningTableExists = false;
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const monthlyPayment = await tx.months_table.create({
         data: {
@@ -461,24 +476,29 @@ export async function POST(request: NextRequest) {
       });
 
       if (
+        controllerEarningTableExists &&
         paymentStatus === "paid" &&
         student.u_control &&
         Number(finalPaidAmount) > 0 &&
         ["full", "partial", "prizepartial"].includes(payment_type)
       ) {
-        // Ensure one earning per monthly payment id
-        const existingEarning = await tx.controllerearning.findFirst({
-          where: { paymentId: monthlyPayment.id },
-        });
-        if (!existingEarning) {
-          await tx.controllerearning.create({
-            data: {
-              controllerUsername: student.u_control,
-              studentId: parseInt(studentId),
-              paymentId: monthlyPayment.id,
-              amount: (Number(finalPaidAmount) * 0.1).toFixed(2), // 10% commission
-            },
+        try {
+          // Ensure one earning per monthly payment id
+          const existingEarning = await tx.controllerearning.findFirst({
+            where: { paymentId: monthlyPayment.id },
           });
+          if (!existingEarning) {
+            await tx.controllerearning.create({
+              data: {
+                controllerUsername: student.u_control,
+                studentId: parseInt(studentId),
+                paymentId: monthlyPayment.id,
+                amount: (Number(finalPaidAmount) * 0.1).toFixed(2), // 10% commission
+              },
+            });
+          }
+        } catch {
+          // If table disappears or fails mid-transaction, skip earning creation
         }
       }
 
