@@ -108,7 +108,9 @@ export async function POST(request: NextRequest) {
       paidAmount,
       paymentStatus,
       payment_type,
-      free_month_reason = "", // Default to empty string
+      free_month_reason = "",
+      legacyPaidThrough, // optional YYYY-MM to bypass unpaid checks before this month (admin/registral only)
+      ignoreHistoricalUnpaid = false, // optional boolean to bypass unpaid checks entirely (admin/registral only)
     } = body;
 
     if (
@@ -117,7 +119,7 @@ export async function POST(request: NextRequest) {
       month === undefined ||
       month === null ||
       paidAmount === undefined ||
-      paidAmount === null || // Fixed check
+      paidAmount === null ||
       paymentStatus === undefined ||
       paymentStatus === null ||
       payment_type === undefined ||
@@ -190,7 +192,7 @@ export async function POST(request: NextRequest) {
         u_control: true,
         startdate: true,
         classfee: true,
-        refer: true, // <-- Add refer field
+        refer: true,
       },
     });
 
@@ -230,6 +232,24 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Compute baseline for historical unpaid checks
+    const canOverrideChecks = session.role === "admin" || session.role === "registral";
+    let normalizedLegacyPaidThrough: string | null = null;
+    if (canOverrideChecks && legacyPaidThrough) {
+      const legMatch = String(legacyPaidThrough).match(/^(\d{4})-(\d{1,2})$/);
+      if (legMatch) {
+        const ly = legMatch[1];
+        const lm = String(parseInt(legMatch[2], 10)).padStart(2, "0");
+        normalizedLegacyPaidThrough = `${ly}-${lm}`;
+      }
+    }
+
+    const earliestRecordedMonth = allPayments.length > 0 ? allPayments[0].month : null; // sorted asc
+    // If we have records, don't enforce checks before the earliest recorded month
+    const baselineStartMonth = normalizedLegacyPaidThrough
+      ? normalizedLegacyPaidThrough
+      : earliestRecordedMonth ?? null;
+
     // Check for any unpaid months before the current month
     const currentMonthDate = new Date(
       parseInt(year),
@@ -240,7 +260,9 @@ export async function POST(request: NextRequest) {
 
     // Get all months up to the current month
     const monthsToCheck = [] as string[];
-    let checkDate = new Date(studentStartDate);
+    let checkDate = baselineStartMonth
+      ? new Date(parseInt(baselineStartMonth.split("-")[0]), parseInt(baselineStartMonth.split("-")[1]) - 1, 1)
+      : new Date(studentStartDate);
     while (checkDate < currentMonthDate) {
       monthsToCheck.push(
         `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(
@@ -252,51 +274,53 @@ export async function POST(request: NextRequest) {
     }
 
     // Check each month in sequence
-    for (const monthToCheck of monthsToCheck) {
-      const monthPayments = allPayments.filter((p) => p.month === monthToCheck);
-      const totalPaid = monthPayments.reduce(
-        (sum, p) => sum + Number(p.paid_amount),
-        0
-      );
-      const hasFullPrize = monthPayments.some((p) => p.payment_type === "free");
-      const hasPartialPrize = monthPayments.some(
-        (p) => p.payment_type === "prizepartial"
-      );
-      const hasRemainingPayment = monthPayments.some(
-        (p) => p.payment_type === "partial"
-      );
-
-      // Skip if month is covered by a full prize
-      if (hasFullPrize) continue;
-
-      // Skip if month has both partial prize and remaining payment
-      if (hasPartialPrize && hasRemainingPayment) continue;
-
-      // Calculate expected amount for this month
-      const [checkYear, checkMonth] = monthToCheck.split("-").map(Number);
-      const monthStart = new Date(checkYear, checkMonth - 1, 1);
-      const monthEnd = new Date(checkYear, checkMonth, 0);
-
-      // Calculate prorated amount for this month
-      const daysInMonth = monthEnd.getDate();
-      const daysInClass = Math.min(
-        differenceInDays(monthEnd, monthStart) + 1,
-        differenceInDays(monthEnd, studentStartDate) + 1
-      );
-      const expectedAmount =
-        (Number(student.classfee) * daysInClass) / daysInMonth;
-
-      // If this is a prize payment, skip the unpaid check
-      if (payment_type === "prizepartial" || payment_type === "free") continue;
-
-      // Check if the month is fully paid
-      if (totalPaid < expectedAmount) {
-        return NextResponse.json(
-          {
-            error: `Month ${monthToCheck} is not fully paid. Please complete previous months first.`,
-          },
-          { status: 400 }
+    if (!(canOverrideChecks && ignoreHistoricalUnpaid === true)) {
+      for (const monthToCheck of monthsToCheck) {
+        const monthPayments = allPayments.filter((p) => p.month === monthToCheck);
+        const totalPaid = monthPayments.reduce(
+          (sum, p) => sum + Number(p.paid_amount),
+          0
         );
+        const hasFullPrize = monthPayments.some((p) => p.payment_type === "free");
+        const hasPartialPrize = monthPayments.some(
+          (p) => p.payment_type === "prizepartial"
+        );
+        const hasRemainingPayment = monthPayments.some(
+          (p) => p.payment_type === "partial"
+        );
+
+        // Skip if month is covered by a full prize
+        if (hasFullPrize) continue;
+
+        // Skip if month has both partial prize and remaining payment
+        if (hasPartialPrize && hasRemainingPayment) continue;
+
+        // Calculate expected amount for this month
+        const [checkYear, checkMonth] = monthToCheck.split("-").map(Number);
+        const monthStart = new Date(checkYear, checkMonth - 1, 1);
+        const monthEnd = new Date(checkYear, checkMonth, 0);
+
+        // Calculate prorated amount for this month
+        const daysInMonth = monthEnd.getDate();
+        const daysInClass = Math.min(
+          differenceInDays(monthEnd, monthStart) + 1,
+          differenceInDays(monthEnd, studentStartDate) + 1
+        );
+        const expectedAmount =
+          (Number(student.classfee) * daysInClass) / daysInMonth;
+
+        // If this is a prize payment, skip the unpaid check
+        if (payment_type === "prizepartial" || payment_type === "free") continue;
+
+        // Check if the month is fully paid
+        if (totalPaid < expectedAmount) {
+          return NextResponse.json(
+            {
+              error: `Month ${monthToCheck} is not fully paid. Please complete previous months first.`,
+            },
+            { status: 400 }
+          );
+        }
       }
     }
 
@@ -369,6 +393,8 @@ export async function POST(request: NextRequest) {
     // Ensure paidAmount is a number for Prisma
     const paidAmountNumber =
       typeof paidAmount === "string" ? parseFloat(paidAmount) : paidAmount;
+    // Normalize free payments to 0 if omitted
+    const finalPaidAmount = payment_type === "free" ? 0 : paidAmountNumber;
     // Skip exceeding check for free payments, allow paidAmount: 0
     if (payment_type !== "free" && newTotal > expectedAmount + 0.01) {
       // Add small tolerance for floating point arithmetic, only for non-free payments
@@ -387,7 +413,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create the monthly payment record
+    // Create the monthly payment record and controller earning in a transaction
     const isFirstMonth =
       parseInt(year) === studentStartDate.getFullYear() &&
       parseInt(monthNum) - 1 === studentStartDate.getMonth();
@@ -405,47 +431,47 @@ export async function POST(request: NextRequest) {
 
     const endDate = new Date(parseInt(year), parseInt(monthNum), 0, 23, 59, 59);
 
-    const monthlyPayment = await prisma.months_table.create({
-      data: {
-        studentid: parseInt(studentId),
-        month: normalizedMonth,
-        paid_amount: paidAmountNumber,
-        payment_status: paymentStatus,
-        payment_type: payment_type,
-        start_date: startDate,
-        end_date: endDate,
-        is_free_month: payment_type === "free" ? true : false,
-        free_month_reason: payment_type === "free" ? free_month_reason : null,
-      },
-    });
-
-    // Controller Earnings Logic
-    if (
-      paymentStatus === "paid" &&
-      student.u_control &&
-      Number(paidAmount) > 0 &&
-      ["full", "partial", "prizepartial"].includes(payment_type)
-    ) {
-      // Only one earning per student per month
-      const existingEarning = await prisma.controllerearning.findFirst({
-        where: {
-          controllerUsername: student.u_control,
-          studentId: parseInt(studentId),
+    const result = await prisma.$transaction(async (tx) => {
+      const monthlyPayment = await tx.months_table.create({
+        data: {
+          studentid: parseInt(studentId),
+          month: normalizedMonth,
+          paid_amount: finalPaidAmount,
+          payment_status: paymentStatus,
+          payment_type: payment_type,
+          start_date: startDate,
+          end_date: endDate,
+          is_free_month: payment_type === "free" ? true : false,
+          free_month_reason: payment_type === "free" ? free_month_reason : null,
         },
       });
-      if (!existingEarning) {
-        await prisma.controllerearning.create({
-          data: {
-            controllerUsername: student.u_control,
-            studentId: parseInt(studentId),
-            paymentId: monthlyPayment.id,
-            amount: (Number(paidAmount) * 0.1).toFixed(2), // 10% commission
-          },
-        });
-      }
-    }
 
-    return NextResponse.json(monthlyPayment);
+      if (
+        paymentStatus === "paid" &&
+        student.u_control &&
+        Number(finalPaidAmount) > 0 &&
+        ["full", "partial", "prizepartial"].includes(payment_type)
+      ) {
+        // Ensure one earning per monthly payment id
+        const existingEarning = await tx.controllerearning.findFirst({
+          where: { paymentId: monthlyPayment.id },
+        });
+        if (!existingEarning) {
+          await tx.controllerearning.create({
+            data: {
+              controllerUsername: student.u_control,
+              studentId: parseInt(studentId),
+              paymentId: monthlyPayment.id,
+              amount: (Number(finalPaidAmount) * 0.1).toFixed(2), // 10% commission
+            },
+          });
+        }
+      }
+
+      return monthlyPayment;
+    });
+
+    return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },
