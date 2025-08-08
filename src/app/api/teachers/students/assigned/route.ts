@@ -7,10 +7,14 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const session = (await getToken({ req, secret: process.env.NEXTAUTH_SECRET })) as any;
-    if (!session?.user || session.user.role !== "teacher") {
+    const role = session?.role || session?.user?.role;
+    if (!session || role !== "teacher") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
-    const teacherId = session.user.id as string;
+    const teacherId = String(session?.user?.id || session?.id || "");
+    if (!teacherId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
@@ -34,7 +38,6 @@ export async function GET(req: NextRequest) {
       orderBy: [{ daypackages: "asc" }, { name: "asc" }],
     });
 
-    // Group by student.daypackages
     const groups: Record<string, any[]> = {};
     for (const s of students) {
       const key = (s.daypackages || "Unknown").trim();
