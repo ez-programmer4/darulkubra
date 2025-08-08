@@ -388,13 +388,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Add the new payment amount
-    const newTotal = totalPaid + Number(paidAmount);
-
-    // Ensure paidAmount is a number for Prisma
+    // Coerce to integer (months_table.paid_amount is Int)
     const paidAmountNumber =
       typeof paidAmount === "string" ? parseFloat(paidAmount) : paidAmount;
-    // Normalize free payments to 0 if omitted
-    const finalPaidAmount = payment_type === "free" ? 0 : paidAmountNumber;
+    const paidAmountInt = payment_type === "free" ? 0 : Math.round(Number(paidAmountNumber));
+    const finalPaidAmount = paidAmountInt;
+    const newTotal = totalPaid + finalPaidAmount;
+
     // Skip exceeding check for free payments, allow paidAmount: 0
     if (payment_type !== "free" && newTotal > expectedAmount + 0.01) {
       // Add small tolerance for floating point arithmetic, only for non-free payments
@@ -473,6 +473,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    console.error("Monthly payment POST error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
