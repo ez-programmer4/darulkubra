@@ -47,6 +47,12 @@ function genToken(length = 12) {
   return out;
 }
 
+function safeIncludes(haystack: unknown, needle: string): boolean {
+  if (!needle) return true;
+  const h = typeof haystack === "string" ? haystack : String(haystack ?? "");
+  return h.includes(needle);
+}
+
 export default function AssignedStudents() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
@@ -76,7 +82,7 @@ export default function AssignedStudents() {
     if (map[key]) return map[key].includes(day);
     const names = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
     if (names.includes(key)) return names.indexOf(key) === day;
-    const up = key.replaceAll(".", "").replaceAll(" ", "");
+    const up = key.replace(/\./g, "").replace(/\s+/g, "");
     const parts = up.split(/[,+/\\-]/);
     if (parts.length) {
       return parts.some((p) => {
@@ -169,14 +175,14 @@ export default function AssignedStudents() {
 
   // Derived filtered groups
   const filteredGroups = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const filterPkg = pkgFilter.toLowerCase();
+    const q = String(query ?? "").trim().toLowerCase();
+    const filterPkg = String(pkgFilter ?? "").toLowerCase();
     return groups
       .map((g) => {
         const filteredStudents = g.students
           .filter((s) => {
-            const matchesQuery = !q || (s.name || "").toLowerCase().includes(q) || (s.subject || "").toLowerCase().includes(q);
-            const matchesPkg = filterPkg === "all" || (s.daypackages || "").toLowerCase().includes(filterPkg);
+            const matchesQuery = !q || safeIncludes(String(s.name ?? "").toLowerCase(), q) || safeIncludes(String(s.subject ?? "").toLowerCase(), q);
+            const matchesPkg = filterPkg === "all" || safeIncludes(String(s.daypackages ?? "").toLowerCase(), filterPkg);
             return matchesQuery && matchesPkg;
           })
           .map((s) => {
