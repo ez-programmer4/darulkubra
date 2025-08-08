@@ -1,8 +1,23 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { FiSend, FiUser, FiChevronDown, FiChevronUp, FiCheck, FiClock, FiLink2 } from "react-icons/fi";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  FiSend,
+  FiUser,
+  FiCheck,
+  FiClock,
+  FiLink2,
+  FiAlertTriangle,
+  FiX,
+  FiRefreshCcw,
+  FiFilter,
+  FiSearch,
+  FiCopy,
+  FiChevronDown,
+  FiChevronUp,
+} from "react-icons/fi";
 import { Button } from "@/components/ui/button";
+import { PageLoading } from "@/components/ui/LoadingSpinner";
 
 type Group = {
   group: string;
@@ -17,39 +32,67 @@ type Group = {
   }>;
 };
 
+type ModalType = "zoom" | "attendance" | null;
+
+function genToken(length = 12) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  const array = new Uint32Array(length);
+  if (typeof window !== "undefined" && window.crypto) {
+    window.crypto.getRandomValues(array);
+    for (let i = 0; i < length; i++) out += chars[array[i] % chars.length];
+  } else {
+    for (let i = 0; i < length; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return out;
+}
+
 export default function AssignedStudents() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [sending, setSending] = useState<Record<number, boolean>>({});
+  const [modal, setModal] = useState<{ type: ModalType; studentId: number | null }>({ type: null, studentId: null });
   const [forms, setForms] = useState<Record<number, { link: string; token: string; expiry: string }>>({});
   const [attend, setAttend] = useState<Record<number, { status: string; level?: string; surah?: string; pages?: string; lesson?: string; notes?: string }>>({});
+  const [sending, setSending] = useState<Record<number, boolean>>({});
+
+  // UX state
+  const [query, setQuery] = useState("");
+  const [pkgFilter, setPkgFilter] = useState("all");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expAll, setExpAll] = useState(false);
 
   useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        const res = await fetch("/api/teachers/students/assigned", { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to load students");
-        const data = await res.json();
-        setGroups(data.groups || []);
-      } catch (e: any) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    refresh();
   }, []);
 
-  const toggle = (k: string) => setExpanded((s) => ({ ...s, [k]: !s[k] }));
+  async function refresh() {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/teachers/students/assigned", { cache: "no-store", credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load students");
+      const data = await res.json();
+      setGroups(data.groups || []);
+      // default expand groups when expAll is true
+      if (expAll) {
+        const next: Record<string, boolean> = {};
+        (data.groups || []).forEach((g: Group) => (next[g.group] = true));
+        setExpanded(next);
+      }
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const updateForm = (id: number, patch: Partial<{ link: string; token: string; expiry: string }>) =>
     setForms((f) => ({ ...f, [id]: { link: f[id]?.link || "", token: f[id]?.token || "", expiry: f[id]?.expiry || "", ...patch } }));
 
-  const updateAttend = (id: number, patch: Partial<{ status: string; level?: string; surah?: string; pages?: string; lesson?: string; notes?: string }>) =>
-    setAttend((a) => ({ ...a, [id]: { status: a[id]?.status || "present", ...a[id], ...patch } }));
+  const updateAttend = (
+    id: number,
+    patch: Partial<{ status: string; level?: string; surah?: string; pages?: string; lesson?: string; notes?: string }>
+  ) => setAttend((a) => ({ ...a, [id]: { status: a[id]?.status || "present", ...a[id], ...patch } }));
 
   async function sendZoom(studentId: number) {
     try {
@@ -63,12 +106,14 @@ export default function AssignedStudents() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ link: form.link, tracking_token: form.token, expiration_date: form.expiry || undefined }),
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to send zoom link");
-      alert("Zoom link sent");
+      alert("Zoom link sent successfully!");
       setForms((f) => ({ ...f, [studentId]: { link: "", token: "", expiry: "" } }));
+      setModal({ type: null, studentId: null });
     } catch (e: any) {
-      alert(e.message);
+      alert(`Error: ${e.message}`);
     } finally {
       setSending((s) => ({ ...s, [studentId]: false }));
     }
@@ -78,110 +123,277 @@ export default function AssignedStudents() {
     try {
       const rec = attend[studentId];
       if (!rec?.status) {
-        alert("Status required");
+        alert("Attendance status is required");
         return;
       }
       const res = await fetch(`/api/teachers/students/${studentId}/attendance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          attendance_status: rec.status,
-          surah: rec.surah || undefined,
-          pages_read: rec.pages ? Number(rec.pages) : undefined,
-          level: rec.level || undefined,
-          lesson: rec.lesson || undefined,
-          notes: rec.notes || undefined,
-        }),
+        body: JSON.stringify({ attendance_status: rec.status, surah: rec.surah || undefined, pages_read: rec.pages ? Number(rec.pages) : undefined, level: rec.level || undefined, lesson: rec.lesson || undefined, notes: rec.notes || undefined }),
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to save attendance");
-      alert("Attendance saved");
+      alert("Attendance saved successfully!");
       setAttend((a) => ({ ...a, [studentId]: { status: "present" } }));
+      setModal({ type: null, studentId: null });
     } catch (e: any) {
-      alert(e.message);
+      alert(`Error: ${e.message}`);
+    }
+  }
+
+  // Derived filtered groups
+  const filteredGroups = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filterPkg = pkgFilter.toLowerCase();
+    return groups
+      .map((g) => ({
+        group: g.group,
+        students: g.students.filter((s) => {
+          const matchesQuery = !q || (s.name || "").toLowerCase().includes(q) || (s.subject || "").toLowerCase().includes(q);
+          const matchesPkg = filterPkg === "all" || (s.daypackages || "").toLowerCase().includes(filterPkg);
+          return matchesQuery && matchesPkg;
+        }),
+      }))
+      .filter((g) => g.students.length > 0);
+  }, [groups, query, pkgFilter]);
+
+  function toggleGroup(name: string) {
+    setExpanded((prev) => ({ ...prev, [name]: !prev[name] }));
+  }
+
+  function toggleAll() {
+    const next: Record<string, boolean> = {};
+    filteredGroups.forEach((g) => (next[g.group] = !expAll));
+    setExpanded(next);
+    setExpAll((v) => !v);
+  }
+
+  function handleCopy(text: string) {
+    if (navigator.clipboard && text) {
+      navigator.clipboard.writeText(text).then(() => alert("Copied to clipboard"));
     }
   }
 
   return (
-    <div className="space-y-4">
-      {loading && <div className="p-4 text-center">Loading...</div>}
-      {error && <div className="p-4 text-red-600 text-center">{error}</div>}
-      {!loading && !error && groups.length === 0 && (
-        <div className="p-4 text-center text-gray-500">No assigned students</div>
-      )}
-      {groups.map((g) => (
-        <div key={g.group} className="rounded-2xl shadow-lg border border-green-100 overflow-hidden bg-white/95 backdrop-blur-sm">
-          <button className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-teal-50 border-b border-green-100" onClick={() => toggle(g.group)}>
-            <div className="flex items-center gap-2 font-bold text-green-800">
-              <FiUser />
-              {g.group || "Unknown Package"}
-              <span className="ml-2 text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">{g.students.length} students</span>
-            </div>
-            {expanded[g.group] ? <FiChevronUp className="text-green-700" /> : <FiChevronDown className="text-green-700" />}
-          </button>
-          {expanded[g.group] && (
-            <div className="divide-y">
-              {g.students.map((s) => (
-                <div key={s.id} className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold text-green-900">{s.name}</div>
-                      <div className="text-xs text-gray-500">{s.subject || "-"}</div>
-                      <div className="text-xs text-gray-400 flex items-center gap-2">
-                        <FiClock />
-                        {s.occupied?.map((o) => `${o.time_slot} (${o.daypackage})`).join(", ")}
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-500">ID: {s.id}</div>
-                  </div>
-                  {/* Zoom form */}
-                  <div className="bg-green-50 rounded-lg p-3 space-y-2 border border-green-100">
-                    <div className="text-sm font-semibold text-green-700 flex items-center gap-2"><FiLink2 /> Send Zoom Link</div>
-                    <input
-                      className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      placeholder="Zoom link"
-                      value={forms[s.id]?.link || ""}
-                      onChange={(e) => updateForm(s.id, { link: e.target.value })}
-                    />
-                    <input
-                      className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      placeholder="Tracking token"
-                      value={forms[s.id]?.token || ""}
-                      onChange={(e) => updateForm(s.id, { token: e.target.value })}
-                    />
-                    <input
-                      type="datetime-local"
-                      className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      placeholder="Expiration (optional)"
-                      value={forms[s.id]?.expiry || ""}
-                      onChange={(e) => updateForm(s.id, { expiry: e.target.value })}
-                    />
-                    <Button disabled={!!sending[s.id]} onClick={() => sendZoom(s.id)} className="w-full bg-green-600 hover:bg-green-700 text-white">
-                      {sending[s.id] ? "Sending..." : <span className="flex items-center gap-2"><FiSend /> Send</span>}
-                    </Button>
-                  </div>
-                  {/* Attendance form */}
-                  <div className="bg-teal-50 rounded-lg p-3 space-y-2 border border-teal-100">
-                    <div className="text-sm font-semibold text-teal-700">Attendance & Progress</div>
-                    <select className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" value={attend[s.id]?.status || "present"} onChange={(e) => updateAttend(s.id, { status: e.target.value })}>
-                      <option value="present">Present</option>
-                      <option value="absent">Absent</option>
-                      <option value="late">Late</option>
-                    </select>
-                    <input className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" placeholder="Level (e.g., Juz, Grade)" value={attend[s.id]?.level || ""} onChange={(e) => updateAttend(s.id, { level: e.target.value })} />
-                    <input className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" placeholder="Surah" value={attend[s.id]?.surah || ""} onChange={(e) => updateAttend(s.id, { surah: e.target.value })} />
-                    <input className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" placeholder="Pages read" value={attend[s.id]?.pages || ""} onChange={(e) => updateAttend(s.id, { pages: e.target.value })} />
-                    <input className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" placeholder="Lesson" value={attend[s.id]?.lesson || ""} onChange={(e) => updateAttend(s.id, { lesson: e.target.value })} />
-                    <textarea className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" placeholder="Notes" value={attend[s.id]?.notes || ""} onChange={(e) => updateAttend(s.id, { notes: e.target.value })} />
-                    <Button onClick={() => saveAttendance(s.id)} className="w-full bg-teal-600 hover:bg-teal-700 text-white">
-                      <span className="flex items-center gap-2"><FiCheck /> Save</span>
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+    <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto">
+      {/* Toolbar */}
+      <div className="bg-white/95 rounded-2xl shadow-md border border-emerald-100 p-3 sm:p-4 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+        <div className="flex gap-2 items-center flex-1">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name or subject..."
+              className="w-full pl-9 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <FiFilter className="text-slate-400" />
+            <select
+              value={pkgFilter}
+              onChange={(e) => setPkgFilter(e.target.value)}
+              className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="all">All packages</option>
+              <option value="mwf">MWF</option>
+              <option value="tts">TTS</option>
+              <option value="ss">SS</option>
+              <option value="all days">All days</option>
+            </select>
+          </div>
         </div>
-      ))}
+        <div className="flex gap-2">
+          <Button variant="outline" className="border-emerald-200" onClick={toggleAll}>
+            {expAll ? <FiChevronUp className="mr-2" /> : <FiChevronDown className="mr-2" />} {expAll ? "Collapse" : "Expand"} All
+          </Button>
+          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={refresh}>
+            <FiRefreshCcw className="mr-2" /> Refresh
+          </Button>
+        </div>
+      </div>
+
+      {loading && <PageLoading />}
+      {error && (
+        <div className="p-4 bg-red-50 border-l-4 border-red-600 rounded-lg flex items-center gap-3 animate-slide-in">
+          <FiAlertTriangle className="text-red-600 h-6 w-6 animate-pulse" />
+          <span className="text-red-700 font-medium">{error}</span>
+        </div>
+      )}
+      {!loading && !error && filteredGroups.length === 0 && (
+        <div className="p-6 text-center text-slate-500 bg-white/95 rounded-2xl shadow-lg border border-emerald-100 animate-slide-in">
+          No students match your filters.
+        </div>
+      )}
+
+      {/* Desktop Table per group */}
+      <div className="hidden md:grid md:grid-cols-1 gap-6">
+        {filteredGroups.map((g, idx) => (
+          <div key={g.group} className="rounded-2xl shadow-xl border border-emerald-200 bg-white/95 backdrop-blur-sm overflow-hidden animate-slide-in" style={{ animationDelay: `${idx * 80}ms` }}>
+            <div className="p-4 bg-gradient-to-r from-emerald-50 to-sky-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FiUser className="h-5 w-5 text-emerald-600" />
+                <h2 className="font-bold text-lg text-emerald-900">{g.group || "Unknown Package"}</h2>
+                <span className="text-xs text-white bg-emerald-500 px-2 py-1 rounded-full">{g.students.length} student{g.students.length !== 1 ? "s" : ""}</span>
+              </div>
+            </div>
+            <div className="p-4">
+              <table className="w-full text-sm text-slate-700">
+                <thead>
+                  <tr className="border-b border-emerald-100">
+                    <th className="py-2 text-left font-semibold text-emerald-800">Name</th>
+                    <th className="py-2 text-left font-semibold text-emerald-800">Subject</th>
+                    <th className="py-2 text-left font-semibold text-emerald-800">Schedule</th>
+                    <th className="py-2 text-right font-semibold text-emerald-800">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {g.students.map((s, sIdx) => (
+                    <tr key={s.id} className="border-b border-emerald-100 hover:bg-emerald-50/50 transition-colors" style={{ animationDelay: `${sIdx * 50}ms` }}>
+                      <td className="py-3">{s.name || "Unnamed Student"}</td>
+                      <td className="py-3">{s.subject || "N/A"}</td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                          <FiClock className="h-4 w-4 text-emerald-500" />
+                          {s.occupied?.length ? s.occupied.map((o) => `${o.time_slot} (${o.daypackage})`).join(", ") : "N/A"}
+                        </div>
+                      </td>
+                      <td className="py-3 text-right flex gap-2 justify-end">
+                        <Button onClick={() => setModal({ type: "zoom", studentId: s.id })} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1 px-2 rounded-md">
+                          <FiLink2 className="h-4 w-4 mr-1" /> Zoom
+                        </Button>
+                        <Button onClick={() => setModal({ type: "attendance", studentId: s.id })} className="bg-sky-600 hover:bg-sky-700 text-white text-xs py-1 px-2 rounded-md">
+                          <FiCheck className="h-4 w-4 mr-1" /> Attendance
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="grid md:hidden grid-cols-1 gap-4">
+        {filteredGroups.map((g) => (
+          <div key={g.group} className="rounded-2xl shadow-lg border border-emerald-100 overflow-hidden bg-white/95">
+            <button className="w-full flex items-center justify-between p-4" onClick={() => toggleGroup(g.group)}>
+              <div className="flex items-center gap-2 font-bold text-emerald-800">
+                <FiUser />
+                {g.group || "Unknown Package"}
+                <span className="ml-2 text-xs text-white bg-emerald-500 px-2 py-0.5 rounded-full">{g.students.length}</span>
+              </div>
+              {expanded[g.group] ? <FiChevronUp className="text-emerald-700" /> : <FiChevronDown className="text-emerald-700" />}
+            </button>
+            {expanded[g.group] && (
+              <div className="p-3 space-y-3">
+                {g.students.map((s) => (
+                  <div key={s.id} className="p-3 rounded-xl border border-emerald-100">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-emerald-900">{s.name || "Unnamed Student"}</div>
+                        <div className="text-xs text-slate-500">{s.subject || "N/A"}</div>
+                        <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
+                          <FiClock className="h-4 w-4 text-emerald-500" />
+                          {s.occupied?.length ? s.occupied.map((o) => `${o.time_slot} (${o.daypackage})`).join(", ") : "N/A"}
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-500">ID: {s.id}</div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Button onClick={() => setModal({ type: "zoom", studentId: s.id })} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
+                        <FiLink2 className="h-4 w-4 mr-1" /> Zoom
+                      </Button>
+                      <Button onClick={() => setModal({ type: "attendance", studentId: s.id })} className="flex-1 bg-sky-600 hover:bg-sky-700 text-white text-xs">
+                        <FiCheck className="h-4 w-4 mr-1" /> Attendance
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Modal for Zoom and Attendance Forms */}
+      {modal.type && modal.studentId !== null && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative animate-slide-in">
+            <button onClick={() => setModal({ type: null, studentId: null })} className="absolute top-4 right-4 text-slate-500 hover:text-slate-700" aria-label="Close modal">
+              <FiX className="h-5 w-5" />
+            </button>
+            {modal.type === "zoom" && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-emerald-900 flex items-center gap-2">
+                  <FiLink2 className="h-5 w-5 text-emerald-600" /> Send Zoom Link
+                </h3>
+                <div className="flex gap-2">
+                  <input className="w-full p-3 border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-slate-700 placeholder-slate-400 transition-all" placeholder="Enter Zoom link" value={forms[modal.studentId]?.link || ""} onChange={(e) => updateForm(modal.studentId!, { link: e.target.value })} />
+                  <Button variant="outline" className="border-emerald-200" onClick={() => handleCopy(forms[modal.studentId!]?.link || "")}> <FiCopy /> </Button>
+                </div>
+                <div className="flex gap-2">
+                  <input className="w-full p-3 border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-slate-700 placeholder-slate-400 transition-all" placeholder="Enter tracking token" value={forms[modal.studentId]?.token || ""} onChange={(e) => updateForm(modal.studentId!, { token: e.target.value })} />
+                  <Button variant="outline" className="border-emerald-200" onClick={() => updateForm(modal.studentId!, { token: genToken() })}> Generate </Button>
+                </div>
+                <input type="datetime-local" className="w-full p-3 border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-slate-700 placeholder-slate-400 transition-all" placeholder="Expiration (optional)" value={forms[modal.studentId]?.expiry || ""} onChange={(e) => updateForm(modal.studentId!, { expiry: e.target.value })} />
+                <Button disabled={!!sending[modal.studentId]} onClick={() => sendZoom(modal.studentId!)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                  {sending[modal.studentId] ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      </svg>
+                      Sending...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <FiSend className="h-5 w-5" /> Send Link
+                    </span>
+                  )}
+                </Button>
+              </div>
+            )}
+            {modal.type === "attendance" && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-sky-900 flex items-center gap-2">
+                  <FiCheck className="h-5 w-5 text-sky-600" /> Attendance & Progress
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["present", "absent", "late"] as const).map((s) => (
+                    <button key={s} onClick={() => updateAttend(modal.studentId!, { status: s })} className={`px-3 py-2 rounded-lg border ${attend[modal.studentId!]?.status === s ? "bg-sky-600 text-white border-sky-600" : "border-sky-200 text-sky-700"}`}>
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <input className="w-full p-3 border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white text-slate-700 placeholder-slate-400 transition-all" placeholder="Level (e.g., Juz, Grade)" value={attend[modal.studentId]?.level || ""} onChange={(e) => updateAttend(modal.studentId!, { level: e.target.value })} />
+                <input className="w-full p-3 border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white text-slate-700 placeholder-slate-400 transition-all" placeholder="Surah" value={attend[modal.studentId]?.surah || ""} onChange={(e) => updateAttend(modal.studentId!, { surah: e.target.value })} />
+                <div className="grid grid-cols-2 gap-2">
+                  <input className="w-full p-3 border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white text-slate-700 placeholder-slate-400 transition-all" placeholder="Pages" value={attend[modal.studentId]?.pages || ""} onChange={(e) => updateAttend(modal.studentId!, { pages: e.target.value })} />
+                  <input className="w-full p-3 border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white text-slate-700 placeholder-slate-400 transition-all" placeholder="Lesson" value={attend[modal.studentId]?.lesson || ""} onChange={(e) => updateAttend(modal.studentId!, { lesson: e.target.value })} />
+                </div>
+                <textarea className="w-full p-3 border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white text-slate-700 placeholder-slate-400 transition-all resize-none h-24" placeholder="Additional notes" value={attend[modal.studentId]?.notes || ""} onChange={(e) => updateAttend(modal.studentId!, { notes: e.target.value })} />
+                <Button onClick={() => saveAttendance(modal.studentId!)} className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                  <FiCheck className="h-5 w-5" /> Save Attendance
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tailwind Animations */}
+      <style jsx>{`
+        @keyframes slide-in {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        .animate-slide-in { animation: slide-in 0.5s ease-out; }
+        .animate-fade-in { animation: fade-in 0.3s ease-out; }
+      `}</style>
     </div>
   );
 }
