@@ -30,6 +30,7 @@ import {
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import JSConfetti from "js-confetti";
+import AssignedStudents from "./AssignedStudents";
 
 type QualityData = {
   rating: string;
@@ -324,6 +325,8 @@ ${quality.examinerNotes || "No notes provided."}
     );
   }
 
+  const [activeTab, setActiveTab] = useState<"dashboard" | "students" | "permissions" | "salary">("dashboard");
+
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-cyan-50 text-gray-900">
       {/* Sidebar */}
@@ -346,22 +349,18 @@ ${quality.examinerNotes || "No notes provided."}
           </button>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-green-700 scrollbar-track-green-900">
-          {navItems.map((item, idx) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition-all duration-200 ${
-                item.href === "/teachers/dashboard"
-                  ? "bg-green-600 text-white shadow-md"
-                  : "text-green-200 hover:bg-green-800 hover:text-white"
-              } animate-slide-in`}
-              style={{ animationDelay: `${idx * 50}ms` }}
-              aria-label={item.label}
-            >
-              <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
-            </Link>
-          ))}
+          <button onClick={() => setActiveTab("dashboard")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "dashboard" ? "bg-green-600 text-white" : "text-green-200 hover:bg-green-800 hover:text-white"}`}>
+            <FiHome className="h-5 w-5" /> Dashboard
+          </button>
+          <button onClick={() => setActiveTab("students")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "students" ? "bg-green-600 text-white" : "text-green-200 hover:bg-green-800 hover:text-white"}`}>
+            <FiUsers className="h-5 w-5" /> Students
+          </button>
+          <button onClick={() => setActiveTab("permissions")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "permissions" ? "bg-green-600 text-white" : "text-green-200 hover:bg-green-800 hover:text-white"}`}>
+            <FiClipboard className="h-5 w-5" /> Permissions
+          </button>
+          <button onClick={() => setActiveTab("salary")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "salary" ? "bg-green-600 text-white" : "text-green-200 hover:bg-green-800 hover:text-white"}`}>
+            <FiTrendingUp className="h-5 w-5" /> Salary
+          </button>
         </nav>
         <div className="px-4 py-4 border-t border-green-800 bg-green-900">
           <button
@@ -376,7 +375,7 @@ ${quality.examinerNotes || "No notes provided."}
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col pb-16 md:pb-0">
         {/* Header */}
         <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md shadow-lg border-b border-green-100">
           <div className="flex items-center justify-between p-4 max-w-7xl mx-auto">
@@ -389,10 +388,7 @@ ${quality.examinerNotes || "No notes provided."}
                 <FiMenu size={24} />
               </button>
               <span className="text-2xl font-extrabold text-green-900 hidden sm:block">
-                Welcome,{" "}
-                {user && user.name && typeof user.name === "string"
-                  ? user.name
-                  : "Teacher"}
+                Welcome, {user && user.name && typeof user.name === "string" ? user.name : "Teacher"}
               </span>
             </div>
             <div className="flex items-center gap-6">
@@ -471,7 +467,13 @@ ${quality.examinerNotes || "No notes provided."}
         </header>
 
         {/* Main content */}
-        <main className="flex-1 p-6 max-w-7xl mx-auto space-y-8">
+        <main className="flex-1 p-4 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-8">
+          {activeTab === "students" && (
+            <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-green-100 p-4">
+              <AssignedStudents />
+            </div>
+          )}
+          {activeTab === "dashboard" && (
           {/* Error Message */}
           {error && (
             <div className="p-4 bg-red-50 border-l-4 border-red-600 rounded-lg flex items-center gap-3 animate-slide-in">
@@ -790,13 +792,28 @@ ${quality.examinerNotes || "No notes provided."}
               </p>
             )}
           </div>
+          )}
         </main>
 
-        {/* Footer */}
-        <footer className="w-full text-center text-green-500 text-sm py-6 border-t border-green-100 bg-white/90 backdrop-blur-md mt-12">
-          © {new Date().getFullYear()} DarulKubra Teacher Portal. All rights
-          reserved.
-        </footer>
+        {/* Bottom Navigation (Mobile) */}
+        <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 border-t border-green-100 shadow-lg flex justify-around py-2 z-50">
+          <button onClick={() => setActiveTab("dashboard")} className={`flex flex-col items-center text-xs ${activeTab === "dashboard" ? "text-green-700" : "text-gray-500"}`}>
+            <FiHome className="w-5 h-5" />
+            Dashboard
+          </button>
+          <button onClick={() => setActiveTab("students")} className={`flex flex-col items-center text-xs ${activeTab === "students" ? "text-green-700" : "text-gray-500"}`}>
+            <FiUsers className="w-5 h-5" />
+            Students
+          </button>
+          <Link href="/teachers/permissions" className="flex flex-col items-center text-xs text-gray-500">
+            <FiClipboard className="w-5 h-5" />
+            Permissions
+          </Link>
+          <Link href="/teachers/salary" className="flex flex-col items-center text-xs text-gray-500">
+            <FiTrendingUp className="w-5 h-5" />
+            Salary
+          </Link>
+        </nav>
 
         {/* Tailwind Animation Styles */}
         <style jsx>{`
