@@ -1138,22 +1138,16 @@ export default function AdminLatenessAnalyticsPage() {
                                                     }`}
                                                   >
                                                     <td className="px-2 sm:px-4 py-2 text-indigo-900">
-                                                      {formatLocalDateTime(
-                                                        r.scheduledTime
-                                                      )}
+                                                      {formatLocalDateTime(r.scheduledTime)}
                                                     </td>
                                                     <td className="px-2 sm:px-4 py-2 text-indigo-900">
                                                       {r.studentName}
                                                     </td>
                                                     <td className="px-2 sm:px-4 py-2 text-indigo-700">
-                                                      {formatLocalDateTime(
-                                                        r.scheduledTime
-                                                      )}
+                                                      {formatLocalDateTime(r.scheduledTime)}
                                                     </td>
                                                     <td className="px-2 sm:px-4 py-2 text-indigo-700">
-                                                      {formatLocalDateTime(
-                                                        r.actualStartTime
-                                                      )}
+                                                      {formatLocalDateTime(r.actualStartTime)}
                                                     </td>
                                                     <td className="px-2 sm:px-4 py-2 text-indigo-700">
                                                       {r.latenessMinutes}

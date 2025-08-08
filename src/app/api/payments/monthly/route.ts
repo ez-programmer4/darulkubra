@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Decimal } from "@prisma/client/runtime/library";
+// import { Decimal } from "@prisma/client/runtime/library";
 import { differenceInDays } from "date-fns";
 import { getToken } from "next-auth/jwt";
 import { NextRequest } from "next/server";
@@ -139,22 +139,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate month format (YYYY-MM)
-    const [year, monthNum] = month.split("-");
-    if (
-      !year ||
-      !monthNum ||
-      isNaN(parseInt(year)) ||
-      isNaN(parseInt(monthNum)) ||
-      monthNum.length !== 2 ||
-      parseInt(monthNum) < 1 ||
-      parseInt(monthNum) > 12
-    ) {
+    // Validate month format (accept YYYY-MM or YYYY-M) and normalize to YYYY-MM
+    const monthMatch = String(month).match(/^(\d{4})-(\d{1,2})$/);
+    if (!monthMatch) {
       return NextResponse.json(
         { error: "Invalid month format. Use YYYY-MM (e.g., 2025-06)" },
         { status: 400 }
       );
     }
+    const year = monthMatch[1];
+    const rawMonthNum = monthMatch[2];
+    const monthInt = parseInt(rawMonthNum, 10);
+    if (monthInt < 1 || monthInt > 12) {
+      return NextResponse.json(
+        { error: "Invalid month number. Must be between 1 and 12" },
+        { status: 400 }
+      );
+    }
+    const monthNum = String(monthInt).padStart(2, "0");
+    const normalizedMonth = `${year}-${monthNum}`;
 
     // Validate payment type
     if (!["full", "partial", "prizepartial", "free"].includes(payment_type)) {
@@ -236,7 +239,7 @@ export async function POST(request: NextRequest) {
     const studentStartDate = new Date(student.startdate);
 
     // Get all months up to the current month
-    const monthsToCheck = [];
+    const monthsToCheck = [] as string[];
     let checkDate = new Date(studentStartDate);
     while (checkDate < currentMonthDate) {
       monthsToCheck.push(
@@ -298,7 +301,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if payment already exists for this month
-    const existingPayments = allPayments.filter((p) => p.month === month);
+    const existingPayments = allPayments.filter(
+      (p) => p.month === normalizedMonth
+    );
 
     // If there's a full prize (free month), block any additional payments
     const hasFullPrize = existingPayments.some(
@@ -314,7 +319,7 @@ export async function POST(request: NextRequest) {
     // Get all prizes for this student
     const prizes = await prisma.months_table.findMany({
       where: {
-        studentid: studentId,
+        studentid: parseInt(studentId),
         payment_type: "prizepartial",
       },
     });
@@ -405,12 +410,12 @@ export async function POST(request: NextRequest) {
     const monthlyPayment = await prisma.months_table.create({
       data: {
         studentid: parseInt(studentId),
-        month: month,
+        month: normalizedMonth,
         paid_amount: paidAmountNumber,
         payment_status: paymentStatus,
         payment_type: payment_type,
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
+        start_date: startDate,
+        end_date: endDate,
         is_free_month: payment_type === "free" ? true : false,
         free_month_reason: payment_type === "free" ? free_month_reason : null,
       },
