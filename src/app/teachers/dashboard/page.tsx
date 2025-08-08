@@ -90,6 +90,8 @@ export default function TeacherDashboard() {
     return result;
   });
 
+  const [activeTab, setActiveTab] = useState<"dashboard" | "students" | "permissions" | "salary">("dashboard");
+
   // Generate all week start dates for the current month
   const [monthWeeks, setMonthWeeks] = useState<string[]>([]);
 
@@ -324,8 +326,6 @@ ${quality.examinerNotes || "No notes provided."}
       </div>
     );
   }
-
-  const [activeTab, setActiveTab] = useState<"dashboard" | "students" | "permissions" | "salary">("dashboard");
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-cyan-50 text-gray-900">
