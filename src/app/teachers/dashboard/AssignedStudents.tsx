@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { FiSend, FiUser, FiChevronDown, FiChevronUp, FiCheck } from "react-icons/fi";
+import { FiSend, FiUser, FiChevronDown, FiChevronUp, FiCheck, FiClock, FiLink2 } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 
 type Group = {
@@ -109,13 +109,14 @@ export default function AssignedStudents() {
         <div className="p-4 text-center text-gray-500">No assigned students</div>
       )}
       {groups.map((g) => (
-        <div key={g.group} className="bg-white rounded-xl shadow border border-green-100 overflow-hidden">
-          <button className="w-full flex items-center justify-between p-4" onClick={() => toggle(g.group)}>
+        <div key={g.group} className="rounded-2xl shadow-lg border border-green-100 overflow-hidden bg-white/95 backdrop-blur-sm">
+          <button className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-teal-50 border-b border-green-100" onClick={() => toggle(g.group)}>
             <div className="flex items-center gap-2 font-bold text-green-800">
               <FiUser />
               {g.group || "Unknown Package"}
+              <span className="ml-2 text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">{g.students.length} students</span>
             </div>
-            {expanded[g.group] ? <FiChevronUp /> : <FiChevronDown />}
+            {expanded[g.group] ? <FiChevronUp className="text-green-700" /> : <FiChevronDown className="text-green-700" />}
           </button>
           {expanded[g.group] && (
             <div className="divide-y">
@@ -125,28 +126,31 @@ export default function AssignedStudents() {
                     <div>
                       <div className="font-semibold text-green-900">{s.name}</div>
                       <div className="text-xs text-gray-500">{s.subject || "-"}</div>
-                      <div className="text-xs text-gray-400">{s.occupied?.map((o) => `${o.time_slot} (${o.daypackage})`).join(", ")}</div>
+                      <div className="text-xs text-gray-400 flex items-center gap-2">
+                        <FiClock />
+                        {s.occupied?.map((o) => `${o.time_slot} (${o.daypackage})`).join(", ")}
+                      </div>
                     </div>
                     <div className="text-xs text-gray-500">ID: {s.id}</div>
                   </div>
                   {/* Zoom form */}
-                  <div className="bg-green-50 rounded-lg p-3 space-y-2">
-                    <div className="text-sm font-semibold text-green-700">Send Zoom Link</div>
+                  <div className="bg-green-50 rounded-lg p-3 space-y-2 border border-green-100">
+                    <div className="text-sm font-semibold text-green-700 flex items-center gap-2"><FiLink2 /> Send Zoom Link</div>
                     <input
-                      className="w-full p-2 border rounded"
+                      className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       placeholder="Zoom link"
                       value={forms[s.id]?.link || ""}
                       onChange={(e) => updateForm(s.id, { link: e.target.value })}
                     />
                     <input
-                      className="w-full p-2 border rounded"
+                      className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       placeholder="Tracking token"
                       value={forms[s.id]?.token || ""}
                       onChange={(e) => updateForm(s.id, { token: e.target.value })}
                     />
                     <input
                       type="datetime-local"
-                      className="w-full p-2 border rounded"
+                      className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       placeholder="Expiration (optional)"
                       value={forms[s.id]?.expiry || ""}
                       onChange={(e) => updateForm(s.id, { expiry: e.target.value })}
@@ -156,18 +160,18 @@ export default function AssignedStudents() {
                     </Button>
                   </div>
                   {/* Attendance form */}
-                  <div className="bg-teal-50 rounded-lg p-3 space-y-2">
+                  <div className="bg-teal-50 rounded-lg p-3 space-y-2 border border-teal-100">
                     <div className="text-sm font-semibold text-teal-700">Attendance & Progress</div>
-                    <select className="w-full p-2 border rounded" value={attend[s.id]?.status || "present"} onChange={(e) => updateAttend(s.id, { status: e.target.value })}>
+                    <select className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" value={attend[s.id]?.status || "present"} onChange={(e) => updateAttend(s.id, { status: e.target.value })}>
                       <option value="present">Present</option>
                       <option value="absent">Absent</option>
                       <option value="late">Late</option>
                     </select>
-                    <input className="w-full p-2 border rounded" placeholder="Level (e.g., Juz, Grade)" value={attend[s.id]?.level || ""} onChange={(e) => updateAttend(s.id, { level: e.target.value })} />
-                    <input className="w-full p-2 border rounded" placeholder="Surah" value={attend[s.id]?.surah || ""} onChange={(e) => updateAttend(s.id, { surah: e.target.value })} />
-                    <input className="w-full p-2 border rounded" placeholder="Pages read" value={attend[s.id]?.pages || ""} onChange={(e) => updateAttend(s.id, { pages: e.target.value })} />
-                    <input className="w-full p-2 border rounded" placeholder="Lesson" value={attend[s.id]?.lesson || ""} onChange={(e) => updateAttend(s.id, { lesson: e.target.value })} />
-                    <textarea className="w-full p-2 border rounded" placeholder="Notes" value={attend[s.id]?.notes || ""} onChange={(e) => updateAttend(s.id, { notes: e.target.value })} />
+                    <input className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" placeholder="Level (e.g., Juz, Grade)" value={attend[s.id]?.level || ""} onChange={(e) => updateAttend(s.id, { level: e.target.value })} />
+                    <input className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" placeholder="Surah" value={attend[s.id]?.surah || ""} onChange={(e) => updateAttend(s.id, { surah: e.target.value })} />
+                    <input className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" placeholder="Pages read" value={attend[s.id]?.pages || ""} onChange={(e) => updateAttend(s.id, { pages: e.target.value })} />
+                    <input className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" placeholder="Lesson" value={attend[s.id]?.lesson || ""} onChange={(e) => updateAttend(s.id, { lesson: e.target.value })} />
+                    <textarea className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" placeholder="Notes" value={attend[s.id]?.notes || ""} onChange={(e) => updateAttend(s.id, { notes: e.target.value })} />
                     <Button onClick={() => saveAttendance(s.id)} className="w-full bg-teal-600 hover:bg-teal-700 text-white">
                       <span className="flex items-center gap-2"><FiCheck /> Save</span>
                     </Button>
