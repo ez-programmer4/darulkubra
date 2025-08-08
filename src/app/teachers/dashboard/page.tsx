@@ -494,6 +494,7 @@ ${quality.examinerNotes || "No notes provided."}
             </div>
           )}
           {activeTab === "dashboard" && (
+            <>
           {/* Error Message */}
           {error && (
             <div className="p-4 bg-red-50 border-l-4 border-red-600 rounded-lg flex items-center gap-3 animate-slide-in">
@@ -832,6 +833,7 @@ ${quality.examinerNotes || "No notes provided."}
               </p>
             )}
           </div>
+            </>
           )}
         </main>
 
