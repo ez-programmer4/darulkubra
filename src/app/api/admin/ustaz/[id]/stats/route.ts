@@ -17,31 +17,32 @@ export async function GET(
 
   try {
     // Check if prisma is available
+
     if (!prisma) {
       throw new Error("Database connection not available");
     }
 
     // Check if the function exists
-    if (typeof getTeacherExamPassFail !== 'function') {
+    if (typeof getTeacherExamPassFail !== "function") {
       throw new Error("getTeacherExamPassFail function not available");
     }
 
     const result = await getTeacherExamPassFail(prisma, ustazId);
-    
+
     // Ensure result has expected structure
     const passed = result?.passed ?? 0;
     const failed = result?.failed ?? 0;
-    
+
     return NextResponse.json({ passed, failed });
   } catch (error) {
     console.error("Error in ustaz stats API for ID:", ustazId, error);
-    
+
     // Return default values on error
-    return NextResponse.json({ 
-      passed: 0, 
+    return NextResponse.json({
+      passed: 0,
       failed: 0,
       error: "Failed to fetch stats",
-      details: error instanceof Error ? error.message : "Unknown error"
+      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

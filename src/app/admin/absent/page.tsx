@@ -152,7 +152,7 @@ export default function AdminAbsentConfigPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-8 max-w-2xl">
+    <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-6xl">
       {/* Current Configuration Display */}
       {currentConfig && (
         <Card className="mb-6">
@@ -238,7 +238,7 @@ export default function AdminAbsentConfigPage() {
               value={deductionAmount}
               onChange={(e) => setDeductionAmount(e.target.value)}
               placeholder="e.g., 50"
-              className="max-w-xs"
+              className="w-full sm:max-w-xs"
             />
           </div>
           <div className="space-y-2">
@@ -250,13 +250,13 @@ export default function AdminAbsentConfigPage() {
               onValueChange={setEffectiveMonths}
               defaultValue={effectiveMonths}
               placeholder="Select applicable months..."
-              className="max-w-md"
+              className="w-full sm:max-w-md"
             />
           </div>
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+            className="mt-4 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
           >
             {saving ? "Saving..." : "Save Config"}
           </Button>
@@ -288,7 +288,7 @@ export default function AdminAbsentConfigPage() {
       ) : stats ? (
         <Card className="mt-8">
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <CardTitle className="text-blue-900">
                   📊 Attendance Analytics Dashboard
@@ -298,7 +298,7 @@ export default function AdminAbsentConfigPage() {
                   financial impact
                 </CardDescription>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
@@ -408,7 +408,7 @@ export default function AdminAbsentConfigPage() {
                   🏆 Most Absent Teacher
                 </h4>
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                         <span className="text-xl font-bold text-blue-600">
@@ -441,7 +441,7 @@ export default function AdminAbsentConfigPage() {
               <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 📅 Absences by Day of Week
               </h4>
-              <div className="grid grid-cols-7 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
                 {[
                   { day: "Monday", emoji: "1️⃣" },
                   { day: "Tuesday", emoji: "2️⃣" },
@@ -474,7 +474,7 @@ export default function AdminAbsentConfigPage() {
                 ⏰ Recent Activity
               </h4>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between text-sm text-gray-600">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-600">
                   <span>Last updated: {new Date().toLocaleString()}</span>
                   <span>Data covers: Last 30 days</span>
                 </div>
