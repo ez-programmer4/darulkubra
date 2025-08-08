@@ -348,10 +348,9 @@ export async function PUT(req: NextRequest) {
       case "controller": {
         const idStr = String(id);
         const numeric = Number(idStr);
-        const whereUnique =
-          Number.isFinite(numeric) && /^\d+$/.test(idStr)
-            ? { wdt_ID: numeric }
-            : { code: idStr };
+        const whereUnique = Number.isFinite(numeric) && /^\d+$/.test(idStr)
+          ? { wdt_ID: numeric }
+          : { code: idStr };
         updatedUser = await prisma.wpos_wpdatatable_28.update({
           where: whereUnique,
           data,
@@ -449,10 +448,9 @@ export async function DELETE(req: NextRequest) {
       case "controller": {
         const idStr = String(id);
         const numeric = Number(idStr);
-        const whereUnique =
-          Number.isFinite(numeric) && /^\d+$/.test(idStr)
-            ? { wdt_ID: numeric }
-            : { code: idStr };
+        const whereUnique = Number.isFinite(numeric) && /^\d+$/.test(idStr)
+          ? { wdt_ID: numeric }
+          : { code: idStr };
         await prisma.wpos_wpdatatable_28.delete({
           where: whereUnique,
         });
@@ -462,19 +460,11 @@ export async function DELETE(req: NextRequest) {
         const teacherId = String(id);
         await prisma.$transaction([
           // Remove occupied times for this teacher
-          prisma.wpos_ustaz_occupied_times.deleteMany({
-            where: { ustaz_id: teacherId },
-          }),
+          prisma.wpos_ustaz_occupied_times.deleteMany({ where: { ustaz_id: teacherId } }),
           // Detach zoom links
-          prisma.wpos_zoom_links.updateMany({
-            where: { ustazid: teacherId },
-            data: { ustazid: null },
-          }),
+          prisma.wpos_zoom_links.updateMany({ where: { ustazid: teacherId }, data: { ustazid: null } }),
           // Detach students from this teacher
-          prisma.wpos_wpdatatable_23.updateMany({
-            where: { ustaz: teacherId },
-            data: { ustaz: null },
-          }),
+          prisma.wpos_wpdatatable_23.updateMany({ where: { ustaz: teacherId }, data: { ustaz: null } }),
           // Remove dependent records keyed by teacherId
           prisma.absencerecord.deleteMany({ where: { teacherId } }),
           prisma.attendancesubmissionlog.deleteMany({ where: { teacherId } }),
