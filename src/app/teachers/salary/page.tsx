@@ -25,6 +25,9 @@ import {
   FiUser,
   FiAward,
   FiBarChart,
+  FiHome,
+  FiUsers,
+  FiClipboard,
 } from "react-icons/fi";
 import Link from "next/link";
 
@@ -515,6 +518,26 @@ Additional Information:
           </Card>
         )}
       </div>
+
+      {/* Bottom Navigation (Mobile) */}
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 border-t border-green-100 shadow-lg flex justify-around py-2 z-50">
+        <Link href="/teachers/dashboard" className="flex flex-col items-center text-xs text-gray-500">
+          <FiHome className="w-5 h-5" />
+          Dashboard
+        </Link>
+        <Link href="/teachers/dashboard?tab=students" className="flex flex-col items-center text-xs text-gray-500">
+          <FiUsers className="w-5 h-5" />
+          Students
+        </Link>
+        <Link href="/teachers/permissions" className="flex flex-col items-center text-xs text-gray-500">
+          <FiClipboard className="w-5 h-5" />
+          Permissions
+        </Link>
+        <Link href="/teachers/salary" className="flex flex-col items-center text-xs text-green-700">
+          <FiTrendingUp className="w-5 h-5" />
+          Salary
+        </Link>
+      </nav>
     </div>
   );
 }
