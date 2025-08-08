@@ -348,44 +348,44 @@ ${quality.examinerNotes || "No notes provided."}
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-cyan-50 text-gray-900">
+    <div className="flex min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-indigo-50 text-slate-900">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-500 text-white flex flex-col transition-transform duration-300 ease-in-out md:static md:translate-x-0 shadow-xl ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-800 text-white flex flex-col transition-transform duration-300 ease-in-out md:static md:translate-x-0 shadow-xl ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-center h-20 border-b border-gray-200 bg-gray-400">
+        <div className="flex items-center justify-center h-20 border-b border-slate-700 bg-slate-900">
           <span className="text-2xl font-extrabold flex items-center gap-3">
-            <FiUser className="h-8 w-8 text-teal-400" />
+            <FiUser className="h-8 w-8 text-emerald-400" />
             <span>Teacher Portal</span>
           </span>
           <button
-            className="md:hidden text-green-300 hover:text-white absolute right-4"
+            className="md:hidden text-emerald-300 hover:text-white absolute right-4"
             onClick={() => setSidebarOpen(false)}
             aria-label="Close sidebar"
           >
             <FiX size={24} />
           </button>
         </div>
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-green-700 scrollbar-track-green-900">
-          <button onClick={() => setActiveTab("dashboard")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "dashboard" ? "bg-green-600 text-white" : "text-green-200 hover:bg-green-800 hover:text-white"}`}>
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-emerald-700 scrollbar-track-slate-900">
+          <button onClick={() => setActiveTab("dashboard")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "dashboard" ? "bg-emerald-600 text-white" : "text-emerald-200 hover:bg-slate-700 hover:text-white"}`}>
             <FiHome className="h-5 w-5" /> Dashboard
           </button>
-          <button onClick={() => setActiveTab("students")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "students" ? "bg-green-600 text-white" : "text-green-200 hover:bg-green-800 hover:text-white"}`}>
+          <button onClick={() => setActiveTab("students")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "students" ? "bg-emerald-600 text-white" : "text-emerald-200 hover:bg-slate-700 hover:text-white"}`}>
             <FiUsers className="h-5 w-5" /> Students
           </button>
-          <button onClick={() => setActiveTab("permissions")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "permissions" ? "bg-green-600 text-white" : "text-green-200 hover:bg-green-800 hover:text-white"}`}>
+          <button onClick={() => setActiveTab("permissions")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "permissions" ? "bg-emerald-600 text-white" : "text-emerald-200 hover:bg-slate-700 hover:text-white"}`}>
             <FiClipboard className="h-5 w-5" /> Permissions
           </button>
-          <button onClick={() => setActiveTab("salary")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "salary" ? "bg-green-600 text-white" : "text-green-200 hover:bg-green-800 hover:text-white"}`}>
+          <button onClick={() => setActiveTab("salary")} className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium ${activeTab === "salary" ? "bg-emerald-600 text-white" : "text-emerald-200 hover:bg-slate-700 hover:text-white"}`}>
             <FiTrendingUp className="h-5 w-5" /> Salary
           </button>
         </nav>
-        <div className="px-4 py-4 border-t border-green-800 bg-green-900">
+        <div className="px-4 py-4 border-t border-slate-700 bg-slate-900">
           <button
             onClick={() => signOut({ callbackUrl: "/teachers/login" })}
-            className="w-full flex items-center gap-3 p-3 text-base font-medium text-green-200 hover:bg-red-600 hover:text-white rounded-lg transition-all duration-200"
+            className="w-full flex items-center gap-3 p-3 text-base font-medium text-emerald-200 hover:bg-red-600 hover:text-white rounded-lg transition-all duration-200"
             aria-label="Logout"
           >
             <FiLogOut className="w-5 h-5" />
@@ -397,24 +397,24 @@ ${quality.examinerNotes || "No notes provided."}
       {/* Main content */}
       <div className="flex-1 flex flex-col pb-16 md:pb-0">
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md shadow-lg border-b border-green-100">
+        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md shadow-lg border-b border-emerald-100">
           <div className="flex items-center justify-between p-4 max-w-7xl mx-auto">
             <div className="flex items-center gap-4">
               <button
-                className="md:hidden text-green-600 hover:text-green-700"
+                className="md:hidden text-emerald-600 hover:text-emerald-700"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open sidebar"
               >
                 <FiMenu size={24} />
               </button>
-              <span className="text-2xl font-extrabold text-green-900 hidden sm:block">
+              <span className="text-2xl font-extrabold text-emerald-900 hidden sm:block">
                 Welcome, {user && user.name && typeof user.name === "string" ? user.name : "Teacher"}
               </span>
             </div>
             <div className="flex items-center gap-6">
               <div className="relative group">
                 <button
-                  className="text-green-600 hover:text-green-700 relative p-2 rounded-full hover:bg-green-100 focus:ring-2 focus:ring-green-500 transition-all"
+                  className="text-emerald-600 hover:text-emerald-700 relative p-2 rounded-full hover:bg-emerald-100 focus:ring-2 focus:ring-emerald-500 transition-all"
                   onClick={() => setShowNotifications(!showNotifications)}
                   aria-label="Notifications"
                   aria-haspopup="true"
@@ -427,7 +427,7 @@ ${quality.examinerNotes || "No notes provided."}
                   )}
                 </button>
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white/95 backdrop-blur-md rounded-lg shadow-xl border border-green-200 p-4 z-50 max-h-96 overflow-y-auto animate-fade-in">
+                  <div className="absolute right-0 mt-2 w-80 bg-white/95 backdrop-blur-md rounded-lg shadow-xl border border-emerald-200 p-4 z-50 max-h-96 overflow-y-auto animate-fade-in">
                     <h3 className="text-lg font-bold text-green-900 mb-3">
                       Notifications
                     </h3>
