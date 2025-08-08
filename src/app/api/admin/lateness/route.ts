@@ -17,6 +17,14 @@ export async function GET(req: NextRequest) {
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayStart.getDate() + 1);
 
+  // New: pagination and filters
+  const pageParam = Number(searchParams.get("page") || 1);
+  const limitParam = Number(searchParams.get("limit") || 10);
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 10;
+  const controllerFilter = searchParams.get("controllerId") || "";
+  const teacherFilter = searchParams.get("teacherId") || ""; // may be id or name
+
   // Fetch lateness deduction config from DB
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
@@ -48,6 +56,7 @@ export async function GET(req: NextRequest) {
       },
       include: {
         teacher: true,
+        controller: true,
         zoom_links: {
           where: {
             sent_time: {
@@ -64,13 +73,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const controllers = await prisma.wpos_wpdatatable_28.findMany({
-      select: { username: true, name: true, code: true },
-      orderBy: { name: "asc" },
-    });
-
     // 3. Calculate lateness for each student
-    const latenessData = students
+    const allRecords = students
       .map((student) => {
         const timeSlot = student.occupiedTimes?.[0]?.time_slot;
         if (!timeSlot || !student.ustaz) return null;
@@ -128,6 +132,8 @@ export async function GET(req: NextRequest) {
           studentName: student.name,
           teacherId: student.ustaz,
           teacherName: student.teacher?.ustazname || student.ustaz,
+          controllerId: student.controller?.wdt_ID ?? null,
+          controllerName: student.controller?.name ?? null,
           classDate: scheduledTime,
           scheduledTime,
           actualStartTime,
@@ -136,9 +142,48 @@ export async function GET(req: NextRequest) {
           deductionTier,
         };
       })
-      .filter(Boolean);
+      .filter(Boolean) as Array<{
+      studentId: any;
+      studentName: string;
+      teacherId: any;
+      teacherName: string;
+      controllerId: any;
+      controllerName: string | null;
+      classDate: Date;
+      scheduledTime: Date;
+      actualStartTime: Date;
+      latenessMinutes: number;
+      deductionApplied: number;
+      deductionTier: string;
+    }>;
 
-    return NextResponse.json({ latenessData });
+    // 4. Apply filters
+    const filtered = allRecords.filter((rec) => {
+      // controller filter (id match)
+      if (controllerFilter) {
+        if (String(rec.controllerId ?? "") !== String(controllerFilter)) {
+          return false;
+        }
+      }
+      // teacher filter (allow id or name)
+      if (teacherFilter) {
+        const byId =
+          String(rec.teacherId ?? "").toLowerCase() ===
+          teacherFilter.toLowerCase();
+        const byName =
+          (rec.teacherName ?? "").toLowerCase() === teacherFilter.toLowerCase();
+        if (!byId && !byName) return false;
+      }
+      return true;
+    });
+
+    // 5. Pagination
+    const total = filtered.length;
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const paginated = filtered.slice(start, end);
+
+    return NextResponse.json({ latenessData: paginated, total, page, limit });
   } catch (error) {
     return NextResponse.json(
       { error: "Internal Server Error" },
