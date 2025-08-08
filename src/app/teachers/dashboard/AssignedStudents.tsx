@@ -50,7 +50,7 @@ function genToken(length = 12) {
 function safeIncludes(haystack: unknown, needle: string): boolean {
   if (!needle) return true;
   const h = typeof haystack === "string" ? haystack : String(haystack ?? "");
-  return h.includes(needle);
+  return h.indexOf(needle) !== -1;
 }
 
 export default function AssignedStudents() {
@@ -79,9 +79,9 @@ export default function AssignedStudents() {
       SS: [0, 6],
       "ALL DAYS": [0, 1, 2, 3, 4, 5, 6],
     };
-    if (map[key]) return map[key].includes(day);
+    if (map[key]) return map[key].indexOf(day) !== -1;
     const names = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-    if (names.includes(key)) return names.indexOf(key) === day;
+    if (names.indexOf(key) !== -1) return names.indexOf(key) === day;
     const up = key.replace(/\./g, "").replace(/\s+/g, "");
     const parts = up.split(/[,+/\\-]/);
     if (parts.length) {
