@@ -57,6 +57,16 @@ export async function GET(req: NextRequest) {
         }
       : {};
 
+    const whereClauseController = searchQuery
+      ? {
+          OR: [
+            { name: { contains: searchQuery } },
+            { username: { contains: searchQuery } },
+            { code: { contains: searchQuery } },
+          ],
+        }
+      : {};
+
     const userQueries = [
       roleFilter === "admin" || !roleFilter
         ? prisma.admin.findMany({ ...baseQueryArgs, where: whereClause })
@@ -64,7 +74,7 @@ export async function GET(req: NextRequest) {
       roleFilter === "controller" || !roleFilter
         ? prisma.wpos_wpdatatable_28.findMany({
             ...baseQueryArgs,
-            where: whereClause,
+            where: whereClauseController,
             select: {
               wdt_ID: true,
               name: true,
@@ -99,7 +109,7 @@ export async function GET(req: NextRequest) {
         ? prisma.admin.count({ where: whereClause })
         : Promise.resolve(0),
       roleFilter === "controller" || !roleFilter
-        ? prisma.wpos_wpdatatable_28.count({ where: whereClause })
+        ? prisma.wpos_wpdatatable_28.count({ where: whereClauseController })
         : Promise.resolve(0),
       roleFilter === "teacher" || !roleFilter
         ? prisma.wpos_wpdatatable_24.count({ where: whereClauseTeacher })
@@ -335,12 +345,18 @@ export async function PUT(req: NextRequest) {
           data,
         });
         break;
-      case "controller":
+      case "controller": {
+        const idStr = String(id);
+        const numeric = Number(idStr);
+        const whereUnique = Number.isFinite(numeric) && /^\d+$/.test(idStr)
+          ? { wdt_ID: numeric }
+          : { code: idStr };
         updatedUser = await prisma.wpos_wpdatatable_28.update({
-          where: { wdt_ID: Number(id) },
+          where: whereUnique,
           data,
         });
         break;
+      }
       case "teacher":
         // Validate controlId is not empty, "0", or 0
         if (
@@ -399,6 +415,9 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json(updatedUser);
   } catch (error: any) {
+    if (error.code === "P2025") {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
     return NextResponse.json(
       { error: "Internal Server Error", details: error.message },
       { status: 500 }
@@ -426,11 +445,17 @@ export async function DELETE(req: NextRequest) {
       case "admin":
         await prisma.admin.delete({ where: { id: String(id) } });
         break;
-      case "controller":
+      case "controller": {
+        const idStr = String(id);
+        const numeric = Number(idStr);
+        const whereUnique = Number.isFinite(numeric) && /^\d+$/.test(idStr)
+          ? { wdt_ID: numeric }
+          : { code: idStr };
         await prisma.wpos_wpdatatable_28.delete({
-          where: { wdt_ID: Number(id) },
+          where: whereUnique,
         });
         break;
+      }
       case "teacher":
         await prisma.wpos_wpdatatable_24.delete({
           where: { ustazid: String(id) },
