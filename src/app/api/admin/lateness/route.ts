@@ -76,26 +76,44 @@ export async function GET(req: NextRequest) {
     // 3. Calculate lateness for each student
     const allRecords = students
       .map((student) => {
-        const timeSlot = student.occupiedTimes?.[0]?.time_slot;
+        const timeSlot = student.occupiedTimes?.[0]?.time_slot as string | undefined;
         if (!timeSlot || !student.ustaz) return null;
-        // Convert selectedTime (12h or 24h) to Date for the day
-        function to24Hour(time12h: string) {
-          if (!time12h) return "00:00";
-          if (
-            time12h.includes(":") &&
-            (time12h.includes("AM") || time12h.includes("PM"))
-          ) {
-            const [time, modifier] = time12h.split(" ");
-            let [hours, minutes] = time.split(":");
-            if (hours === "12") hours = modifier === "AM" ? "00" : "12";
-            else if (modifier === "PM")
-              hours = String(parseInt(hours, 10) + 12);
-            return `${hours.padStart(2, "0")}:${minutes}`;
+
+        // Robust time parser supporting "HH:mm", "HH:mm:ss", and "h[:mm[:ss]] AM/PM"
+        function parseTimeToHms(raw: string): { h: number; m: number; s: number } {
+          if (!raw) return { h: 0, m: 0, s: 0 };
+          const trimmed = raw.trim().toUpperCase();
+
+          // 12-hour: "h[:mm[:ss]] AM/PM"
+          const ampmMatch = trimmed.match(/^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)$/);
+          if (ampmMatch) {
+            let h = parseInt(ampmMatch[1], 10);
+            const m = parseInt(ampmMatch[2] || "0", 10);
+            const s = parseInt(ampmMatch[3] || "0", 10);
+            const ampm = ampmMatch[4];
+            if (ampm === "AM" && h === 12) h = 0;
+            if (ampm === "PM" && h !== 12) h += 12;
+            return { h, m, s };
           }
-          return time12h; // already 24h
+
+          // 24-hour: "HH:mm[:ss]"
+          const hmsMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+          if (hmsMatch) {
+            const h = parseInt(hmsMatch[1], 10);
+            const m = parseInt(hmsMatch[2], 10);
+            const s = parseInt(hmsMatch[3] || "0", 10);
+            return { h, m, s };
+          }
+
+          return { h: 0, m: 0, s: 0 };
         }
-        const time24 = to24Hour(timeSlot);
-        const scheduledTime = new Date(`${date}T${time24}:00.000Z`);
+
+        const { h, m, s } = parseTimeToHms(timeSlot);
+
+        // Build scheduledTime on the day by setting hours/minutes/seconds
+        const scheduledTime = new Date(dayStart);
+        scheduledTime.setHours(h, m, s, 0);
+
         // Find the earliest sent_time for this student/teacher/date
         const sentTimes = (student.zoom_links || [])
           .filter((zl) => zl.sent_time)
@@ -103,12 +121,12 @@ export async function GET(req: NextRequest) {
           .sort((a, b) => a.getTime() - b.getTime());
         const actualStartTime = sentTimes.length > 0 ? sentTimes[0] : null;
         if (!actualStartTime) return null;
-        const latenessMinutes = Math.max(
-          0,
-          Math.round(
-            (actualStartTime.getTime() - scheduledTime.getTime()) / 60000
-          )
+
+        const minutesDiff = Math.round(
+          (actualStartTime.getTime() - scheduledTime.getTime()) / 60000
         );
+        const latenessMinutes = Math.max(0, Number.isFinite(minutesDiff) ? minutesDiff : 0);
+
         // Deduction logic (now from DB config)
         let deductionApplied = 0;
         let deductionTier = "Excused";
