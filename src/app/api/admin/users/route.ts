@@ -456,11 +456,28 @@ export async function DELETE(req: NextRequest) {
         });
         break;
       }
-      case "teacher":
-        await prisma.wpos_wpdatatable_24.delete({
-          where: { ustazid: String(id) },
-        });
+      case "teacher": {
+        const teacherId = String(id);
+        await prisma.$transaction([
+          // Remove occupied times for this teacher
+          prisma.wpos_ustaz_occupied_times.deleteMany({ where: { ustaz_id: teacherId } }),
+          // Detach zoom links
+          prisma.wpos_zoom_links.updateMany({ where: { ustazid: teacherId }, data: { ustazid: null } }),
+          // Detach students from this teacher
+          prisma.wpos_wpdatatable_23.updateMany({ where: { ustaz: teacherId }, data: { ustaz: null } }),
+          // Remove dependent records keyed by teacherId
+          prisma.absencerecord.deleteMany({ where: { teacherId } }),
+          prisma.attendancesubmissionlog.deleteMany({ where: { teacherId } }),
+          prisma.latenessrecord.deleteMany({ where: { teacherId } }),
+          prisma.latenessdeductionconfig.deleteMany({ where: { teacherId } }),
+          prisma.permissionrequest.deleteMany({ where: { teacherId } }),
+          prisma.qualityassessment.deleteMany({ where: { teacherId } }),
+          prisma.teachersalarypayment.deleteMany({ where: { teacherId } }),
+          // Finally delete the teacher
+          prisma.wpos_wpdatatable_24.delete({ where: { ustazid: teacherId } }),
+        ]);
         break;
+      }
       case "registral":
         await prisma.wpos_wpdatatable_33.delete({
           where: { wdt_ID: Number(id) },
