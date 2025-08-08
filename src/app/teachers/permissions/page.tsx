@@ -8,6 +8,10 @@ import {
   FiChevronRight,
   FiCalendar,
   FiDownload,
+  FiHome,
+  FiUsers,
+  FiClipboard,
+  FiTrendingUp,
 } from "react-icons/fi";
 import Link from "next/link";
 
@@ -83,7 +87,7 @@ export default function TeacherPermissionsPage() {
   const goToCurrentMonth = () => setSelectedMonth(dayjs().startOf("month"));
 
   return (
-    <div className="space-y-6 p-2 sm:p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="space-y-6 p-2 sm:p-4 md:p-6 max-w-4xl mx-auto pb-16 md:pb-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2 sm:gap-0">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
           <Link href="/teachers/dashboard">
@@ -158,9 +162,7 @@ export default function TeacherPermissionsPage() {
       {isLoading ? (
         <div className="flex items-center justify-center py-16 animate-pulse">
           <div className="h-8 w-8 rounded-full border-4 border-green-200 border-t-green-600 animate-spin mr-4"></div>
-          <span className="text-green-700 text-lg font-semibold">
-            Loading...
-          </span>
+          <span className="text-green-700 text-lg font-semibold">Loading...</span>
         </div>
       ) : error ? (
         <div className="text-red-600 font-bold">{error}</div>
@@ -168,12 +170,7 @@ export default function TeacherPermissionsPage() {
         <div className="flex flex-col items-center justify-center py-16 text-gray-500">
           <svg width="64" height="64" fill="none" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="10" fill="#F3F4F6" />
-            <path
-              d="M8 12h8M8 16h5"
-              stroke="#9CA3AF"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
+            <path d="M8 12h8M8 16h5" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" />
             <circle cx="12" cy="8" r="1.5" fill="#9CA3AF" />
           </svg>
           <div className="mt-4 text-lg">No permissions for this month.</div>
@@ -183,53 +180,31 @@ export default function TeacherPermissionsPage() {
           <table className="min-w-full text-xs sm:text-sm divide-y divide-green-100">
             <thead className="bg-green-50">
               <tr>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">
-                  Date(s)
-                </th>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">
-                  Reason
-                </th>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">
-                  Details
-                </th>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">
-                  Status
-                </th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">Date(s)</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">Reason</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">Details</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">Status</th>
               </tr>
             </thead>
             <tbody>
               {permissions.map((perm, idx) => (
-                <tr
-                  key={idx}
-                  className="border-b hover:bg-green-50 transition-colors"
-                >
+                <tr key={idx} className="border-b hover:bg-green-50 transition-colors">
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
                     {Array.isArray(perm.dates)
-                      ? perm.dates
-                          .map((d: string) => dayjs(d).format("MMM D, YYYY"))
-                          .join(", ")
+                      ? perm.dates.map((d: string) => dayjs(d).format("MMM D, YYYY")).join(", ")
                       : dayjs(perm.date).format("MMM D, YYYY")}
                   </td>
                   <td className="px-3 sm:px-6 py-3 sm:py-4">{perm.reason}</td>
-                  <td
-                    className="px-3 sm:px-6 py-3 sm:py-4 max-w-xs truncate"
-                    title={perm.details}
-                  >
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 max-w-xs truncate" title={perm.details}>
                     {perm.details || "-"}
                   </td>
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
                     {perm.status === "Approved" ? (
-                      <span className="inline-block px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-semibold">
-                        Approved
-                      </span>
+                      <span className="inline-block px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-semibold">Approved</span>
                     ) : perm.status === "Rejected" ? (
-                      <span className="inline-block px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-semibold">
-                        Rejected
-                      </span>
+                      <span className="inline-block px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-semibold">Rejected</span>
                     ) : (
-                      <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-semibold">
-                        Pending
-                      </span>
+                      <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-semibold">Pending</span>
                     )}
                   </td>
                 </tr>
@@ -238,6 +213,26 @@ export default function TeacherPermissionsPage() {
           </table>
         </div>
       )}
+
+      {/* Bottom Navigation (Mobile) */}
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 border-t border-green-100 shadow-lg flex justify-around py-2 z-50">
+        <Link href="/teachers/dashboard" className="flex flex-col items-center text-xs text-gray-500">
+          <FiHome className="w-5 h-5" />
+          Dashboard
+        </Link>
+        <Link href="/teachers/dashboard?tab=students" className="flex flex-col items-center text-xs text-gray-500">
+          <FiUsers className="w-5 h-5" />
+          Students
+        </Link>
+        <Link href="/teachers/permissions" className="flex flex-col items-center text-xs text-green-700">
+          <FiClipboard className="w-5 h-5" />
+          Permissions
+        </Link>
+        <Link href="/teachers/salary" className="flex flex-col items-center text-xs text-gray-500">
+          <FiTrendingUp className="w-5 h-5" />
+          Salary
+        </Link>
+      </nav>
     </div>
   );
 }

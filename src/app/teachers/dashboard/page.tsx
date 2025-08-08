@@ -31,6 +31,7 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import JSConfetti from "js-confetti";
 import AssignedStudents from "./AssignedStudents";
+import { useSearchParams } from "next/navigation";
 
 type QualityData = {
   rating: string;
@@ -91,6 +92,25 @@ export default function TeacherDashboard() {
   });
 
   const [activeTab, setActiveTab] = useState<"dashboard" | "students" | "permissions" | "salary">("dashboard");
+  const [todayClasses, setTodayClasses] = useState<{ time: string; daypackage: string; studentId: number; studentName: string; subject: string }[]>([]);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "students") setActiveTab("students");
+  }, [searchParams]);
+
+  useEffect(() => {
+    async function loadToday() {
+      try {
+        const res = await fetch("/api/teachers/today-classes", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        setTodayClasses(data.classes || []);
+      } catch {}
+    }
+    if (activeTab === "dashboard") loadToday();
+  }, [activeTab]);
 
   // Generate all week start dates for the current month
   const [monthWeeks, setMonthWeeks] = useState<string[]>([]);
@@ -518,6 +538,26 @@ ${quality.examinerNotes || "No notes provided."}
                 </Button>
               ))}
             </div>
+          </div>
+
+          {/* Today Classes */}
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-green-100 p-6 mb-6 animate-slide-in">
+            <h2 className="text-xl font-bold text-green-900 mb-3">Today’s Classes</h2>
+            {todayClasses.length === 0 ? (
+              <div className="text-gray-500">No classes scheduled for today.</div>
+            ) : (
+              <div className="space-y-2">
+                {todayClasses.map((c, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-green-100">
+                    <div>
+                      <div className="font-semibold text-green-800">{c.studentName}</div>
+                      <div className="text-xs text-gray-500">{c.subject || "-"} • {c.daypackage}</div>
+                    </div>
+                    <div className="text-green-700 font-bold">{c.time}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Week Selector */}
