@@ -146,7 +146,7 @@ Additional Information:
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-cyan-50">
+    <div className="min-h-screen bg-transparent">
       <div className="container mx-auto p-4 md:p-8 max-w-6xl">
         {/* Header */}
         <div className="mb-8">
@@ -164,7 +164,7 @@ Additional Information:
               </Link>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                  <FiDollarSign className="h-8 w-8 text-green-600" />
+                  <FiDollarSign className="h-8 w-8 text-emerald-600" />
                   Salary Overview
                 </h1>
                 <p className="text-gray-600 mt-1">
@@ -178,7 +178,7 @@ Additional Information:
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   {Array.from({ length: 12 }, (_, i) => {
                     const date = new Date();
@@ -201,7 +201,7 @@ Additional Information:
               <Button
                 onClick={downloadSalaryReport}
                 disabled={!salaryData}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700"
               >
                 <FiDownload className="h-4 w-4" />
                 Download Report
@@ -212,7 +212,7 @@ Additional Information:
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading salary information...</p>
           </div>
         ) : error ? (
@@ -233,18 +233,18 @@ Additional Information:
             {/* Salary Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Base Salary */}
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-green-600">
+                      <p className="text-sm font-medium text-emerald-600">
                         Base Salary
                       </p>
-                      <p className="text-2xl font-bold text-green-700">
+                      <p className="text-2xl font-bold text-emerald-700">
                         {salaryData.baseSalary} ETB
                       </p>
                     </div>
-                    <div className="text-3xl text-green-300">💵</div>
+                    <div className="text-3xl text-emerald-300">💵</div>
                   </div>
                 </CardContent>
               </Card>
@@ -302,20 +302,20 @@ Additional Information:
             </div>
 
             {/* Final Salary Card */}
-            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <Card className="bg-gradient-to-r from-sky-50 to-indigo-50 border-indigo-200">
               <CardContent className="p-8">
                 <div className="text-center">
-                  <h2 className="text-3xl font-bold text-blue-900 mb-2">
+                  <h2 className="text-3xl font-bold text-indigo-900 mb-2">
                     Final Salary
                   </h2>
-                  <p className="text-5xl font-extrabold text-blue-600 mb-4">
+                  <p className="text-5xl font-extrabold text-indigo-600 mb-4">
                     {salaryData.totalSalary} ETB
                   </p>
                   <div className="flex items-center justify-center gap-4">
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-medium ${
                         salaryData.status === "Paid"
-                          ? "bg-green-100 text-green-700"
+                          ? "bg-emerald-100 text-emerald-700"
                           : "bg-yellow-100 text-yellow-700"
                       }`}
                     >
@@ -338,7 +338,7 @@ Additional Information:
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FiBarChart className="h-5 w-5 text-green-600" />
+                    <FiBarChart className="h-5 w-5 text-emerald-600" />
                     Salary Breakdown
                   </CardTitle>
                   <CardDescription>
@@ -349,10 +349,10 @@ Additional Information:
                   <div className="space-y-4">
                     <div className="flex justify-between items-center py-3 border-b border-gray-200">
                       <div className="flex items-center gap-3">
-                        <FiDollarSign className="h-5 w-5 text-green-600" />
+                        <FiDollarSign className="h-5 w-5 text-emerald-600" />
                         <span className="font-medium">Base Salary</span>
                       </div>
-                      <span className="font-semibold text-green-600">
+                      <span className="font-semibold text-emerald-600">
                         +{salaryData.baseSalary} ETB
                       </span>
                     </div>
@@ -387,12 +387,12 @@ Additional Information:
                       </span>
                     </div>
 
-                    <div className="flex justify-between items-center py-4 bg-blue-50 rounded-lg px-4">
+                    <div className="flex justify-between items-center py-4 bg-indigo-50 rounded-lg px-4">
                       <div className="flex items-center gap-3">
-                        <FiDollarSign className="h-6 w-6 text-blue-600" />
+                        <FiDollarSign className="h-6 w-6 text-indigo-600" />
                         <span className="font-bold text-lg">Final Salary</span>
                       </div>
-                      <span className="font-bold text-xl text-blue-600">
+                      <span className="font-bold text-xl text-indigo-600">
                         {salaryData.totalSalary} ETB
                       </span>
                     </div>
@@ -404,7 +404,7 @@ Additional Information:
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FiUser className="h-5 w-5 text-green-600" />
+                    <FiUser className="h-5 w-5 text-emerald-600" />
                     Additional Information
                   </CardTitle>
                   <CardDescription>
@@ -429,7 +429,7 @@ Additional Information:
                       <span
                         className={`px-2 py-1 rounded-full text-sm font-medium ${
                           salaryData.status === "Paid"
-                            ? "bg-green-100 text-green-700"
+                            ? "bg-emerald-100 text-emerald-700"
                             : "bg-yellow-100 text-yellow-700"
                         }`}
                       >
@@ -468,25 +468,25 @@ Additional Information:
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="flex items-start gap-2">
-                    <FiCheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                    <FiCheckCircle className="h-4 w-4 text-emerald-600 mt-0.5" />
                     <span className="text-yellow-700">
                       Arrive on time to avoid lateness deductions
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <FiCheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                    <FiCheckCircle className="h-4 w-4 text-emerald-600 mt-0.5" />
                     <span className="text-yellow-700">
                       Send zoom links to maintain attendance records
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <FiCheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                    <FiCheckCircle className="h-4 w-4 text-emerald-600 mt-0.5" />
                     <span className="text-yellow-700">
                       Request permission in advance for absences
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <FiCheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                    <FiCheckCircle className="h-4 w-4 text-emerald-600 mt-0.5" />
                     <span className="text-yellow-700">
                       Focus on quality to earn performance bonuses
                     </span>
@@ -520,7 +520,7 @@ Additional Information:
       </div>
 
       {/* Bottom Navigation (Mobile) */}
-      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 border-t border-green-100 shadow-lg flex justify-around py-2 z-50">
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 border-t border-emerald-100 shadow-lg flex justify-around py-2 z-50">
         <Link href="/teachers/dashboard" className="flex flex-col items-center text-xs text-gray-500">
           <FiHome className="w-5 h-5" />
           Dashboard
@@ -533,7 +533,7 @@ Additional Information:
           <FiClipboard className="w-5 h-5" />
           Permissions
         </Link>
-        <Link href="/teachers/salary" className="flex flex-col items-center text-xs text-green-700">
+        <Link href="/teachers/salary" className="flex flex-col items-center text-xs text-emerald-700">
           <FiTrendingUp className="w-5 h-5" />
           Salary
         </Link>

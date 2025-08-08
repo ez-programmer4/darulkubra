@@ -99,13 +99,13 @@ export default function TeacherPermissionsPage() {
             </Button>
           </Link>
           <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-            <FiCalendar className="text-green-600" />
+            <FiCalendar className="text-emerald-600" />
             My Permissions
           </h1>
         </div>
         <Button
           onClick={exportToCSV}
-          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0"
           disabled={!permissions.length}
         >
           <FiDownload /> Export CSV
@@ -115,41 +115,27 @@ export default function TeacherPermissionsPage() {
       {/* Month Navigation & Summary */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            onClick={goToPreviousMonth}
-            variant="outline"
-            size="icon"
-            aria-label="Previous month"
-          >
+          <Button onClick={goToPreviousMonth} variant="outline" size="icon" aria-label="Previous month">
             <FiChevronLeft />
           </Button>
-          <span className="font-semibold text-green-800 text-base sm:text-lg">
+          <span className="font-semibold text-emerald-800 text-base sm:text-lg">
             {selectedMonth.format("MMMM YYYY")}
           </span>
-          <Button
-            onClick={goToNextMonth}
-            variant="outline"
-            size="icon"
-            aria-label="Next month"
-          >
+          <Button onClick={goToNextMonth} variant="outline" size="icon" aria-label="Next month">
             <FiChevronRight />
           </Button>
-          <Button
-            onClick={goToCurrentMonth}
-            variant="ghost"
-            className="ml-0 sm:ml-2 text-green-700 font-medium px-3 py-1 border border-green-200 rounded-lg"
-          >
+          <Button onClick={goToCurrentMonth} variant="ghost" className="ml-0 sm:ml-2 text-emerald-700 font-medium px-3 py-1 border border-emerald-200 rounded-lg">
             Current Month
           </Button>
         </div>
         <div className="flex flex-wrap gap-2 sm:gap-4">
-          <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-1 text-green-800 font-semibold text-xs sm:text-sm">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1 text-emerald-800 font-semibold text-xs sm:text-sm">
             Total: {summary.total}
           </div>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-1 text-blue-800 font-semibold text-xs sm:text-sm">
+          <div className="bg-sky-50 border border-sky-200 rounded-lg px-3 py-1 text-sky-800 font-semibold text-xs sm:text-sm">
             Pending: {summary.pending}
           </div>
-          <div className="bg-green-100 border border-green-300 rounded-lg px-3 py-1 text-green-900 font-semibold text-xs sm:text-sm">
+          <div className="bg-emerald-100 border border-emerald-300 rounded-lg px-3 py-1 text-emerald-900 font-semibold text-xs sm:text-sm">
             Approved: {summary.approved}
           </div>
           <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-1 text-red-700 font-semibold text-xs sm:text-sm">
@@ -161,8 +147,8 @@ export default function TeacherPermissionsPage() {
       {/* Table or Loading/Empty State */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16 animate-pulse">
-          <div className="h-8 w-8 rounded-full border-4 border-green-200 border-t-green-600 animate-spin mr-4"></div>
-          <span className="text-green-700 text-lg font-semibold">Loading...</span>
+          <div className="h-8 w-8 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin mr-4"></div>
+          <span className="text-emerald-700 text-lg font-semibold">Loading...</span>
         </div>
       ) : error ? (
         <div className="text-red-600 font-bold">{error}</div>
@@ -176,19 +162,19 @@ export default function TeacherPermissionsPage() {
           <div className="mt-4 text-lg">No permissions for this month.</div>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl shadow border border-green-100 bg-white">
-          <table className="min-w-full text-xs sm:text-sm divide-y divide-green-100">
-            <thead className="bg-green-50">
+        <div className="overflow-x-auto rounded-xl shadow border border-emerald-100 bg-white/95 backdrop-blur-sm">
+          <table className="min-w-full text-xs sm:text-sm divide-y divide-emerald-100">
+            <thead className="bg-emerald-50">
               <tr>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">Date(s)</th>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">Reason</th>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">Details</th>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-green-800 uppercase tracking-wider whitespace-nowrap">Status</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-emerald-800 uppercase tracking-wider whitespace-nowrap">Date(s)</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-emerald-800 uppercase tracking-wider whitespace-nowrap">Reason</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-emerald-800 uppercase tracking-wider whitespace-nowrap">Details</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-bold text-emerald-800 uppercase tracking-wider whitespace-nowrap">Status</th>
               </tr>
             </thead>
             <tbody>
               {permissions.map((perm, idx) => (
-                <tr key={idx} className="border-b hover:bg-green-50 transition-colors">
+                <tr key={idx} className="border-b hover:bg-emerald-50 transition-colors">
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
                     {Array.isArray(perm.dates)
                       ? perm.dates.map((d: string) => dayjs(d).format("MMM D, YYYY")).join(", ")
@@ -200,11 +186,11 @@ export default function TeacherPermissionsPage() {
                   </td>
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
                     {perm.status === "Approved" ? (
-                      <span className="inline-block px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-semibold">Approved</span>
+                      <span className="inline-block px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-xs font-semibold">Approved</span>
                     ) : perm.status === "Rejected" ? (
                       <span className="inline-block px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-semibold">Rejected</span>
                     ) : (
-                      <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-semibold">Pending</span>
+                      <span className="inline-block px-2 py-1 rounded bg-sky-100 text-sky-700 text-xs font-semibold">Pending</span>
                     )}
                   </td>
                 </tr>
@@ -215,7 +201,7 @@ export default function TeacherPermissionsPage() {
       )}
 
       {/* Bottom Navigation (Mobile) */}
-      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 border-t border-green-100 shadow-lg flex justify-around py-2 z-50">
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 border-t border-emerald-100 shadow-lg flex justify-around py-2 z-50">
         <Link href="/teachers/dashboard" className="flex flex-col items-center text-xs text-gray-500">
           <FiHome className="w-5 h-5" />
           Dashboard
@@ -224,7 +210,7 @@ export default function TeacherPermissionsPage() {
           <FiUsers className="w-5 h-5" />
           Students
         </Link>
-        <Link href="/teachers/permissions" className="flex flex-col items-center text-xs text-green-700">
+        <Link href="/teachers/permissions" className="flex flex-col items-center text-xs text-emerald-700">
           <FiClipboard className="w-5 h-5" />
           Permissions
         </Link>
