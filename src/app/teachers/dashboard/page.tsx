@@ -919,26 +919,27 @@ function StatsCard({
   color: string;
   unit?: string;
 }) {
+  const colorMap: Record<string, { bg: string; text: string }> = {
+    green: { bg: "bg-green-100", text: "text-green-600" },
+    teal: { bg: "bg-teal-100", text: "text-teal-600" },
+    yellow: { bg: "bg-yellow-100", text: "text-yellow-600" },
+    purple: { bg: "bg-purple-100", text: "text-purple-600" },
+    blue: { bg: "bg-blue-100", text: "text-blue-600" },
+    red: { bg: "bg-red-100", text: "text-red-600" },
+    indigo: { bg: "bg-indigo-100", text: "text-indigo-600" },
+    orange: { bg: "bg-orange-100", text: "text-orange-600" },
+  };
+  const classes = colorMap[color] || colorMap.green;
   return (
-    <div
-      className={`bg-white/95 backdrop-blur-md p-4 sm:p-6 rounded-2xl shadow-lg border border-green-100 flex items-center gap-3 sm:gap-4 hover:shadow-xl transition-all hover:scale-[1.02] animate-slide-in min-w-0`}
-    >
-      <div
-        className={`rounded-lg bg-${color}-100 p-2 sm:p-3 shadow-sm flex-shrink-0`}
-      >
+    <div className={`bg-white/95 backdrop-blur-md p-4 sm:p-6 rounded-2xl shadow-lg border border-green-100 flex items-center gap-3 sm:gap-4 hover:shadow-xl transition-all hover:scale-[1.02] animate-slide-in min-w-0`}>
+      <div className={`rounded-lg ${classes.bg} p-2 sm:p-3 shadow-sm flex-shrink-0`}>
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <h3
-          className="text-xs sm:text-sm font-semibold text-green-600 truncate"
-          title={label}
-        >
+        <h3 className="text-xs sm:text-sm font-semibold text-green-600 truncate" title={label}>
           {label}
         </h3>
-        <p
-          className={`text-lg sm:text-2xl font-bold text-${color}-600 break-words truncate overflow-hidden`}
-          title={String(value) + (unit || "")}
-        >
+        <p className={`text-lg sm:text-2xl font-bold ${classes.text} break-words truncate overflow-hidden`} title={String(value) + (unit || "")}>
           {value}
           {unit}
         </p>
