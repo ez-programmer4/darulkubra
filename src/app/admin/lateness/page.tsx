@@ -36,16 +36,20 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 
 // Helper function to format dates safely
-const formatDateSafely = (dateStr: string) => {
-  if (!dateStr || dateStr === "Not Sent" || dateStr === "N/A") {
-    return "N/A";
-  }
+const formatLocalDateTime = (value: unknown) => {
+  if (!value) return "-";
   try {
-    const datePart = dateStr.substring(0, 10);
-    const timePart = dateStr.substring(11, 16);
-    return `${datePart} ${timePart}`;
-  } catch (e) {
-    return "N/A";
+    const d = value instanceof Date ? value : new Date(value as any);
+    if (isNaN(d.getTime())) return "-";
+    // yyyy-MM-dd HH:mm local
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+  } catch {
+    return "-";
   }
 };
 
@@ -328,17 +332,10 @@ export default function AdminLatenessAnalyticsPage() {
       "Tier",
     ];
     const rows = deductionDetail.map((r) => [
-      r.scheduledTime instanceof Date
-        ? r.scheduledTime.toISOString()
-        : r.scheduledTime,
+      formatLocalDateTime(r.scheduledTime),
       r.studentName,
-
-      r.scheduledTime instanceof Date
-        ? r.scheduledTime.toISOString()
-        : r.scheduledTime,
-      r.actualStartTime instanceof Date
-        ? r.actualStartTime.toISOString()
-        : r.actualStartTime,
+      formatLocalDateTime(r.scheduledTime),
+      formatLocalDateTime(r.actualStartTime),
       r.latenessMinutes,
       r.deductionApplied,
       r.deductionTier,
@@ -1141,25 +1138,22 @@ export default function AdminLatenessAnalyticsPage() {
                                                     }`}
                                                   >
                                                     <td className="px-2 sm:px-4 py-2 text-indigo-900">
-                                                      {r.scheduledTime instanceof
-                                                      Date
-                                                        ? r.scheduledTime.toISOString()
-                                                        : r.scheduledTime}
+                                                      {formatLocalDateTime(
+                                                        r.scheduledTime
+                                                      )}
                                                     </td>
                                                     <td className="px-2 sm:px-4 py-2 text-indigo-900">
                                                       {r.studentName}
                                                     </td>
                                                     <td className="px-2 sm:px-4 py-2 text-indigo-700">
-                                                      {r.scheduledTime instanceof
-                                                      Date
-                                                        ? r.scheduledTime.toISOString()
-                                                        : r.scheduledTime}
+                                                      {formatLocalDateTime(
+                                                        r.scheduledTime
+                                                      )}
                                                     </td>
                                                     <td className="px-2 sm:px-4 py-2 text-indigo-700">
-                                                      {r.actualStartTime instanceof
-                                                      Date
-                                                        ? r.actualStartTime.toISOString()
-                                                        : r.actualStartTime}
+                                                      {formatLocalDateTime(
+                                                        r.actualStartTime
+                                                      )}
                                                     </td>
                                                     <td className="px-2 sm:px-4 py-2 text-indigo-700">
                                                       {r.latenessMinutes}
@@ -1427,18 +1421,10 @@ export default function AdminLatenessAnalyticsPage() {
                           {r.controllerName || "-"}
                         </td>
                         <td className="px-4 py-3 text-indigo-700">
-                          {r.scheduledTime
-                            ? r.scheduledTime instanceof Date
-                              ? r.scheduledTime.toISOString()
-                              : r.scheduledTime
-                            : "-"}
+                          {formatLocalDateTime(r.scheduledTime)}
                         </td>
                         <td className="px-4 py-3 text-indigo-700">
-                          {r.actualStartTime
-                            ? r.actualStartTime instanceof Date
-                              ? r.actualStartTime.toISOString()
-                              : r.actualStartTime
-                            : "-"}
+                          {formatLocalDateTime(r.actualStartTime)}
                         </td>
                         <td className="px-4 py-3 text-indigo-700">
                           {r.latenessMinutes}
