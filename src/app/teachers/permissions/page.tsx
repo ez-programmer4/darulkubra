@@ -22,6 +22,13 @@ export default function TeacherPermissionsPage() {
   const [selectedMonth, setSelectedMonth] = useState(() =>
     dayjs().startOf("month")
   );
+  // Request form state
+  const [showForm, setShowForm] = useState(true);
+  const [date, setDate] = useState("");
+  const [reason, setReason] = useState("");
+  const [details, setDetails] = useState("");
+  const [permissionReasons, setPermissionReasons] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchPermissions = async () => {
@@ -43,6 +50,61 @@ export default function TeacherPermissionsPage() {
     };
     fetchPermissions();
   }, [selectedMonth]);
+
+  // Fetch available reasons once
+  useEffect(() => {
+    const loadReasons = async () => {
+      try {
+        const res = await fetch("/api/admin/permission-reasons");
+        if (!res.ok) return;
+        const data = await res.json();
+        setPermissionReasons(Array.isArray(data) ? data.map((r: any) => r.reason) : []);
+      } catch {}
+    };
+    loadReasons();
+  }, []);
+
+  const reloadPermissions = async () => {
+    try {
+      const month = selectedMonth.format("YYYY-MM");
+      const response = await fetch(`/api/teachers/permissions?month=${month}`);
+      if (response.ok) {
+        const data = await response.json();
+        setPermissions(Array.isArray(data) ? data : []);
+      }
+    } catch {}
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!date || !reason) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/teachers/permissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, reason, details }),
+      });
+      if (!res.ok) {
+        let msg = "Failed to submit request";
+        try {
+          const j = await res.json();
+          if (j?.error) msg = j.error;
+        } catch {}
+        throw new Error(msg);
+      }
+      alert("Permission request submitted");
+      setDate("");
+      setReason("");
+      setDetails("");
+      setShowForm(false);
+      await reloadPermissions();
+    } catch (err: any) {
+      alert(err.message || "Failed to submit request");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Summary
   const summary = permissions.reduce(
@@ -88,6 +150,45 @@ export default function TeacherPermissionsPage() {
 
   return (
     <div className="space-y-6 p-2 sm:p-4 md:p-6 max-w-4xl mx-auto pb-16 md:pb-6">
+      {/* Integrated Request Form */}
+      <div className="bg-white/95 rounded-2xl shadow-md border border-indigo-100 p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg sm:text-xl font-bold text-indigo-900">Request Permission</h2>
+          <Button variant="outline" className="border-indigo-200" onClick={() => setShowForm((v) => !v)}>
+            {showForm ? "Hide" : "New Request"}
+          </Button>
+        </div>
+        {showForm && (
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-slate-700 mb-1">Date</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} min={dayjs().format("YYYY-MM-DD")} required className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-slate-700 mb-1">Reason</label>
+              <select value={reason} onChange={(e) => setReason(e.target.value)} required className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="" disabled>Select a reason</option>
+                {permissionReasons.length === 0 ? (
+                  <option value="General">General</option>
+                ) : (
+                  permissionReasons.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))
+                )}
+              </select>
+            </div>
+            <div className="sm:col-span-2 flex flex-col">
+              <label className="text-sm font-medium text-slate-700 mb-1">Details</label>
+              <textarea value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Add any additional details..." className="border rounded-lg px-3 py-2 min-h-[90px] focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div className="sm:col-span-2 flex justify-end gap-2">
+              <Button type="button" variant="outline" className="border-indigo-200" onClick={() => { setDate(""); setReason(""); setDetails(""); }}>Clear</Button>
+              <Button type="submit" disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white">{isSubmitting ? "Submitting..." : "Submit Request"}</Button>
+            </div>
+          </form>
+        )}
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2 sm:gap-0">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
           <Link href="/teachers/dashboard">
