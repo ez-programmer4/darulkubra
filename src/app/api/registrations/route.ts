@@ -272,8 +272,7 @@ export async function POST(request: NextRequest) {
 
     // Determine the u_control value
     let u_control = null;
-    console.log('Session role:', session.role, 'Session code:', session.code, 'Control param:', control);
-    
+
     if (session.role === "controller") {
       u_control = session.code;
     } else if (session.role === "registral" && control) {
@@ -292,14 +291,19 @@ export async function POST(request: NextRequest) {
         u_control = controller?.code || null;
       }
     }
-    
-    console.log('Final u_control value:', u_control);
-    
+
+    console.log("Final u_control value:", u_control);
+
     if (!u_control) {
       return NextResponse.json(
         {
-          message: "Controller assignment failed. Please select a valid controller.",
-          debug: { sessionRole: session.role, sessionCode: session.code, controlParam: control }
+          message:
+            "Controller assignment failed. Please select a valid controller.",
+          debug: {
+            sessionRole: session.role,
+            sessionCode: session.code,
+            controlParam: control,
+          },
         },
         { status: 400 }
       );
@@ -313,7 +317,9 @@ export async function POST(request: NextRequest) {
           classfee: classfee ? parseFloat(classfee) : null,
           startdate: startdate ? new Date(startdate) : null,
           u_control,
-          status: status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : "Pending",
+          status: status
+            ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+            : "Pending",
           ustaz,
           package: regionPackage || null,
           subject: subject || null,
@@ -339,7 +345,7 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (occupiedError) {
-        console.warn('Failed to create occupied time record:', occupiedError);
+        console.warn("Failed to create occupied time record:", occupiedError);
         // Continue without occupied time record - registration still succeeds
       }
 
@@ -353,9 +359,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Registration POST error:", error);
     return NextResponse.json(
-      { 
+      {
         message: "Internal server error",
-        error: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
+        error:
+          process.env.NODE_ENV === "development"
+            ? error instanceof Error
+              ? error.message
+              : String(error)
+            : undefined,
       },
       { status: 500 }
     );
@@ -532,7 +543,9 @@ export async function PUT(request: NextRequest) {
           classfee: classfee ? parseFloat(classfee) : null,
           startdate: startdate ? new Date(startdate) : null,
           u_control,
-          status: status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : "Pending",
+          status: status
+            ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+            : "Pending",
           ustaz,
           package: regionPackage || null,
           subject: subject || null,
@@ -571,7 +584,7 @@ export async function PUT(request: NextRequest) {
             },
           });
         } catch (occupiedError) {
-          console.warn('Failed to create occupied time record:', occupiedError);
+          console.warn("Failed to create occupied time record:", occupiedError);
           // Continue without occupied time record - update still succeeds
         }
       }
@@ -586,9 +599,14 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error("Registration PUT error:", error);
     return NextResponse.json(
-      { 
+      {
         message: "Internal server error",
-        error: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
+        error:
+          process.env.NODE_ENV === "development"
+            ? error instanceof Error
+              ? error.message
+              : String(error)
+            : undefined,
       },
       { status: 500 }
     );
@@ -1005,7 +1023,10 @@ export async function PATCH(request: NextRequest) {
           wdt_ID: { in: ids.map((id: string) => parseInt(id)) },
           u_control: session.role === "controller" ? session.code : undefined,
         },
-        data: { status: status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() },
+        data: {
+          status:
+            status.charAt(0).toUpperCase() + status.slice(1).toLowerCase(),
+        },
       });
 
       return NextResponse.json(
