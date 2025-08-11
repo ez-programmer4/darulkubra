@@ -320,15 +320,20 @@ export async function POST(request: NextRequest) {
       });
 
       // Create occupied time record
-      await tx.wpos_ustaz_occupied_times.create({
-        data: {
-          ustaz_id: ustaz,
-          time_slot: timeSlot,
-          daypackage: selectedDayPackage,
-          student_id: registration.wdt_ID,
-          occupied_at: new Date(),
-        },
-      });
+      try {
+        await tx.wpos_ustaz_occupied_times.create({
+          data: {
+            ustaz_id: ustaz,
+            time_slot: timeSlot,
+            daypackage: selectedDayPackage,
+            student_id: registration.wdt_ID,
+            occupied_at: new Date(),
+          },
+        });
+      } catch (occupiedError) {
+        console.warn('Failed to create occupied time record:', occupiedError);
+        // Continue without occupied time record - registration still succeeds
+      }
 
       return registration;
     });
@@ -547,15 +552,20 @@ export async function PUT(request: NextRequest) {
         });
 
         // Create new occupied time
-        await tx.wpos_ustaz_occupied_times.create({
-          data: {
-            ustaz_id: ustaz,
-            time_slot: timeSlot,
-            daypackage: selectedDayPackage,
-            student_id: parseInt(id),
-            occupied_at: new Date(),
-          },
-        });
+        try {
+          await tx.wpos_ustaz_occupied_times.create({
+            data: {
+              ustaz_id: ustaz,
+              time_slot: timeSlot,
+              daypackage: selectedDayPackage,
+              student_id: parseInt(id),
+              occupied_at: new Date(),
+            },
+          });
+        } catch (occupiedError) {
+          console.warn('Failed to create occupied time record:', occupiedError);
+          // Continue without occupied time record - update still succeeds
+        }
       }
 
       return registration;
