@@ -364,7 +364,7 @@ export default function Dashboard() {
     return registrations.filter((reg) => {
       const matchesSearch =
         (reg.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        reg.phoneno.includes(searchQuery);
+        (reg.phoneno || "").includes(searchQuery);
       const matchesStatus =
         filterStatus === "all" ||
         (reg.status || "").toLowerCase() === filterStatus.toLowerCase();
