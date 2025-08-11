@@ -12,13 +12,16 @@ export async function GET(req: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     })) as any;
 
-    if (!session?.user || session.user.role !== "teacher") {
+    if (!session || session.role !== "teacher") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
-    const user = session.user;
+    const teacherId = session.user?.id || session.id;
+    if (!teacherId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const count = await prisma.wpos_wpdatatable_23.count({
-      where: { ustaz: user.id },
+      where: { ustaz: String(teacherId) },
     });
 
     return NextResponse.json({ count });

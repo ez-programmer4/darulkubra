@@ -11,11 +11,16 @@ export async function GET(request: NextRequest) {
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
     })) as any;
-    if (!session?.user?.id) {
+    const role = session?.role || session?.user?.role;
+    if (!session || role !== "teacher") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const teacherId = session.user.id;
+    const teacherId = String(session?.user?.id || session?.id || "");
+    if (!teacherId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const from = searchParams.get("from");
     const to = searchParams.get("to");
@@ -29,8 +34,6 @@ export async function GET(request: NextRequest) {
 
     // Calculate period from the TO date (which should be the end of the target month)
     const toDate = new Date(to);
-    console.log("Processing salary for month:", toDate.getMonth());
-    console.log("Next month:", toDate.getMonth() + 1);
 
     const period = `${toDate.getFullYear()}-${String(
       toDate.getMonth() + 1
@@ -41,29 +44,6 @@ export async function GET(request: NextRequest) {
       where: { teacherId: teacherId },
       orderBy: { createdAt: "desc" },
     });
-    console.log(
-      "Teacher payments:",
-      allTeacherPayments.map((p) => ({
-        period: p.period,
-        status: p.status,
-        totalSalary: p.totalSalary,
-      }))
-    );
-
-    // Check all salary payments in database (for debugging)
-    const allPayments = await prisma.teachersalarypayment.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-    });
-    console.log(
-      "All payments:",
-      allPayments.map((p) => ({
-        teacherId: p.teacherId,
-        period: p.period,
-        status: p.status,
-        totalSalary: p.totalSalary,
-      }))
-    );
 
     // Get teacher's salary payment for the period
     const salaryPayment = await prisma.teachersalarypayment.findFirst({
@@ -73,19 +53,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (salaryPayment) {
-      console.log("Found existing salary payment:", salaryPayment.id);
-    }
-
     // Get teacher info
     const teacher = await prisma.wpos_wpdatatable_24.findUnique({
       where: { ustazid: teacherId },
       include: { students: true },
     });
-
-    if (teacher) {
-      console.log("Found teacher:", teacher.ustazname);
-    }
 
     if (!teacher) {
       return NextResponse.json({ error: "Teacher not found" }, { status: 404 });

@@ -233,8 +233,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Compute baseline for historical unpaid checks
-    const canOverrideChecks =
-      session.role === "admin" || session.role === "registral";
+    const canOverrideChecks = session.role === "admin" || session.role === "registral";
     let normalizedLegacyPaidThrough: string | null = null;
     if (canOverrideChecks && legacyPaidThrough) {
       const legMatch = String(legacyPaidThrough).match(/^(\d{4})-(\d{1,2})$/);
@@ -245,8 +244,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const earliestRecordedMonth =
-      allPayments.length > 0 ? allPayments[0].month : null; // sorted asc
+    const earliestRecordedMonth = allPayments.length > 0 ? allPayments[0].month : null; // sorted asc
     // If we have records, don't enforce checks before the earliest recorded month
     const baselineStartMonth = normalizedLegacyPaidThrough
       ? normalizedLegacyPaidThrough
@@ -263,11 +261,7 @@ export async function POST(request: NextRequest) {
     // Get all months up to the current month
     const monthsToCheck = [] as string[];
     let checkDate = baselineStartMonth
-      ? new Date(
-          parseInt(baselineStartMonth.split("-")[0]),
-          parseInt(baselineStartMonth.split("-")[1]) - 1,
-          1
-        )
+      ? new Date(parseInt(baselineStartMonth.split("-")[0]), parseInt(baselineStartMonth.split("-")[1]) - 1, 1)
       : new Date(studentStartDate);
     while (checkDate < currentMonthDate) {
       monthsToCheck.push(
@@ -282,16 +276,12 @@ export async function POST(request: NextRequest) {
     // Check each month in sequence
     if (!(canOverrideChecks && ignoreHistoricalUnpaid === true)) {
       for (const monthToCheck of monthsToCheck) {
-        const monthPayments = allPayments.filter(
-          (p) => p.month === monthToCheck
-        );
+        const monthPayments = allPayments.filter((p) => p.month === monthToCheck);
         const totalPaid = monthPayments.reduce(
           (sum, p) => sum + Number(p.paid_amount),
           0
         );
-        const hasFullPrize = monthPayments.some(
-          (p) => p.payment_type === "free"
-        );
+        const hasFullPrize = monthPayments.some((p) => p.payment_type === "free");
         const hasPartialPrize = monthPayments.some(
           (p) => p.payment_type === "prizepartial"
         );
@@ -320,8 +310,7 @@ export async function POST(request: NextRequest) {
           (Number(student.classfee) * daysInClass) / daysInMonth;
 
         // If this is a prize payment, skip the unpaid check
-        if (payment_type === "prizepartial" || payment_type === "free")
-          continue;
+        if (payment_type === "prizepartial" || payment_type === "free") continue;
 
         // Check if the month is fully paid
         if (totalPaid < expectedAmount) {
@@ -336,9 +325,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if payment already exists for this month
-    const existingPayments = allPayments.filter(
-      (p) => p.month === normalizedMonth
-    );
+    const existingPayments = allPayments.filter((p) => p.month === normalizedMonth);
 
     // If there's a full prize (free month), block any additional payments
     const hasFullPrize = existingPayments.some(
@@ -404,8 +391,7 @@ export async function POST(request: NextRequest) {
     // Coerce to integer (months_table.paid_amount is Int)
     const paidAmountNumber =
       typeof paidAmount === "string" ? parseFloat(paidAmount) : paidAmount;
-    const paidAmountInt =
-      payment_type === "free" ? 0 : Math.round(Number(paidAmountNumber));
+    const paidAmountInt = payment_type === "free" ? 0 : Math.round(Number(paidAmountNumber));
     const finalPaidAmount = paidAmountInt;
     const newTotal = totalPaid + finalPaidAmount;
 

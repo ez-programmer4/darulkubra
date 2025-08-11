@@ -211,22 +211,63 @@ function RegistrationContent() {
     const fetchCountries = async () => {
       setLoadingCountries(true);
       setFetchError(null);
+      
+      // Comprehensive fallback list
+      const fallbackCountries = [
+        "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria",
+        "Bangladesh", "Belgium", "Brazil", "Canada", "China", "Denmark",
+        "Egypt", "Ethiopia", "Finland", "France", "Germany", "Ghana",
+        "India", "Indonesia", "Iran", "Iraq", "Italy", "Japan",
+        "Jordan", "Kenya", "Kuwait", "Lebanon", "Malaysia", "Morocco",
+        "Netherlands", "Nigeria", "Norway", "Pakistan", "Philippines", "Qatar",
+        "Russia", "Saudi Arabia", "Somalia", "South Africa", "Spain", "Sudan",
+        "Sweden", "Switzerland", "Syria", "Turkey", "UAE", "UK", "USA", "Yemen"
+      ];
+      
       try {
-        const response = await fetch("https://restcountries.com/v3.1/all");
-        if (!response.ok) throw new Error("Failed to fetch countries from API");
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        
+        const response = await fetch("https://restcountries.com/v3.1/all?fields=name", {
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data: Country[] = await response.json();
-        const countryNames = data.map((country) => country.name.common).sort();
-        setCountries(countryNames);
+        
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error("Invalid API response format");
+        }
+        
+        const countryNames = data
+          .map((country) => country?.name?.common)
+          .filter(Boolean)
+          .sort();
+          
+        if (countryNames.length > 0) {
+          setCountries(countryNames);
+        } else {
+          throw new Error("No valid country names found");
+        }
+        
       } catch (err) {
-        setFetchError(
-          "Failed to load countries from API. Using fallback list."
-        );
-        const fallbackCountries = ["Ethiopia", "KSA", "UAE"];
+        console.warn("Countries API failed:", err);
+        setFetchError("Using offline country list");
         setCountries(fallbackCountries);
       } finally {
         setLoadingCountries(false);
       }
     };
+    
     fetchCountries();
   }, []);
 
