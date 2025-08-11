@@ -338,8 +338,12 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    console.error("Registration POST error:", error);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { 
+        message: "Internal server error",
+        error: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
+      },
       { status: 500 }
     );
   }
@@ -562,8 +566,12 @@ export async function PUT(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    console.error("Registration PUT error:", error);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { 
+        message: "Internal server error",
+        error: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
+      },
       { status: 500 }
     );
   }

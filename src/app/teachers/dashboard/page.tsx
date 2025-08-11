@@ -80,12 +80,12 @@ function TeacherDashboardContent() {
   // Prevent body scroll when sidebar is open
   useEffect(() => {
     if (sidebarOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [sidebarOpen]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -376,12 +376,12 @@ ${quality.examinerNotes || "No notes provided."}
     <div className="flex min-h-screen bg-white text-gray-900">
       {/* Mobile Overlay */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden" 
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
-      
+
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-80 md:w-72 bg-black text-white flex flex-col transition-all duration-300 ease-in-out md:static md:translate-x-0 shadow-2xl ${
@@ -397,7 +397,9 @@ ${quality.examinerNotes || "No notes provided."}
               <span className="text-lg md:text-xl font-extrabold text-white">
                 Teacher Portal
               </span>
-              <span className="text-xs text-gray-300 hidden md:block">Dashboard & Analytics</span>
+              <span className="text-xs text-gray-300 hidden md:block">
+                Dashboard & Analytics
+              </span>
             </div>
           </div>
           <button
@@ -473,9 +475,14 @@ ${quality.examinerNotes || "No notes provided."}
                 </div>
                 <div>
                   <h1 className="text-lg sm:text-xl lg:text-2xl font-extrabold text-black">
-                    Welcome, {user && user.name && typeof user.name === "string" ? user.name.split(' ')[0] : "Teacher"}
+                    Welcome,{" "}
+                    {user && user.name && typeof user.name === "string"
+                      ? user.name.split(" ")[0]
+                      : "Teacher"}
                   </h1>
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium hidden sm:block">Teacher Dashboard</p>
+                  <p className="text-gray-600 text-xs sm:text-sm font-medium hidden sm:block">
+                    Teacher Dashboard
+                  </p>
                 </div>
               </div>
             </div>
@@ -510,7 +517,9 @@ ${quality.examinerNotes || "No notes provided."}
                     {notifications.length === 0 ? (
                       <div className="text-center py-8">
                         <FiBell className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500 text-sm">No notifications yet.</p>
+                        <p className="text-gray-500 text-sm">
+                          No notifications yet.
+                        </p>
                       </div>
                     ) : (
                       notifications.map((notification, idx) => (
@@ -557,7 +566,7 @@ ${quality.examinerNotes || "No notes provided."}
                 </div>
                 <span className="text-xs sm:text-sm font-semibold text-emerald-900 hidden md:block max-w-24 truncate">
                   {user && user.name && typeof user.name === "string"
-                    ? user.name.split(' ')[0]
+                    ? user.name.split(" ")[0]
                     : "Teacher"}
                 </span>
               </div>
