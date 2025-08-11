@@ -322,7 +322,7 @@ function RegistrationContent() {
         setSelectedTeacher("");
       }
       setTeachers(
-        (teacherData.teachers || []).filter((t: Teacher) => t.control)
+        (teacherData.teachers || []).filter((t: Teacher) => t.control && t.control.code)
       );
       setError(null);
     } catch (err) {
