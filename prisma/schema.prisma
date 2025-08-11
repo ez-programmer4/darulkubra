@@ -516,6 +516,7 @@ model testappointment {
 
   @@unique([studentId, testId], map: "testAppointment_studentId_testId_key")
   @@index([testId], map: "testAppointment_testId_fkey")
+  @@map("testAppointment")
 }
 
 model testquestion {
@@ -539,4 +540,5 @@ model testresult {
 
   @@index([questionId], map: "testResult_questionId_idx")
   @@index([studentId], map: "testResult_studentId_idx")
+  @@map("testResult")
 }

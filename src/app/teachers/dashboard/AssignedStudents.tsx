@@ -127,7 +127,6 @@ export default function AssignedStudents() {
   const [loadingSurahs, setLoadingSurahs] = useState(false);
   const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
 
-
   // Static time display to prevent reloads
   useEffect(() => {
     setNow(new Date());
@@ -147,13 +146,11 @@ export default function AssignedStudents() {
     loadSurahs();
   }, []);
 
-
-
   async function loadSurahs() {
     try {
       setLoadingSurahs(true);
-      const res = await fetch('/api/surahs', {
-        credentials: 'include',
+      const res = await fetch("/api/surahs", {
+        credentials: "include",
       });
       if (res.ok) {
         const data = await res.json();
@@ -161,21 +158,71 @@ export default function AssignedStudents() {
       } else {
         // Fallback to default Surahs
         setSurahs([
-          'Al-Fatiha', 'Al-Baqarah', 'Ali Imran', 'An-Nisa', 'Al-Maidah', 'Al-Anam',
-          'Al-Araf', 'Al-Anfal', 'At-Tawbah', 'Yunus', 'Hud', 'Yusuf',
-          'Ar-Rad', 'Ibrahim', 'Al-Hijr', 'An-Nahl', 'Al-Isra', 'Al-Kahf',
-          'Maryam', 'Ta-Ha', 'Al-Anbiya', 'Al-Hajj', 'Al-Muminun', 'An-Nur',
-          'Al-Furqan', 'Ash-Shuara', 'An-Naml', 'Al-Qasas', 'Al-Ankabut', 'Ar-Rum'
+          "Al-Fatiha",
+          "Al-Baqarah",
+          "Ali Imran",
+          "An-Nisa",
+          "Al-Maidah",
+          "Al-Anam",
+          "Al-Araf",
+          "Al-Anfal",
+          "At-Tawbah",
+          "Yunus",
+          "Hud",
+          "Yusuf",
+          "Ar-Rad",
+          "Ibrahim",
+          "Al-Hijr",
+          "An-Nahl",
+          "Al-Isra",
+          "Al-Kahf",
+          "Maryam",
+          "Ta-Ha",
+          "Al-Anbiya",
+          "Al-Hajj",
+          "Al-Muminun",
+          "An-Nur",
+          "Al-Furqan",
+          "Ash-Shuara",
+          "An-Naml",
+          "Al-Qasas",
+          "Al-Ankabut",
+          "Ar-Rum",
         ]);
       }
     } catch {
       // Fallback to default Surahs
       setSurahs([
-        'Al-Fatiha', 'Al-Baqarah', 'Ali Imran', 'An-Nisa', 'Al-Maidah', 'Al-Anam',
-        'Al-Araf', 'Al-Anfal', 'At-Tawbah', 'Yunus', 'Hud', 'Yusuf',
-        'Ar-Rad', 'Ibrahim', 'Al-Hijr', 'An-Nahl', 'Al-Isra', 'Al-Kahf',
-        'Maryam', 'Ta-Ha', 'Al-Anbiya', 'Al-Hajj', 'Al-Muminun', 'An-Nur',
-        'Al-Furqan', 'Ash-Shuara', 'An-Naml', 'Al-Qasas', 'Al-Ankabut', 'Ar-Rum'
+        "Al-Fatiha",
+        "Al-Baqarah",
+        "Ali Imran",
+        "An-Nisa",
+        "Al-Maidah",
+        "Al-Anam",
+        "Al-Araf",
+        "Al-Anfal",
+        "At-Tawbah",
+        "Yunus",
+        "Hud",
+        "Yusuf",
+        "Ar-Rad",
+        "Ibrahim",
+        "Al-Hijr",
+        "An-Nahl",
+        "Al-Isra",
+        "Al-Kahf",
+        "Maryam",
+        "Ta-Ha",
+        "Al-Anbiya",
+        "Al-Hajj",
+        "Al-Muminun",
+        "An-Nur",
+        "Al-Furqan",
+        "Ash-Shuara",
+        "An-Naml",
+        "Al-Qasas",
+        "Al-Ankabut",
+        "Ar-Rum",
       ]);
     } finally {
       setLoadingSurahs(false);
@@ -214,16 +261,15 @@ export default function AssignedStudents() {
   }
 
   const updateForm = useMemo(
-    () =>
-      (id: number, patch: Partial<{ link: string; token: string }>) =>
-        setForms((f) => ({
-          ...f,
-          [id]: {
-            link: f[id]?.link || "",
-            token: f[id]?.token || "",
-            ...patch,
-          },
-        })),
+    () => (id: number, patch: Partial<{ link: string; token: string }>) =>
+      setForms((f) => ({
+        ...f,
+        [id]: {
+          link: f[id]?.link || "",
+          token: f[id]?.token || "",
+          ...patch,
+        },
+      })),
     []
   );
 
@@ -381,13 +427,16 @@ export default function AssignedStudents() {
     setExpAll((v) => !v);
   }, [filteredGroups, expAll]);
 
-  const handleCopy = useCallback((text: string) => {
-    if (navigator.clipboard && text) {
-      navigator.clipboard.writeText(text).then(() => {
-        toast({ title: "Success", description: "Copied to clipboard!" });
-      });
-    }
-  }, [toast]);
+  const handleCopy = useCallback(
+    (text: string) => {
+      if (navigator.clipboard && text) {
+        navigator.clipboard.writeText(text).then(() => {
+          toast({ title: "Success", description: "Copied to clipboard!" });
+        });
+      }
+    },
+    [toast]
+  );
 
   const totalStudents = filteredGroups.reduce(
     (acc, g) => acc + g.students.length,
@@ -682,20 +731,6 @@ export default function AssignedStudents() {
                                   {s.subject || "N/A"}
                                 </span>
                               </div>
-                              {s.phone && (
-                                <div className="flex items-center gap-2 text-sm text-gray-600">
-                                  <FiPhone className="h-4 w-4 text-gray-500" />
-                                  <span>{s.phone}</span>
-                                  <button
-                                    className="ml-2 text-xs px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-100"
-                                    onClick={() => handleCopy(s.phone || "")}
-                                    aria-label="Copy phone"
-                                  >
-                                    <FiCopy className="inline h-3 w-3 mr-1" />
-                                    Copy
-                                  </button>
-                                </div>
-                              )}
                             </div>
                           </td>
                           <td className="py-6">
@@ -739,7 +774,9 @@ export default function AssignedStudents() {
                                     ? "bg-gray-600 hover:bg-gray-700 text-white"
                                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                                 }`}
-                                title={!zoomSent[s.id] ? "Send Zoom link first" : ""}
+                                title={
+                                  !zoomSent[s.id] ? "Send Zoom link first" : ""
+                                }
                               >
                                 <FiCheck className="h-4 w-4 mr-2" />
                                 Attendance
@@ -855,15 +892,15 @@ export default function AssignedStudents() {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <Button
-                            onClick={() =>
-                              setModal({ type: "zoom", studentId: s.id })
-                            }
-                            className="bg-black hover:bg-gray-800 text-white py-4 rounded-xl font-bold shadow-lg touch-manipulation"
-                          >
-                            <FiLink2 className="h-4 w-4 mr-2" />
-                            Send Zoom Link
-                          </Button>
+                        <Button
+                          onClick={() =>
+                            setModal({ type: "zoom", studentId: s.id })
+                          }
+                          className="bg-black hover:bg-gray-800 text-white py-4 rounded-xl font-bold shadow-lg touch-manipulation"
+                        >
+                          <FiLink2 className="h-4 w-4 mr-2" />
+                          Send Zoom Link
+                        </Button>
                         <Button
                           onClick={() =>
                             setModal({ type: "attendance", studentId: s.id })
