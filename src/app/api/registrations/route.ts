@@ -807,8 +807,8 @@ export async function DELETE(request: NextRequest) {
         prismaClient.wpos_zoom_links.findFirst({
           where: { studentid: parsedId },
         }),
-        prismaClient.testresult.findFirst({ where: { studentId: parsedId } }),
-        prismaClient.testappointment.findFirst({
+        prismaClient.testResult.findFirst({ where: { studentId: parsedId } }),
+        prismaClient.testAppointment.findFirst({
           where: { studentId: parsedId },
         }),
       ]);
