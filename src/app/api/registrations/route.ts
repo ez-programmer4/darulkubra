@@ -272,8 +272,13 @@ export async function POST(request: NextRequest) {
 
     // Determine the u_control value
     let u_control = null;
+    console.log('Session role:', session.role, 'Session code:', session.code, 'Control param:', control);
+    
     if (session.role === "controller") {
       u_control = session.code;
+    } else if (session.role === "registral" && control) {
+      // For registral role, use the provided control value
+      u_control = control;
     } else if (control) {
       // If control looks like a code (length >= 3, all uppercase, or matches a code in DB), use it directly
       if (/^[A-Z0-9]{3,}$/.test(control)) {
@@ -287,11 +292,14 @@ export async function POST(request: NextRequest) {
         u_control = controller?.code || null;
       }
     }
+    
+    console.log('Final u_control value:', u_control);
+    
     if (!u_control) {
       return NextResponse.json(
         {
-          message:
-            "Controller assignment failed. Please select a valid controller.",
+          message: "Controller assignment failed. Please select a valid controller.",
+          debug: { sessionRole: session.role, sessionCode: session.code, controlParam: control }
         },
         { status: 400 }
       );
