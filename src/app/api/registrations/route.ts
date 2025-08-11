@@ -313,7 +313,7 @@ export async function POST(request: NextRequest) {
           classfee: classfee ? parseFloat(classfee) : null,
           startdate: startdate ? new Date(startdate) : null,
           u_control,
-          status: status?.toLowerCase() || "pending",
+          status: status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : "Pending",
           ustaz,
           package: regionPackage || null,
           subject: subject || null,
@@ -532,7 +532,7 @@ export async function PUT(request: NextRequest) {
           classfee: classfee ? parseFloat(classfee) : null,
           startdate: startdate ? new Date(startdate) : null,
           u_control,
-          status: status?.toLowerCase() || "pending",
+          status: status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : "Pending",
           ustaz,
           package: regionPackage || null,
           subject: subject || null,
@@ -1005,7 +1005,7 @@ export async function PATCH(request: NextRequest) {
           wdt_ID: { in: ids.map((id: string) => parseInt(id)) },
           u_control: session.role === "controller" ? session.code : undefined,
         },
-        data: { status: status.toLowerCase() },
+        data: { status: status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() },
       });
 
       return NextResponse.json(
