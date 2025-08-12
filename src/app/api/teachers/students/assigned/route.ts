@@ -34,6 +34,11 @@ export async function GET(req: NextRequest) {
             daypackage: true,
           },
         },
+        zoom_links: {
+          select: { sent_time: true, clicked_at: true },
+          orderBy: { sent_time: "desc" },
+          take: 1,
+        },
       },
       orderBy: [{ daypackages: "asc" }, { name: "asc" }],
     });
@@ -42,6 +47,7 @@ export async function GET(req: NextRequest) {
     for (const s of students) {
       const key = (s.daypackages || "Unknown").trim();
       if (!groups[key]) groups[key] = [];
+      const last = (s.zoom_links && s.zoom_links[0]) || undefined;
       groups[key].push({
         id: s.wdt_ID,
         name: s.name,
@@ -50,6 +56,8 @@ export async function GET(req: NextRequest) {
         pack: s.package,
         daypackages: s.daypackages,
         occupied: s.occupiedTimes,
+        lastZoomSentAt: last?.sent_time ?? null,
+        lastZoomClickedAt: last?.clicked_at ?? null,
       });
     }
 

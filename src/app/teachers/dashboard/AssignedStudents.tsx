@@ -45,19 +45,6 @@ type ModalType = "zoom" | "attendance" | null;
 
 // Utils
 
-function genToken(length = 12) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  const array = new Uint32Array(length);
-  if (typeof window !== "undefined" && window.crypto) {
-    window.crypto.getRandomValues(array);
-    for (let i = 0; i < length; i++) out += chars[array[i] % chars.length];
-  } else {
-    for (let i = 0; i < length; i++)
-      out += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return out;
-}
 
 function safeIncludes(haystack: unknown, needle: string): boolean {
   if (!needle) return true;
@@ -101,7 +88,7 @@ export default function AssignedStudents() {
     studentId: number | null;
   }>({ type: null, studentId: null });
   const [forms, setForms] = useState<
-    Record<number, { link: string; token: string }>
+    Record<number, { link: string }>
   >({});
   const [attend, setAttend] = useState<
     Record<
@@ -261,12 +248,11 @@ export default function AssignedStudents() {
   }
 
   const updateForm = useMemo(
-    () => (id: number, patch: Partial<{ link: string; token: string }>) =>
+    () => (id: number, patch: Partial<{ link: string }>) =>
       setForms((f) => ({
         ...f,
         [id]: {
           link: f[id]?.link || "",
-          token: f[id]?.token || "",
           ...patch,
         },
       })),
@@ -299,10 +285,10 @@ export default function AssignedStudents() {
   async function sendZoom(studentId: number) {
     try {
       const form = forms[studentId];
-      if (!form?.link || !form?.token) {
+      if (!form?.link) {
         toast({
           title: "Error",
-          description: "Link and token are required.",
+          description: "Meeting link is required.",
           variant: "destructive",
         });
         return;
@@ -313,7 +299,6 @@ export default function AssignedStudents() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           link: form.link,
-          tracking_token: form.token,
         }),
         credentials: "include",
       });
@@ -324,7 +309,7 @@ export default function AssignedStudents() {
       toast({ title: "Success", description: "Zoom link sent successfully!" });
       setForms((f) => ({
         ...f,
-        [studentId]: { link: "", token: "" },
+        [studentId]: { link: "" },
       }));
       setZoomSent((z) => ({ ...z, [studentId]: true }));
       setModal({ type: null, studentId: null });
@@ -1001,37 +986,6 @@ export default function AssignedStudents() {
 
                       <div>
                         <label className="block text-sm font-bold text-black mb-3">
-                          Token
-                        </label>
-                        <div className="flex gap-3">
-                          <input
-                            placeholder="Security token"
-                            value={forms[modal.studentId]?.token || ""}
-                            onChange={(e) =>
-                              updateForm(modal.studentId!, {
-                                token: e.target.value,
-                              })
-                            }
-                            className="flex-1 p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 placeholder-gray-500 text-base font-mono"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              updateForm(modal.studentId!, {
-                                token: genToken(),
-                              })
-                            }
-                            className="px-4"
-                            aria-label="Generate token"
-                          >
-                            Gen
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-bold text-black mb-3">
                           Sending Time
                         </label>
                         <div className="w-full p-4 border border-gray-300 rounded-xl bg-gray-50 text-gray-700 text-base font-mono">
@@ -1045,8 +999,7 @@ export default function AssignedStudents() {
                       <Button
                         disabled={
                           !!sending[modal.studentId] ||
-                          !forms[modal.studentId]?.link ||
-                          !forms[modal.studentId]?.token
+                          !forms[modal.studentId]?.link
                         }
                         onClick={() => sendZoom(modal.studentId!)}
                         className="w-full bg-black hover:bg-gray-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
