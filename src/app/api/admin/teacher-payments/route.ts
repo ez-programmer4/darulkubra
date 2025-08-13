@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
-// import {
-//   isTeacherAbsent,
-//   getAbsenceDeductionConfig,
-// } from "@/lib/absence-utils";
+import { isTeacherAbsent, getAbsenceDeductionConfig } from "@/lib/absence-utils";
 
 export async function GET(req: NextRequest) {
   try {
@@ -365,8 +362,30 @@ export async function GET(req: NextRequest) {
         //   }
         // }
 
-        // // Temporarily set absence deduction to 0
+        // Absence deduction: prefer existing AbsenceRecord entries; fallback to dynamic detection
+        const { deductionAmount, effectiveMonths } = await getAbsenceDeductionConfig();
         let absenceDeduction = 0;
+        const existingAbsenceRecords = await prisma.absencerecord.findMany({
+          where: { teacherId: t.ustazid, classDate: { gte: from, lte: to } },
+          select: { deductionApplied: true },
+        });
+        if (existingAbsenceRecords.length > 0) {
+          absenceDeduction = existingAbsenceRecords.reduce(
+            (sum, r) => sum + (r.deductionApplied || 0),
+            0
+          );
+        } else {
+          for (let day = new Date(from); day <= to; day.setDate(day.getDate() + 1)) {
+            const monthNumber = String(day.getMonth() + 1);
+            if (effectiveMonths.length > 0 && !effectiveMonths.includes(monthNumber)) {
+              continue;
+            }
+            const absenceResult = await isTeacherAbsent(t.ustazid, new Date(day));
+            if (absenceResult.isAbsent) {
+              absenceDeduction += deductionAmount;
+            }
+          }
+        }
         // Bonuses: aggregate from QualityAssessment, not BonusRecord
         const bonuses = await prisma.qualityassessment.aggregate({
           where: {
