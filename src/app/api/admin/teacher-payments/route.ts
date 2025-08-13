@@ -159,9 +159,38 @@ export async function GET(req: NextRequest) {
           orderBy: { createdAt: "asc" },
         });
       }
+      const { deductionAmount, effectiveMonths } = await getAbsenceDeductionConfig();
+      const absenceSuggestions: Array<{
+        classDate: Date;
+        permitted: boolean;
+        deductionApplied: number;
+        reviewNotes?: string | null;
+      }> = [];
+      for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
+        const monthNumber = String(d.getMonth() + 1);
+        if (effectiveMonths.length > 0 && !effectiveMonths.includes(monthNumber)) {
+          continue;
+        }
+        const dateOnly = d.toISOString().split("T")[0];
+        const alreadyRecorded = absenceRecords.some(
+          (r) => new Date(r.classDate).toISOString().split("T")[0] === dateOnly
+        );
+        if (alreadyRecorded) continue;
+        const result = await isTeacherAbsent(teacherId, new Date(d));
+        if (result.isAbsent) {
+          absenceSuggestions.push({
+            classDate: new Date(dateOnly),
+            permitted: false,
+            deductionApplied: Number(deductionAmount),
+            reviewNotes: result.reason || "Inferred absence",
+          });
+        }
+      }
       return NextResponse.json({
         latenessRecords,
         absenceRecords,
+        absenceSuggestions,
+        absenceDeductionAmount: Number(deductionAmount),
         bonusRecords,
       });
     }
