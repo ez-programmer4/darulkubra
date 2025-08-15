@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   FiSearch,
-  FiPlus,
   FiChevronLeft,
   FiChevronRight,
   FiEdit,
@@ -19,21 +18,12 @@ import {
   FiCalendar,
   FiPhone,
   FiShield,
-  FiEye,
-  FiEyeOff,
-  FiDownload,
-  FiUpload,
   FiSettings,
-  FiBarChart,
-  FiTrendingUp,
   FiAward,
-  FiZap,
 } from "react-icons/fi";
 import Modal from "@/app/components/Modal";
 import ConfirmModal from "@/app/components/ConfirmModal";
 import { useDebounce } from "use-debounce";
-import UserTableSkeleton from "./UserTableSkeleton";
-import { motion } from "framer-motion";
 
 type UserRole = "admin" | "controller" | "teacher" | "registral";
 
@@ -50,10 +40,10 @@ interface User {
 
 const RoleBadge = ({ role }: { role: UserRole }) => {
   const roleStyles: Record<UserRole, string> = {
-    admin: "bg-purple-600 text-white",
-    controller: "bg-blue-600 text-white",
-    teacher: "bg-teal-600 text-white",
-    registral: "bg-orange-600 text-white",
+    admin: "bg-purple-100 text-purple-800",
+    controller: "bg-blue-100 text-blue-800",
+    teacher: "bg-green-100 text-green-800",
+    registral: "bg-orange-100 text-orange-800",
   };
   return (
     <span className={`px-3 py-1 text-sm font-semibold rounded-full ${roleStyles[role]}`}>
@@ -91,7 +81,7 @@ export default function UserManagementPage() {
   const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(10);
   const [expandedRoles, setExpandedRoles] = useState<Record<UserRole, boolean>>({
     admin: true,
     controller: true,
@@ -251,49 +241,47 @@ export default function UserManagementPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
-        {/* Header + Stats */}
+        {/* Header */}
         <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-8 mb-8">
-            <div className="flex items-center gap-6">
-              <div className="p-4 bg-black rounded-2xl shadow-lg">
-                <FiUsers className="h-8 w-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-2">
-                  User Management
-                </h1>
-                <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
-                  Manage system users, roles, and permissions
-                </p>
-              </div>
+          <div className="flex items-center gap-6 mb-8">
+            <div className="p-4 bg-black rounded-2xl shadow-lg">
+              <FiUsers className="h-8 w-8 text-white" />
             </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiUsers className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Total</span>
-                </div>
-                <div className="text-2xl font-bold text-black">{users.length}</div>
-              </div>
-              {roleOrder.map((role) => {
-                const Icon = roleIcons[role];
-                return (
-                  <div key={role} className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <Icon className="h-5 w-5 text-gray-600" />
-                      <span className="text-sm font-semibold text-gray-600">{roleLabels[role]}</span>
-                    </div>
-                    <div className="text-2xl font-bold text-black">{usersByRole[role].length}</div>
-                  </div>
-                );
-              })}
+            <div>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-2">
+                User Management
+              </h1>
+              <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
+                Manage system users, roles, and permissions
+              </p>
             </div>
           </div>
 
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <FiUsers className="h-5 w-5 text-gray-600" />
+                <span className="text-sm font-semibold text-gray-600">Total</span>
+              </div>
+              <div className="text-2xl font-bold text-black">{users.length}</div>
+            </div>
+            {roleOrder.map((role) => {
+              const Icon = roleIcons[role];
+              return (
+                <div key={role} className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Icon className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm font-semibold text-gray-600">{roleLabels[role]}</span>
+                  </div>
+                  <div className="text-2xl font-bold text-black">{usersByRole[role].length}</div>
+                </div>
+              );
+            })}
+          </div>
+
           {/* Controls */}
-          <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 sticky top-4 z-10">
+          <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
               <div className="lg:col-span-4">
                 <label className="block text-sm font-bold text-black mb-3">
@@ -307,7 +295,7 @@ export default function UserManagementPage() {
                     placeholder="Search by name or username..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 placeholder-gray-500 shadow-sm transition-all duration-200 text-base"
+                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
                   />
                 </div>
               </div>
@@ -322,7 +310,7 @@ export default function UserManagementPage() {
                     setRoleFilter(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
                 >
                   <option value="">All Roles</option>
                   {roleOrder.map((role) => (
@@ -333,12 +321,9 @@ export default function UserManagementPage() {
                 </select>
               </div>
               <div className="lg:col-span-2">
-                <label className="block text-sm font-bold text-black mb-3">
-                  Actions
-                </label>
                 <button
                   onClick={handleRefresh}
-                  className="w-full p-4 rounded-xl bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200 transition-all hover:scale-105"
+                  className="w-full p-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300 transition-all hover:scale-105"
                   title="Refresh users"
                 >
                   <FiRefreshCw className="h-5 w-5 mx-auto" />
@@ -347,7 +332,7 @@ export default function UserManagementPage() {
               <div className="lg:col-span-3">
                 <button
                   onClick={openAddModal}
-                  className="w-full bg-black hover:bg-gray-800 text-white px-6 py-4 rounded-xl flex items-center justify-center gap-3 font-bold shadow-lg transition-all hover:scale-105"
+                  className="w-full bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-3 font-bold transition-all hover:scale-105"
                 >
                   <FiUserPlus className="h-5 w-5" />
                   Add New User
@@ -382,17 +367,17 @@ export default function UserManagementPage() {
 
         {/* No Users State */}
         {!loading && !error && users.length === 0 && (
-          <div className="p-12 text-center bg-white rounded-3xl shadow-2xl border border-gray-200">
+          <div className="text-center py-12 bg-white rounded-3xl shadow-2xl border border-gray-200">
             <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
               <FiUsers className="h-16 w-16 text-gray-500" />
             </div>
             <h3 className="text-3xl font-bold text-black mb-4">No Users Found</h3>
             <p className="text-gray-600 text-xl mb-6">
-              No users match your current filters. Try adjusting your search criteria.
+              No users match your current filters.
             </p>
             <button
               onClick={handleRefresh}
-              className="bg-black text-white rounded-xl px-6 py-3 font-bold"
+              className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
             >
               Refresh
             </button>
@@ -401,21 +386,21 @@ export default function UserManagementPage() {
 
         {/* Users Table */}
         {!loading && !error && users.length > 0 && (
-          <div className="rounded-3xl shadow-2xl border border-gray-200 bg-white overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="sticky top-0 bg-white">
-                  <tr className="border-b-2 border-gray-200">
-                    <th className="py-6 text-left font-bold text-black uppercase tracking-wider px-8">
+                <thead className="bg-gray-50">
+                  <tr className="border-b border-gray-200">
+                    <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
                       User Information
                     </th>
-                    <th className="py-6 text-left font-bold text-black uppercase tracking-wider px-8">
+                    <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
                       Username
                     </th>
-                    <th className="py-6 text-left font-bold text-black uppercase tracking-wider px-8">
+                    <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
                       Role
                     </th>
-                    <th className="py-6 text-right font-bold text-black uppercase tracking-wider px-8">
+                    <th className="py-4 px-6 text-right font-bold text-black uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -426,7 +411,7 @@ export default function UserManagementPage() {
                       <tr className="bg-gray-50 border-b border-gray-200">
                         <td
                           colSpan={4}
-                          className="py-4 px-8 font-bold text-gray-900 text-lg flex items-center gap-4 cursor-pointer select-none"
+                          className="py-4 px-6 font-bold text-gray-900 text-lg flex items-center gap-4 cursor-pointer select-none"
                           onClick={() =>
                             setExpandedRoles((r) => ({ ...r, [role]: !r[role] }))
                           }
@@ -443,7 +428,7 @@ export default function UserManagementPage() {
                               })}
                             </div>
                             {roleLabels[role]}
-                            <span className="ml-2 text-sm text-blue-500 font-semibold bg-blue-100 px-3 py-1 rounded-full">
+                            <span className="ml-2 text-sm text-blue-600 font-semibold bg-blue-100 px-3 py-1 rounded-full">
                               {usersByRole[role].length}
                             </span>
                           </div>
@@ -455,7 +440,7 @@ export default function UserManagementPage() {
                             key={user.id}
                             className="border-b border-gray-100 hover:bg-gray-50 transition-all duration-200 group"
                           >
-                            <td className="py-6 px-8">
+                            <td className="py-4 px-6">
                               <div className="flex items-center gap-4">
                                 <div className="p-3 bg-gray-100 rounded-xl">
                                   <FiUsers className="h-6 w-6 text-gray-600" />
@@ -468,23 +453,23 @@ export default function UserManagementPage() {
                                 </div>
                               </div>
                             </td>
-                            <td className="py-6 px-8 text-gray-700 text-base">
+                            <td className="py-4 px-6 text-gray-700">
                               {user.username || "N/A"}
                             </td>
-                            <td className="py-6 px-8">
+                            <td className="py-4 px-6">
                               <RoleBadge role={user.role} />
                             </td>
-                            <td className="py-6 px-8 text-right">
+                            <td className="py-4 px-6 text-right">
                               <div className="flex gap-3 justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                 <button
                                   onClick={() => openEditModal(user)}
-                                  className="bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 px-4 py-2 rounded-xl font-bold shadow-lg transition-all hover:scale-105"
+                                  className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-xl font-bold transition-all hover:scale-105"
                                 >
                                   <FiEdit className="h-4 w-4" />
                                 </button>
                                 <button
                                   onClick={() => openConfirmModal(user)}
-                                  className="bg-red-100 hover:bg-red-600 hover:text-white text-red-600 px-4 py-2 rounded-xl font-bold shadow-lg transition-all hover:scale-105"
+                                  className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-xl font-bold transition-all hover:scale-105"
                                 >
                                   <FiTrash2 className="h-4 w-4" />
                                 </button>
@@ -501,7 +486,7 @@ export default function UserManagementPage() {
         )}
 
         {/* Pagination */}
-        {!loading && !error && users.length > 0 && (
+        {!loading && !error && users.length > 0 && totalPages > 1 && (
           <div className="flex justify-between items-center">
             <p className="text-lg font-semibold text-gray-700">
               Page {currentPage} of {totalPages}
@@ -510,14 +495,14 @@ export default function UserManagementPage() {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-3 border-2 border-gray-200 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 shadow-lg transition-all hover:scale-105"
+                className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
               >
                 <FiChevronLeft className="h-6 w-6" />
               </button>
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-3 border-2 border-gray-200 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 shadow-lg transition-all hover:scale-105"
+                className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
               >
                 <FiChevronRight className="h-6 w-6" />
               </button>
@@ -534,17 +519,12 @@ export default function UserManagementPage() {
             <form onSubmit={handleFormSubmit} className="space-y-6">
               {!editingUser && (
                 <div>
-                  <label className="block text-lg text-black font-bold mb-3 flex items-center gap-3">
-                    <div className="p-2 bg-black rounded-lg">
-                      <FiUsers className="h-5 w-5 text-white" />
-                    </div>
-                    Role
-                  </label>
+                  <label className="block text-lg text-black font-bold mb-3">Role</label>
                   <select
                     name="role"
                     value={newUserRole}
                     onChange={(e) => setNewUserRole(e.target.value as UserRole)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 text-base"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                     required
                   >
                     {roleOrder.map((role) => (
@@ -557,34 +537,24 @@ export default function UserManagementPage() {
               )}
 
               <div>
-                <label className="block text-lg text-black font-bold mb-3 flex items-center gap-3">
-                  <div className="p-2 bg-black rounded-lg">
-                    <FiUsers className="h-5 w-5 text-white" />
-                  </div>
-                  Name
-                </label>
+                <label className="block text-lg text-black font-bold mb-3">Name</label>
                 <input
                   type="text"
                   name="name"
                   defaultValue={editingUser?.name}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 text-base"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                   required
                 />
               </div>
 
               {(editingUser ? editingUser.role : newUserRole) !== "teacher" && (
                 <div>
-                  <label className="block text-lg text-black font-bold mb-3 flex items-center gap-3">
-                    <div className="p-2 bg-black rounded-lg">
-                      <FiCopy className="h-5 w-5 text-white" />
-                    </div>
-                    Username
-                  </label>
+                  <label className="block text-lg text-black font-bold mb-3">Username</label>
                   <input
                     type="text"
                     name="username"
                     defaultValue={editingUser?.username}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 text-base"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                     required
                   />
                 </div>
@@ -593,17 +563,12 @@ export default function UserManagementPage() {
               {(editingUser ? editingUser.role : newUserRole) === "teacher" && (
                 <>
                   <div>
-                    <label className="block text-lg text-black font-bold mb-3 flex items-center gap-3">
-                      <div className="p-2 bg-black rounded-lg">
-                        <FiUsers className="h-5 w-5 text-white" />
-                      </div>
-                      Controller
-                    </label>
+                    <label className="block text-lg text-black font-bold mb-3">Controller</label>
                     <select
                       name="controlId"
                       value={teacherControlId}
                       onChange={(e) => setTeacherControlId(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 text-base"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                       required
                     >
                       <option value="">Select Controller</option>
@@ -619,36 +584,26 @@ export default function UserManagementPage() {
                   </div>
 
                   <div>
-                    <label className="block text-lg text-black font-bold mb-3 flex items-center gap-3">
-                      <div className="p-2 bg-black rounded-lg">
-                        <FiCalendar className="h-5 w-5 text-white" />
-                      </div>
-                      Schedule
-                    </label>
+                    <label className="block text-lg text-black font-bold mb-3">Schedule</label>
                     <input
                       type="text"
                       name="schedule"
                       value={teacherSchedule}
                       onChange={(e) => setTeacherSchedule(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 text-base"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                       required
                       placeholder="e.g. 4:00, 5:00, 6:00"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-lg text-black font-bold mb-3 flex items-center gap-3">
-                      <div className="p-2 bg-black rounded-lg">
-                        <FiPhone className="h-5 w-5 text-white" />
-                      </div>
-                      Phone
-                    </label>
+                    <label className="block text-lg text-black font-bold mb-3">Phone</label>
                     <input
                       type="tel"
                       name="phone"
                       value={teacherPhone}
                       onChange={(e) => setTeacherPhone(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 text-base"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                       required
                       placeholder="e.g. +251912345678"
                     />
@@ -657,16 +612,13 @@ export default function UserManagementPage() {
               )}
 
               <div>
-                <label className="block text-lg text-black font-bold mb-3 flex items-center gap-3">
-                  <div className="p-2 bg-black rounded-lg">
-                    <FiCopy className="h-5 w-5 text-white" />
-                  </div>
+                <label className="block text-lg text-black font-bold mb-3">
                   Password {editingUser ? "(Leave blank to keep current)" : "(Required)"}
                 </label>
                 <input
                   type="password"
                   name="password"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 text-base"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                   required={!editingUser}
                 />
               </div>
@@ -675,7 +627,7 @@ export default function UserManagementPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-900 font-bold transition-all hover:scale-105"
+                  className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold transition-all hover:scale-105"
                 >
                   Cancel
                 </button>
