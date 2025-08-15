@@ -46,7 +46,9 @@ const RoleBadge = ({ role }: { role: UserRole }) => {
     registral: "bg-orange-100 text-orange-800",
   };
   return (
-    <span className={`px-3 py-1 text-sm font-semibold rounded-full ${roleStyles[role]}`}>
+    <span
+      className={`px-3 py-1 text-sm font-semibold rounded-full ${roleStyles[role]}`}
+    >
       {role.charAt(0).toUpperCase() + role.slice(1)}
     </span>
   );
@@ -82,12 +84,14 @@ export default function UserManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [expandedRoles, setExpandedRoles] = useState<Record<UserRole, boolean>>({
-    admin: true,
-    controller: true,
-    teacher: true,
-    registral: true,
-  });
+  const [expandedRoles, setExpandedRoles] = useState<Record<UserRole, boolean>>(
+    {
+      admin: true,
+      controller: true,
+      teacher: true,
+      registral: true,
+    }
+  );
   const [controllers, setControllers] = useState<User[]>([]);
   const [teacherSchedule, setTeacherSchedule] = useState("");
   const [teacherControlId, setTeacherControlId] = useState("");
@@ -134,7 +138,9 @@ export default function UserManagementPage() {
           const teacher = data.users.find((u: any) => u.id === editingUser.id);
           if (teacher) {
             setTeacherSchedule(teacher.schedule || "");
-            setTeacherControlId(teacher.controlId ? String(teacher.controlId) : "");
+            setTeacherControlId(
+              teacher.controlId ? String(teacher.controlId) : ""
+            );
             setTeacherPhone(teacher.phone || "");
           }
         });
@@ -151,7 +157,11 @@ export default function UserManagementPage() {
     const data = Object.fromEntries(formData.entries());
 
     if ((editingUser ? editingUser.role : newUserRole) === "teacher") {
-      if (!teacherControlId || teacherControlId === "" || teacherControlId === "0") {
+      if (
+        !teacherControlId ||
+        teacherControlId === "" ||
+        teacherControlId === "0"
+      ) {
         setError("Please select a valid controller for the teacher");
         return;
       }
@@ -249,7 +259,7 @@ export default function UserManagementPage() {
             </div>
             <div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-2">
-                User Management
+                Users Management
               </h1>
               <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
                 Manage system users, roles, and permissions
@@ -262,19 +272,30 @@ export default function UserManagementPage() {
             <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <FiUsers className="h-5 w-5 text-gray-600" />
-                <span className="text-sm font-semibold text-gray-600">Total</span>
+                <span className="text-sm font-semibold text-gray-600">
+                  Total
+                </span>
               </div>
-              <div className="text-2xl font-bold text-black">{users.length}</div>
+              <div className="text-2xl font-bold text-black">
+                {users.length}
+              </div>
             </div>
             {roleOrder.map((role) => {
               const Icon = roleIcons[role];
               return (
-                <div key={role} className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div
+                  key={role}
+                  className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200"
+                >
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <Icon className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-semibold text-gray-600">{roleLabels[role]}</span>
+                    <span className="text-sm font-semibold text-gray-600">
+                      {roleLabels[role]}
+                    </span>
                   </div>
-                  <div className="text-2xl font-bold text-black">{usersByRole[role].length}</div>
+                  <div className="text-2xl font-bold text-black">
+                    {usersByRole[role].length}
+                  </div>
                 </div>
               );
             })}
@@ -359,7 +380,9 @@ export default function UserManagementPage() {
               <FiAlertCircle className="text-red-600 h-8 w-8" />
             </div>
             <div>
-              <h3 className="font-bold text-red-800 text-xl mb-2">Error Loading Users</h3>
+              <h3 className="font-bold text-red-800 text-xl mb-2">
+                Error Loading Users
+              </h3>
               <p className="text-red-600 text-lg">{error}</p>
             </div>
           </div>
@@ -371,7 +394,9 @@ export default function UserManagementPage() {
             <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
               <FiUsers className="h-16 w-16 text-gray-500" />
             </div>
-            <h3 className="text-3xl font-bold text-black mb-4">No Users Found</h3>
+            <h3 className="text-3xl font-bold text-black mb-4">
+              No Users Found
+            </h3>
             <p className="text-gray-600 text-xl mb-6">
               No users match your current filters.
             </p>
@@ -413,7 +438,10 @@ export default function UserManagementPage() {
                           colSpan={4}
                           className="py-4 px-6 font-bold text-gray-900 text-lg flex items-center gap-4 cursor-pointer select-none"
                           onClick={() =>
-                            setExpandedRoles((r) => ({ ...r, [role]: !r[role] }))
+                            setExpandedRoles((r) => ({
+                              ...r,
+                              [role]: !r[role],
+                            }))
                           }
                         >
                           {expandedRoles[role] ? (
@@ -449,7 +477,9 @@ export default function UserManagementPage() {
                                   <div className="font-bold text-black text-lg">
                                     {user.name}
                                   </div>
-                                  <div className="text-sm text-gray-500">ID: {user.id}</div>
+                                  <div className="text-sm text-gray-500">
+                                    ID: {user.id}
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -500,7 +530,9 @@ export default function UserManagementPage() {
                 <FiChevronLeft className="h-6 w-6" />
               </button>
               <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
                 disabled={currentPage === totalPages}
                 className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
               >
@@ -519,7 +551,9 @@ export default function UserManagementPage() {
             <form onSubmit={handleFormSubmit} className="space-y-6">
               {!editingUser && (
                 <div>
-                  <label className="block text-lg text-black font-bold mb-3">Role</label>
+                  <label className="block text-lg text-black font-bold mb-3">
+                    Role
+                  </label>
                   <select
                     name="role"
                     value={newUserRole}
@@ -537,7 +571,9 @@ export default function UserManagementPage() {
               )}
 
               <div>
-                <label className="block text-lg text-black font-bold mb-3">Name</label>
+                <label className="block text-lg text-black font-bold mb-3">
+                  Name
+                </label>
                 <input
                   type="text"
                   name="name"
@@ -549,7 +585,9 @@ export default function UserManagementPage() {
 
               {(editingUser ? editingUser.role : newUserRole) !== "teacher" && (
                 <div>
-                  <label className="block text-lg text-black font-bold mb-3">Username</label>
+                  <label className="block text-lg text-black font-bold mb-3">
+                    Username
+                  </label>
                   <input
                     type="text"
                     name="username"
@@ -563,7 +601,9 @@ export default function UserManagementPage() {
               {(editingUser ? editingUser.role : newUserRole) === "teacher" && (
                 <>
                   <div>
-                    <label className="block text-lg text-black font-bold mb-3">Controller</label>
+                    <label className="block text-lg text-black font-bold mb-3">
+                      Controller
+                    </label>
                     <select
                       name="controlId"
                       value={teacherControlId}
@@ -584,7 +624,9 @@ export default function UserManagementPage() {
                   </div>
 
                   <div>
-                    <label className="block text-lg text-black font-bold mb-3">Schedule</label>
+                    <label className="block text-lg text-black font-bold mb-3">
+                      Schedule
+                    </label>
                     <input
                       type="text"
                       name="schedule"
@@ -597,7 +639,9 @@ export default function UserManagementPage() {
                   </div>
 
                   <div>
-                    <label className="block text-lg text-black font-bold mb-3">Phone</label>
+                    <label className="block text-lg text-black font-bold mb-3">
+                      Phone
+                    </label>
                     <input
                       type="tel"
                       name="phone"
@@ -613,7 +657,8 @@ export default function UserManagementPage() {
 
               <div>
                 <label className="block text-lg text-black font-bold mb-3">
-                  Password {editingUser ? "(Leave blank to keep current)" : "(Required)"}
+                  Password{" "}
+                  {editingUser ? "(Leave blank to keep current)" : "(Required)"}
                 </label>
                 <input
                   type="password"
