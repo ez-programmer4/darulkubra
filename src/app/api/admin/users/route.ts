@@ -245,17 +245,30 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Validate controller exists by code and get its ID
+        // Validate controller exists by code
         const controller = await prisma.wpos_wpdatatable_28.findUnique({
           where: { code: controlIdStr },
+          select: { code: true, name: true }
         });
         if (!controller) {
+          console.log("Controller not found with code:", controlIdStr);
           return NextResponse.json(
-            { error: "Controller not found" },
+            { error: `Controller with code '${controlIdStr}' not found` },
             { status: 404 }
           );
         }
-        const ustazid = name.toLowerCase().replace(/\s+/g, "") + Date.now();
+        console.log("Controller found:", controller);
+        
+        const ustazid = name.toLowerCase().replace(/\s+/g, "").substring(0, 10) + "_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
+
+        // Check if ustazid already exists
+        const existingTeacher = await prisma.wpos_wpdatatable_24.findUnique({
+          where: { ustazid }
+        });
+        
+        if (existingTeacher) {
+          throw new Error(`Teacher ID ${ustazid} already exists`);
+        }
 
         try {
           newUser = await prisma.wpos_wpdatatable_24.create({
@@ -263,23 +276,28 @@ export async function POST(req: NextRequest) {
               ustazid,
               ustazname: name,
               password: hashedPassword,
-              schedule: schedule || null,
-              control: controlIdStr || null,
-              phone: phone || null,
+              schedule: schedule || "",
+              control: controlIdStr,
+              phone: phone || "",
             },
           });
+          
+          console.log("Teacher created successfully:", ustazid);
         } catch (createError) {
           console.error("Teacher creation error details:", {
             error: createError,
-            data: {
-              ustazid,
-              ustazname: name,
-              password: "[HIDDEN]",
-              schedule: schedule || null,
-              control: controlIdStr || null,
-              phone: phone || null,
-            }
+            ustazid,
+            name,
+            controlIdStr,
+            schedule,
+            phone
           });
+          
+          // Check if it's a foreign key constraint error
+          if (createError instanceof Error && createError.message.includes('foreign key constraint')) {
+            throw new Error(`Invalid controller code: ${controlIdStr}`);
+          }
+          
           throw new Error(`Failed to create teacher: ${createError instanceof Error ? createError.message : 'Unknown error'}`);
         }
         break;

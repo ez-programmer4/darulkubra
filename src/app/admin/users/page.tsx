@@ -165,9 +165,27 @@ export default function UserManagementPage() {
         setError("Please select a valid controller for the teacher");
         return;
       }
+      
+      if (!teacherSchedule.trim()) {
+        setError("Please enter a schedule for the teacher");
+        return;
+      }
+      
+      if (!teacherPhone.trim()) {
+        setError("Please enter a phone number for the teacher");
+        return;
+      }
+      
+      // Validate schedule format (should contain time patterns like 4:00, 5:00)
+      const timePattern = /^\d{1,2}:\d{2}(\s*,\s*\d{1,2}:\d{2})*$/;
+      if (!timePattern.test(teacherSchedule.trim())) {
+        setError("Please enter schedule in correct format (e.g. 4:00, 5:00, 6:00)");
+        return;
+      }
+      
       data.controlId = teacherControlId;
-      data.schedule = teacherSchedule;
-      data.phone = teacherPhone;
+      data.schedule = teacherSchedule.trim();
+      data.phone = teacherPhone.trim();
     }
 
     const payload = {
@@ -631,11 +649,19 @@ export default function UserManagementPage() {
                       type="text"
                       name="schedule"
                       value={teacherSchedule}
-                      onChange={(e) => setTeacherSchedule(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow only numbers, colons, commas, and spaces
+                        const sanitized = value.replace(/[^0-9:, ]/g, '');
+                        setTeacherSchedule(sanitized);
+                      }}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                       required
                       placeholder="e.g. 4:00, 5:00, 6:00"
                     />
+                    <p className="text-sm text-gray-500 mt-2">
+                      Enter time slots separated by commas (e.g. 4:00, 5:00, 6:00)
+                    </p>
                   </div>
 
                   <div>
