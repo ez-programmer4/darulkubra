@@ -257,23 +257,31 @@ export async function POST(req: NextRequest) {
         }
         const ustazid = name.toLowerCase().replace(/\s+/g, "") + Date.now();
 
-        newUser = await prisma.wpos_wpdatatable_24.create({
-          data: {
-            ustazid,
-            ustazname: name,
-            schedule: schedule || "",
-            control: controlIdStr,
-            phone: phone || "",
-            password: hashedPassword,
-          },
-          select: {
-            ustazid: true,
-            ustazname: true,
-            schedule: true,
-            control: true,
-            phone: true,
-          },
-        });
+        try {
+          newUser = await prisma.wpos_wpdatatable_24.create({
+            data: {
+              ustazid,
+              ustazname: name,
+              password: hashedPassword,
+              schedule: schedule || null,
+              control: controlIdStr || null,
+              phone: phone || null,
+            },
+          });
+        } catch (createError) {
+          console.error("Teacher creation error details:", {
+            error: createError,
+            data: {
+              ustazid,
+              ustazname: name,
+              password: "[HIDDEN]",
+              schedule: schedule || null,
+              control: controlIdStr || null,
+              phone: phone || null,
+            }
+          });
+          throw new Error(`Failed to create teacher: ${createError instanceof Error ? createError.message : 'Unknown error'}`);
+        }
         break;
       case "registral":
         newUser = await prisma.wpos_wpdatatable_33.create({
