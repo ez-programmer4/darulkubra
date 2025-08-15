@@ -261,10 +261,17 @@ export async function POST(req: NextRequest) {
           data: {
             ustazid,
             ustazname: name,
-            schedule,
-            control: controlIdStr, // Use relation connect
-            phone,
+            schedule: schedule || "",
+            control: controlIdStr,
+            phone: phone || "",
             password: hashedPassword,
+          },
+          select: {
+            ustazid: true,
+            ustazname: true,
+            schedule: true,
+            control: true,
+            phone: true,
           },
         });
         break;
