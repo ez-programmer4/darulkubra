@@ -114,10 +114,14 @@ export async function GET(req: NextRequest) {
       { status: 404 }
     );
   }
-  // Use direct DB query for exam pass rate for each teacher
+  // Use direct DB query for exam pass rate for each teacher with adjusted calculation
+  const SCHOOL_AVERAGE_PASS_RATE = 0.75; // 75%
+  const IMAGINARY_STUDENTS = 8;
+  
   const teacherStats = await Promise.all(
     assessments.map(async (a) => {
       let examPassRate = null;
+      let adjustedExamPassRate = null;
       let studentsTotal = 0;
       try {
         const { passed, failed } = await getTeacherExamPassFail(
@@ -125,8 +129,23 @@ export async function GET(req: NextRequest) {
           a.teacherId
         );
         const total = passed + failed;
-        examPassRate = total > 0 ? Math.round((passed / total) * 100) : 0;
         studentsTotal = total;
+        
+        if (total > 0) {
+          // Raw pass rate
+          const rawPassRate = (passed / total) * 100;
+          
+          // Adjusted pass rate calculation
+          const imaginaryPasses = IMAGINARY_STUDENTS * SCHOOL_AVERAGE_PASS_RATE;
+          const adjustedPassed = passed + imaginaryPasses;
+          const adjustedTotal = total + IMAGINARY_STUDENTS;
+          adjustedExamPassRate = Math.round((adjustedPassed / adjustedTotal) * 100);
+          
+          examPassRate = Math.round(rawPassRate);
+        } else {
+          examPassRate = 0;
+          adjustedExamPassRate = Math.round(SCHOOL_AVERAGE_PASS_RATE * 100);
+        }
       } catch {}
       // Enrich feedback with real category names
       let feedback = {};
@@ -139,6 +158,7 @@ export async function GET(req: NextRequest) {
       return {
         ...a,
         examPassRate,
+        adjustedExamPassRate,
         studentsTotal,
         controllerFeedback: enrichedFeedback,
       };
@@ -157,7 +177,8 @@ export async function GET(req: NextRequest) {
       weekStart: a.weekStart ? a.weekStart.toISOString() : undefined,
       controllerFeedback: a.controllerFeedback,
       controlRate,
-      examPassRate: a.examPassRate,
+      examPassRate: a.adjustedExamPassRate, // Use adjusted pass rate
+      rawExamPassRate: a.examPassRate, // Keep raw for reference
       studentsTotal: a.studentsTotal,
       examinerRating: a.examinerRating ?? Math.round(Math.random() * 10), // mock
       overallQuality: quality,

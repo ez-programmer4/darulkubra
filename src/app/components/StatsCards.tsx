@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { FiUsers, FiCheckCircle, FiClock } from "react-icons/fi";
 
 interface StatsCardsProps {
@@ -13,64 +12,42 @@ export default function StatsCards({
   notYetStudents,
 }: StatsCardsProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
-      >
-        <div className="flex items-center">
-          <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-            <FiUsers size={24} />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:shadow-md transition-all">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-blue-100 rounded-xl">
+            <FiUsers className="h-6 w-6 text-blue-600" />
           </div>
-          <div className="ml-4">
-            <p className="text-sm font-medium text-gray-600">Total Students</p>
-            <p className="text-2xl font-semibold text-gray-900">
-              {totalStudents}
-            </p>
+          <div>
+            <p className="text-sm font-semibold text-gray-600 mb-1">Total Students</p>
+            <p className="text-3xl font-bold text-black">{totalStudents}</p>
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
-      >
-        <div className="flex items-center">
-          <div className="p-3 rounded-full bg-green-100 text-green-600">
-            <FiCheckCircle size={24} />
+      <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:shadow-md transition-all">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-green-100 rounded-xl">
+            <FiCheckCircle className="h-6 w-6 text-green-600" />
           </div>
-          <div className="ml-4">
-            <p className="text-sm font-medium text-gray-600">Active Students</p>
-            <p className="text-2xl font-semibold text-gray-900">
-              {activeStudents}
-            </p>
+          <div>
+            <p className="text-sm font-semibold text-gray-600 mb-1">Active Students</p>
+            <p className="text-3xl font-bold text-black">{activeStudents}</p>
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
-      >
-        <div className="flex items-center">
-          <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
-            <FiClock size={24} />
+      <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:shadow-md transition-all">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-yellow-100 rounded-xl">
+            <FiClock className="h-6 w-6 text-yellow-600" />
           </div>
-          <div className="ml-4">
-            <p className="text-sm font-medium text-gray-600">
-              Not Yet Students
-            </p>
-            <p className="text-2xl font-semibold text-gray-900">
-              {notYetStudents}
-            </p>
+          <div>
+            <p className="text-sm font-semibold text-gray-600 mb-1">Pending Students</p>
+            <p className="text-3xl font-bold text-black">{notYetStudents}</p>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

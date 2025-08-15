@@ -10,6 +10,11 @@ import {
   FiEye,
   FiXCircle,
   FiCalendar,
+  FiDollarSign,
+  FiTrendingUp,
+  FiUsers,
+  FiChevronLeft,
+  FiChevronRight,
 } from "react-icons/fi";
 import { Decimal } from "@prisma/client/runtime/library";
 import { useDebounce } from "use-debounce";
@@ -164,7 +169,7 @@ export default function PaymentManagementPage() {
         .reduce((sum, p) => sum + Number(p.paidamount), 0),
     },
   ];
-  const PIE_COLORS = ["#0088FE", "#FFBB28", "#FF8042"];
+  const PIE_COLORS = ["#000000", "#6b7280", "#9ca3af"];
 
   const updatePaymentStatus = async (
     id: number,
@@ -192,301 +197,414 @@ export default function PaymentManagementPage() {
   };
 
   return (
-    <div className="bg-white p-2 sm:p-6 rounded-lg shadow-md border border-blue-100">
-      {/* Statistics Cards and Charts */}
-      <div className="mb-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6">
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
-          <div className="text-blue-500">Total Payments</div>
-          <div className="text-2xl font-bold text-blue-900">
-            {payments.length}
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
-          <div className="text-green-500">Approved Amount</div>
-          <div className="text-2xl font-bold text-green-900">
-            ${statusAmounts[0].value}
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
-          <div className="text-yellow-500">Pending Amount</div>
-          <div className="text-2xl font-bold text-yellow-900">
-            ${statusAmounts[1].value}
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
-          <div className="text-red-500">Rejected Amount</div>
-          <div className="text-2xl font-bold text-red-900">
-            ${statusAmounts[2].value}
-          </div>
-        </div>
-      </div>
-      <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-8">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="font-semibold text-gray-700 mb-4">
-            Payments by Status
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={statusCounts}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
-              <RechartsTooltip />
-              <Legend />
-              <Bar dataKey="value" fill="#8884d8" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="font-semibold text-gray-700 mb-4">
-            Payments Amount by Status
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={statusAmounts}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                fill="#8884d8"
-                label
-              >
-                {statusAmounts.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={PIE_COLORS[index % PIE_COLORS.length]}
-                  />
-                ))}
-              </Pie>
-              <RechartsTooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row flex-wrap justify-between items-center mb-6 gap-2 sm:gap-4">
-        <div className="flex flex-col sm:flex-row w-full gap-2 sm:gap-4">
-          <div className="relative w-full sm:w-auto">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search payments..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 border rounded-lg w-full sm:w-64 text-xs sm:text-base"
-            />
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <FiFilter className="text-gray-500" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="p-2 border rounded-lg bg-gray-50 w-full sm:w-40 text-xs sm:text-base"
-            >
-              <option value="">All</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-          {/* Date Range Filter */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className="w-[220px] justify-start text-left font-normal"
-              >
-                <FiCalendar className="mr-2 h-4 w-4" />
-                {date?.from ? (
-                  date.to ? (
-                    <>
-                      {format(date.from, "LLL dd, y")} -{" "}
-                      {format(date.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    format(date.from, "LLL dd, y")
-                  )
-                ) : (
-                  <span>Pick a date</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={date?.from}
-                selected={date}
-                onSelect={setDate}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
-          <Button variant="ghost" onClick={() => setDate(undefined)}>
-            Clear
-          </Button>
-        </div>
-      </div>
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-[700px] w-full text-xs sm:text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Student
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Amount
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Transaction ID
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="text-center py-6">
-                  Loading payments...
-                </td>
-              </tr>
-            ) : error ? (
-              <tr>
-                <td colSpan={6} className="text-center py-6 text-red-500">
-                  Error: {error}
-                </td>
-              </tr>
-            ) : (
-              paginatedPayments.map((payment) => (
-                <tr key={payment.id}>
-                  <td className="px-6 py-4 text-blue-700 font-semibold hover:underline cursor-pointer">
-                    {payment.studentname}
-                  </td>
-                  <td className="px-6 py-4">
-                    ${payment.paidamount.toString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    {new Date(payment.paymentdate).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <StatusBadge status={payment.status} />
-                  </td>
-                  <td className="px-6 py-4">{payment.transactionid}</td>
-                  <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
-                    {payment.status === "pending" && (
-                      <>
-                        <button
-                          onClick={() =>
-                            updatePaymentStatus(payment.id, "approved")
-                          }
-                          className="p-2 bg-green-100 text-green-700 rounded-full hover:bg-green-200"
-                          title="Approve"
-                        >
-                          <FiCheckCircle />
-                        </button>
-                        <button
-                          onClick={() =>
-                            updatePaymentStatus(payment.id, "rejected")
-                          }
-                          className="p-2 bg-red-100 text-red-700 rounded-full hover:bg-red-200"
-                          title="Reject"
-                        >
-                          <FiXCircle />
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => openDetailsModal(payment)}
-                      className="p-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200"
-                      title="View Details"
-                    >
-                      <FiEye />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      {/* Pagination Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-2">
-        <p className="text-sm text-blue-700 font-semibold">
-          Page {currentPage} of {totalPages}
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="p-2 border-2 border-blue-200 rounded-full bg-white text-blue-600 hover:bg-blue-100 disabled:opacity-50 shadow-sm transition-all"
-          >
-            &lt;
-          </button>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="p-2 border-2 border-blue-200 rounded-full bg-white text-blue-600 hover:bg-blue-100 disabled:opacity-50 shadow-sm transition-all"
-          >
-            &gt;
-          </button>
-        </div>
-      </div>
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+        {/* Header + Stats */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-8 mb-8">
+            <div className="flex items-center gap-6">
+              <div className="p-4 bg-black rounded-2xl shadow-lg">
+                <FiDollarSign className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-2">
+                  Payment Management
+                </h1>
+                <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
+                  Monitor and manage student payment transactions
+                </p>
+              </div>
+            </div>
 
-      <Modal
-        isOpen={isDetailsModalOpen}
-        onClose={() => setIsDetailsModalOpen(false)}
-      >
-        {selectedPayment && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Payment Details</h2>
-            <div className="space-y-2">
-              <p>
-                <strong>Student:</strong> {selectedPayment.studentname}
-              </p>
-              <p>
-                <strong>Amount:</strong> $
-                {selectedPayment.paidamount.toString()}
-              </p>
-              <p>
-                <strong>Date:</strong>{" "}
-                {new Date(selectedPayment.paymentdate).toLocaleString()}
-              </p>
-              <p>
-                <strong>Status:</strong>{" "}
-                <StatusBadge status={selectedPayment.status} />
-              </p>
-              <p>
-                <strong>Transaction ID:</strong> {selectedPayment.transactionid}
-              </p>
-              <p>
-                <strong>Sender:</strong> {selectedPayment.sendername}
-              </p>
-              <p>
-                <strong>Reason:</strong> {selectedPayment.reason}
-              </p>
-            </div>
-            <div className="text-right mt-6">
-              <button
-                onClick={() => setIsDetailsModalOpen(false)}
-                className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
-              >
-                Close
-              </button>
+            {/* Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiUsers className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Total</span>
+                </div>
+                <div className="text-2xl font-bold text-black">{payments.length}</div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiCheckCircle className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Approved</span>
+                </div>
+                <div className="text-2xl font-bold text-black">${statusAmounts[0].value}</div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiClock className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Pending</span>
+                </div>
+                <div className="text-2xl font-bold text-black">${statusAmounts[1].value}</div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiXCircle className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Rejected</span>
+                </div>
+                <div className="text-2xl font-bold text-black">${statusAmounts[2].value}</div>
+              </div>
             </div>
           </div>
-        )}
-      </Modal>
+
+          {/* Controls */}
+          <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+              <div className="lg:col-span-3">
+                <label className="block text-sm font-bold text-black mb-3">
+                  <FiSearch className="inline h-4 w-4 mr-2" />
+                  Search Payments
+                </label>
+                <input
+                  type="text"
+                  placeholder="Search payments..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <label className="block text-sm font-bold text-black mb-3">
+                  <FiFilter className="inline h-4 w-4 mr-2" />
+                  Filter by Status
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+              <div className="lg:col-span-4">
+                <label className="block text-sm font-bold text-black mb-3">
+                  <FiCalendar className="inline h-4 w-4 mr-2" />
+                  Date Range
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base text-left">
+                      {date?.from ? (
+                        date.to ? (
+                          <>
+                            {format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(date.from, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={date?.from}
+                      selected={date}
+                      onSelect={setDate}
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="lg:col-span-2">
+                <button
+                  onClick={() => setDate(undefined)}
+                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-bold transition-all hover:scale-105"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-black rounded-xl">
+                  <FiTrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-black">Payments by Status</h2>
+                  <p className="text-gray-600">Count distribution</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 sm:p-8 lg:p-10">
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={statusCounts}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" stroke="#4b5563" />
+                  <YAxis allowDecimals={false} stroke="#4b5563" />
+                  <RechartsTooltip />
+                  <Legend />
+                  <Bar dataKey="value" fill="#000000" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-black rounded-xl">
+                  <FiDollarSign className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-black">Amount by Status</h2>
+                  <p className="text-gray-600">Financial distribution</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 sm:p-8 lg:p-10">
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={statusAmounts}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="#000000"
+                    label
+                  >
+                    {statusAmounts.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* Payments Table */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+          <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-black rounded-xl">
+                <FiUsers className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-black">Payment Transactions</h2>
+                <p className="text-gray-600">Manage payment approvals and rejections</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6 sm:p-8 lg:p-10">
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
+                <p className="text-black font-medium text-lg">Loading payments...</p>
+                <p className="text-gray-500 text-sm mt-2">Please wait while we fetch the data</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12">
+                <div className="p-8 bg-red-50 rounded-full w-fit mx-auto mb-8">
+                  <FiAlertCircle className="h-16 w-16 text-red-500" />
+                </div>
+                <h3 className="text-3xl font-bold text-black mb-4">Error Loading Payments</h3>
+                <p className="text-red-600 text-xl">{error}</p>
+              </div>
+            ) : payments.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
+                  <FiDollarSign className="h-16 w-16 text-gray-500" />
+                </div>
+                <h3 className="text-3xl font-bold text-black mb-4">No Payments Found</h3>
+                <p className="text-gray-600 text-xl">No payment transactions match your current filters.</p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Student
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Amount
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Transaction ID
+                        </th>
+                        <th className="px-6 py-4 text-right text-sm font-bold text-black uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {paginatedPayments.map((payment, index) => (
+                        <tr
+                          key={payment.id}
+                          className={`hover:bg-gray-50 transition-all duration-200 ${
+                            index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }`}
+                        >
+                          <td className="px-6 py-4 text-black font-semibold">
+                            {payment.studentname}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            ${payment.paidamount.toString()}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {new Date(payment.paymentdate).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4">
+                            <StatusBadge status={payment.status} />
+                          </td>
+                          <td className="px-6 py-4 text-gray-700 font-mono text-xs">
+                            {payment.transactionid}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {payment.status === "pending" && (
+                                <>
+                                  <button
+                                    onClick={() =>
+                                      updatePaymentStatus(payment.id, "approved")
+                                    }
+                                    className="p-2 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-all hover:scale-105"
+                                    title="Approve"
+                                  >
+                                    <FiCheckCircle className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      updatePaymentStatus(payment.id, "rejected")
+                                    }
+                                    className="p-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-all hover:scale-105"
+                                    title="Reject"
+                                  >
+                                    <FiXCircle className="h-4 w-4" />
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                onClick={() => openDetailsModal(payment)}
+                                className="p-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all hover:scale-105"
+                                title="View Details"
+                              >
+                                <FiEye className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+                  <p className="text-lg font-semibold text-gray-700">
+                    Page {currentPage} of {totalPages}
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
+                    >
+                      <FiChevronLeft className="h-6 w-6" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
+                    >
+                      <FiChevronRight className="h-6 w-6" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Payment Details Modal */}
+        <Modal
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+        >
+          {selectedPayment && (
+            <div className="bg-white rounded-3xl p-8 max-w-2xl mx-auto">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-black rounded-xl">
+                  <FiDollarSign className="h-6 w-6 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-black">Payment Details</h2>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">Student</label>
+                    <p className="text-lg font-bold text-black">{selectedPayment.studentname}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">Amount</label>
+                    <p className="text-lg font-bold text-black">${selectedPayment.paidamount.toString()}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">Date</label>
+                    <p className="text-lg text-gray-700">{new Date(selectedPayment.paymentdate).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">Status</label>
+                    <StatusBadge status={selectedPayment.status} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">Transaction ID</label>
+                    <p className="text-lg font-mono text-gray-700 bg-gray-50 p-3 rounded-xl">{selectedPayment.transactionid}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">Sender</label>
+                    <p className="text-lg text-gray-700">{selectedPayment.sendername}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">Reason</label>
+                    <p className="text-lg text-gray-700">{selectedPayment.reason}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end mt-8">
+                <button
+                  onClick={() => setIsDetailsModalOpen(false)}
+                  className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      </div>
     </div>
   );
 }

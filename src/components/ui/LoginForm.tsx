@@ -86,7 +86,7 @@ export function LoginForm({
             htmlFor="username"
             className="block text-sm font-semibold text-gray-700 mb-1.5 group-focus-within:text-blue-600 transition-colors duration-200"
           >
-            {role === "teacher" ? "Teacher ID" : "Username"}
+            {role === "teacher" ? "Teacher Name" : "Username"}
           </Label>
           <div className="relative">
             <Input
@@ -99,7 +99,7 @@ export function LoginForm({
               className="appearance-none block w-full px-4 py-3.5 border border-gray-200 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-in-out bg-gray-50/50 hover:bg-white"
               placeholder={
                 role === "teacher"
-                  ? "Enter your Teacher ID"
+                  ? "Enter your Teacher Name"
                   : "Enter your username"
               }
             />

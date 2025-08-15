@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import UstazRatingsSkeleton from "./components/UstazRatingsSkeleton";
-import { CheckCircle2, XCircle } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -16,7 +15,19 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { FiSearch } from "react-icons/fi";
+import {
+  FiSearch,
+  FiUsers,
+  FiCheckCircle,
+  FiXCircle,
+  FiTarget,
+  FiBarChart,
+  FiPieChart,
+  FiChevronLeft,
+  FiChevronRight,
+  FiDownload,
+  FiFilter,
+} from "react-icons/fi";
 
 type UstazStats = {
   id: string;
@@ -46,9 +57,7 @@ export default function UstazRatingsPage() {
         }
 
         const statsPromises = ustazList.map(async (ustaz: any) => {
-          const statsRes = await fetch(
-            `/api/admin/ustaz/${ustaz.ustazid}/stats`
-          );
+          const statsRes = await fetch(`/api/admin/ustaz/${ustaz.ustazid}/stats`);
           if (!statsRes.ok) {
             return {
               id: ustaz.ustazid,
@@ -107,8 +116,8 @@ export default function UstazRatingsPage() {
   );
 
   // Chart data
-  const barChartData = filteredStats.map((u) => ({
-    name: u.name,
+  const barChartData = filteredStats.slice(0, 10).map((u) => ({
+    name: u.name.length > 10 ? u.name.substring(0, 10) + "..." : u.name,
     Passed: u.passed,
     Failed: u.failed,
   }));
@@ -116,208 +125,333 @@ export default function UstazRatingsPage() {
     { name: "Passed", value: totalPassed },
     { name: "Failed", value: totalFailed },
   ];
-  const PIE_COLORS = ["#34d399", "#f87171"];
+  const PIE_COLORS = ["#10b981", "#ef4444"];
+
+  const exportToCSV = () => {
+    const headers = ["Teacher Name", "Teacher ID", "Passed", "Failed", "Pass Rate"];
+    const rows = filteredStats.map((ustaz) => {
+      const passRate = ustaz.passed + ustaz.failed > 0
+        ? Math.round((ustaz.passed / (ustaz.passed + ustaz.failed)) * 100)
+        : 0;
+      return [ustaz.name, ustaz.id, ustaz.passed, ustaz.failed, `${passRate}%`];
+    });
+    const csvContent = [headers, ...rows].map((row) => row.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `teacher-exam-ratings-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (loading) {
-    return <UstazRatingsSkeleton />;
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
+          <p className="text-black font-medium text-lg">Loading teacher ratings...</p>
+          <p className="text-gray-500 text-sm mt-2">Please wait while we fetch the data</p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div
-        className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md"
-        role="alert"
-      >
-        <p className="font-bold">Error</p>
-        <p>{error}</p>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="p-8 bg-red-50 rounded-full w-fit mx-auto mb-8">
+            <FiXCircle className="h-16 w-16 text-red-500" />
+          </div>
+          <h3 className="text-3xl font-bold text-black mb-4">Error Loading Data</h3>
+          <p className="text-red-600 text-xl">{error}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-2 sm:p-6">
-      <h1 className="text-3xl font-bold text-blue-900 mb-6">
-        Teacher Exam Ratings
-      </h1>
-      {/* Summary Cards */}
-      <div className="mb-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6">
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
-          <div className="text-blue-500">Total Teachers</div>
-          <div className="text-2xl font-bold text-blue-900">
-            {totalTeachers}
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+        {/* Header + Stats */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-8 mb-8">
+            <div className="flex items-center gap-6">
+              <div className="p-4 bg-black rounded-2xl shadow-lg">
+                <FiUsers className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-2">
+                  Teacher Exam Ratings
+                </h1>
+                <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
+                  Performance analytics and exam pass/fail statistics
+                </p>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiUsers className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Teachers</span>
+                </div>
+                <div className="text-2xl font-bold text-black">{totalTeachers}</div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiCheckCircle className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Passed</span>
+                </div>
+                <div className="text-2xl font-bold text-black">{totalPassed}</div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiXCircle className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Failed</span>
+                </div>
+                <div className="text-2xl font-bold text-black">{totalFailed}</div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiTarget className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Pass Rate</span>
+                </div>
+                <div className="text-2xl font-bold text-black">{averagePassRate}%</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+              <div className="lg:col-span-4">
+                <label className="block text-sm font-bold text-black mb-3">
+                  <FiSearch className="inline h-4 w-4 mr-2" />
+                  Search Teachers
+                </label>
+                <input
+                  type="text"
+                  placeholder="Search by teacher name..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <label className="block text-sm font-bold text-black mb-3">
+                  <FiFilter className="inline h-4 w-4 mr-2" />
+                  Filter by Status
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
+                >
+                  <option value="">All Teachers</option>
+                  <option value="passed">Mostly Passed</option>
+                  <option value="failed">Mostly Failed</option>
+                </select>
+              </div>
+              <div className="lg:col-span-5">
+                <div className="flex gap-2">
+                  <button
+                    onClick={exportToCSV}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2"
+                  >
+                    <FiDownload className="h-4 w-4" />
+                    Export CSV
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
-          <div className="text-green-500">Total Passed</div>
-          <div className="text-2xl font-bold text-green-900">{totalPassed}</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
-          <div className="text-red-500">Total Failed</div>
-          <div className="text-2xl font-bold text-red-900">{totalFailed}</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
-          <div className="text-yellow-500">Average Pass Rate</div>
-          <div className="text-2xl font-bold text-yellow-900">
-            {averagePassRate}%
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Bar Chart */}
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-black rounded-xl">
+                <FiBarChart className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-black">Pass/Fail Distribution</h2>
+                <p className="text-gray-600">Top 10 teachers by exam results</p>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={barChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <RechartsTooltip />
+                <Legend />
+                <Bar dataKey="Passed" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Failed" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Pie Chart */}
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-black rounded-xl">
+                <FiPieChart className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-black">Overall Pass/Fail</h2>
+                <p className="text-gray-600">Total exam results distribution</p>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieChartData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  fill="#8884d8"
+                  label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
+                >
+                  {pieChartData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={PIE_COLORS[index % PIE_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <RechartsTooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
-      </div>
-      {/* Charts */}
-      <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-8">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="font-semibold text-gray-700 mb-4">
-            Pass/Fail Distribution
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={barChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
-              <RechartsTooltip />
-              <Legend />
-              <Bar dataKey="Passed" fill="#34d399" />
-              <Bar dataKey="Failed" fill="#f87171" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="font-semibold text-gray-700 mb-4">
-            Overall Pass/Fail
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={pieChartData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                fill="#8884d8"
-                label
-              >
-                {pieChartData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={PIE_COLORS[index % PIE_COLORS.length]}
-                  />
-                ))}
-              </Pie>
-              <RechartsTooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-      {/* Search, Filter, Pagination */}
-      <div className="flex flex-col sm:flex-row flex-wrap justify-between items-center mb-6 gap-2 sm:gap-4">
-        <div className="flex flex-col sm:flex-row w-full gap-2 sm:gap-4">
-          <div className="relative w-full sm:w-auto">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400" />
-            <input
-              type="text"
-              placeholder="Search by teacher name..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-10 pr-4 py-2 border-2 border-indigo-200 rounded-lg bg-white text-indigo-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm w-full sm:w-64 text-xs sm:text-base"
-            />
+
+        {/* Teachers Table */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+          <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-black rounded-xl">
+                <FiUsers className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-black">Teacher Details</h2>
+                <p className="text-gray-600">{filteredStats.length} teachers found</p>
+              </div>
+            </div>
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="p-2 border-2 border-indigo-200 rounded-lg bg-white text-indigo-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm w-full sm:w-40 text-xs sm:text-base"
-          >
-            <option value="">All</option>
-            <option value="passed">Passed</option>
-            <option value="failed">Failed</option>
-          </select>
-        </div>
-      </div>
-      {/* Table */}
-      <div className="overflow-x-auto border border-indigo-100 rounded-lg">
-        <table className="min-w-[600px] w-full text-xs sm:text-sm divide-y divide-indigo-200">
-          <thead className="bg-indigo-100">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                Teacher Name
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-bold text-green-700 uppercase tracking-wider">
-                Passed
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-bold text-red-700 uppercase tracking-wider">
-                Failed
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-bold text-yellow-700 uppercase tracking-wider">
-                Pass Rate
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-indigo-200">
-            {paginatedStats.map((ustaz) => {
-              const passRate =
-                ustaz.passed + ustaz.failed > 0
-                  ? Math.round(
-                      (ustaz.passed / (ustaz.passed + ustaz.failed)) * 100
-                    )
-                  : 0;
-              return (
-                <tr key={ustaz.id} className="hover:bg-indigo-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <a
-                      href={`#teacher-${ustaz.id}`}
-                      className="text-sm font-medium text-indigo-700 hover:underline"
+
+          <div className="p-6 sm:p-8 lg:p-10">
+            {paginatedStats.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
+                  <FiUsers className="h-16 w-16 text-gray-500" />
+                </div>
+                <h3 className="text-3xl font-bold text-black mb-4">No Teachers Found</h3>
+                <p className="text-gray-600 text-xl">No teachers match your current filters.</p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Teacher Name
+                        </th>
+                        <th className="px-6 py-4 text-center text-sm font-bold text-black uppercase tracking-wider">
+                          Passed
+                        </th>
+                        <th className="px-6 py-4 text-center text-sm font-bold text-black uppercase tracking-wider">
+                          Failed
+                        </th>
+                        <th className="px-6 py-4 text-center text-sm font-bold text-black uppercase tracking-wider">
+                          Pass Rate
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {paginatedStats.map((ustaz, index) => {
+                        const passRate =
+                          ustaz.passed + ustaz.failed > 0
+                            ? Math.round((ustaz.passed / (ustaz.passed + ustaz.failed)) * 100)
+                            : 0;
+                        return (
+                          <tr
+                            key={ustaz.id}
+                            className={`hover:bg-gray-50 transition-all duration-200 ${
+                              index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                            }`}
+                          >
+                            <td className="px-6 py-4">
+                              <div>
+                                <div className="font-semibold text-black">{ustaz.name}</div>
+                                <div className="text-sm text-gray-500">{ustaz.id}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-800 font-semibold text-xs">
+                                {ustaz.passed}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-800 font-semibold text-xs">
+                                {ustaz.failed}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
+                                passRate >= 70 ? "bg-green-100 text-green-800" :
+                                passRate >= 50 ? "bg-yellow-100 text-yellow-800" :
+                                "bg-red-100 text-red-800"
+                              }`}>
+                                {passRate}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+                  <p className="text-lg font-semibold text-gray-700">
+                    Page {currentPage} of {totalPages}
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
                     >
-                      {ustaz.name}
-                    </a>
-                    <div className="text-xs text-indigo-400">{ustaz.id}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className="inline-flex items-center gap-2 px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
-                      {ustaz.passed}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className="inline-flex items-center gap-2 px-3 py-1 text-sm font-semibold rounded-full bg-red-100 text-red-800">
-                      {ustaz.failed}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className="inline-flex items-center gap-2 px-3 py-1 text-sm font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                      {passRate}%
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {/* Pagination Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-2">
-        <p className="text-sm text-indigo-700 font-semibold">
-          Page {currentPage} of {totalPages}
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="p-2 border-2 border-indigo-200 rounded-full bg-white text-indigo-600 hover:bg-indigo-100 disabled:opacity-50 shadow-sm transition-all"
-          >
-            &lt;
-          </button>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="p-2 border-2 border-indigo-200 rounded-full bg-white text-indigo-600 hover:bg-indigo-100 disabled:opacity-50 shadow-sm transition-all"
-          >
-            &gt;
-          </button>
+                      <FiChevronLeft className="h-6 w-6" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
+                    >
+                      <FiChevronRight className="h-6 w-6" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

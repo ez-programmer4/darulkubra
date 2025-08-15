@@ -66,6 +66,7 @@ export default function TeacherPermissions() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [todayRequestCount, setTodayRequestCount] = useState(0);
 
   // Fetch permissions for the selected month
   useEffect(() => {
@@ -85,7 +86,28 @@ export default function TeacherPermissions() {
           throw new Error(`Failed to fetch permissions: ${errorText}`);
         }
         const data = await response.json();
-        setPermissions(Array.isArray(data) ? data : []);
+        console.log("Permissions API response:", data);
+        // Map API response to frontend format
+        const mappedPermissions = Array.isArray(data) ? data.map(perm => ({
+          date: perm.requestedDates,
+          dates: Array.isArray(perm.requestedDates) ? perm.requestedDates : [perm.requestedDates],
+          reason: perm.reasonCategory,
+          details: perm.reasonDetails,
+          status: perm.status,
+          createdAt: perm.createdAt
+        })) : [];
+        setPermissions(mappedPermissions);
+        
+        // Count today's requests
+        const today = new Date().toISOString().split('T')[0];
+        const todayCount = mappedPermissions.filter(perm => {
+          if (perm.createdAt) {
+            const requestDate = new Date(perm.createdAt).toISOString().split('T')[0];
+            return requestDate === today;
+          }
+          return false;
+        }).length;
+        setTodayRequestCount(todayCount);
       } catch (err: any) {
         setError(err.message || "Could not fetch permissions.");
       } finally {
@@ -99,16 +121,28 @@ export default function TeacherPermissions() {
   useEffect(() => {
     const loadReasons = async () => {
       try {
-        const res = await fetch("/api/admin/permission-reasons", {
+        const res = await fetch("/api/permission-reasons", {
           credentials: "include",
         });
         if (res.ok) {
           const data = await res.json();
-          setPermissionReasons(
-            Array.isArray(data) ? data.map((r: any) => r.reason) : []
-          );
+          console.log("Permission reasons data:", data);
+          if (data.reasons && Array.isArray(data.reasons)) {
+            setPermissionReasons(data.reasons);
+          } else if (Array.isArray(data)) {
+            setPermissionReasons(data.map((r: any) => r.reason || r.name || r));
+          } else {
+            console.log("No valid permission reasons found, using defaults");
+            setPermissionReasons(["Sick Leave", "Personal Emergency", "Family Matter", "Medical Appointment", "Other"]);
+          }
+        } else {
+          console.log("Permission reasons API failed, using defaults");
+          setPermissionReasons(["Sick Leave", "Personal Emergency", "Family Matter", "Medical Appointment", "Other"]);
         }
-      } catch {}
+      } catch (error) {
+        console.error("Error loading permission reasons:", error);
+        setPermissionReasons(["Sick Leave", "Personal Emergency", "Family Matter", "Medical Appointment", "Other"]);
+      }
     };
     if (!authLoading) loadReasons();
   }, [authLoading]);
@@ -121,14 +155,25 @@ export default function TeacherPermissions() {
       });
       if (response.ok) {
         const data = await response.json();
-        setPermissions(Array.isArray(data) ? data : []);
+        // Map API response to frontend format
+        const mappedPermissions = Array.isArray(data) ? data.map(perm => ({
+          date: perm.requestedDates,
+          dates: Array.isArray(perm.requestedDates) ? perm.requestedDates : [perm.requestedDates],
+          reason: perm.reasonCategory,
+          details: perm.reasonDetails,
+          status: perm.status
+        })) : [];
+        setPermissions(mappedPermissions);
       }
     } catch {}
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Submit button clicked!", { date, reason, details });
+    
     if (!date || !reason) {
+      console.log("Validation failed: missing date or reason");
       toast({
         title: "Error",
         description: "Date and reason are required.",
@@ -136,10 +181,35 @@ export default function TeacherPermissions() {
       });
       return;
     }
+    
+    if (!details || details.trim() === "") {
+      console.log("Validation failed: missing details");
+      toast({
+        title: "Error",
+        description: "Details are required for the permission request.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    console.log("All validations passed, proceeding with submission");
+    
     // Check for duplicate date
-    if (
-      permissions.some((req) => (req.date || req.dates?.includes(date)) && date)
-    ) {
+    console.log("Checking for duplicate dates...");
+    console.log("Current permissions:", permissions.map(p => ({ date: p.date, dates: p.dates, status: p.status })));
+    console.log("Checking against date:", date);
+    
+    const duplicateCheck = permissions.some((req) => {
+      const reqDate = req.date;
+      const reqDates = req.dates;
+      const matches = (reqDate === date) || (Array.isArray(reqDates) && reqDates.includes(date));
+      console.log(`Comparing: ${reqDate} or ${reqDates} with ${date} = ${matches}`);
+      return matches;
+    });
+    console.log("Duplicate check result:", duplicateCheck);
+    
+    if (duplicateCheck) {
+      console.log("Duplicate date found, showing error");
       toast({
         title: "Error",
         description:
@@ -148,7 +218,12 @@ export default function TeacherPermissions() {
       });
       return;
     }
+    
+    console.log("No duplicates found, setting isSubmitting to true");
     setIsSubmitting(true);
+    console.log("isSubmitting set, now making API call");
+    console.log("Submitting permission request:", { date, reason, details });
+    
     try {
       const res = await fetch("/api/teachers/permissions", {
         method: "POST",
@@ -156,18 +231,36 @@ export default function TeacherPermissions() {
         body: JSON.stringify({ date, reason, details }),
         credentials: "include",
       });
+      
+      console.log("API Response status:", res.status);
       if (!res.ok) {
         let msg = "Failed to submit request";
         try {
           const j = await res.json();
-          if (j?.error) msg = j.error;
-        } catch {}
+          console.log("API Error response:", j);
+          if (j?.error) {
+            msg = j.error;
+          }
+        } catch (parseError) {
+          console.error("Failed to parse error response:", parseError);
+          // Handle different HTTP status codes
+          if (res.status === 400) {
+            msg = "Invalid request. Please check your input and try again.";
+          } else if (res.status === 403) {
+            msg = "You don't have permission to perform this action.";
+          } else if (res.status === 500) {
+            msg = "Server error. Please try again later.";
+          }
+        }
         throw new Error(msg);
       }
+      
+      const responseData = await res.json();
+      console.log("Permission request submitted successfully:", responseData);
       setSubmitted(true);
       toast({
         title: "Success",
-        description: "Permission request submitted successfully.",
+        description: responseData.message || "Permission request submitted successfully.",
       });
       setDate("");
       setReason("");
@@ -178,9 +271,10 @@ export default function TeacherPermissions() {
         setSubmitted(false);
       }, 1800);
     } catch (err: any) {
+      console.error("Permission request error:", err);
       toast({
-        title: "Error",
-        description: err.message || "Failed to submit request.",
+        title: "Request Failed",
+        description: err.message || "Failed to submit request. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -445,6 +539,43 @@ export default function TeacherPermissions() {
             </div>
             {showForm && (
               <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                {/* Daily Limit Warning */}
+                <div className={`mb-6 p-4 rounded-lg border ${
+                  todayRequestCount >= 1 
+                    ? "bg-red-50 border-red-200" 
+                    : "bg-blue-50 border-blue-200"
+                }`}>
+                  <div className="flex items-center gap-3">
+                    {todayRequestCount >= 1 ? (
+                      <FiX className="h-5 w-5 text-red-600" />
+                    ) : (
+                      <FiInfo className="h-5 w-5 text-blue-600" />
+                    )}
+                    <div>
+                      <h4 className={`font-semibold ${
+                        todayRequestCount >= 1 ? "text-red-900" : "text-blue-900"
+                      }`}>
+                        {todayRequestCount >= 1 
+                          ? "Daily Limit Reached" 
+                          : "Permission Request Guidelines"
+                        }
+                      </h4>
+                      {todayRequestCount >= 1 ? (
+                        <p className="text-sm text-red-800 mt-2">
+                          You have already submitted <strong>{todayRequestCount} request{todayRequestCount > 1 ? 's' : ''}</strong> today. 
+                          Please wait until tomorrow to submit another permission request.
+                        </p>
+                      ) : (
+                        <ul className="text-sm text-blue-800 mt-2 space-y-1">
+                          <li>• You can submit only <strong>one permission request per day</strong></li>
+                          <li>• Requests can be made up to <strong>30 days in advance</strong></li>
+                          <li>• Cannot request permission for past dates</li>
+                          <li>• Admin team will be automatically notified</li>
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="space-y-3">
@@ -498,15 +629,17 @@ export default function TeacherPermissions() {
                   <div className="space-y-3">
                     <Label
                       htmlFor="details"
-                      className="text-sm font-semibold text-black"
+                      className="text-sm font-semibold text-black flex items-center gap-2"
                     >
-                      Additional Details (Optional)
+                      <FiInfo className="h-4 w-4" />
+                      Additional Details *
                     </Label>
                     <Textarea
                       id="details"
+                      required
                       value={details}
                       onChange={(e) => setDetails(e.target.value)}
-                      placeholder="Please provide any additional context or details about your absence request..."
+                      placeholder="Please provide details about your absence request (required)..."
                       className="min-h-[120px] border-gray-300 focus:ring-2 focus:ring-black focus:border-black bg-white shadow-sm transition-all duration-200 resize-none"
                     />
                   </div>
@@ -526,7 +659,11 @@ export default function TeacherPermissions() {
                     </Button>
                     <Button
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || todayRequestCount >= 1}
+                      onClick={(e) => {
+                        console.log("Button clicked directly!");
+                        // Let the form handle submission naturally
+                      }}
                       className="bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                     {isSubmitting ? (
@@ -553,6 +690,8 @@ export default function TeacherPermissions() {
                         </svg>
                         Submitting Request...
                       </div>
+                    ) : todayRequestCount >= 1 ? (
+                      "Daily Limit Reached"
                     ) : (
                       "Submit Permission Request"
                     )}

@@ -36,9 +36,14 @@ export async function GET(req: NextRequest) {
     // Transform the data to match the dashboard expectations
     const transformedPermissions = permissions.map((permission: any) => ({
       id: permission.id,
-      teacher: permission.wpos_wpdatatable_24?.ustazname || "Unknown",
+      teacher: {
+        ustazname: permission.wpos_wpdatatable_24?.ustazname || "Unknown"
+      },
       teacherId: permission.teacherId,
       status: permission.status,
+      reasonCategory: permission.reasonCategory,
+      reasonDetails: permission.reasonDetails,
+      requestedDates: permission.requestedDates,
       date: permission.createdAt?.toISOString().split("T")[0],
       createdAt: permission.createdAt?.toISOString(),
     }));

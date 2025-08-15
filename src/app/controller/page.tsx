@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { FiUser, FiLoader, FiAlertTriangle } from "react-icons/fi";
+import { FiUser, FiLoader, FiAlertTriangle, FiUsers, FiCheckCircle, FiClock } from "react-icons/fi";
 import StatsCards from "@/app/components/StatsCards";
 import StudentList from "@/app/components/StudentList";
 import { useSession } from "next-auth/react";
@@ -123,10 +123,7 @@ export default function Controller() {
           registrationdate: updatedStudent.registrationdate ?? "",
           selectedTime: updatedStudent.selectedTime ?? "",
           teacher: {
-            ustazname:
-              updatedStudent.teacher?.ustazname ??
-              updatedStudent.ustaz ??
-              "N/A",
+            ustazname: updatedStudent.teacher?.ustazname ?? updatedStudent.ustaz ?? "N/A",
           },
           progress: updatedStudent.progress ?? "",
           chatId: updatedStudent.chatId ?? null,
@@ -171,12 +168,11 @@ export default function Controller() {
   if (loading) {
     return (
       <ControllerLayout>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-blue-50 to-teal-50 p-4 sm:p-6">
-          <div className="text-center bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-6 sm:p-8 border border-indigo-100 animate-slide-in">
-            <FiLoader className="w-8 h-8 sm:w-10 sm:h-10 text-indigo-600 animate-spin mx-auto" />
-            <p className="mt-4 text-indigo-700 text-sm sm:text-base font-semibold">
-              Loading your dashboard...
-            </p>
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
+            <p className="text-black font-medium text-lg">Loading your dashboard...</p>
+            <p className="text-gray-500 text-sm mt-2">Please wait while we fetch the data</p>
           </div>
         </div>
       </ControllerLayout>
@@ -186,16 +182,16 @@ export default function Controller() {
   if (error) {
     return (
       <ControllerLayout>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-blue-50 to-teal-50 p-4 sm:p-6">
-          <div className="text-center bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-6 sm:p-8 border border-indigo-100 animate-slide-in">
-            <FiAlertTriangle className="w-8 h-8 sm:w-10 sm:h-10 text-red-600 mx-auto" />
-            <p className="mt-4 text-red-700 text-sm sm:text-base font-semibold">
-              {error}
-            </p>
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-center">
+            <div className="p-8 bg-red-50 rounded-full w-fit mx-auto mb-8">
+              <FiAlertTriangle className="h-16 w-16 text-red-500" />
+            </div>
+            <h3 className="text-3xl font-bold text-black mb-4">Error Loading Dashboard</h3>
+            <p className="text-red-600 text-xl mb-6">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 hover:scale-105 transition-all text-sm sm:text-base focus:ring-2 focus:ring-indigo-500"
-              aria-label="Retry loading dashboard"
+              className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
             >
               Retry
             </button>
@@ -207,39 +203,95 @@ export default function Controller() {
 
   return (
     <ControllerLayout>
-      <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-teal-50 p-4 sm:p-6 lg:p-8">
-        <section className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-6 sm:p-8 mb-6 sm:mb-8 animate-slide-in">
-          <div className="flex items-center gap-3 mb-4 sm:mb-6">
-            <FiUser className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-500" />
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-indigo-900">
-              Controller Dashboard
-            </h1>
+      <div className="min-h-screen bg-white">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+          {/* Header + Stats */}
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-8 mb-8">
+              <div className="flex items-center gap-6">
+                <div className="p-4 bg-black rounded-2xl shadow-lg">
+                  <FiUser className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-2">
+                    Controller Dashboard
+                  </h1>
+                  <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
+                    Manage and monitor your assigned students
+                  </p>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:ml-auto">
+                <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <FiUsers className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm font-semibold text-gray-600">Total Students</span>
+                  </div>
+                  <div className="text-2xl font-bold text-black">{totalStudents}</div>
+                </div>
+                <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <FiCheckCircle className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm font-semibold text-gray-600">Active</span>
+                  </div>
+                  <div className="text-2xl font-bold text-black">{activeStudents}</div>
+                </div>
+                <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <FiClock className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm font-semibold text-gray-600">Pending</span>
+                  </div>
+                  <div className="text-2xl font-bold text-black">{notYetStudents}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Legacy Stats Cards Component */}
+            <div className="mt-8">
+              <StatsCards
+                totalStudents={totalStudents}
+                activeStudents={activeStudents}
+                notYetStudents={notYetStudents}
+              />
+            </div>
           </div>
-          <StatsCards
-            totalStudents={totalStudents}
-            activeStudents={activeStudents}
-            notYetStudents={notYetStudents}
-          />
-        </section>
-        <section className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-6 sm:p-8 animate-slide-in">
-          <h2 className="text-lg sm:text-xl font-semibold text-indigo-900 mb-4">
-            Student List
-          </h2>
-          <StudentList
-            students={students}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            user={
-              session?.user
-                ? {
-                    name: session.user.name ?? "Unknown",
-                    username: session.user.username ?? "",
-                    role: session.user.role ?? "controller",
-                  }
-                : null
-            }
-          />
-        </section>
+
+          {/* Student List */}
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-black rounded-xl">
+                  <FiUsers className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-black">Student Management</h2>
+                  <p className="text-gray-600">View and manage your assigned students</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 sm:p-8 lg:p-10">
+              <StudentList
+                students={students}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                user={
+                  session?.user
+                    ? {
+                        name: session.user.name ?? "Unknown",
+                        username: session.user.username ?? "",
+                        role: session.user.role ?? "controller",
+                      }
+                    : null
+                }
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Student Payment Modal */}
         {editingStudent && (
           <StudentPayment
             student={editingStudent}
@@ -247,22 +299,7 @@ export default function Controller() {
             onUpdate={handleUpdate}
           />
         )}
-      </main>
-      <style jsx global>{`
-        @keyframes slide-in {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-slide-in {
-          animation: slide-in 0.5s ease-out;
-        }
-      `}</style>
+      </div>
     </ControllerLayout>
   );
 }

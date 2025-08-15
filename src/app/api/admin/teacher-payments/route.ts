@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
-// import {
-//   isTeacherAbsent,
-//   getAbsenceDeductionConfig,
-// } from "@/lib/absence-utils";
+import {
+  isTeacherAbsent,
+  getAbsenceDeductionConfig,
+} from "@/lib/absence-utils";
 
 export async function GET(req: NextRequest) {
   try {
@@ -162,9 +162,46 @@ export async function GET(req: NextRequest) {
           orderBy: { createdAt: "asc" },
         });
       }
+      // Add auto-detected absences for completeness in details
+      const { deductionAmount: absenceDeductionAmount, effectiveMonths } =
+        await getAbsenceDeductionConfig();
+      const existingAbsenceDates = new Set(
+        (absenceRecords || []).map(
+          (r: any) => new Date(r.classDate).toISOString().split("T")[0]
+        )
+      );
+      const computedAbsences: any[] = [];
+      for (
+        let d = new Date(fromDate);
+        d <= toDate;
+        d.setDate(d.getDate() + 1)
+      ) {
+        const monthNumber = String(d.getMonth() + 1);
+        if (
+          effectiveMonths.length > 0 &&
+          !effectiveMonths.includes(monthNumber)
+        )
+          continue;
+        const dateKey = d.toISOString().split("T")[0];
+        if (existingAbsenceDates.has(dateKey)) continue;
+        const res = await isTeacherAbsent(teacherId as string, new Date(d));
+        if (res.isAbsent) {
+          computedAbsences.push({
+            id: 0,
+            teacherId,
+            classDate: new Date(d),
+            permitted: false,
+            permissionRequestId: null,
+            deductionApplied: absenceDeductionAmount,
+            reviewedByManager: false,
+            reviewNotes: "Auto-detected absence (no record)",
+          });
+        }
+      }
+      const finalAbsences = [...absenceRecords, ...computedAbsences];
       return NextResponse.json({
         latenessRecords,
-        absenceRecords,
+        absenceRecords: finalAbsences,
         bonusRecords,
       });
     }
@@ -220,6 +257,10 @@ export async function GET(req: NextRequest) {
       return Array.from(periods) as string[];
     }
     const periodsInRange: string[] = getPeriodsInRange(from, to);
+
+    // Fetch absence config once
+    const absenceConfig = await getAbsenceDeductionConfig();
+
     const results = await Promise.all(
       teachers.map(async (t) => {
         // Calculate lateness deduction on-the-fly
@@ -327,46 +368,20 @@ export async function GET(req: NextRequest) {
           }
         }
         // Absence deduction: calculate automatically using centralized logic
-        // const { deductionAmount, effectiveMonths } =
-        //   await getAbsenceDeductionConfig();
-        // let absenceDeduction = 0;
-
-        // `
-        // );
-        // .split("T")[0]} to ${
-        //     to.toISOString().split("T")[0]
-        //   }`
-        // );
-        // // //       : "All months"
-        //   }`
-        // );
-
-        // for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-        //   const monthNumber = String(d.getMonth() + 1); // 1, 2, 3, etc.
-
-        //   .split("T")[0]
-        //     } (month: ${monthNumber})`
-        //   );
-
-        //   // Skip if not in effective months (if configured)
-        //   if (
-        //     effectiveMonths.length > 0 &&
-        //     !effectiveMonths.includes(monthNumber)
-        //   ) {
-        //     //     continue;
-        //   }
-
-        //   // Use centralized absence detection
-        //   const absenceResult = await isTeacherAbsent(t.ustazid, d);
-        //   //   if (absenceResult.isAbsent) {
-        //     absenceDeduction += deductionAmount;
-        //     `
-        //     );
-        //   }
-        // }
-
-        // // Temporarily set absence deduction to 0
         let absenceDeduction = 0;
+        for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+          const monthNumber = String(d.getMonth() + 1);
+          if (
+            absenceConfig.effectiveMonths.length > 0 &&
+            !absenceConfig.effectiveMonths.includes(monthNumber)
+          ) {
+            continue;
+          }
+          const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
+          if (absenceResult.isAbsent) {
+            absenceDeduction += absenceConfig.deductionAmount;
+          }
+        }
         // Bonuses: aggregate from QualityAssessment, not BonusRecord
         const bonuses = await prisma.qualityassessment.aggregate({
           where: {

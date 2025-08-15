@@ -114,7 +114,7 @@ export async function getAbsenceDeductionConfig() {
     },
   });
 
-  const effectiveMonths = effectiveMonthsConfig?.value?.split(",") || [];
+  const effectiveMonths = effectiveMonthsConfig?.effectiveMonths?.split(",") || [];
 
   return {
     deductionAmount: deductionConfig ? Number(deductionConfig.value) : 50,

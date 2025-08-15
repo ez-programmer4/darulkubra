@@ -239,8 +239,8 @@ function TeacherDashboardContent() {
             ratingColor: ratingColorMap[assessment.overallQuality] || "gray",
             strengths,
             focuses,
-            studentsPassed: assessment.examPassRate ?? 0,
-            studentsTotal: assessment.studentsTotal ?? 100,
+            studentsPassed: assessment.examPassRate ?? 0, // This is already the adjusted percentage
+            studentsTotal: assessment.studentsTotal ?? 0,
             avgExaminerRating: assessment.examinerRating || 0,
             bonusAmount: assessment.bonusAwarded,
             advice: assessment.overrideNotes || "",
@@ -558,17 +558,30 @@ ${quality.examinerNotes || "No notes provided."}
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold shadow-lg">
+              <div className="flex items-center gap-2 sm:gap-3 relative group">
+                <button
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 md:cursor-default"
+                  onClick={() => {
+                    // Only show logout on mobile
+                    if (window.innerWidth < 768) {
+                      signOut({ callbackUrl: "/teachers/login" });
+                    }
+                  }}
+                  title={window.innerWidth < 768 ? "Tap to logout" : undefined}
+                >
                   {user && user.name && typeof user.name === "string"
                     ? user.name.charAt(0)
                     : "T"}
-                </div>
+                </button>
                 <span className="text-xs sm:text-sm font-semibold text-emerald-900 hidden md:block max-w-24 truncate">
                   {user && user.name && typeof user.name === "string"
                     ? user.name.split(" ")[0]
                     : "Teacher"}
                 </span>
+                {/* Mobile logout tooltip */}
+                <div className="md:hidden absolute -bottom-8 right-0 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                  Tap to logout
+                </div>
               </div>
             </div>
           </div>
@@ -685,16 +698,11 @@ ${quality.examinerNotes || "No notes provided."}
                 />
                 <StatsCard
                   icon={<FiCheckCircle size={24} className="text-violet-600" />}
-                  label="Pass Rate"
-                  value={
-                    quality
-                      ? Math.round(
-                          (quality.studentsPassed / quality.studentsTotal) * 100
-                        )
-                      : 0
-                  }
+                  label="Pass Rate (Adjusted)"
+                  value={quality?.studentsPassed || 0}
                   color="violet"
                   unit="%"
+                  tooltip={`Adjusted pass rate using school average (75%) with 8 imaginary students for fairer evaluation. Sample size: ${quality?.studentsTotal || 0} students.`}
                 />
                 <StatsCard
                   icon={<FiAward size={24} className="text-yellow-600" />}
@@ -1004,12 +1012,14 @@ function StatsCard({
   value,
   color,
   unit = "",
+  tooltip,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number | string;
   color: string;
   unit?: string;
+  tooltip?: string;
 }) {
   const colorMap: Record<string, { bg: string; text: string }> = {
     indigo: { bg: "bg-indigo-100", text: "text-indigo-600" },
@@ -1019,7 +1029,8 @@ function StatsCard({
   const classes = colorMap[color] || colorMap.indigo;
   return (
     <div
-      className={`bg-white/95 backdrop-blur-md p-4 sm:p-6 rounded-2xl shadow-lg border border-indigo-100 flex items-center gap-3 sm:gap-4 hover:shadow-xl transition-all hover:scale-[1.02] animate-slide-in min-w-0`}
+      className={`bg-white/95 backdrop-blur-md p-4 sm:p-6 rounded-2xl shadow-lg border border-indigo-100 flex items-center gap-3 sm:gap-4 hover:shadow-xl transition-all hover:scale-[1.02] animate-slide-in min-w-0 relative group`}
+      title={tooltip}
     >
       <div
         className={`rounded-lg ${classes.bg} p-2 sm:p-3 shadow-sm flex-shrink-0`}
@@ -1041,6 +1052,12 @@ function StatsCard({
           {unit}
         </p>
       </div>
+      {tooltip && (
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap max-w-xs z-10">
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+          {tooltip}
+        </div>
+      )}
     </div>
   );
 }

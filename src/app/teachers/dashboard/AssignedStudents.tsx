@@ -45,20 +45,6 @@ type ModalType = "zoom" | "attendance" | null;
 
 // Utils
 
-function genToken(length = 12) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  const array = new Uint32Array(length);
-  if (typeof window !== "undefined" && window.crypto) {
-    window.crypto.getRandomValues(array);
-    for (let i = 0; i < length; i++) out += chars[array[i] % chars.length];
-  } else {
-    for (let i = 0; i < length; i++)
-      out += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return out;
-}
-
 function safeIncludes(haystack: unknown, needle: string): boolean {
   if (!needle) return true;
   const h = String(haystack ?? "").toLowerCase();
@@ -100,9 +86,7 @@ export default function AssignedStudents() {
     type: ModalType;
     studentId: number | null;
   }>({ type: null, studentId: null });
-  const [forms, setForms] = useState<
-    Record<number, { link: string; token: string }>
-  >({});
+  const [forms, setForms] = useState<Record<number, { link: string }>>({});
   const [attend, setAttend] = useState<
     Record<
       number,
@@ -117,15 +101,14 @@ export default function AssignedStudents() {
     >
   >({});
   const [sending, setSending] = useState<Record<number, boolean>>({});
+  const [surahs, setSurahs] = useState<string[]>([]);
+  const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
   const [query, setQuery] = useState("");
   const [pkgFilter, setPkgFilter] = useState("all");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [expAll, setExpAll] = useState(false);
   const [todayOnly, setTodayOnly] = useState(true);
   const [now, setNow] = useState<Date>(new Date());
-  const [surahs, setSurahs] = useState<string[]>([]);
-  const [loadingSurahs, setLoadingSurahs] = useState(false);
-  const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
 
   // Static time display to prevent reloads
   useEffect(() => {
@@ -147,86 +130,122 @@ export default function AssignedStudents() {
   }, []);
 
   async function loadSurahs() {
-    try {
-      setLoadingSurahs(true);
-      const res = await fetch("/api/surahs", {
-        credentials: "include",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSurahs(data.surahs || []);
-      } else {
-        // Fallback to default Surahs
-        setSurahs([
-          "Al-Fatiha",
-          "Al-Baqarah",
-          "Ali Imran",
-          "An-Nisa",
-          "Al-Maidah",
-          "Al-Anam",
-          "Al-Araf",
-          "Al-Anfal",
-          "At-Tawbah",
-          "Yunus",
-          "Hud",
-          "Yusuf",
-          "Ar-Rad",
-          "Ibrahim",
-          "Al-Hijr",
-          "An-Nahl",
-          "Al-Isra",
-          "Al-Kahf",
-          "Maryam",
-          "Ta-Ha",
-          "Al-Anbiya",
-          "Al-Hajj",
-          "Al-Muminun",
-          "An-Nur",
-          "Al-Furqan",
-          "Ash-Shuara",
-          "An-Naml",
-          "Al-Qasas",
-          "Al-Ankabut",
-          "Ar-Rum",
-        ]);
-      }
-    } catch {
-      // Fallback to default Surahs
-      setSurahs([
-        "Al-Fatiha",
-        "Al-Baqarah",
-        "Ali Imran",
-        "An-Nisa",
-        "Al-Maidah",
-        "Al-Anam",
-        "Al-Araf",
-        "Al-Anfal",
-        "At-Tawbah",
-        "Yunus",
-        "Hud",
-        "Yusuf",
-        "Ar-Rad",
-        "Ibrahim",
-        "Al-Hijr",
-        "An-Nahl",
-        "Al-Isra",
-        "Al-Kahf",
-        "Maryam",
-        "Ta-Ha",
-        "Al-Anbiya",
-        "Al-Hajj",
-        "Al-Muminun",
-        "An-Nur",
-        "Al-Furqan",
-        "Ash-Shuara",
-        "An-Naml",
-        "Al-Qasas",
-        "Al-Ankabut",
-        "Ar-Rum",
-      ]);
-    } finally {
-      setLoadingSurahs(false);
-    }
+    setSurahs([
+      "Al-Fatiha",
+      "Al-Baqarah",
+      "Ali Imran",
+      "An-Nisa",
+      "Al-Maidah",
+      "Al-Anam",
+      "Al-Araf",
+      "Al-Anfal",
+      "At-Tawbah",
+      "Yunus",
+      "Hud",
+      "Yusuf",
+      "Ar-Rad",
+      "Ibrahim",
+      "Al-Hijr",
+      "An-Nahl",
+      "Al-Isra",
+      "Al-Kahf",
+      "Maryam",
+      "Ta-Ha",
+      "Al-Anbiya",
+      "Al-Hajj",
+      "Al-Muminun",
+      "An-Nur",
+      "Al-Furqan",
+      "Ash-Shuara",
+      "An-Naml",
+      "Al-Qasas",
+      "Al-Ankabut",
+      "Ar-Rum",
+      "Luqman",
+      "As-Sajdah",
+      "Al-Ahzab",
+      "Saba",
+      "Fatir",
+      "Ya-Sin",
+      "As-Saffat",
+      "Sad",
+      "Az-Zumar",
+      "Ghafir",
+      "Fussilat",
+      "Ash-Shura",
+      "Az-Zukhruf",
+      "Ad-Dukhan",
+      "Al-Jathiyah",
+      "Al-Ahqaf",
+      "Muhammad",
+      "Al-Fath",
+      "Al-Hujurat",
+      "Qaf",
+      "Adh-Dhariyat",
+      "At-Tur",
+      "An-Najm",
+      "Al-Qamar",
+      "Ar-Rahman",
+      "Al-Waqiah",
+      "Al-Hadid",
+      "Al-Mujadila",
+      "Al-Hashr",
+      "Al-Mumtahanah",
+      "As-Saff",
+      "Al-Jumuah",
+      "Al-Munafiqun",
+      "At-Taghabun",
+      "At-Talaq",
+      "At-Tahrim",
+      "Al-Mulk",
+      "Al-Qalam",
+      "Al-Haqqah",
+      "Al-Maarij",
+      "Nuh",
+      "Al-Jinn",
+      "Al-Muzzammil",
+      "Al-Muddaththir",
+      "Al-Qiyamah",
+      "Al-Insan",
+      "Al-Mursalat",
+      "An-Naba",
+      "An-Naziat",
+      "Abasa",
+      "At-Takwir",
+      "Al-Infitar",
+      "Al-Mutaffifin",
+      "Al-Inshiqaq",
+      "Al-Buruj",
+      "At-Tariq",
+      "Al-Ala",
+      "Al-Ghashiyah",
+      "Al-Fajr",
+      "Al-Balad",
+      "Ash-Shams",
+      "Al-Layl",
+      "Ad-Duha",
+      "Ash-Sharh",
+      "At-Tin",
+      "Al-Alaq",
+      "Al-Qadr",
+      "Al-Bayyinah",
+      "Az-Zalzalah",
+      "Al-Adiyat",
+      "Al-Qariah",
+      "At-Takathur",
+      "Al-Asr",
+      "Al-Humazah",
+      "Al-Fil",
+      "Quraysh",
+      "Al-Maun",
+      "Al-Kawthar",
+      "Al-Kafirun",
+      "An-Nasr",
+      "Al-Masad",
+      "Al-Ikhlas",
+      "Al-Falaq",
+      "An-Nas",
+    ]);
   }
 
   async function refresh() {
@@ -261,12 +280,11 @@ export default function AssignedStudents() {
   }
 
   const updateForm = useMemo(
-    () => (id: number, patch: Partial<{ link: string; token: string }>) =>
+    () => (id: number, patch: Partial<{ link: string }>) =>
       setForms((f) => ({
         ...f,
         [id]: {
           link: f[id]?.link || "",
-          token: f[id]?.token || "",
           ...patch,
         },
       })),
@@ -299,36 +317,72 @@ export default function AssignedStudents() {
   async function sendZoom(studentId: number) {
     try {
       const form = forms[studentId];
-      if (!form?.link || !form?.token) {
+      if (!form?.link) {
         toast({
           title: "Error",
-          description: "Link and token are required.",
+          description: "Meeting link is required.",
           variant: "destructive",
         });
         return;
       }
       setSending((s) => ({ ...s, [studentId]: true }));
+
+      console.log(
+        "Sending zoom link for student:",
+        studentId,
+        "with link:",
+        form.link
+      );
+
       const res = await fetch(`/api/teachers/students/${studentId}/zoom`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           link: form.link,
-          tracking_token: form.token,
         }),
         credentials: "include",
       });
+
+      console.log("Zoom API response status:", res.status);
+
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Failed to send Zoom link: ${errorText}`);
+        let errorMessage = "Failed to send Zoom link";
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.error || errorMessage;
+          console.error("Zoom API error:", errorData);
+        } catch {
+          const errorText = await res.text();
+          errorMessage = errorText || errorMessage;
+          console.error("Zoom API error text:", errorText);
+        }
+        throw new Error(errorMessage);
       }
-      toast({ title: "Success", description: "Zoom link sent successfully!" });
+
+      const responseData = await res.json();
+      console.log("Zoom API success response:", responseData);
+
+      // Show success message with notification details
+      const successMessage = responseData.notification_sent
+        ? "Zoom link sent successfully via Telegram!"
+        : responseData.notification_error
+        ? `Zoom link saved but notification failed: ${responseData.notification_error}`
+        : "Zoom link sent successfully!";
+
+      toast({
+        title: "Success",
+        description: successMessage,
+        variant: responseData.notification_sent ? "default" : "default",
+      });
+
       setForms((f) => ({
         ...f,
-        [studentId]: { link: "", token: "" },
+        [studentId]: { link: "" },
       }));
       setZoomSent((z) => ({ ...z, [studentId]: true }));
       setModal({ type: null, studentId: null });
     } catch (e: any) {
+      console.error("Zoom sending error:", e);
       toast({
         title: "Error",
         description: e.message || "Failed to send Zoom link.",
@@ -542,70 +596,7 @@ export default function AssignedStudents() {
                 </div>
               </div>
 
-              {/* Package Filter */}
-              <div className="lg:col-span-3">
-                <label className="block text-sm font-bold text-black mb-3">
-                  <FiFilter className="inline h-4 w-4 mr-2" />
-                  Package Filter
-                </label>
-                <select
-                  aria-label="Package filter"
-                  value={pkgFilter}
-                  onChange={(e) => setPkgFilter(e.target.value)}
-                  className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base appearance-none"
-                >
-                  <option value="all">All Packages</option>
-                  <option value="mwf">Monday, Wednesday, Friday</option>
-                  <option value="tts">Tuesday, Thursday, Saturday</option>
-                  <option value="ss">Saturday, Sunday</option>
-                  <option value="all days">All Days</option>
-                </select>
-              </div>
-
-              {/* Today Only */}
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-bold text-black mb-3">
-                  Quick Filter
-                </label>
-                <label className="flex items-center gap-3 text-sm font-semibold text-black bg-white px-4 py-4 rounded-xl border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="h-5 w-5 text-black focus:ring-black border-gray-300 rounded"
-                    checked={todayOnly}
-                    onChange={(e) => setTodayOnly(e.target.checked)}
-                    aria-label="Show today only"
-                  />
-                  <span>Today Only</span>
-                </label>
-              </div>
-
               {/* Actions */}
-              <div className="lg:col-span-3 flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100 rounded-xl py-4 font-bold shadow-sm hover:shadow-md transition-all duration-200"
-                  onClick={toggleAll}
-                  aria-label={expAll ? "Collapse all" : "Expand all"}
-                >
-                  {expAll ? (
-                    <FiChevronUp className="mr-2 h-5 w-5" />
-                  ) : (
-                    <FiChevronDown className="mr-2 h-5 w-5" />
-                  )}
-                  {expAll ? "Collapse" : "Expand"}
-                </Button>
-                <Button
-                  className="flex-1 bg-black hover:bg-gray-800 text-white rounded-xl py-4 font-bold shadow-lg hover:shadow-xl transition-all duration-200"
-                  onClick={refresh}
-                  disabled={loading}
-                  aria-label="Refresh"
-                >
-                  <FiRefreshCcw
-                    className={`mr-2 h-5 w-5 ${loading ? "animate-spin" : ""}`}
-                  />
-                  Refresh
-                </Button>
-              </div>
             </div>
           </div>
         </div>
@@ -692,7 +683,7 @@ export default function AssignedStudents() {
                           Student Information
                         </th>
                         <th className="py-6 text-left font-bold text-black uppercase tracking-wider">
-                          Subject & Contact
+                          Subject
                         </th>
                         <th className="py-6 text-left font-bold text-black uppercase tracking-wider">
                           Schedule
@@ -756,7 +747,7 @@ export default function AssignedStudents() {
                                 onClick={() =>
                                   setModal({ type: "zoom", studentId: s.id })
                                 }
-                                className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200"
+                                className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                               >
                                 <FiLink2 className="h-4 w-4 mr-2" />
                                 Send Zoom
@@ -768,15 +759,7 @@ export default function AssignedStudents() {
                                     studentId: s.id,
                                   })
                                 }
-                                disabled={!zoomSent[s.id]}
-                                className={`px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 ${
-                                  zoomSent[s.id]
-                                    ? "bg-gray-600 hover:bg-gray-700 text-white"
-                                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                }`}
-                                title={
-                                  !zoomSent[s.id] ? "Send Zoom link first" : ""
-                                }
+                                className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                               >
                                 <FiCheck className="h-4 w-4 mr-2" />
                                 Attendance
@@ -896,7 +879,7 @@ export default function AssignedStudents() {
                           onClick={() =>
                             setModal({ type: "zoom", studentId: s.id })
                           }
-                          className="bg-black hover:bg-gray-800 text-white py-4 rounded-xl font-bold shadow-lg touch-manipulation"
+                          className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white py-4 rounded-xl font-bold shadow-lg touch-manipulation hover:scale-105 transition-all duration-200"
                         >
                           <FiLink2 className="h-4 w-4 mr-2" />
                           Send Zoom Link
@@ -905,13 +888,7 @@ export default function AssignedStudents() {
                           onClick={() =>
                             setModal({ type: "attendance", studentId: s.id })
                           }
-                          disabled={!zoomSent[s.id]}
-                          className={`py-4 rounded-xl font-bold shadow-lg touch-manipulation ${
-                            zoomSent[s.id]
-                              ? "bg-gray-600 hover:bg-gray-700 text-white"
-                              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          }`}
-                          title={!zoomSent[s.id] ? "Send Zoom link first" : ""}
+                          className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white py-4 rounded-xl font-bold shadow-lg touch-manipulation hover:scale-105 transition-all duration-200"
                         >
                           <FiCheck className="h-4 w-4 mr-2" />
                           Mark Attendance
@@ -939,7 +916,13 @@ export default function AssignedStudents() {
                 </div>
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                   <div className="flex items-center gap-4">
-                    <div className="p-3 bg-black rounded-2xl">
+                    <div
+                      className={`p-3 rounded-2xl ${
+                        modal.type === "zoom"
+                          ? "bg-gradient-to-br from-blue-600 to-indigo-700"
+                          : "bg-gradient-to-br from-green-600 to-emerald-700"
+                      }`}
+                    >
                       {modal.type === "zoom" ? (
                         <FiLink2 className="h-6 w-6 text-white" />
                       ) : (
@@ -954,8 +937,8 @@ export default function AssignedStudents() {
                       </h3>
                       <p className="text-sm text-gray-600">
                         {modal.type === "zoom"
-                          ? "Share meeting details"
-                          : "Record student progress"}
+                          ? "Share meeting details with your student"
+                          : "Record student progress and attendance"}
                       </p>
                     </div>
                   </div>
@@ -971,19 +954,19 @@ export default function AssignedStudents() {
                   {modal.type === "zoom" && (
                     <div className="space-y-6">
                       <div>
-                        <label className="block text-sm font-bold text-black mb-3">
-                          Meeting Link
+                        <label className="block text-sm font-bold text-gray-800 mb-3">
+                          Meeting Link *
                         </label>
                         <div className="flex gap-3">
                           <input
-                            placeholder="https://zoom.us/j/..."
+                            placeholder="https://zoom.us/j/... or https://meet.google.com/..."
                             value={forms[modal.studentId]?.link || ""}
                             onChange={(e) =>
                               updateForm(modal.studentId!, {
                                 link: e.target.value,
                               })
                             }
-                            className="flex-1 p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 placeholder-gray-500 text-base"
+                            className="flex-1 p-4 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500 text-base transition-all duration-200"
                           />
                           <Button
                             variant="outline"
@@ -991,65 +974,40 @@ export default function AssignedStudents() {
                             onClick={() =>
                               handleCopy(forms[modal.studentId!]?.link || "")
                             }
-                            className="px-4"
+                            className="px-4 border-2 border-blue-200 hover:bg-blue-50"
                             aria-label="Copy meeting link"
                           >
                             <FiCopy className="h-4 w-4" />
                           </Button>
                         </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Enter your Zoom, Google Meet, or other meeting
+                          platform link
+                        </p>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-bold text-black mb-3">
-                          Token
-                        </label>
-                        <div className="flex gap-3">
-                          <input
-                            placeholder="Security token"
-                            value={forms[modal.studentId]?.token || ""}
-                            onChange={(e) =>
-                              updateForm(modal.studentId!, {
-                                token: e.target.value,
-                              })
-                            }
-                            className="flex-1 p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 placeholder-gray-500 text-base font-mono"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              updateForm(modal.studentId!, {
-                                token: genToken(),
-                              })
-                            }
-                            className="px-4"
-                            aria-label="Generate token"
-                          >
-                            Gen
-                          </Button>
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FiClock className="h-4 w-4 text-blue-600" />
+                          <label className="text-sm font-bold text-blue-800">
+                            Sending Time
+                          </label>
                         </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-bold text-black mb-3">
-                          Sending Time
-                        </label>
-                        <div className="w-full p-4 border border-gray-300 rounded-xl bg-gray-50 text-gray-700 text-base font-mono">
+                        <div className="text-lg font-mono text-blue-900">
                           {new Date().toLocaleString()}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Zoom link will be sent at current time
+                        <p className="text-xs text-blue-600 mt-1">
+                          Link will be sent via Telegram immediately
                         </p>
                       </div>
 
                       <Button
                         disabled={
                           !!sending[modal.studentId] ||
-                          !forms[modal.studentId]?.link ||
-                          !forms[modal.studentId]?.token
+                          !forms[modal.studentId]?.link?.trim()
                         }
                         onClick={() => sendZoom(modal.studentId!)}
-                        className="w-full bg-black hover:bg-gray-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
+                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
                       >
                         {sending[modal.studentId] ? (
                           <span className="flex items-center gap-2">
@@ -1071,12 +1029,12 @@ export default function AssignedStudents() {
                                 d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                               />
                             </svg>
-                            Sending...
+                            Sending Link...
                           </span>
                         ) : (
                           <span className="flex items-center gap-2">
                             <FiSend className="h-5 w-5" />
-                            Send Link
+                            Send Zoom Link
                           </span>
                         )}
                       </Button>
@@ -1086,37 +1044,34 @@ export default function AssignedStudents() {
                   {modal.type === "attendance" && (
                     <div className="space-y-6">
                       <div>
-                        <label className="block text-sm font-bold text-black mb-3">
-                          Status
+                        <label className="block text-sm font-bold text-gray-800 mb-3">
+                          Attendance Status *
                         </label>
                         <div className="grid grid-cols-3 gap-3">
-                          {(["present", "absent", "late"] as const).map(
-                            (status) => (
-                              <button
-                                key={status}
-                                onClick={() =>
-                                  updateAttend(modal.studentId!, { status })
-                                }
-                                className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${
-                                  attend[modal.studentId!]?.status === status
-                                    ? "bg-black text-white border-black"
-                                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                                }`}
-                                aria-pressed={
-                                  attend[modal.studentId!]?.status === status
-                                }
-                              >
-                                {status.charAt(0).toUpperCase() +
-                                  status.slice(1)}
-                              </button>
-                            )
-                          )}
+                          {(["present", "absent"] as const).map((status) => (
+                            <button
+                              key={status}
+                              onClick={() =>
+                                updateAttend(modal.studentId!, { status })
+                              }
+                              className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${
+                                attend[modal.studentId!]?.status === status
+                                  ? "bg-green-600 text-white border-green-600"
+                                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                              }`}
+                              aria-pressed={
+                                attend[modal.studentId!]?.status === status
+                              }
+                            >
+                              {status.charAt(0).toUpperCase() + status.slice(1)}
+                            </button>
+                          ))}
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-bold text-black mb-2">
+                          <label className="block text-sm font-bold text-gray-800 mb-2">
                             Level
                           </label>
                           <input
@@ -1127,11 +1082,11 @@ export default function AssignedStudents() {
                                 level: e.target.value,
                               })
                             }
-                            className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 placeholder-gray-500 text-base"
+                            className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-500 text-base"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-bold text-black mb-2">
+                          <label className="block text-sm font-bold text-gray-800 mb-2">
                             Surah
                           </label>
                           <select
@@ -1141,8 +1096,7 @@ export default function AssignedStudents() {
                                 surah: e.target.value,
                               })
                             }
-                            className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 text-base appearance-none"
-                            disabled={loadingSurahs}
+                            className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-base appearance-none"
                           >
                             <option value="">Select Surah</option>
                             {surahs.map((surah) => (
@@ -1156,8 +1110,8 @@ export default function AssignedStudents() {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-bold text-black mb-2">
-                            Pages
+                          <label className="block text-sm font-bold text-gray-800 mb-2">
+                            Pages Read
                           </label>
                           <input
                             type="number"
@@ -1168,39 +1122,39 @@ export default function AssignedStudents() {
                                 pages: e.target.value,
                               })
                             }
-                            className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 placeholder-gray-500 text-base"
+                            className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-500 text-base"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-bold text-black mb-2">
-                            Lesson
+                          <label className="block text-sm font-bold text-gray-800 mb-2">
+                            Lesson Topic
                           </label>
                           <input
-                            placeholder="Topic"
+                            placeholder="Topic covered"
                             value={attend[modal.studentId]?.lesson || ""}
                             onChange={(e) =>
                               updateAttend(modal.studentId!, {
                                 lesson: e.target.value,
                               })
                             }
-                            className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 placeholder-gray-500 text-base"
+                            className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-500 text-base"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-bold text-black mb-2">
-                          Notes
+                        <label className="block text-sm font-bold text-gray-800 mb-2">
+                          Session Notes
                         </label>
                         <textarea
-                          placeholder="Session notes..."
+                          placeholder="Additional notes about the session..."
                           value={attend[modal.studentId]?.notes || ""}
                           onChange={(e) =>
                             updateAttend(modal.studentId!, {
                               notes: e.target.value,
                             })
                           }
-                          className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 placeholder-gray-500 resize-none h-24 text-base"
+                          className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-500 resize-none h-24 text-base"
                         />
                       </div>
 
@@ -1210,7 +1164,7 @@ export default function AssignedStudents() {
                           !!sending[modal.studentId] ||
                           !attend[modal.studentId]?.status
                         }
-                        className="w-full bg-black hover:bg-gray-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
                       >
                         {sending[modal.studentId] ? (
                           <span className="flex items-center gap-2">
@@ -1232,12 +1186,12 @@ export default function AssignedStudents() {
                                 d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                               />
                             </svg>
-                            Saving...
+                            Saving Attendance...
                           </span>
                         ) : (
                           <span className="flex items-center gap-2">
                             <FiCheck className="h-5 w-5" />
-                            Save Record
+                            Save Attendance Record
                           </span>
                         )}
                       </Button>

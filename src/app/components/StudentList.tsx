@@ -1,25 +1,15 @@
 import { useState, useMemo, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   FiSearch,
   FiFilter,
   FiChevronLeft,
   FiChevronRight,
-  FiCalendar,
-  FiUser,
-  FiClock,
-  FiBook,
-  FiPackage,
   FiUsers,
   FiX,
-  FiDollarSign,
-  FiSliders,
-  FiRefreshCw,
 } from "react-icons/fi";
 import StudentCard from "./StudentCard";
 import { debounce } from "lodash";
 import { format, parseISO } from "date-fns";
-import { useRouter } from "next/navigation";
 
 interface MonthlyPayment {
   id: number;
@@ -77,30 +67,16 @@ export default function StudentList({
   user,
 }: StudentListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("active"); // Default to 'active'
-  const [dayPackageFilter, setDayPackageFilter] = useState("all");
-  const [timeSlotFilter, setTimeSlotFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [ustazFilter, setUstazFilter] = useState("all");
   const [packageFilter, setPackageFilter] = useState("all");
-  const [registrationDateFrom, setRegistrationDateFrom] = useState("");
-  const [registrationDateTo, setRegistrationDateTo] = useState("");
-  const [startDateFrom, setStartDateFrom] = useState("");
-  const [startDateTo, setStartDateTo] = useState("");
-  const [telegramFilter, setTelegramFilter] = useState("all");
+  const [timeSlotFilter, setTimeSlotFilter] = useState("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [activeFilterTab, setActiveFilterTab] = useState("all");
   const itemsPerPage = 10;
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
-  const [paymentMonthFilter, setPaymentMonthFilter] = useState("");
-  const [paymentAmountMin, setPaymentAmountMin] = useState("");
-  const [paymentAmountMax, setPaymentAmountMax] = useState("");
-  const [lastPaymentDateFrom, setLastPaymentDateFrom] = useState("");
-  const [lastPaymentDateTo, setLastPaymentDateTo] = useState("");
-  const [studentsWithPaymentStatus, setStudentsWithPaymentStatus] = useState<
-    Student[]
-  >(
+  const [studentsWithPaymentStatus, setStudentsWithPaymentStatus] = useState<Student[]>(
     students.map((student) => ({
       ...student,
       paymentStatus: {
@@ -111,9 +87,7 @@ export default function StudentList({
       },
     }))
   );
-  const router = useRouter();
 
-  // Helper function to safely parse dates
   const safeParseISO = (dateStr: string | null | undefined): Date | null => {
     if (!dateStr || dateStr === "") return null;
     try {
@@ -124,14 +98,11 @@ export default function StudentList({
     }
   };
 
-  // Fetch payment history for all students
   useEffect(() => {
     const fetchPaymentHistory = async () => {
       try {
         const updatedStudents = await Promise.all(
           students.map(async (student) => {
-            // Remove reference to wdt_ID on Student type, only use id
-            // Defensive: ensure student.id is defined
             const studentId = student.id;
             if (!studentId) {
               return {
@@ -145,14 +116,13 @@ export default function StudentList({
               };
             }
             try {
-              // Use different endpoints based on user role
               const endpoint =
                 user?.role === "controller"
                   ? `/api/controller/students/${studentId}/payment-history`
                   : `/api/students?studentId=${studentId}`;
 
               const response = await fetch(endpoint, {
-                credentials: "include", // This handles cookies automatically if needed
+                credentials: "include",
                 headers: {
                   "Content-Type": "application/json",
                 },
@@ -171,18 +141,16 @@ export default function StudentList({
               }
 
               const paymentHistory: MonthlyPayment[] = await response.json();
-
-              const latestPayment =
-                paymentHistory.length > 0
-                  ? paymentHistory.sort((a, b) => {
-                      const dateA = safeParseISO(a.end_date);
-                      const dateB = safeParseISO(b.end_date);
-                      if (!dateA && !dateB) return 0;
-                      if (!dateA) return 1;
-                      if (!dateB) return -1;
-                      return dateB.getTime() - dateA.getTime();
-                    })[0]
-                  : undefined;
+              const latestPayment = paymentHistory.length > 0
+                ? paymentHistory.sort((a, b) => {
+                    const dateA = safeParseISO(a.end_date);
+                    const dateB = safeParseISO(b.end_date);
+                    if (!dateA && !dateB) return 0;
+                    if (!dateA) return 1;
+                    if (!dateB) return -1;
+                    return dateB.getTime() - dateA.getTime();
+                  })[0]
+                : undefined;
 
               const currentMonth = format(new Date(), "yyyy-MM");
               const hasOverdue = paymentHistory.some(
@@ -191,9 +159,7 @@ export default function StudentList({
                   (p.payment_status !== "paid" &&
                     (() => {
                       const endDate = safeParseISO(p.end_date);
-                      return endDate
-                        ? endDate.getTime() < new Date().getTime()
-                        : false;
+                      return endDate ? endDate.getTime() < new Date().getTime() : false;
                     })())
               );
               const currentMonthPaid = paymentHistory.some(
@@ -235,33 +201,11 @@ export default function StudentList({
     }
   }, [students, user]);
 
-  // Get unique values for filters dynamically from student data
   const statuses = useMemo(() => {
     const uniqueStatuses = [
       ...new Set(students.map((student) => student.status).filter(Boolean)),
     ];
     return ["all", ...uniqueStatuses];
-  }, [students]);
-
-  const dayPackages = useMemo(() => {
-    const uniquePackages = [
-      ...new Set(students.map((student) => student.daypackages)),
-    ];
-    return ["all", ...uniquePackages.filter(Boolean)];
-  }, [students]);
-
-  const packages = useMemo(() => {
-    const uniquePackages = [
-      ...new Set(students.map((student) => student.package)),
-    ];
-    return ["all", ...uniquePackages.filter(Boolean)];
-  }, [students]);
-
-  const timeSlots = useMemo(() => {
-    const uniqueSlots = [
-      ...new Set(students.map((student) => student.selectedTime)),
-    ];
-    return ["all", ...uniqueSlots.filter(Boolean)];
   }, [students]);
 
   const subjects = useMemo(() => {
@@ -280,135 +224,56 @@ export default function StudentList({
     return ["all", ...uniqueUstazes.filter(Boolean)];
   }, [students]);
 
-  // Filter and search students
+  const packages = useMemo(() => {
+    const uniquePackages = [
+      ...new Set(students.map((student) => student.package)),
+    ];
+    return ["all", ...uniquePackages.filter(Boolean)];
+  }, [students]);
+
+  const timeSlots = useMemo(() => {
+    const uniqueSlots = [
+      ...new Set(students.map((student) => student.selectedTime)),
+    ];
+    return ["all", ...uniqueSlots.filter(Boolean)];
+  }, [students]);
+
   const filteredStudents = useMemo((): Student[] => {
     const filtered = studentsWithPaymentStatus.filter((student) => {
       const matchesSearch =
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.phoneno.includes(searchQuery);
-      const matchesStatus =
-        statusFilter === "all" ||
-        (student.status &&
-          student.status.toLowerCase() === statusFilter.toLowerCase());
-      const matchesDayPackage =
-        dayPackageFilter === "all" || student.daypackages === dayPackageFilter;
-      const matchesPackage =
-        packageFilter === "all" || student.package === packageFilter;
-      const matchesTimeSlot =
-        timeSlotFilter === "all" || student.selectedTime === timeSlotFilter;
-      const matchesSubject =
-        subjectFilter === "all" || student.subject === subjectFilter;
+        student.phoneno.includes(searchQuery) ||
+        (student.teacher?.ustazname || student.ustaz)
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+
+      const matchesStatus = statusFilter === "all" || student.status === statusFilter;
+      const matchesSubject = subjectFilter === "all" || student.subject === subjectFilter;
       const matchesUstaz =
         ustazFilter === "all" ||
         (student.teacher?.ustazname || student.ustaz) === ustazFilter;
-      const matchesTelegram =
-        telegramFilter === "all" ||
-        (telegramFilter === "connected" && student.chatId) ||
-        (telegramFilter === "not_connected" && !student.chatId);
+      const matchesPackage = packageFilter === "all" || student.package === packageFilter;
+      const matchesTimeSlot = timeSlotFilter === "all" || student.selectedTime === timeSlotFilter;
 
-      // Payment filters
-      const paymentStatus = student.paymentStatus || {
-        currentMonthPaid: false,
-        hasOverdue: false,
-        lastPayment: undefined,
-        paymentHistory: [],
-      };
-      const latestPayment = paymentStatus.lastPayment;
-
-      // Payment status filter
-      let matchesPaymentStatus = paymentStatusFilter === "all";
+      const paymentStatus = student.paymentStatus;
+      let matchesPaymentStatus = true;
       if (paymentStatusFilter === "paid") {
-        matchesPaymentStatus = paymentStatus.currentMonthPaid;
+        matchesPaymentStatus = paymentStatus?.currentMonthPaid || false;
       } else if (paymentStatusFilter === "unpaid") {
-        matchesPaymentStatus =
-          !paymentStatus.currentMonthPaid && !paymentStatus.hasOverdue;
+        matchesPaymentStatus = !paymentStatus?.currentMonthPaid;
       } else if (paymentStatusFilter === "overdue") {
-        matchesPaymentStatus = paymentStatus.hasOverdue;
+        matchesPaymentStatus = paymentStatus?.hasOverdue || false;
       }
 
-      // Payment month filter only applies if a status is selected and payment data exists
-      let matchesPaymentMonth = true;
-      if (
-        paymentStatusFilter !== "all" &&
-        paymentMonthFilter &&
-        latestPayment &&
-        latestPayment.month
-      ) {
-        matchesPaymentMonth = latestPayment.month === paymentMonthFilter;
-      } else if (
-        !latestPayment &&
-        paymentStatusFilter !== "all" &&
-        paymentMonthFilter
-      ) {
-        matchesPaymentMonth = false; // Exclude if no payment data and month is specified
-      }
-
-      // Payment amount range filter
-      const matchesPaymentAmount =
-        (!paymentAmountMin ||
-          (latestPayment &&
-            latestPayment.paid_amount >= Number(paymentAmountMin))) &&
-        (!paymentAmountMax ||
-          (latestPayment &&
-            latestPayment.paid_amount <= Number(paymentAmountMax)));
-
-      // Last payment date range filter
-      const matchesLastPaymentDate =
-        (!lastPaymentDateFrom ||
-          (latestPayment &&
-            (() => {
-              const endDate = safeParseISO(latestPayment.end_date);
-              return endDate
-                ? endDate.getTime() >= new Date(lastPaymentDateFrom).getTime()
-                : false;
-            })())) &&
-        (!lastPaymentDateTo ||
-          (latestPayment &&
-            (() => {
-              const endDate = safeParseISO(latestPayment.end_date);
-              return endDate
-                ? endDate.getTime() <= new Date(lastPaymentDateTo).getTime()
-                : false;
-            })()));
-
-      // Date range filters - safely parse dates
-      const registrationDate = safeParseISO(student.registrationdate);
-      const startDate = safeParseISO(student.startdate);
-
-      const matchesRegistrationDate =
-        (!registrationDateFrom ||
-          (registrationDate &&
-            registrationDate >= new Date(registrationDateFrom))) &&
-        (!registrationDateTo ||
-          (registrationDate &&
-            registrationDate <= new Date(registrationDateTo)));
-
-      const matchesStartDate =
-        (!startDateFrom ||
-          (startDate && startDate >= new Date(startDateFrom))) &&
-        (!startDateTo || (startDate && startDate <= new Date(startDateTo)));
-
-      const isMatch =
+      return (
         matchesSearch &&
         matchesStatus &&
-        matchesDayPackage &&
-        matchesTimeSlot &&
         matchesSubject &&
         matchesUstaz &&
-        matchesRegistrationDate &&
-        matchesStartDate &&
         matchesPackage &&
-        matchesTelegram &&
-        matchesPaymentStatus &&
-        matchesPaymentMonth &&
-        matchesPaymentAmount &&
-        matchesLastPaymentDate;
-
-      if (!isMatch) {
-        // Student filtered out
-      }
-
-      return isMatch;
+        matchesTimeSlot &&
+        matchesPaymentStatus
+      );
     });
 
     return filtered;
@@ -416,733 +281,260 @@ export default function StudentList({
     studentsWithPaymentStatus,
     searchQuery,
     statusFilter,
-    dayPackageFilter,
-    timeSlotFilter,
     subjectFilter,
     ustazFilter,
-    registrationDateFrom,
-    registrationDateTo,
-    startDateFrom,
-    startDateTo,
     packageFilter,
-    telegramFilter,
+    timeSlotFilter,
     paymentStatusFilter,
-    paymentMonthFilter,
-    paymentAmountMin,
-    paymentAmountMax,
-    lastPaymentDateFrom,
-    lastPaymentDateTo,
   ]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
-  const paginatedStudents = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredStudents.slice(start, start + itemsPerPage);
-  }, [filteredStudents, currentPage]);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedStudents = filteredStudents.slice(startIndex, startIndex + itemsPerPage);
 
-  // Handle search with debounce
-  const debouncedSearch = debounce((value: string) => {
-    setSearchQuery(value);
-    setCurrentPage(1); // Reset to first page on search
-  }, 300);
+  const debouncedSearch = useMemo(
+    () => debounce((query: string) => setSearchQuery(query), 300),
+    []
+  );
 
-  // Reset all filters
-  const resetFilters = () => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    debouncedSearch(e.target.value);
+  };
+
+  const clearAllFilters = () => {
     setSearchQuery("");
     setStatusFilter("active");
-    setDayPackageFilter("all");
-    setTimeSlotFilter("all");
     setSubjectFilter("all");
     setUstazFilter("all");
     setPackageFilter("all");
-    setRegistrationDateFrom("");
-    setRegistrationDateTo("");
-    setStartDateFrom("");
-    setStartDateTo("");
-    setTelegramFilter("all");
+    setTimeSlotFilter("all");
     setPaymentStatusFilter("all");
-    setPaymentMonthFilter("");
-    setPaymentAmountMin("");
-    setPaymentAmountMax("");
-    setLastPaymentDateFrom("");
-    setLastPaymentDateTo("");
     setCurrentPage(1);
   };
 
-  // Filter tabs
-  const filterTabs = [
-    { id: "all", label: "All Filters", icon: <FiSliders /> },
-    { id: "payment", label: "Payment", icon: <FiDollarSign /> },
-    { id: "basic", label: "Basic Info", icon: <FiUser /> },
-    { id: "schedule", label: "Schedule", icon: <FiClock /> },
-    { id: "academic", label: "Academic", icon: <FiBook /> },
-    { id: "dates", label: "Dates", icon: <FiCalendar /> },
-  ];
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (searchQuery) count++;
+    if (statusFilter !== "active") count++;
+    if (subjectFilter !== "all") count++;
+    if (ustazFilter !== "all") count++;
+    if (packageFilter !== "all") count++;
+    if (timeSlotFilter !== "all") count++;
+    if (paymentStatusFilter !== "all") count++;
+    return count;
+  };
 
   return (
     <div className="space-y-6">
-      {/* Status Filter Dropdown */}
-
-      {/* Search Section */}
-      <div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 border border-gray-100">
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="flex-1 relative w-full">
+      {/* Search and Filter Controls */}
+      <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+          <div className="relative flex-1 max-w-md">
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <input
               type="text"
-              placeholder="Search students by name or phone..."
-              onChange={(e) => debouncedSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 shadow-sm text-gray-800 placeholder-gray-400 text-sm sm:text-base"
-              aria-label="Search students by name or phone number"
-              value={searchQuery}
+              placeholder="Search students by name, phone, or teacher..."
+              onChange={handleSearchChange}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
             />
-            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
-
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
+          <div className="flex items-center gap-3">
+            <button
               onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-              className={`flex items-center gap-2 px-4 py-2 sm:py-3 rounded-xl shadow-sm transition-all duration-300 text-sm sm:text-base w-full sm:w-auto ${
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 ${
                 isFilterPanelOpen
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-black text-white"
+                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
               }`}
             >
-              <FiFilter />
-              <span className="font-medium">Filters</span>
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={resetFilters}
-              className="flex items-center gap-2 px-4 py-2 sm:py-3 bg-gray-100 text-gray-700 rounded-xl shadow-sm hover:bg-gray-200 transition-all duration-300 text-sm sm:text-base w-full sm:w-auto"
-            >
-              <FiRefreshCw />
-              <span className="font-medium">Reset</span>
-            </motion.button>
+              <FiFilter className="h-4 w-4" />
+              Filters
+              {getActiveFiltersCount() > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {getActiveFiltersCount()}
+                </span>
+              )}
+            </button>
+            {getActiveFiltersCount() > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="flex items-center gap-2 px-4 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl font-bold transition-all hover:scale-105"
+              >
+                <FiX className="h-4 w-4" />
+                Clear
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Filter Panel */}
-      <AnimatePresence>
-        {isFilterPanelOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-              {/* Filter Tabs */}
-              <div className="flex overflow-x-auto pb-4 mb-6 border-b border-gray-200">
-                <div className="flex space-x-4">
-                  {filterTabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveFilterTab(tab.id)}
-                      className={`flex items-center px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-all duration-200 ${
-                        activeFilterTab === tab.id
-                          ? "bg-blue-50 text-blue-700 border-b-2 border-blue-600"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-800"
-                      }`}
-                    >
-                      <span className="mr-2">{tab.icon}</span>
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Filter Content */}
-              <div className="space-y-6">
-                {/* All Filters (Grid View) */}
-                {activeFilterTab === "all" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Payment Status Filter */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Payment Status
-                      </label>
-                      <select
-                        value={paymentStatusFilter}
-                        onChange={(e) => {
-                          setPaymentStatusFilter(e.target.value);
-                          if (e.target.value === "all")
-                            setPaymentMonthFilter(""); // Reset month if status is "all"
-                        }}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        <option value="all">All Statuses</option>
-                        <option value="paid">Paid</option>
-                        <option value="unpaid">Unpaid</option>
-                        <option value="overdue">Overdue</option>
-                      </select>
-                    </div>
-
-                    {/* Payment Month Filter */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Payment Month
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="month"
-                          value={paymentMonthFilter}
-                          onChange={(e) =>
-                            setPaymentMonthFilter(e.target.value)
-                          }
-                          disabled={paymentStatusFilter === "all"}
-                          className="w-full pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                        />
-                        <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      </div>
-                    </div>
-
-                    {/* Status Filter */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Student Status
-                      </label>
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {statuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status === "all" ? "All Statuses" : status}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Telegram Filter */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Telegram
-                      </label>
-                      <select
-                        value={telegramFilter}
-                        onChange={(e) => setTelegramFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        <option value="all">All Connections</option>
-                        <option value="connected">Connected</option>
-                        <option value="not_connected">Not Connected</option>
-                      </select>
-                    </div>
-
-                    {/* Package Filter */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Package
-                      </label>
-                      <select
-                        value={packageFilter}
-                        onChange={(e) => setPackageFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {packages.map((pkg) => (
-                          <option key={pkg} value={pkg}>
-                            {pkg === "all" ? "All Packages" : pkg}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Day Package Filter */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Day Package
-                      </label>
-                      <select
-                        value={dayPackageFilter}
-                        onChange={(e) => setDayPackageFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {dayPackages.map((pkg) => (
-                          <option key={pkg} value={pkg}>
-                            {pkg === "all" ? "All Day Packages" : pkg}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Time Slot Filter */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Time Slot
-                      </label>
-                      <select
-                        value={timeSlotFilter}
-                        onChange={(e) => setTimeSlotFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {timeSlots.map((slot) => (
-                          <option key={slot} value={slot}>
-                            {slot === "all" ? "All Time Slots" : slot}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Subject Filter */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Subject
-                      </label>
-                      <select
-                        value={subjectFilter}
-                        onChange={(e) => setSubjectFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {subjects.map((subject) => (
-                          <option key={subject} value={subject}>
-                            {subject === "all" ? "All Subjects" : subject}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Ustaz Filter */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Teacher
-                      </label>
-                      <select
-                        value={ustazFilter}
-                        onChange={(e) => setUstazFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {ustazes.map((ustaz) => (
-                          <option key={ustaz} value={ustaz}>
-                            {ustaz === "all" ? "All Teachers" : ustaz}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Registration Date Range */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Registration Date
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="relative">
-                          <input
-                            type="date"
-                            value={registrationDateFrom}
-                            onChange={(e) =>
-                              setRegistrationDateFrom(e.target.value)
-                            }
-                            className="w-full pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                          />
-                          <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="date"
-                            value={registrationDateTo}
-                            onChange={(e) =>
-                              setRegistrationDateTo(e.target.value)
-                            }
-                            className="w-full pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                          />
-                          <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Start Date Range */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Start Date
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="relative">
-                          <input
-                            type="date"
-                            value={startDateFrom}
-                            onChange={(e) => setStartDateFrom(e.target.value)}
-                            className="w-full pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                          />
-                          <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="date"
-                            value={startDateTo}
-                            onChange={(e) => setStartDateTo(e.target.value)}
-                            className="w-full pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                          />
-                          <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Payment Filters */}
-                {activeFilterTab === "payment" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Payment Status
-                      </label>
-                      <select
-                        value={paymentStatusFilter}
-                        onChange={(e) => {
-                          setPaymentStatusFilter(e.target.value);
-                          if (e.target.value === "all")
-                            setPaymentMonthFilter(""); // Reset month if status is "all"
-                        }}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        <option value="all">All Statuses</option>
-                        <option value="paid">Paid</option>
-                        <option value="unpaid">Unpaid</option>
-                        <option value="overdue">Overdue</option>
-                      </select>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Payment Month
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="month"
-                          value={paymentMonthFilter}
-                          onChange={(e) =>
-                            setPaymentMonthFilter(e.target.value)
-                          }
-                          disabled={paymentStatusFilter === "all"}
-                          className="w-full pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                        />
-                        <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Basic Info Filters */}
-                {activeFilterTab === "basic" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Student Status
-                      </label>
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {statuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status === "all" ? "All Statuses" : status}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Telegram Connection
-                      </label>
-                      <select
-                        value={telegramFilter}
-                        onChange={(e) => setTelegramFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        <option value="all">All Connections</option>
-                        <option value="connected">Connected</option>
-                        <option value="not_connected">Not Connected</option>
-                      </select>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Package
-                      </label>
-                      <select
-                        value={packageFilter}
-                        onChange={(e) => setPackageFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {packages.map((pkg) => (
-                          <option key={pkg} value={pkg}>
-                            {pkg === "all" ? "All Packages" : pkg}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-                {/* Schedule Filters */}
-                {activeFilterTab === "schedule" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Day Package
-                      </label>
-                      <select
-                        value={dayPackageFilter}
-                        onChange={(e) => setDayPackageFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {dayPackages.map((pkg) => (
-                          <option key={pkg} value={pkg}>
-                            {pkg === "all" ? "All Day Packages" : pkg}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Time Slot
-                      </label>
-                      <select
-                        value={timeSlotFilter}
-                        onChange={(e) => setTimeSlotFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {timeSlots.map((slot) => (
-                          <option key={slot} value={slot}>
-                            {slot === "all" ? "All Time Slots" : slot}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-                {/* Academic Filters */}
-                {activeFilterTab === "academic" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Subject
-                      </label>
-                      <select
-                        value={subjectFilter}
-                        onChange={(e) => setSubjectFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {subjects.map((subject) => (
-                          <option key={subject} value={subject}>
-                            {subject === "all" ? "All Subjects" : subject}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Teacher
-                      </label>
-                      <select
-                        value={ustazFilter}
-                        onChange={(e) => setUstazFilter(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                      >
-                        {ustazes.map((ustaz) => (
-                          <option key={ustaz} value={ustaz}>
-                            {ustaz === "all" ? "All Teachers" : ustaz}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-                {/* Date Filters */}
-                {activeFilterTab === "dates" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Registration Date Range
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="relative">
-                          <input
-                            type="date"
-                            value={registrationDateFrom}
-                            onChange={(e) =>
-                              setRegistrationDateFrom(e.target.value)
-                            }
-                            className="w-full pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                          />
-                          <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="date"
-                            value={registrationDateTo}
-                            onChange={(e) =>
-                              setRegistrationDateTo(e.target.value)
-                            }
-                            className="w-full pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                          />
-                          <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Start Date Range
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="relative">
-                          <input
-                            type="date"
-                            value={startDateFrom}
-                            onChange={(e) => setStartDateFrom(e.target.value)}
-                            className="w-full pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                          />
-                          <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="date"
-                            value={startDateTo}
-                            onChange={(e) => setStartDateTo(e.target.value)}
-                            className="w-full pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-800"
-                          />
-                          <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Results Count and Timestamp */}
-      <div className="flex flex-col md:flex-row items-center justify-between bg-white rounded-xl shadow-sm p-4 border border-gray-100 text-sm sm:text-base">
-        <div className="flex flex-col gap-1 mb-2 md:mb-0">
-          <div className="flex items-center gap-2">
-            <FiUsers className="text-blue-500" />
-            <span className="text-gray-600">
-              Showing {paginatedStudents.length} of {filteredStudents.length}{" "}
-              students
-            </span>
-          </div>
-          {statusFilter === "active" && (
-            <p className="text-xs text-indigo-500">
-              📋 <strong>Note:</strong> Only active students are shown by
-              default
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <FiCalendar className="text-blue-500" />
-          <span className="text-gray-600">
-            {format(new Date(), "EEEE, MMMM d, yyyy")} |{" "}
-            {format(new Date(), "hh:mm a")} EAT
-          </span>
-        </div>
-      </div>
-
-      {/* Student List */}
-      <div className="space-y-4 overflow-x-auto">
-        {paginatedStudents.map((student, index) => (
-          <StudentCard
-            key={student.id}
-            student={student}
-            index={index}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            user={user}
-          />
-        ))}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between bg-white rounded-xl shadow-sm p-4 border border-gray-100 text-sm sm:text-base">
-          <div className="mb-4 sm:mb-0">
-            <span className="text-gray-600">
-              Page {currentPage} of {totalPages}
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 w-full sm:w-auto"
-            >
-              <FiChevronLeft className="mr-1" />
-              Previous
-            </motion.button>
-
-            <div className="flex items-center space-x-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (page) => (
-                  <motion.button
-                    key={page}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-1 text-sm font-medium rounded-lg transition-all duration-200 w-full sm:w-auto ${
-                      currentPage === page
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    {page}
-                  </motion.button>
-                )
-              )}
+      {isFilterPanelOpen && (
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+              >
+                {statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status === "all" ? "All Statuses" : status}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              disabled={currentPage === totalPages}
-              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 w-full sm:w-auto"
-            >
-              Next
-              <FiChevronRight className="ml-1" />
-            </motion.button>
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">Teacher</label>
+              <select
+                value={ustazFilter}
+                onChange={(e) => setUstazFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+              >
+                {ustazes.map((ustaz) => (
+                  <option key={ustaz} value={ustaz}>
+                    {ustaz === "all" ? "All Teachers" : ustaz}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">Subject</label>
+              <select
+                value={subjectFilter}
+                onChange={(e) => setSubjectFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+              >
+                {subjects.map((subject) => (
+                  <option key={subject} value={subject}>
+                    {subject === "all" ? "All Subjects" : subject}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">Payment Status</label>
+              <select
+                value={paymentStatusFilter}
+                onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+              >
+                <option value="all">All Payment Status</option>
+                <option value="paid">Paid This Month</option>
+                <option value="unpaid">Unpaid This Month</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">Package</label>
+              <select
+                value={packageFilter}
+                onChange={(e) => setPackageFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+              >
+                {packages.map((pkg) => (
+                  <option key={pkg} value={pkg}>
+                    {pkg === "all" ? "All Packages" : pkg}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">Time Slot</label>
+              <select
+                value={timeSlotFilter}
+                onChange={(e) => setTimeSlotFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+              >
+                {timeSlots.map((slot) => (
+                  <option key={slot} value={slot}>
+                    {slot === "all" ? "All Time Slots" : slot}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       )}
 
-      {/* No Results */}
-      {filteredStudents.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100"
-        >
-          <p className="text-gray-600 font-medium">
-            No students found matching your criteria
+      {/* Results Summary */}
+      <div className="flex items-center justify-between text-sm text-gray-600">
+        <span>
+          Showing {paginatedStudents.length} of {filteredStudents.length} students
+        </span>
+        {filteredStudents.length !== students.length && (
+          <span className="text-blue-600 font-semibold">
+            {filteredStudents.length} filtered from {students.length} total
+          </span>
+        )}
+      </div>
+
+      {/* Student Cards */}
+      <div className="space-y-4">
+        {paginatedStudents.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
+              <FiUsers className="h-16 w-16 text-gray-500" />
+            </div>
+            <h3 className="text-3xl font-bold text-black mb-4">No Students Found</h3>
+            <p className="text-gray-600 text-xl">
+              {searchQuery || getActiveFiltersCount() > 0
+                ? "No students match your current filters."
+                : "No students available."}
+            </p>
+            {getActiveFiltersCount() > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="mt-4 bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
+              >
+                Clear All Filters
+              </button>
+            )}
+          </div>
+        ) : (
+          paginatedStudents.map((student, index) => (
+            <StudentCard
+              key={student.id}
+              student={student}
+              index={index}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              user={user}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+          <p className="text-lg font-semibold text-gray-700">
+            Page {currentPage} of {totalPages}
           </p>
-          <button
-            onClick={resetFilters}
-            className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-200"
-          >
-            Reset all filters
-          </button>
-        </motion.div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
+            >
+              <FiChevronLeft className="h-6 w-6" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
+            >
+              <FiChevronRight className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -41,8 +41,8 @@ const navItems = [
   { href: "/admin/quality", label: "Quality Review", icon: Award },
 
   {
-    href: "/admin/absent",
-    label: "Absence Deduction Config",
+    href: "/admin/absences",
+    label: "Absence Management",
     icon: FileText,
   },
   { href: "/admin/settings", label: "Settings", icon: Settings },

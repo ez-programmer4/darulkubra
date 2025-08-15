@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { createAdminNotification } from "@/lib/notifications";
 
 async function sendSMS(phone: string, message: string) {
   const apiToken = process.env.AFROMSG_API_TOKEN;
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Prevent duplicate requests for the same date
+    // Check for existing requests for the same date
     const existingRequest = await prisma.permissionrequest.findFirst({
       where: {
         teacherId: user.id,
@@ -59,8 +60,55 @@ export async function POST(req: NextRequest) {
     if (existingRequest) {
       return NextResponse.json(
         {
-          error:
-            "You have already submitted a permission request for this date.",
+          error: "❌ Duplicate Request: You have already submitted a permission request for this date. Please check your existing requests.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Check for multiple permission requests in a single day (limit to 1 per day)
+    const today = new Date().toISOString().split('T')[0];
+    const todayRequests = await prisma.permissionrequest.count({
+      where: {
+        teacherId: user.id,
+        createdAt: {
+          gte: new Date(today + 'T00:00:00.000Z'),
+          lt: new Date(today + 'T23:59:59.999Z'),
+        },
+      },
+    });
+    
+    if (todayRequests >= 1) {
+      return NextResponse.json(
+        {
+          error: "⚠️ Daily Limit Reached: You can only submit one permission request per day. Please wait until tomorrow to submit another request.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Additional validation: Check if the requested date is not in the past
+    const requestedDate = new Date(date);
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    
+    if (requestedDate < currentDate) {
+      return NextResponse.json(
+        {
+          error: "📅 Invalid Date: You cannot request permission for past dates. Please select a future date.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Check if the requested date is too far in the future (e.g., more than 30 days)
+    const maxFutureDate = new Date();
+    maxFutureDate.setDate(maxFutureDate.getDate() + 30);
+    
+    if (requestedDate > maxFutureDate) {
+      return NextResponse.json(
+        {
+          error: "📅 Date Too Far: Permission requests can only be made up to 30 days in advance. Please select a nearer date.",
         },
         { status: 400 }
       );
@@ -75,39 +123,58 @@ export async function POST(req: NextRequest) {
         status: "Pending",
       },
     });
-    // Notify all admins with a phone number
-    const admins = await prisma.admin.findMany({
-      where: { phoneno: { not: null } },
-    });
+    // Get teacher info for notifications
     const teacher = await prisma.wpos_wpdatatable_24.findUnique({
       where: { ustazid: user.id },
     });
     const teacherName = teacher?.ustazname || user.id;
-    const message = `New absence permission request from ${teacherName} for ${date}. Please review in the admin panel.`;
-
-    for (const admin of admins) {
+    
+    // Send SMS notifications to admins with phone numbers
+    const adminsWithPhone = await prisma.admin.findMany({
+      where: { phoneno: { not: null } },
+    });
+    
+    const smsMessage = `New absence permission request from ${teacherName} for ${date}. Please review in the admin panel.`;
+    let smsCount = 0;
+    
+    for (const admin of adminsWithPhone) {
       try {
         if (admin.phoneno) {
-          await sendSMS(admin.phoneno, message);
+          await sendSMS(admin.phoneno, smsMessage);
+          smsCount++;
+          console.log(`SMS sent to admin ${admin.id}: ${admin.phoneno}`);
         }
-        // Temporarily disable notification creation due to database schema mismatch
-        // await prisma.notification.create({
-        //   data: {
-        //     userId: admin.id.toString(),
-        //     type: "permission_request",
-        //     message,
-        //     userRole: "admin",
-        //   },
-        // });
-      } catch (notificationError) {
-        // Continue with other admins even if one fails
+      } catch (error) {
+        console.error(`Failed to send SMS to admin ${admin.id}:`, error);
       }
     }
+    
+    // Create system notifications for all admins
+    let notificationCount = 0;
+    try {
+      const notifications = await createAdminNotification(
+        "🔔 New Permission Request",
+        `${teacherName} has requested permission for absence on ${new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. Reason: ${reason}. Click to review and approve/decline.`,
+        "permission_request"
+      );
+      notificationCount = notifications.length;
+      console.log(`Created ${notificationCount} system notifications for permission request`);
+    } catch (error) {
+      console.error("Failed to create admin notifications:", error);
+    }
+    
+    console.log(`Permission request notifications sent: ${smsCount} SMS, ${notificationCount} system notifications`);
 
     return NextResponse.json(
       {
-        message: "Permission request submitted successfully",
+        success: true,
+        message: "✅ Permission request submitted successfully! Admin team has been notified and will review your request soon.",
         permissionRequest,
+        notifications: {
+          sms_sent: smsCount,
+          system_notifications: notificationCount,
+          total_admins: adminsWithPhone.length + (notificationCount > 0 ? 1 : 0)
+        }
       },
       { status: 201 }
     );

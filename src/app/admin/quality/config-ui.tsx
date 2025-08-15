@@ -7,10 +7,10 @@ import {
   FiCheck,
   FiX,
   FiLoader,
+  FiCheckCircle,
+  FiXCircle,
 } from "react-icons/fi";
 import { toast } from "@/components/ui/use-toast";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 const apiUrl = "/api/admin/quality-descriptions";
 
@@ -24,9 +24,7 @@ export default function AdminQualityConfigPage() {
   const [addLoading, setAddLoading] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [editType, setEditType] = useState<"positive" | "negative" | null>(
-    null
-  );
+  const [editType, setEditType] = useState<"positive" | "negative" | null>(null);
   const [editLoading, setEditLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -130,350 +128,343 @@ export default function AdminQualityConfigPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
+        <p className="text-black font-medium text-lg">Loading categories...</p>
+        <p className="text-gray-500 text-sm mt-2">Please wait while we fetch the data</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="p-8 bg-red-50 rounded-full w-fit mx-auto mb-8">
+          <FiXCircle className="h-16 w-16 text-red-500" />
+        </div>
+        <h3 className="text-3xl font-bold text-black mb-4">Error Loading Categories</h3>
+        <p className="text-red-600 text-xl">{error}</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold text-blue-900 mb-2 flex items-center gap-3">
-        <FiCheck className="text-green-500 h-8 w-8" />
-        Quality Categories Configuration
-      </h1>
-      <p className="text-blue-500 mb-8">
-        Configure the positive and negative quality feedback categories for
-        supervisors/controllers. These categories are used for quality reviews
-        and analytics.
-      </p>
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded flex items-center gap-2">
-          <FiX /> {error}
-        </div>
-      )}
-      {loading ? (
-        <div className="text-center py-12 text-blue-600 flex flex-col items-center">
-          <FiLoader className="animate-spin w-8 h-8 mb-2" /> Loading...
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Positive */}
-          <div className="bg-white border-l-4 border-green-500 rounded-xl shadow p-6 flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-blue-800 flex items-center gap-2">
-                Positive Categories
-                <span className="inline-block px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold ml-2">
-                  Positive
-                </span>
-              </h2>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-green-200 text-green-700 hover:bg-green-50"
-                onClick={() => {
-                  setShowAdd("positive");
-                  setAddValue("");
-                }}
-              >
-                <FiPlus className="mr-1" /> Add
-              </Button>
+    <div className="space-y-8">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-green-100 rounded-xl">
+              <FiCheckCircle className="h-6 w-6 text-green-600" />
             </div>
-            <div className="overflow-x-auto rounded-lg">
-              <table className="min-w-full bg-white">
-                <thead>
-                  <tr>
-                    <th className="px-2 py-1 text-left text-xs font-semibold text-green-700">
-                      Description
-                    </th>
-                    <th className="px-2 py-1 text-left text-xs font-semibold text-green-700">
-                      Created
-                    </th>
-                    <th className="px-2 py-1"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {positive.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={3}
-                        className="text-center text-gray-400 py-4"
-                      >
-                        No positive categories.
-                      </td>
-                    </tr>
-                  ) : (
-                    positive.map((cat: any) => (
-                      <tr
-                        key={cat.id}
-                        className="border-b hover:bg-green-50 transition"
-                      >
-                        <td className="px-2 py-1 text-blue-900 font-medium">
-                          {editId === cat.id ? (
-                            <Input
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              autoFocus
-                              className="w-full"
-                            />
-                          ) : (
-                            cat.description
-                          )}
-                        </td>
-                        <td className="px-2 py-1 text-xs text-gray-500">
-                          {cat.createdAt
-                            ? new Date(cat.createdAt).toLocaleDateString()
-                            : ""}
-                        </td>
-                        <td className="px-2 py-1 text-right">
-                          {editId === cat.id ? (
-                            <div className="flex gap-1">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={handleEdit}
-                                disabled={editLoading}
-                              >
-                                <FiCheck />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditId(null);
-                                  setEditValue("");
-                                  setEditType(null);
-                                }}
-                              >
-                                <FiX />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-1">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditId(cat.id);
-                                  setEditValue(cat.description);
-                                  setEditType("positive");
-                                }}
-                              >
-                                <FiEdit />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleDelete(cat.id)}
-                                disabled={deleteLoading && deleteId === cat.id}
-                              >
-                                {deleteLoading && deleteId === cat.id ? (
-                                  <FiLoader className="animate-spin" />
-                                ) : (
-                                  <FiTrash2 />
-                                )}
-                              </Button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <div>
+              <h3 className="text-xl font-bold text-black">Positive Categories</h3>
+              <p className="text-gray-600">Categories for good performance</p>
             </div>
-            {showAdd === "positive" && (
-              <form
-                className="flex gap-2 mt-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleAdd("positive");
-                }}
-              >
-                <Input
-                  value={addValue}
-                  onChange={(e) => setAddValue(e.target.value)}
-                  placeholder="Add positive category..."
-                  autoFocus
-                  className="flex-1"
-                />
-                <Button
-                  type="submit"
-                  disabled={addLoading}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {addLoading ? (
-                    <FiLoader className="animate-spin" />
-                  ) : (
-                    <FiCheck />
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAdd(null)}
-                >
-                  <FiX />
-                </Button>
-              </form>
-            )}
           </div>
-          {/* Negative */}
-          <div className="bg-white border-l-4 border-red-500 rounded-xl shadow p-6 flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-red-800 flex items-center gap-2">
-                Negative Categories
-                <span className="inline-block px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold ml-2">
-                  Negative
-                </span>
-              </h2>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-red-200 text-red-700 hover:bg-red-50"
-                onClick={() => {
-                  setShowAdd("negative");
-                  setAddValue("");
-                }}
-              >
-                <FiPlus className="mr-1" /> Add
-              </Button>
+          <div className="text-3xl font-bold text-black">{positive.length}</div>
+        </div>
+
+        <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-red-100 rounded-xl">
+              <FiXCircle className="h-6 w-6 text-red-600" />
             </div>
-            <div className="overflow-x-auto rounded-lg">
-              <table className="min-w-full bg-white">
-                <thead>
-                  <tr>
-                    <th className="px-2 py-1 text-left text-xs font-semibold text-red-700">
-                      Description
-                    </th>
-                    <th className="px-2 py-1 text-left text-xs font-semibold text-red-700">
-                      Created
-                    </th>
-                    <th className="px-2 py-1"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {negative.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={3}
-                        className="text-center text-gray-400 py-4"
-                      >
-                        No negative categories.
-                      </td>
-                    </tr>
-                  ) : (
-                    negative.map((cat: any) => (
-                      <tr
-                        key={cat.id}
-                        className="border-b hover:bg-red-50 transition"
-                      >
-                        <td className="px-2 py-1 text-red-900 font-medium">
-                          {editId === cat.id ? (
-                            <Input
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              autoFocus
-                              className="w-full"
-                            />
-                          ) : (
-                            cat.description
-                          )}
-                        </td>
-                        <td className="px-2 py-1 text-xs text-gray-500">
-                          {cat.createdAt
-                            ? new Date(cat.createdAt).toLocaleDateString()
-                            : ""}
-                        </td>
-                        <td className="px-2 py-1 text-right">
-                          {editId === cat.id ? (
-                            <div className="flex gap-1">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={handleEdit}
-                                disabled={editLoading}
-                              >
-                                <FiCheck />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditId(null);
-                                  setEditValue("");
-                                  setEditType(null);
-                                }}
-                              >
-                                <FiX />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-1">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditId(cat.id);
-                                  setEditValue(cat.description);
-                                  setEditType("negative");
-                                }}
-                              >
-                                <FiEdit />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleDelete(cat.id)}
-                                disabled={deleteLoading && deleteId === cat.id}
-                              >
-                                {deleteLoading && deleteId === cat.id ? (
-                                  <FiLoader className="animate-spin" />
-                                ) : (
-                                  <FiTrash2 />
-                                )}
-                              </Button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <div>
+              <h3 className="text-xl font-bold text-black">Negative Categories</h3>
+              <p className="text-gray-600">Categories for poor performance</p>
             </div>
-            {showAdd === "negative" && (
-              <form
-                className="flex gap-2 mt-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleAdd("negative");
-                }}
+          </div>
+          <div className="text-3xl font-bold text-black">{negative.length}</div>
+        </div>
+      </div>
+
+      {/* Categories */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Positive Categories */}
+        <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <FiCheckCircle className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-black">Positive Categories</h2>
+                <p className="text-gray-600 text-sm">Good performance indicators</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowAdd("positive");
+                setAddValue("");
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
+            >
+              <FiPlus className="h-4 w-4" />
+              Add
+            </button>
+          </div>
+
+          {showAdd === "positive" && (
+            <form
+              className="flex gap-2 mb-6 p-4 bg-white rounded-xl border border-gray-200"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAdd("positive");
+              }}
+            >
+              <input
+                value={addValue}
+                onChange={(e) => setAddValue(e.target.value)}
+                placeholder="Add positive category..."
+                autoFocus
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900"
+              />
+              <button
+                type="submit"
+                disabled={addLoading}
+                className={`bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 ${
+                  addLoading ? "opacity-75" : ""
+                }`}
               >
-                <Input
-                  value={addValue}
-                  onChange={(e) => setAddValue(e.target.value)}
-                  placeholder="Add negative category..."
-                  autoFocus
-                  className="flex-1"
-                />
-                <Button
-                  type="submit"
-                  disabled={addLoading}
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                >
-                  {addLoading ? (
-                    <FiLoader className="animate-spin" />
-                  ) : (
-                    <FiCheck />
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAdd(null)}
-                >
-                  <FiX />
-                </Button>
-              </form>
+                {addLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAdd(null)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-bold transition-all hover:scale-105"
+              >
+                <FiX className="h-4 w-4" />
+              </button>
+            </form>
+          )}
+
+          <div className="space-y-3">
+            {positive.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="p-6 bg-white rounded-xl border border-gray-200">
+                  <FiCheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No positive categories yet</p>
+                </div>
+              </div>
+            ) : (
+              positive.map((cat: any) => (
+                <div key={cat.id} className="bg-white rounded-xl p-4 border border-gray-200 hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      {editId === cat.id ? (
+                        <input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          autoFocus
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        />
+                      ) : (
+                        <div>
+                          <p className="font-semibold text-black">{cat.description}</p>
+                          <p className="text-sm text-gray-500">
+                            Created: {cat.createdAt ? new Date(cat.createdAt).toLocaleDateString() : "N/A"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      {editId === cat.id ? (
+                        <>
+                          <button
+                            onClick={handleEdit}
+                            disabled={editLoading}
+                            className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-all"
+                          >
+                            {editLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditId(null);
+                              setEditValue("");
+                              setEditType(null);
+                            }}
+                            className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all"
+                          >
+                            <FiX className="h-4 w-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditId(cat.id);
+                              setEditValue(cat.description);
+                              setEditType("positive");
+                            }}
+                            className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all"
+                          >
+                            <FiEdit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(cat.id)}
+                            disabled={deleteLoading && deleteId === cat.id}
+                            className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
+                          >
+                            {deleteLoading && deleteId === cat.id ? (
+                              <FiLoader className="animate-spin h-4 w-4" />
+                            ) : (
+                              <FiTrash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
-      )}
+
+        {/* Negative Categories */}
+        <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <FiXCircle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-black">Negative Categories</h2>
+                <p className="text-gray-600 text-sm">Poor performance indicators</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowAdd("negative");
+                setAddValue("");
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
+            >
+              <FiPlus className="h-4 w-4" />
+              Add
+            </button>
+          </div>
+
+          {showAdd === "negative" && (
+            <form
+              className="flex gap-2 mb-6 p-4 bg-white rounded-xl border border-gray-200"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAdd("negative");
+              }}
+            >
+              <input
+                value={addValue}
+                onChange={(e) => setAddValue(e.target.value)}
+                placeholder="Add negative category..."
+                autoFocus
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white text-gray-900"
+              />
+              <button
+                type="submit"
+                disabled={addLoading}
+                className={`bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 ${
+                  addLoading ? "opacity-75" : ""
+                }`}
+              >
+                {addLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAdd(null)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-bold transition-all hover:scale-105"
+              >
+                <FiX className="h-4 w-4" />
+              </button>
+            </form>
+          )}
+
+          <div className="space-y-3">
+            {negative.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="p-6 bg-white rounded-xl border border-gray-200">
+                  <FiXCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No negative categories yet</p>
+                </div>
+              </div>
+            ) : (
+              negative.map((cat: any) => (
+                <div key={cat.id} className="bg-white rounded-xl p-4 border border-gray-200 hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      {editId === cat.id ? (
+                        <input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          autoFocus
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                        />
+                      ) : (
+                        <div>
+                          <p className="font-semibold text-black">{cat.description}</p>
+                          <p className="text-sm text-gray-500">
+                            Created: {cat.createdAt ? new Date(cat.createdAt).toLocaleDateString() : "N/A"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      {editId === cat.id ? (
+                        <>
+                          <button
+                            onClick={handleEdit}
+                            disabled={editLoading}
+                            className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-all"
+                          >
+                            {editLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditId(null);
+                              setEditValue("");
+                              setEditType(null);
+                            }}
+                            className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all"
+                          >
+                            <FiX className="h-4 w-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditId(cat.id);
+                              setEditValue(cat.description);
+                              setEditType("negative");
+                            }}
+                            className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all"
+                          >
+                            <FiEdit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(cat.id)}
+                            disabled={deleteLoading && deleteId === cat.id}
+                            className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
+                          >
+                            {deleteLoading && deleteId === cat.id ? (
+                              <FiLoader className="animate-spin h-4 w-4" />
+                            ) : (
+                              <FiTrash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

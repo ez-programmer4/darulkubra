@@ -163,10 +163,14 @@ export async function GET(req: NextRequest) {
     include: { wpos_wpdatatable_24: true },
   });
 
-  // Use direct DB query for exam pass rate for each teacher
+  // Use direct DB query for exam pass rate for each teacher with adjusted calculation
+  const SCHOOL_AVERAGE_PASS_RATE = 0.75; // 75%
+  const IMAGINARY_STUDENTS = 8;
+  
   const teacherStats = await Promise.all(
     assessments.map(async (a) => {
       let examPassRate = null;
+      let adjustedExamPassRate = null;
       let examSampleSize = 0;
       try {
         const { passed, failed } = await getTeacherExamPassFail(
@@ -174,16 +178,32 @@ export async function GET(req: NextRequest) {
           a.teacherId
         );
         const total = passed + failed;
-        examPassRate = total > 0 ? Math.round((passed / total) * 100) : 0;
         examSampleSize = total;
+        
+        if (total > 0) {
+          // Raw pass rate
+          const rawPassRate = (passed / total) * 100;
+          
+          // Adjusted pass rate calculation
+          const imaginaryPasses = IMAGINARY_STUDENTS * SCHOOL_AVERAGE_PASS_RATE;
+          const adjustedPassed = passed + imaginaryPasses;
+          const adjustedTotal = total + IMAGINARY_STUDENTS;
+          adjustedExamPassRate = Math.round((adjustedPassed / adjustedTotal) * 100);
+          
+          examPassRate = Math.round(rawPassRate);
+        } else {
+          examPassRate = 0;
+          adjustedExamPassRate = Math.round(SCHOOL_AVERAGE_PASS_RATE * 100);
+        }
       } catch {}
-      return { ...a, examPassRate, examSampleSize };
+      return { ...a, examPassRate, adjustedExamPassRate, examSampleSize };
     })
   );
   // Aggregate per teacher
   const teachers = teacherStats.map((a) => {
     const feedback = aggregateControllerFeedback(a.supervisorFeedback);
-    const controlRate = calculateControlRate(feedback);
+    const controlRateData = calculateControlRate(feedback);
+    const controlRate = controlRateData ? Number(controlRateData.finalScoreOutOf10.toFixed(1)) : null;
     const positiveSum = sumOriginalRatings(feedback.positive);
     const negativeSum = sumOriginalRatings(feedback.negative); // Keep original for display
     const positiveCount = feedback.positive.length;
@@ -197,7 +217,8 @@ export async function GET(req: NextRequest) {
       negativeSum,
       positiveCount,
       negativeCount,
-      examPassRate: a.examPassRate,
+      examPassRate: a.adjustedExamPassRate, // Use adjusted pass rate
+      rawExamPassRate: a.examPassRate, // Keep raw for reference
       examSampleSize: a.examSampleSize,
       examinerRating: a.examinerRating ?? Math.round(Math.random() * 10), // mock
       overallQuality: a.overallQuality,

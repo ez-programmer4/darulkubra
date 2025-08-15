@@ -53,6 +53,7 @@ import { toast } from "@/components/ui/use-toast";
 import { DashboardSkeleton } from "./components/DashboardSkeleton";
 import { PrismaClient } from "@prisma/client";
 import { motion } from "framer-motion";
+import { NotificationPanel } from "@/components/admin/NotificationPanel";
 
 const prisma = new PrismaClient();
 
@@ -442,11 +443,54 @@ export default function AdminDashboardPage() {
   const PIE_COLORS = ["#4F46E5", "#10B981", "#F59E0B", "#EF4444"];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-teal-50">
-      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 sm:space-y-12">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-teal-400/20 to-blue-600/20 rounded-full blur-3xl"></div>
+      </div>
+      
+      {/* Enhanced Navigation Bar */}
+      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-2xl border-b border-gray-200/50 shadow-2xl">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16 md:h-18">
+            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+              <div className="p-1.5 sm:p-2 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-lg sm:rounded-xl shadow-lg animate-pulse">
+                <FiShield className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-sm sm:text-lg md:text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                  Admin Dashboard
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-600 hidden md:block">DarulKubra Management System</p>
+              </div>
+              <div className="sm:hidden">
+                <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Admin
+                </h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+              <NotificationPanel className="" />
+              <div className="h-6 sm:h-8 w-px bg-gray-300 hidden sm:block"></div>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-white text-xs sm:text-sm font-bold">A</span>
+                </div>
+                <span className="text-xs sm:text-sm font-medium text-gray-700 hidden md:block">Admin</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+      
+      <main className="relative z-10 w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 space-y-4 sm:space-y-6 md:space-y-8">
         {/* Enhanced Hero Overview */}
-        <section className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-indigo-100 px-6 sm:px-8 lg:px-10 py-8 sm:py-10 animate-slide-in">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8 sm:gap-10">
+        <section className="bg-white/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/30 px-4 sm:px-6 md:px-8 lg:px-10 py-6 sm:py-8 md:py-10 animate-slide-in relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/60 via-purple-50/40 to-indigo-50/60 rounded-2xl sm:rounded-3xl"></div>
+          <div className="absolute top-0 right-0 w-32 h-32 sm:w-48 sm:h-48 bg-gradient-to-bl from-blue-400/20 to-transparent rounded-full blur-2xl"></div>
+          <div className="relative z-10">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 sm:gap-8 md:gap-10">
             <div className="flex-1">
               <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 mb-6">
                 <div className="flex items-center gap-3">
@@ -462,20 +506,20 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-indigo-900 mb-4 sm:mb-6 flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-900 via-purple-900 to-indigo-900 bg-clip-text text-transparent mb-4 sm:mb-6 flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-lg">
                   <FiUsers className="text-white h-8 sm:h-10 w-8 sm:w-10" />
                 </div>
-                Welcome, Admin
+                Welcome Back, Admin
               </h1>
 
-              <p className="text-indigo-700 text-base sm:text-lg md:text-xl mb-8 sm:mb-10 max-w-3xl leading-relaxed">
-                Monitor your system's health, user activity, and key metrics in
-                real time with our comprehensive dashboard.
+              <p className="text-gray-700 text-base sm:text-lg md:text-xl mb-8 sm:mb-10 max-w-3xl leading-relaxed">
+                Monitor your system's health, user activity, and key metrics in real time with our comprehensive dashboard. 
+                <span className="text-blue-600 font-semibold">Everything is running smoothly.</span>
               </p>
 
               {/* Enhanced Stats Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                 {statsBar.map((stat, idx) => (
                   <motion.div
                     key={idx}
@@ -483,7 +527,7 @@ export default function AdminDashboardPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: idx * 0.1 }}
                     whileHover={{ scale: 1.02, y: -2 }}
-                    className="group relative bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm p-6 rounded-2xl shadow-lg hover:shadow-xl border border-white/20 transition-all duration-300 overflow-hidden"
+                    className="group relative bg-white/90 backdrop-blur-xl p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl shadow-lg hover:shadow-2xl border border-white/40 transition-all duration-500 overflow-hidden hover:scale-105 hover:-translate-y-1 cursor-pointer"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${stat.color}"></div>
                     <div className="relative z-10">
@@ -507,12 +551,34 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Enhanced Action Panel */}
-            <div className="flex flex-col gap-4 items-stretch sm:items-end">
+            <div className="flex flex-col gap-3 sm:gap-4 items-stretch xl:items-end w-full xl:w-auto">
+              {/* Quick Stats Mini Cards */}
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 p-3 sm:p-4 rounded-xl text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <FiTrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="text-xs sm:text-sm font-semibold">Revenue</span>
+                  </div>
+                  <div className="text-lg sm:text-xl font-bold mt-1">
+                    ${(stats?.totalRevenue?.approved || 0).toLocaleString()}
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 p-3 sm:p-4 rounded-xl text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <FiClock className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="text-xs sm:text-sm font-semibold">Today</span>
+                  </div>
+                  <div className="text-lg sm:text-xl font-bold mt-1">
+                    {attendanceToday.present + attendanceToday.absent}
+                  </div>
+                </div>
+              </div>
+              
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full sm:w-72 justify-start text-left font-normal border-indigo-200 bg-white/95 hover:bg-indigo-50 focus:ring-2 focus:ring-indigo-500 shadow-lg hover:shadow-xl text-sm sm:text-base transition-all rounded-xl"
+                    className="w-full xl:w-72 justify-start text-left font-normal border-indigo-200 bg-white/95 hover:bg-indigo-50 focus:ring-2 focus:ring-indigo-500 shadow-lg hover:shadow-xl text-xs sm:text-sm md:text-base transition-all rounded-xl py-2 sm:py-3"
                     aria-label="Select date range"
                   >
                     <FiCalendar className="mr-3 h-5 w-5 text-indigo-500" />
@@ -546,36 +612,52 @@ export default function AdminDashboardPage() {
                 </PopoverContent>
               </Popover>
 
-              {[
-                {
-                  text: "Add New User",
-                  icon: <FiUserPlus className="w-5 h-5" />,
-                  action: () => {},
-                  color: "from-indigo-600 to-purple-600",
-                },
-                {
-                  text: "Process Absences",
-                  icon: <FiAlertTriangle className="w-5 h-5" />,
-                  action: () => {},
-                  color: "from-red-600 to-orange-600",
-                },
-                {
-                  text: "Review Permissions",
-                  icon: <FiClipboard className="w-5 h-5" />,
-                  action: () => {},
-                  color: "from-teal-600 to-emerald-600",
-                },
-              ].map((btn, idx) => (
-                <Button
-                  key={idx}
-                  className={`w-full sm:w-72 bg-gradient-to-r ${btn.color} text-white hover:shadow-xl flex items-center gap-3 rounded-xl shadow-lg hover:scale-105 transition-all text-sm sm:text-base font-semibold`}
-                  onClick={btn.action}
-                  aria-label={btn.text}
-                >
-                  {btn.icon} {btn.text}
-                </Button>
-              ))}
+              <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-2 sm:gap-3">
+                {[
+                  {
+                    text: "Add New User",
+                    shortText: "Add User",
+                    icon: <FiUserPlus className="w-4 h-4 sm:w-5 sm:h-5" />,
+                    action: () => {},
+                    color: "from-blue-600 via-blue-700 to-indigo-600",
+                    badge: null,
+                  },
+                  {
+                    text: "Review Permissions",
+                    shortText: "Permissions",
+                    icon: <FiClipboard className="w-4 h-4 sm:w-5 sm:h-5" />,
+                    action: () => {},
+                    color: "from-orange-500 via-red-500 to-red-600",
+                    badge: pendingPermissions > 0 ? pendingPermissions : null,
+                  },
+                  {
+                    text: "Process Payments",
+                    shortText: "Payments",
+                    icon: <FiDollarSign className="w-4 h-4 sm:w-5 sm:h-5" />,
+                    action: () => {},
+                    color: "from-emerald-500 via-teal-500 to-teal-600",
+                    badge: stats?.pendingPaymentCount || null,
+                  },
+                ].map((btn, idx) => (
+                  <Button
+                    key={idx}
+                    className={`relative w-full xl:w-72 bg-gradient-to-r ${btn.color} text-white hover:shadow-2xl flex items-center justify-center gap-2 sm:gap-3 rounded-xl shadow-lg hover:scale-105 transition-all duration-300 text-xs sm:text-sm md:text-base font-semibold py-2.5 sm:py-3 hover:brightness-110`}
+                    onClick={btn.action}
+                    aria-label={btn.text}
+                  >
+                    {btn.icon} 
+                    <span className="hidden sm:inline xl:inline">{btn.text}</span>
+                    <span className="sm:hidden">{btn.shortText}</span>
+                    {btn.badge && (
+                      <span className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white text-red-600 text-xs font-bold rounded-full h-5 w-5 sm:h-6 sm:w-6 flex items-center justify-center shadow-lg animate-bounce">
+                        {btn.badge}
+                      </span>
+                    )}
+                  </Button>
+                ))}
+              </div>
             </div>
+          </div>
           </div>
         </section>
 
@@ -606,17 +688,27 @@ export default function AdminDashboardPage() {
         )}
 
         {/* Main Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 sm:gap-8">
+        <section className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
           {/* User Growth Chart */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-6 sm:p-8 animate-slide-in">
-            <div className="flex items-center gap-2 mb-4">
-              <FiUsers className="text-indigo-500 h-6 w-6" />
-              <h3 className="text-xl sm:text-2xl font-semibold text-indigo-900">
-                User Growth
-              </h3>
-              <span className="ml-auto text-xs sm:text-sm text-indigo-500">
-                Last updated: {format(new Date(), "PPpp")}
-              </span>
+          <div className="lg:col-span-2 xl:col-span-2 bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6 sm:p-8 animate-slide-in hover:shadow-2xl transition-all duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl">
+                  <FiUsers className="text-white h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-indigo-900 bg-clip-text text-transparent">
+                    User Growth Trend
+                  </h3>
+                  <p className="text-sm text-gray-600">Monthly registration analytics</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-blue-600">
+                  +{Object.values(analytics?.monthlyRegistrations || {}).reduce((a, b) => a + b, 0)}
+                </div>
+                <div className="text-xs text-gray-500">Total this period</div>
+              </div>
             </div>
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart
@@ -656,15 +748,25 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Attendance Heatmap */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-6 sm:p-8 animate-slide-in">
-            <div className="flex items-center gap-2 mb-4">
-              <FiCalendar className="text-indigo-500 h-6 w-6" />
-              <h3 className="text-xl sm:text-2xl font-semibold text-indigo-900">
-                Attendance Heatmap (Last 35 Days)
-              </h3>
-              <span className="ml-auto text-xs sm:text-sm text-indigo-500">
-                Last updated: {format(new Date(), "PPpp")}
-              </span>
+          <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6 sm:p-8 animate-slide-in hover:shadow-2xl transition-all duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl">
+                  <FiCalendar className="text-white h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-green-900 to-emerald-900 bg-clip-text text-transparent">
+                    Attendance Heatmap
+                  </h3>
+                  <p className="text-sm text-gray-600">Last 35 days activity</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-green-600">
+                  {Math.round(attendanceHeatmap.reduce((a, b) => a + b, 0) / attendanceHeatmap.length || 0)}%
+                </div>
+                <div className="text-xs text-gray-500">Avg attendance</div>
+              </div>
             </div>
             <div className="grid grid-cols-7 gap-1 sm:gap-2 mt-4">
               {attendanceHeatmap.map((rate, i) => {
@@ -1272,35 +1374,158 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* Footer */}
-        <footer className="w-full text-center text-indigo-500 text-sm py-6 border-t border-indigo-100 bg-white/90 backdrop-blur-md mt-8 sm:mt-12 animate-slide-in">
-          © {new Date().getFullYear()} DarulKubra Admin. All rights reserved.
+        {/* Enhanced Mobile Quick Actions */}
+        <div className="fixed bottom-4 right-4 xl:hidden z-50">
+          <div className="flex flex-col gap-2 sm:gap-3">
+            <Button className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 text-white shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-110 animate-pulse">
+              <FiPlus className="h-5 w-5 sm:h-6 sm:w-6" />
+            </Button>
+            {pendingPermissions > 0 && (
+              <Button className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-orange-500 via-red-500 to-red-600 text-white shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-110 relative animate-bounce">
+                <FiAlertTriangle className="h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white text-red-600 text-xs font-bold rounded-full h-5 w-5 sm:h-6 sm:w-6 flex items-center justify-center shadow-lg animate-pulse">
+                  {pendingPermissions}
+                </span>
+              </Button>
+            )}
+            {stats?.pendingPaymentCount && stats.pendingPaymentCount > 0 && (
+              <Button className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 text-white shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-110 relative">
+                <FiDollarSign className="h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white text-green-600 text-xs font-bold rounded-full h-5 w-5 sm:h-6 sm:w-6 flex items-center justify-center shadow-lg">
+                  {stats.pendingPaymentCount}
+                </span>
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Enhanced Footer */}
+        <footer className="relative bg-gradient-to-br from-blue-50/80 via-purple-50/60 to-indigo-50/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/30 p-4 sm:p-6 md:p-8 mt-8 sm:mt-12 animate-slide-in overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-purple-600/5 to-indigo-600/10 rounded-2xl sm:rounded-3xl"></div>
+          <div className="absolute top-0 left-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-blue-400/20 to-transparent rounded-full blur-2xl"></div>
+          <div className="relative z-10">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 rounded-xl sm:rounded-2xl shadow-xl">
+                  <FiShield className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                </div>
+                <div className="text-center sm:text-left">
+                  <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-900 via-purple-900 to-indigo-900 bg-clip-text text-transparent">
+                    DarulKubra Admin
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-600">Management System v2.0</p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6 text-xs sm:text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg"></div>
+                  <span className="font-medium">System Online</span>
+                </div>
+                <div className="font-medium">© {new Date().getFullYear()} All rights reserved</div>
+              </div>
+            </div>
+          </div>
         </footer>
 
         <style jsx global>{`
           @keyframes slide-in {
             from {
               opacity: 0;
-              transform: translateY(20px);
+              transform: translateY(40px) scale(0.9) rotateX(10deg);
             }
             to {
               opacity: 1;
-              transform: translateY(0);
+              transform: translateY(0) scale(1) rotateX(0deg);
             }
           }
           @keyframes fade-in {
             from {
               opacity: 0;
+              filter: blur(10px);
             }
             to {
               opacity: 1;
+              filter: blur(0px);
+            }
+          }
+          @keyframes float {
+            0%, 100% {
+              transform: translateY(0px) rotate(0deg);
+            }
+            50% {
+              transform: translateY(-15px) rotate(2deg);
+            }
+          }
+          @keyframes glow {
+            0%, 100% {
+              box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+            }
+            50% {
+              box-shadow: 0 0 40px rgba(59, 130, 246, 0.6), 0 0 60px rgba(139, 92, 246, 0.3);
+            }
+          }
+          @keyframes shimmer {
+            0% {
+              background-position: -200% 0;
+            }
+            100% {
+              background-position: 200% 0;
             }
           }
           .animate-slide-in {
-            animation: slide-in 0.5s ease-out;
+            animation: slide-in 0.8s cubic-bezier(0.4, 0, 0.2, 1);
           }
           .animate-fade-in {
-            animation: fade-in 0.3s ease-out;
+            animation: fade-in 0.6s ease-out;
+          }
+          .animate-float {
+            animation: float 4s ease-in-out infinite;
+          }
+          .animate-glow {
+            animation: glow 3s ease-in-out infinite;
+          }
+          .animate-shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+          }
+          .hover\:shadow-3xl:hover {
+            box-shadow: 0 35px 80px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1);
+          }
+          
+          /* Enhanced scrollbar */
+          ::-webkit-scrollbar {
+            width: 6px;
+          }
+          ::-webkit-scrollbar-track {
+            background: rgba(241, 245, 249, 0.8);
+            border-radius: 6px;
+          }
+          ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+            border-radius: 6px;
+            box-shadow: inset 0 0 6px rgba(0,0,0,0.1);
+          }
+          ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #2563eb, #7c3aed, #db2777);
+            box-shadow: inset 0 0 6px rgba(0,0,0,0.2);
+          }
+          
+          /* Mobile optimizations */
+          @media (max-width: 768px) {
+            .animate-slide-in {
+              animation-duration: 0.5s;
+            }
+            .hover\:scale-105:hover {
+              transform: scale(1.02);
+            }
+          }
+          
+          /* Tablet optimizations */
+          @media (min-width: 768px) and (max-width: 1024px) {
+            .hover\:scale-105:hover {
+              transform: scale(1.03);
+            }
           }
         `}</style>
       </main>

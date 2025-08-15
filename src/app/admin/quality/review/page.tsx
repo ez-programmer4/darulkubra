@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, ReactNode } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FiCheck,
   FiLoader,
@@ -11,6 +11,9 @@ import {
   FiGift,
   FiX,
   FiClock,
+  FiSearch,
+  FiUsers,
+  FiTarget,
 } from "react-icons/fi";
 import { startOfWeek, format, addWeeks } from "date-fns";
 import { toast } from "@/components/ui/use-toast";
@@ -18,45 +21,21 @@ import { toast } from "@/components/ui/use-toast";
 const apiUrl = "/api/admin/quality-review";
 const qualityLevels = ["Bad", "Good", "Better", "Excellent", "Exceptional"];
 
-function Badge({
-  children,
-  color,
-  className = "",
-}: {
-  children: ReactNode;
-  color: string;
-  className?: string;
-}) {
-  return (
-    <span
-      className={`inline-block px-3 py-1 rounded-full text-xs font-semibold bg-${color}-100 text-${color}-800 shadow-sm ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
-
 export default function AdminQualityReviewPage() {
-  const [weekStart, setWeekStart] = useState(
-    startOfWeek(new Date(), { weekStartsOn: 1 })
-  );
+  const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [approving, setApproving] = useState<string | null>(null);
   const [bonus, setBonus] = useState<{ [teacherId: string]: number }>({});
   const [success, setSuccess] = useState<string | null>(null);
-  const [managerOverrides, setManagerOverrides] = useState<{
-    [teacherId: string]: string;
-  }>({});
-  const [managerNotes, setManagerNotes] = useState<{
-    [teacherId: string]: string;
-  }>({});
+  const [managerOverrides, setManagerOverrides] = useState<{ [teacherId: string]: string }>({});
+  const [managerNotes, setManagerNotes] = useState<{ [teacherId: string]: string }>({});
   const [bonusHistory, setBonusHistory] = useState<any[]>([]);
-  const [bonusHistoryTeacher, setBonusHistoryTeacher] = useState<string | null>(
-    null
-  );
   const [showBonusHistory, setShowBonusHistory] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -66,8 +45,7 @@ export default function AdminQualityReviewPage() {
     setLoading(true);
     setError(null);
     try {
-      const weekStartStr =
-        weekStart.toISOString().split("T")[0] + "T00:00:00.000Z";
+      const weekStartStr = weekStart.toISOString().split("T")[0] + "T00:00:00.000Z";
       const res = await fetch(`${apiUrl}?weekStart=${weekStartStr}`);
       if (!res.ok) throw new Error("Failed to fetch quality review data");
       const data = await res.json();
@@ -94,13 +72,12 @@ export default function AdminQualityReviewPage() {
 
   async function fetchBonusHistory(teacherId: string) {
     setBonusHistory([]);
-    setBonusHistoryTeacher(teacherId);
     setShowBonusHistory(true);
     try {
-      const res = await fetch(`/api/teachers/${teacherId}/bonuses`);
+      const res = await fetch(`/api/admin/bonus-history?teacherId=${teacherId}`);
       if (!res.ok) throw new Error("Failed to fetch bonus history");
       const data = await res.json();
-      setBonusHistory(data);
+      setBonusHistory(data.bonuses || []);
     } catch (e: any) {
       setBonusHistory([]);
       toast({
@@ -116,23 +93,18 @@ export default function AdminQualityReviewPage() {
     setSuccess(null);
     setError(null);
     try {
-      const weekStartStr =
-        weekStart.toISOString().split("T")[0] + "T00:00:00.000Z";
-
+      const weekStartStr = weekStart.toISOString().split("T")[0] + "T00:00:00.000Z";
       const requestBody = {
         override: managerOverrides[teacherId],
         notes: managerNotes[teacherId],
-        bonus: bonus[teacherId] !== undefined ? bonus[teacherId] : 100,
+        bonus: managerOverrides[teacherId] === "Exceptional" ? (bonus[teacherId] || 0) : 0,
       };
 
-      const res = await fetch(
-        `${apiUrl}?teacherId=${teacherId}&weekStart=${weekStartStr}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        }
-      );
+      const res = await fetch(`${apiUrl}?teacherId=${teacherId}&weekStart=${weekStartStr}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
       if (!res.ok) throw new Error("Failed to approve/override");
       setSuccess("Saved successfully!");
       toast({ title: "Success", description: "Saved and notified!" });
@@ -154,506 +126,510 @@ export default function AdminQualityReviewPage() {
   }
 
   const badTeachers = teachers.filter((t) => t.overallQuality === "Bad");
-  const others = teachers.filter((t) => t.overallQuality !== "Bad");
+  const filteredTeachers = teachers
+    .filter((t) => t.overallQuality !== "Bad")
+    .filter((t) => 
+      searchQuery === "" || 
+      (t.teacherName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.teacherId.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  
+  const totalPages = Math.ceil(filteredTeachers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedTeachers = filteredTeachers.slice(startIndex, startIndex + itemsPerPage);
+  
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
+        <p className="text-black font-medium text-lg">Loading quality review data...</p>
+        <p className="text-gray-500 text-sm mt-2">Please wait while we fetch the data</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="p-8 bg-red-50 rounded-full w-fit mx-auto mb-8">
+          <FiAlertTriangle className="h-16 w-16 text-red-500" />
+        </div>
+        <h3 className="text-3xl font-bold text-black mb-4">Error Loading Data</h3>
+        <p className="text-red-600 text-xl">{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <header className="mb-12 relative">
-          <div className="absolute left-0 top-0 w-2 h-full bg-blue-600 rounded-lg" />
-          <div className="pl-6">
-            <h1 className="text-4xl font-extrabold text-blue-900 flex items-center gap-3">
-              <FiInfo className="text-blue-600 h-10 w-10" />
-              Quality Review Dashboard
-            </h1>
-            <p className="mt-3 text-lg text-gray-600 max-w-3xl">
-              Review and manage teacher performance metrics for the selected
-              week, including quality ratings and bonuses.
-            </p>
-          </div>
-        </header>
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+        {/* Header + Stats */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-8 mb-8">
+            <div className="flex items-center gap-6">
+              <div className="p-4 bg-black rounded-2xl shadow-lg">
+                <FiTarget className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-2">
+                  Quality Review Dashboard
+                </h1>
+                <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
+                  Weekly performance review for {format(weekStart, "MMMM dd, yyyy")}
+                </p>
+              </div>
+            </div>
 
-        {/* Week Navigation */}
-        <div className="flex flex-col sm:flex-row items-center justify-between mb-10 bg-white rounded-2xl shadow-lg p-6 border border-blue-200">
-          <button
-            className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-all shadow-md"
-            onClick={() => changeWeek(-1)}
-            aria-label="Previous Week"
-          >
-            <FiChevronLeft /> Previous Week
-          </button>
-          <span className="text-xl font-semibold text-blue-800 my-2 sm:my-0">
-            Week of {format(weekStart, "MMMM dd, yyyy")}
-          </span>
-          <button
-            className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-all shadow-md disabled:opacity-50"
-            onClick={() => changeWeek(1)}
-            disabled={weekStart >= startOfWeek(new Date(), { weekStartsOn: 1 })}
-            aria-label="Next Week"
-          >
-            Next Week <FiChevronRight />
-          </button>
+            {/* Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiUsers className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Teachers</span>
+                </div>
+                <div className="text-2xl font-bold text-black">{teachers.length}</div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiAward className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Exceptional</span>
+                </div>
+                <div className="text-2xl font-bold text-black">{teachers.filter(t => t.overallQuality === 'Exceptional').length}</div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiGift className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Bonuses</span>
+                </div>
+                <div className="text-2xl font-bold text-black">{teachers.filter(t => t.bonusAwarded > 0).length}</div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiAlertTriangle className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">Need Review</span>
+                </div>
+                <div className="text-2xl font-bold text-black">{badTeachers.length}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+              <div className="lg:col-span-4">
+                <label className="block text-sm font-bold text-black mb-3">
+                  <FiSearch className="inline h-4 w-4 mr-2" />
+                  Search Teachers
+                </label>
+                <input
+                  type="text"
+                  placeholder="Search by name or ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
+                />
+              </div>
+              <div className="lg:col-span-5">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => changeWeek(-1)}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2"
+                  >
+                    <FiChevronLeft className="h-4 w-4" />
+                    Previous Week
+                  </button>
+                  <button
+                    onClick={() => changeWeek(1)}
+                    disabled={weekStart >= startOfWeek(new Date(), { weekStartsOn: 1 })}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    Next Week
+                    <FiChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="lg:col-span-3">
+                <div className="text-sm text-gray-600 text-center">
+                  Showing {paginatedTeachers.length} of {filteredTeachers.length} teachers
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Error and Success Messages */}
-        {error && (
-          <div className="mb-8 p-4 bg-red-50 border-l-4 border-red-600 rounded-lg text-red-800 font-semibold flex items-center gap-3">
-            <FiAlertTriangle className="text-red-600" /> {error}
-          </div>
-        )}
+        {/* Success Message */}
         {success && (
-          <div className="mb-8 p-4 bg-green-50 border-l-4 border-green-600 rounded-lg text-green-800 font-semibold flex items-center gap-3">
-            <FiCheck className="text-green-600" /> {success}
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-full">
+              <FiCheck className="h-5 w-5 text-green-600" />
+            </div>
+            <p className="text-green-800 font-semibold">{success}</p>
           </div>
         )}
 
-        {/* Loading State */}
-        {loading ? (
-          <div className="flex items-center justify-center py-16 animate-pulse">
-            <FiLoader className="text-blue-600 text-4xl mr-3 animate-spin" />
-            <span className="text-blue-700 text-lg font-semibold">
-              Loading data...
-            </span>
-          </div>
-        ) : (
-          <>
-            {/* Teachers Requiring Review */}
-            {badTeachers.length > 0 && (
-              <section className="mb-12 bg-white rounded-2xl shadow-xl p-8 border border-red-100">
-                <h2 className="text-2xl font-bold text-red-800 flex items-center gap-3 mb-6">
-                  <FiAlertTriangle className="text-red-600 h-8 w-8 animate-pulse" />
-                  Teachers Requiring Review
-                </h2>
-                <ul className="space-y-4">
-                  {badTeachers.map((t, idx) => (
-                    <li
-                      key={t.teacherId}
-                      className="flex items-center gap-4 bg-red-50 rounded-lg px-5 py-3 shadow-sm hover:shadow-md hover:bg-red-100 transition-all"
-                      style={{ animationDelay: `${idx * 50}ms` }}
-                    >
-                      <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-200 text-red-800 font-extrabold text-lg shadow">
-                        {t.teacherName
-                          ? t.teacherName
-                              .split(" ")
-                              .map((n: string) => n[0])
-                              .join("")
-                          : "N/A"}
-                      </span>
-                      <span className="text-red-900 font-semibold text-lg">
-                        {t.teacherName || "Unknown Teacher"}
-                      </span>
-                      <Badge color="red" className="font-bold">
-                        Bad
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {/* All Teachers Table */}
-            <section className="bg-white rounded-2xl shadow-xl border border-blue-200">
-              <h2 className="text-2xl font-bold text-blue-900 p-8">
-                All Teachers
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-blue-100">
-                  <thead className="bg-blue-50">
-                    <tr>
-                      {[
-                        "Teacher",
-                        "Controller Feedback",
-                        "Control Rate",
-                        "Exam Pass Rate",
-                        "Examiner Rating",
-                        "Overall Quality",
-                        "Manager Approval",
-                        "Bonus",
-                      ].map((header, idx) => (
-                        <th
-                          key={idx}
-                          className="px-6 py-4 text-left text-xs font-bold text-blue-800 uppercase tracking-wider"
-                        >
-                          {header}
-                          {[
-                            "Control Rate",
-                            "Exam Pass Rate",
-                            "Examiner Rating",
-                            "Overall Quality",
-                          ].includes(header) && (
-                            <FiInfo
-                              className="inline ml-2 text-blue-600"
-                              title={
-                                header === "Control Rate"
-                                  ? "Average of all supervisor ratings (1–10) for this week."
-                                  : header === "Exam Pass Rate"
-                                  ? "% of students who passed exams."
-                                  : header === "Examiner Rating"
-                                  ? "Average examiner rating (1–10)."
-                                  : "Final quality level set by manager or calculated."
-                              }
-                            />
-                          )}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-blue-100">
-                    {others.map((t, idx) => (
-                      <tr
-                        key={t.teacherId}
-                        className={`transition-all duration-200 ${
-                          idx % 2 === 0 ? "bg-white" : "bg-blue-50"
-                        } hover:bg-blue-100 hover:shadow-md`}
-                      >
-                        <td className="px-6 py-5 flex items-center gap-4">
-                          <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white font-extrabold text-lg shadow-lg">
-                            {t.teacherName
-                              ? t.teacherName
-                                  .split(" ")
-                                  .map((n: string) => n[0])
-                                  .join("")
-                              : "N/A"}
-                          </span>
-                          <span
-                            className="font-semibold text-blue-900 truncate max-w-[180px] text-lg"
-                            title={t.teacherName || "Unknown Teacher"}
-                          >
-                            {t.teacherName || "Unknown Teacher"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5 text-sm">
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-3">
-                              <Badge color="green" className="font-semibold">
-                                +{t.positiveSum} ({t.positiveCount})
-                              </Badge>
-                              <span className="text-xs text-green-800">
-                                Avg:{" "}
-                                {t.positiveCount
-                                  ? (t.positiveSum / t.positiveCount).toFixed(1)
-                                  : "-"}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <Badge color="red" className="font-semibold">
-                                -{t.negativeSum} ({t.negativeCount})
-                              </Badge>
-                              <span className="text-xs text-red-800">
-                                Avg:{" "}
-                                {t.negativeCount
-                                  ? (t.negativeSum / t.negativeCount).toFixed(1)
-                                  : "-"}
-                              </span>
-                            </div>
-                            <div className="mt-2">
-                              {t.controllerFeedback?.positive?.length > 0 && (
-                                <ul className="list-disc ml-5 text-green-900">
-                                  {t.controllerFeedback.positive.map(
-                                    (c: any, i: number) => (
-                                      <li key={i} className="mb-1">
-                                        {c.title}{" "}
-                                        <span className="font-bold">
-                                          ({c.rating})
-                                        </span>
-                                        {c.note && (
-                                          <span className="ml-2 text-xs text-gray-500">
-                                            Note: {c.note}
-                                          </span>
-                                        )}
-                                      </li>
-                                    )
-                                  )}
-                                </ul>
-                              )}
-                              {t.controllerFeedback?.negative?.length > 0 && (
-                                <ul className="list-disc ml-5 text-red-900">
-                                  {t.controllerFeedback.negative.map(
-                                    (c: any, i: number) => (
-                                      <li key={i} className="mb-1">
-                                        {c.title}{" "}
-                                        <span className="font-bold">
-                                          ({c.rating})
-                                        </span>
-                                        {c.note && (
-                                          <span className="ml-2 text-xs text-gray-500">
-                                            Note: {c.note}
-                                          </span>
-                                        )}
-                                      </li>
-                                    )
-                                  )}
-                                </ul>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          {typeof t.controlRate === "number" ? (
-                            <span
-                              className={`inline-block px-4 py-1 rounded-full text-xs font-bold shadow-sm ${
-                                t.controlRate <= 4
-                                  ? "bg-red-100 text-red-800"
-                                  : t.controlRate <= 6
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : t.controlRate <= 8
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-yellow-200 text-yellow-900 border border-yellow-600"
-                              }`}
-                            >
-                              {t.controlRate.toFixed(1)}/10
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          <span className="inline-block px-4 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 shadow-sm">
-                            {t.examPassRate ?? "-"}%
-                            {typeof t.examSampleSize === "number" && (
-                              <span className="ml-2 text-xs text-gray-500">
-                                (N={t.examSampleSize})
-                              </span>
-                            )}
-                          </span>
-                          {t.examSampleSize !== undefined &&
-                            t.examSampleSize < 3 && (
-                              <span className="ml-2 inline-flex items-center gap-1 text-xs text-yellow-800 bg-yellow-100 px-2 py-0.5 rounded-full animate-pulse">
-                                <FiAlertTriangle /> Low sample
-                              </span>
-                            )}
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          <span className="inline-block px-4 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 shadow-sm">
-                            {t.examinerRating ?? "-"}/10
-                          </span>
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          <span
-                            className={`inline-block px-4 py-1 rounded-full text-xs font-bold shadow-sm ${
-                              t.overallQuality === "Exceptional"
-                                ? "bg-yellow-200 text-yellow-900 border border-yellow-600"
-                                : t.overallQuality === "Excellent"
-                                ? "bg-green-200 text-green-900"
-                                : t.overallQuality === "Better"
-                                ? "bg-green-100 text-green-800"
-                                : t.overallQuality === "Good"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {t.overallQuality}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5">
-                          <div className="flex flex-col gap-3">
-                            <select
-                              className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 shadow-sm"
-                              value={managerOverrides[t.teacherId]}
-                              onChange={(e) =>
-                                setManagerOverrides((prev) => ({
-                                  ...prev,
-                                  [t.teacherId]: e.target.value,
-                                }))
-                              }
-                              disabled={approving === t.teacherId}
-                              aria-label={`Override quality for ${t.teacherName}`}
-                              title="Override the calculated quality level"
-                            >
-                              {qualityLevels.map((q) => (
-                                <option key={q} value={q}>
-                                  {q}
-                                </option>
-                              ))}
-                            </select>
-                            <input
-                              className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 shadow-sm"
-                              placeholder="Manager notes (optional)"
-                              value={managerNotes[t.teacherId] || ""}
-                              onChange={(e) =>
-                                setManagerNotes((prev) => ({
-                                  ...prev,
-                                  [t.teacherId]: e.target.value,
-                                }))
-                              }
-                              disabled={approving === t.teacherId}
-                              aria-label={`Manager notes for ${t.teacherName}`}
-                              title="Add notes for this override (optional)"
-                            />
-                            <button
-                              className="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-all shadow-md disabled:opacity-50"
-                              onClick={() => handleApprove(t.teacherId)}
-                              disabled={approving === t.teacherId}
-                              aria-label={`Save approval for ${t.teacherName}`}
-                            >
-                              {approving === t.teacherId ? (
-                                <FiLoader className="animate-spin" />
-                              ) : (
-                                <FiCheck />
-                              )}
-                              Save
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          <div className="flex flex-col items-center gap-3">
-                            {t.overallQuality === "Exceptional" ? (
-                              <>
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    className="border border-gray-300 rounded-lg px-4 py-2 w-24 text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 shadow-sm"
-                                    value={
-                                      bonus[t.teacherId] !== undefined
-                                        ? bonus[t.teacherId]
-                                        : ""
-                                    }
-                                    placeholder="100"
-                                    onChange={(e) => {
-                                      const inputValue = Number(e.target.value);
-                                      const clampedValue = Math.min(
-                                        100,
-                                        Math.max(0, inputValue)
-                                      );
-                                      setBonus((prev) => {
-                                        const newState = {
-                                          ...prev,
-                                          [t.teacherId]: clampedValue,
-                                        };
-                                        return newState;
-                                      });
-                                    }}
-                                    aria-label={`Bonus amount for ${t.teacherName}`}
-                                    title="Exceptional Quality Bonus (max 100 ETB)"
-                                  />
-                                  <span className="text-yellow-800 font-semibold">
-                                    ETB
-                                  </span>
-                                </div>
-                                <button
-                                  className="flex items-center gap-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 focus:ring-2 focus:ring-yellow-500 transition-all shadow-md disabled:opacity-50"
-                                  onClick={() => handleApprove(t.teacherId)}
-                                  disabled={approving === t.teacherId}
-                                  aria-label={`Award bonus for ${t.teacherName}`}
-                                >
-                                  <FiAward /> Award
-                                </button>
-                              </>
-                            ) : (
-                              <span className="inline-block px-4 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-bold shadow-sm">
-                                -
-                              </span>
-                            )}
-                            {t.bonusAwarded && (
-                              <span className="inline-block px-4 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold animate-slide-in">
-                                Bonus: {t.bonusAwarded} ETB
-                              </span>
-                            )}
-                            <button
-                              className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline transition-all"
-                              onClick={() => fetchBonusHistory(t.teacherId)}
-                              aria-label={`View bonus history for ${t.teacherName}`}
-                            >
-                              <FiGift /> Bonus History
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {others.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={8}
-                          className="text-center text-gray-500 py-12"
-                        >
-                          No teacher data available for this week.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+        {/* Teachers Requiring Review */}
+        {badTeachers.length > 0 && (
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-red-100 rounded-xl">
+                <FiAlertTriangle className="h-6 w-6 text-red-600" />
               </div>
-            </section>
-          </>
-        )}
-
-        {/* Bonus History Modal */}
-        {showBonusHistory && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8 border border-blue-200 animate-slide-up">
-              <button
-                className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 rounded-full p-2 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500"
-                onClick={() => setShowBonusHistory(false)}
-                aria-label="Close bonus history modal"
-              >
-                <FiX size={24} />
-              </button>
-              <h2 className="text-2xl font-bold text-blue-900 mb-6 flex items-center gap-3">
-                <FiGift className="text-yellow-600 h-8 w-8" />
-                Bonus History
-              </h2>
-              {bonusHistory.length === 0 ? (
-                <div className="text-gray-600 text-center py-8">
-                  <FiClock className="mx-auto text-4xl mb-3 text-gray-500" />
-                  No bonus records found.
+              <div>
+                <h2 className="text-2xl font-bold text-black">Teachers Requiring Review</h2>
+                <p className="text-red-600">{badTeachers.length} teacher{badTeachers.length > 1 ? 's' : ''} need immediate attention</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {badTeachers.map((t) => (
+                <div key={t.teacherId} className="bg-red-50 rounded-xl p-4 border border-red-200 flex items-center gap-4">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <span className="font-bold text-red-800">
+                      {t.teacherName ? t.teacherName.split(" ").map((n: string) => n[0]).join("") : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-black">{t.teacherName || "Unknown Teacher"}</p>
+                    <p className="text-sm text-gray-600">{t.teacherId}</p>
+                  </div>
+                  <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
+                    Bad
+                  </span>
                 </div>
-              ) : (
-                <ul className="divide-y divide-blue-100">
-                  {bonusHistory.map((b: any, i: number) => (
-                    <li
-                      key={i}
-                      className="py-4 flex items-center gap-4 animate-slide-in"
-                      style={{ animationDelay: `${i * 50}ms` }}
-                    >
-                      <Badge color="yellow" className="font-semibold">
-                        +{b.amount} ETB
-                      </Badge>
-                      <span className="text-gray-700 text-base">
-                        {b.period}
-                      </span>
-                      <span className="text-gray-500 text-xs">{b.reason}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              ))}
             </div>
           </div>
         )}
 
-        <style jsx global>{`
-          @keyframes slide-in {
-            from {
-              opacity: 0;
-              transform: translateY(20px);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
-          @keyframes slide-up {
-            from {
-              opacity: 0;
-              transform: translateY(50px);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
-          .animate-slide-in {
-            animation: slide-in 0.5s ease-out;
-          }
-          .animate-slide-up {
-            animation: slide-up 0.4s ease-out;
-          }
-          .animate-fade-in {
-            animation: slide-in 0.5s ease-out;
-          }
-        `}</style>
+        {/* Teachers Table */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+          <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-black rounded-xl">
+                <FiUsers className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-black">Teacher Performance Review</h2>
+                <p className="text-gray-600">Weekly quality assessment and bonus management</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 sm:p-8 lg:p-10">
+            {paginatedTeachers.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
+                  <FiUsers className="h-16 w-16 text-gray-500" />
+                </div>
+                <h3 className="text-3xl font-bold text-black mb-4">No Teachers Found</h3>
+                <p className="text-gray-600 text-xl">
+                  {searchQuery ? `No teachers match "${searchQuery}"` : "No teacher data available for this week"}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">Teacher</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">Controller Feedback</th>
+                        <th className="px-6 py-4 text-center text-sm font-bold text-black uppercase tracking-wider">Control Rate</th>
+                        <th className="px-6 py-4 text-center text-sm font-bold text-black uppercase tracking-wider">Exam Pass Rate</th>
+                        <th className="px-6 py-4 text-center text-sm font-bold text-black uppercase tracking-wider">Examiner Rating</th>
+                        <th className="px-6 py-4 text-center text-sm font-bold text-black uppercase tracking-wider">Overall Quality</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          <div className="flex items-center gap-2">
+                            <FiCheck className="h-4 w-4" />
+                            Manager Approval
+                          </div>
+                        </th>
+                        <th className="px-6 py-4 text-center text-sm font-bold text-black uppercase tracking-wider">
+                          <div className="flex items-center justify-center gap-2">
+                            <FiGift className="h-4 w-4" />
+                            Bonus Management
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {paginatedTeachers.map((t, idx) => (
+                        <tr key={t.teacherId} className={`hover:bg-gray-50 transition-all duration-200 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <span className="font-bold text-blue-800 text-sm">
+                                  {t.teacherName ? t.teacherName.split(" ").map((n: string) => n[0]).join("") : "N/A"}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="font-semibold text-black">{t.teacherName || "Unknown Teacher"}</p>
+                                <p className="text-sm text-gray-500">{t.teacherId}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+                                  +{t.positiveSum} ({t.positiveCount})
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  Avg: {t.positiveCount ? (t.positiveSum / t.positiveCount).toFixed(1) : "-"}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
+                                  -{t.negativeSum} ({t.negativeCount})
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  Avg: {t.negativeCount ? (t.negativeSum / t.negativeCount).toFixed(1) : "-"}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {typeof t.controlRate === "number" ? (
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                t.controlRate <= 4 ? "bg-red-100 text-red-800" :
+                                t.controlRate <= 6 ? "bg-yellow-100 text-yellow-800" :
+                                t.controlRate <= 8 ? "bg-green-100 text-green-800" :
+                                "bg-blue-100 text-blue-800"
+                              }`}>
+                                {t.controlRate.toFixed(1)}/10
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                              {t.examPassRate ?? "-"}%
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-semibold">
+                              {t.examinerRating ?? "-"}/10
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              t.overallQuality === "Exceptional" ? "bg-yellow-100 text-yellow-800" :
+                              t.overallQuality === "Excellent" ? "bg-green-100 text-green-800" :
+                              t.overallQuality === "Better" ? "bg-blue-100 text-blue-800" :
+                              t.overallQuality === "Good" ? "bg-gray-100 text-gray-800" :
+                              "bg-red-100 text-red-800"
+                            }`}>
+                              {t.overallQuality}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="bg-gray-50 rounded-xl p-4 space-y-4 border border-gray-200">
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+                                  Quality Override
+                                </label>
+                                <select
+                                  value={managerOverrides[t.teacherId]}
+                                  onChange={(e) => setManagerOverrides(prev => ({ ...prev, [t.teacherId]: e.target.value }))}
+                                  disabled={approving === t.teacherId}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 shadow-sm transition-all"
+                                >
+                                  {qualityLevels.map((q) => (
+                                    <option key={q} value={q}>{q}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+                                  Manager Notes
+                                </label>
+                                <textarea
+                                  placeholder="Add notes for this override..."
+                                  value={managerNotes[t.teacherId] || ""}
+                                  onChange={(e) => setManagerNotes(prev => ({ ...prev, [t.teacherId]: e.target.value }))}
+                                  disabled={approving === t.teacherId}
+                                  rows={2}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 shadow-sm transition-all resize-none"
+                                />
+                              </div>
+                              <button
+                                onClick={() => handleApprove(t.teacherId)}
+                                disabled={approving === t.teacherId}
+                                className={`w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-bold transition-all hover:scale-105 shadow-lg ${
+                                  approving === t.teacherId ? "opacity-75 cursor-not-allowed" : ""
+                                }`}
+                              >
+                                {approving === t.teacherId ? (
+                                  <>
+                                    <FiLoader className="animate-spin h-4 w-4" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  <>
+                                    <FiCheck className="h-4 w-4" />
+                                    Save & Approve
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="bg-yellow-50 rounded-xl p-4 space-y-4 border border-yellow-200">
+                              {managerOverrides[t.teacherId] === "Exceptional" ? (
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <FiGift className="h-4 w-4 text-yellow-600" />
+                                    <span className="text-xs font-bold text-yellow-800 uppercase tracking-wider">
+                                      Exceptional Bonus
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      value={bonus[t.teacherId] !== undefined ? bonus[t.teacherId] : ""}
+                                      placeholder="0"
+                                      onChange={(e) => {
+                                        const value = e.target.value === "" ? 0 : Math.min(100, Math.max(0, Number(e.target.value)));
+                                        setBonus(prev => ({ ...prev, [t.teacherId]: value }));
+                                      }}
+                                      className="flex-1 px-3 py-2 border border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 bg-white text-gray-900 shadow-sm transition-all font-bold text-center"
+                                    />
+                                    <span className="text-sm font-bold text-yellow-800 bg-yellow-100 px-2 py-1 rounded-lg">
+                                      ETB
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-yellow-700 bg-yellow-100 px-2 py-1 rounded-lg text-center">
+                                    Max: 100 ETB
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-center py-4">
+                                  <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-500 rounded-xl">
+                                    <FiX className="h-4 w-4" />
+                                    <span className="text-sm font-semibold">No Bonus</span>
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-2">
+                                    Only for Exceptional
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {t.bonusAwarded > 0 && (
+                                <div className="bg-green-100 border border-green-200 rounded-xl p-3">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <FiCheck className="h-4 w-4 text-green-600" />
+                                    <span className="text-xs font-bold text-green-800 uppercase tracking-wider">
+                                      Awarded
+                                    </span>
+                                  </div>
+                                  <div className="text-lg font-bold text-green-800">
+                                    +{t.bonusAwarded} ETB
+                                  </div>
+                                </div>
+                              )}
+                              
+                              <button
+                                onClick={() => fetchBonusHistory(t.teacherId)}
+                                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl font-semibold transition-all hover:scale-105 text-sm"
+                              >
+                                <FiGift className="h-4 w-4" />
+                                View History
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+                    <p className="text-lg font-semibold text-gray-700">
+                      Page {currentPage} of {totalPages}
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                        className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
+                      >
+                        <FiChevronLeft className="h-6 w-6" />
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                        className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
+                      >
+                        <FiChevronRight className="h-6 w-6" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Bonus History Modal */}
+        {showBonusHistory && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl mx-4 p-6 relative border border-gray-200 max-h-[90vh] overflow-y-auto">
+              <button
+                onClick={() => setShowBonusHistory(false)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 rounded-full p-2 hover:bg-gray-100 transition-all hover:scale-110"
+              >
+                <FiX className="h-6 w-6" />
+              </button>
+              
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-yellow-100 rounded-xl">
+                  <FiGift className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-black">Bonus History</h2>
+                  <p className="text-gray-600">Complete bonus award records</p>
+                </div>
+              </div>
+              
+              {bonusHistory.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="p-6 bg-gray-100 rounded-2xl inline-block mb-4">
+                    <FiClock className="h-12 w-12 text-gray-400" />
+                  </div>
+                  <p className="text-gray-600 text-lg font-medium">No bonus records found</p>
+                  <p className="text-gray-500 text-sm mt-2">This teacher hasn't received any bonuses yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {bonusHistory.map((b: any, i: number) => (
+                    <div key={i} className="bg-gray-50 rounded-xl p-4 border border-gray-200 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-yellow-100 rounded-lg">
+                          <FiGift className="h-4 w-4 text-yellow-600" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-black">+{b.amount} ETB</p>
+                          <p className="text-sm text-gray-600">{b.period}</p>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
+                        {b.reason}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

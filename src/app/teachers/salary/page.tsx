@@ -72,14 +72,58 @@ export default function TeacherSalaryPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [salaryVisible, setSalaryVisible] = useState(true);
+  const [checkingVisibility, setCheckingVisibility] = useState(true);
 
   useEffect(() => {
     if (user?.id) {
+      checkSalaryVisibility();
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id && salaryVisible) {
       fetchSalaryData();
     }
-  }, [user?.id, selectedMonth]);
+  }, [user?.id, selectedMonth, salaryVisible]);
+
+  async function checkSalaryVisibility() {
+    try {
+      setCheckingVisibility(true);
+      // Try to fetch salary data directly - API will return 403 if disabled
+      const [year, month] = selectedMonth.split("-");
+      const selectedYear = parseInt(year);
+      const monthNumber = parseInt(month);
+      const from = new Date(selectedYear, monthNumber - 1, 1);
+      const to = new Date(selectedYear, monthNumber, 0);
+
+      const res = await fetch(
+        `/api/teachers/salary?from=${from.toISOString().split("T")[0]}&to=${
+          to.toISOString().split("T")[0]
+        }`
+      );
+      
+      if (res.status === 403) {
+        setSalaryVisible(false);
+      } else if (res.ok) {
+        setSalaryVisible(true);
+        const data = await res.json();
+        setSalaryData(data);
+      } else {
+        setSalaryVisible(true);
+        setError("Failed to load salary information. Please try again.");
+      }
+    } catch (error) {
+      setSalaryVisible(true);
+      setError("Failed to load salary information. Please try again.");
+    } finally {
+      setCheckingVisibility(false);
+    }
+  }
 
   async function fetchSalaryData() {
+    if (!salaryVisible) return;
+    
     try {
       setLoading(true);
       setError(null);
@@ -95,8 +139,16 @@ export default function TeacherSalaryPage() {
           to.toISOString().split("T")[0]
         }`
       );
+      
+      if (res.status === 403) {
+        setSalaryVisible(false);
+        return;
+      }
+      
       if (!res.ok) throw new Error("Failed to fetch salary data");
       const data = await res.json();
+      console.log("Salary data received:", data);
+      console.log("Bonuses value:", data.bonuses);
 
       setSalaryData(data);
     } catch (error) {
@@ -142,7 +194,7 @@ Additional Information:
     URL.revokeObjectURL(url);
   };
 
-  if (authLoading) {
+  if (authLoading || checkingVisibility) {
     return <PageLoading />;
   }
 
@@ -154,6 +206,8 @@ Additional Information:
       </div>
     );
   }
+
+
 
   return (
     <div className="flex min-h-screen bg-white text-gray-900">
@@ -312,8 +366,27 @@ Additional Information:
         {/* Main Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8 pb-24 md:pb-8">
 
-
-        {loading ? (
+        {!salaryVisible ? (
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200 p-8 sm:p-12 text-center animate-slide-in">
+            <div className="p-6 bg-yellow-50 rounded-full w-fit mx-auto mb-6 border-2 border-yellow-200">
+              <FiAlertTriangle className="h-16 w-16 text-yellow-500" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Salary Access Restricted
+            </h2>
+            <p className="text-gray-600 mb-6 text-lg leading-relaxed max-w-md mx-auto">
+              Access to salary information has been temporarily disabled by the administration.
+            </p>
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 max-w-md mx-auto">
+              <p className="text-sm text-gray-500">
+                Please contact your administrator for more information or to request access.
+              </p>
+            </div>
+            <p className="text-xs text-gray-400">
+              You can still access other sections using the navigation menu.
+            </p>
+          </div>
+        ) : loading ? (
           <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200 p-8 sm:p-12 text-center animate-slide-in">
             <div className="relative">
               <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
@@ -381,7 +454,7 @@ Additional Information:
                         </p>
                       </div>
                       <p className="text-xl sm:text-2xl font-bold text-green-600">
-                        +{salaryData.bonuses} ETB
+                        +{salaryData.bonuses || 0} ETB
                       </p>
                     </div>
                     <div className="p-3 bg-gray-100 rounded-xl">

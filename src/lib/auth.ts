@@ -49,7 +49,7 @@ export const authOptions: NextAuthOptions = {
           });
         } else if (role === "teacher") {
           user = await prisma.wpos_wpdatatable_24.findFirst({
-            where: { ustazid: credentials.username },
+            where: { ustazname: credentials.username },
           });
           if (!user) return null;
           const isValid = await compare(credentials.password, user.password);
@@ -57,7 +57,7 @@ export const authOptions: NextAuthOptions = {
           return {
             id: user.ustazid,
             name: user.ustazname ?? "",
-            username: user.ustazid ?? "",
+            username: user.ustazname ?? "",
             role,
           };
         }

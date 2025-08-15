@@ -67,6 +67,7 @@ interface AnalyticsDashboardProps {
   className?: string;
   showCharts?: boolean;
   compact?: boolean;
+  timeSlots?: TimeSlot[];
 }
 
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
@@ -74,6 +75,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   className = "",
   showCharts = true,
   compact = false,
+  timeSlots: propTimeSlots,
 }) => {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
     null
@@ -85,14 +87,16 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     const fetchAnalytics = async () => {
       setLoading(true);
       try {
-        // Fetch time slots data
-        const timeSlotsResponse = await fetch("/api/time-slots");
-        let timeSlotsData = [];
-        if (timeSlotsResponse.ok) {
-          const data = await timeSlotsResponse.json();
-          timeSlotsData = data.timeSlots || [];
-          setTimeSlots(timeSlotsData);
+        // Use prop timeSlots if available, otherwise fetch
+        let timeSlotsData = propTimeSlots || [];
+        if (!propTimeSlots) {
+          const timeSlotsResponse = await fetch("/api/time-slots");
+          if (timeSlotsResponse.ok) {
+            const data = await timeSlotsResponse.json();
+            timeSlotsData = data.timeSlots || [];
+          }
         }
+        setTimeSlots(timeSlotsData);
 
         // Fetch occupied times data
         const occupiedResponse = await fetch("/api/admin/users");
