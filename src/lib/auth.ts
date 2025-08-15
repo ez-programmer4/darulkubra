@@ -48,18 +48,34 @@ export const authOptions: NextAuthOptions = {
             where: { username: credentials.username },
           });
         } else if (role === "teacher") {
-          user = await prisma.wpos_wpdatatable_24.findFirst({
-            where: { ustazname: credentials.username },
-          });
-          if (!user) return null;
-          const isValid = await compare(credentials.password, user.password);
-          if (!isValid) return null;
-          return {
-            id: user.ustazid,
-            name: user.ustazname ?? "",
-            username: user.ustazname ?? "",
-            role,
-          };
+          try {
+            user = await prisma.wpos_wpdatatable_24.findFirst({
+              where: { ustazname: credentials.username },
+            });
+            if (!user) {
+              console.log("Teacher not found:", credentials.username);
+              return null;
+            }
+            if (!user.password) {
+              console.log("Teacher has no password:", credentials.username);
+              return null;
+            }
+            const isValid = await compare(credentials.password, user.password);
+            if (!isValid) {
+              console.log("Invalid password for teacher:", credentials.username);
+              return null;
+            }
+            console.log("Teacher login successful:", credentials.username);
+            return {
+              id: user.ustazid,
+              name: user.ustazname ?? "",
+              username: user.ustazname ?? "",
+              role,
+            };
+          } catch (error) {
+            console.error("Teacher authentication error:", error);
+            return null;
+          }
         }
         // Check admins
         else if (role === "admin") {
