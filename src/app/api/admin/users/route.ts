@@ -267,7 +267,8 @@ export async function POST(req: NextRequest) {
           console.error("Schema check error:", schemaError);
         }
         
-        const ustazid = name.toLowerCase().replace(/\s+/g, "").substring(0, 10) + "_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
+        // Use teacher name as ustazid (username)
+        const ustazid = name.toLowerCase().replace(/\s+/g, "");
 
         // Check if ustazid already exists
         const existingTeacher = await prisma.wpos_wpdatatable_24.findUnique({

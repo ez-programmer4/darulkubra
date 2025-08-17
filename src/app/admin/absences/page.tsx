@@ -149,7 +149,7 @@ export default function AbsenceManagement() {
 
   const totalDeductions = absences.reduce((sum, a) => sum + a.deductionApplied, 0);
   const currentMonth = new Date().getMonth() + 1;
-  const isCurrentMonthEffective = effectiveMonths.length === 0 || effectiveMonths.includes(currentMonth.toString());
+  const isCurrentMonthEffective = effectiveMonths.length > 0 && effectiveMonths.includes(currentMonth.toString());
 
   useEffect(() => {
     loadConfig();
@@ -319,7 +319,7 @@ export default function AbsenceManagement() {
                 ))}
               </div>
               <p className="text-sm text-gray-500 mt-3">
-                Select months when deductions should be applied. Leave empty to apply all year.
+                Select months when deductions should be applied. No selection means deductions are inactive.
               </p>
             </div>
 
@@ -415,7 +415,7 @@ export default function AbsenceManagement() {
                 </div>
               </div>
               <div className="text-2xl font-bold text-black">
-                {effectiveMonths.length === 0 ? "All Year" : `${effectiveMonths.length} Months`}
+                {effectiveMonths.length === 0 ? "Inactive" : `${effectiveMonths.length} Months`}
               </div>
             </div>
           </div>
