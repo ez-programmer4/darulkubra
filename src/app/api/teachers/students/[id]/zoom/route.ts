@@ -57,6 +57,20 @@ export async function POST(
     const now = new Date();
     const localTime = new Date(now.getTime() + (3 * 60 * 60 * 1000)); // Add 3 hours for Ethiopia timezone
     const expiry = expiration_date ? new Date(expiration_date) : null;
+    
+    // Format as 12-hour time string
+    const timeString = localTime.toLocaleTimeString('en-US', { hour12: true });
+    
+    // Format time as 12-hour with AM/PM for display
+    const formattedTime = localTime.toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
     const tokenToUse: string =
       (tracking_token && String(tracking_token)) ||
       crypto.randomBytes(16).toString("hex").toUpperCase();
@@ -213,7 +227,8 @@ export async function POST(
         notification_method: notificationSent ? "telegram" : "none",
         notification_error: notificationError,
         student_name: student.name,
-        student_chat_id: student.chatId
+        student_chat_id: student.chatId,
+        sent_time_formatted: timeString
       },
       { status: 201 }
     );
