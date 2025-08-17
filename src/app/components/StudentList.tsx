@@ -67,7 +67,7 @@ export default function StudentList({
   user,
 }: StudentListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("active");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [ustazFilter, setUstazFilter] = useState("all");
   const [packageFilter, setPackageFilter] = useState("all");
@@ -303,7 +303,7 @@ export default function StudentList({
 
   const clearAllFilters = () => {
     setSearchQuery("");
-    setStatusFilter("active");
+    setStatusFilter("all");
     setSubjectFilter("all");
     setUstazFilter("all");
     setPackageFilter("all");
@@ -315,7 +315,7 @@ export default function StudentList({
   const getActiveFiltersCount = () => {
     let count = 0;
     if (searchQuery) count++;
-    if (statusFilter !== "active") count++;
+    if (statusFilter !== "all") count++;
     if (subjectFilter !== "all") count++;
     if (ustazFilter !== "all") count++;
     if (packageFilter !== "all") count++;
