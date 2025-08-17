@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { FiUser, FiLoader, FiAlertTriangle, FiUsers, FiCheckCircle, FiClock } from "react-icons/fi";
+import {
+  FiUser,
+  FiLoader,
+  FiAlertTriangle,
+  FiUsers,
+  FiCheckCircle,
+  FiClock,
+} from "react-icons/fi";
 import StatsCards from "@/app/components/StatsCards";
 import StudentList from "@/app/components/StudentList";
 import { useSession } from "next-auth/react";
@@ -123,7 +130,10 @@ export default function Controller() {
           registrationdate: updatedStudent.registrationdate ?? "",
           selectedTime: updatedStudent.selectedTime ?? "",
           teacher: {
-            ustazname: updatedStudent.teacher?.ustazname ?? updatedStudent.ustaz ?? "N/A",
+            ustazname:
+              updatedStudent.teacher?.ustazname ??
+              updatedStudent.ustaz ??
+              "N/A",
           },
           progress: updatedStudent.progress ?? "",
           chatId: updatedStudent.chatId ?? null,
@@ -171,8 +181,12 @@ export default function Controller() {
         <div className="min-h-screen bg-white flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
-            <p className="text-black font-medium text-lg">Loading your dashboard...</p>
-            <p className="text-gray-500 text-sm mt-2">Please wait while we fetch the data</p>
+            <p className="text-black font-medium text-lg">
+              Loading your dashboard...
+            </p>
+            <p className="text-gray-500 text-sm mt-2">
+              Please wait while we fetch the data
+            </p>
           </div>
         </div>
       </ControllerLayout>
@@ -187,7 +201,9 @@ export default function Controller() {
             <div className="p-8 bg-red-50 rounded-full w-fit mx-auto mb-8">
               <FiAlertTriangle className="h-16 w-16 text-red-500" />
             </div>
-            <h3 className="text-3xl font-bold text-black mb-4">Error Loading Dashboard</h3>
+            <h3 className="text-3xl font-bold text-black mb-4">
+              Error Loading Dashboard
+            </h3>
             <p className="text-red-600 text-xl mb-6">{error}</p>
             <button
               onClick={() => window.location.reload()}
@@ -227,23 +243,35 @@ export default function Controller() {
                 <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <FiUsers className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-semibold text-gray-600">Total Students</span>
+                    <span className="text-sm font-semibold text-gray-600">
+                      Total Students
+                    </span>
                   </div>
-                  <div className="text-2xl font-bold text-black">{totalStudents}</div>
+                  <div className="text-2xl font-bold text-black">
+                    {totalStudents}
+                  </div>
                 </div>
                 <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <FiCheckCircle className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-semibold text-gray-600">Active</span>
+                    <span className="text-sm font-semibold text-gray-600">
+                      Active
+                    </span>
                   </div>
-                  <div className="text-2xl font-bold text-black">{activeStudents}</div>
+                  <div className="text-2xl font-bold text-black">
+                    {activeStudents}
+                  </div>
                 </div>
                 <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <FiClock className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-semibold text-gray-600">Pending</span>
+                    <span className="text-sm font-semibold text-gray-600">
+                      Not yet student
+                    </span>
                   </div>
-                  <div className="text-2xl font-bold text-black">{notYetStudents}</div>
+                  <div className="text-2xl font-bold text-black">
+                    {notYetStudents}
+                  </div>
                 </div>
               </div>
             </div>
@@ -266,8 +294,12 @@ export default function Controller() {
                   <FiUsers className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-black">Student Management</h2>
-                  <p className="text-gray-600">View and manage your assigned students</p>
+                  <h2 className="text-2xl font-bold text-black">
+                    Student Management
+                  </h2>
+                  <p className="text-gray-600">
+                    View and manage your assigned students
+                  </p>
                 </div>
               </div>
             </div>

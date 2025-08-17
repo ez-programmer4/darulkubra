@@ -67,7 +67,7 @@ export default function StudentList({
   user,
 }: StudentListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active-notyet");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [ustazFilter, setUstazFilter] = useState("all");
   const [packageFilter, setPackageFilter] = useState("all");
@@ -205,7 +205,7 @@ export default function StudentList({
     const uniqueStatuses = [
       ...new Set(students.map((student) => student.status).filter(Boolean)),
     ];
-    return ["all", ...uniqueStatuses];
+    return ["active-notyet", "all", ...uniqueStatuses];
   }, [students]);
 
   const subjects = useMemo(() => {
@@ -247,7 +247,11 @@ export default function StudentList({
           .toLowerCase()
           .includes(searchQuery.toLowerCase());
 
-      const matchesStatus = statusFilter === "all" || student.status === statusFilter;
+      const matchesStatus = 
+        statusFilter === "all" || 
+        student.status === statusFilter ||
+        (statusFilter === "active-notyet" && 
+         (student.status.toLowerCase() === "active" || student.status.toLowerCase() === "not yet"));
       const matchesSubject = subjectFilter === "all" || student.subject === subjectFilter;
       const matchesUstaz =
         ustazFilter === "all" ||
@@ -303,7 +307,7 @@ export default function StudentList({
 
   const clearAllFilters = () => {
     setSearchQuery("");
-    setStatusFilter("all");
+    setStatusFilter("active-notyet");
     setSubjectFilter("all");
     setUstazFilter("all");
     setPackageFilter("all");
@@ -315,7 +319,7 @@ export default function StudentList({
   const getActiveFiltersCount = () => {
     let count = 0;
     if (searchQuery) count++;
-    if (statusFilter !== "all") count++;
+    if (statusFilter !== "active-notyet") count++;
     if (subjectFilter !== "all") count++;
     if (ustazFilter !== "all") count++;
     if (packageFilter !== "all") count++;
@@ -381,7 +385,8 @@ export default function StudentList({
               >
                 {statuses.map((status) => (
                   <option key={status} value={status}>
-                    {status === "all" ? "All Statuses" : status}
+                    {status === "all" ? "All Statuses" : 
+                     status === "active-notyet" ? "Active & Not Yet" : status}
                   </option>
                 ))}
               </select>
