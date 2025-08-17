@@ -176,10 +176,10 @@ export default function UserManagementPage() {
         return;
       }
       
-      // Validate schedule format (should contain time patterns like 4:00, 5:00)
-      const timePattern = /^\d{1,2}:\d{2}(\s*,\s*\d{1,2}:\d{2})*$/;
+      // Validate schedule format (supports both 24h and 12h with AM/PM)
+      const timePattern = /^\d{1,2}:\d{2}(\s*(AM|PM|am|pm))?(\s*,\s*\d{1,2}:\d{2}(\s*(AM|PM|am|pm))?)*$/;
       if (!timePattern.test(teacherSchedule.trim())) {
-        setError("Please enter schedule in correct format (e.g. 4:00, 5:00, 6:00)");
+        setError("Please enter schedule in correct format (e.g. 4:00, 5:00 PM, 2:00 AM)");
         return;
       }
       
@@ -651,16 +651,16 @@ export default function UserManagementPage() {
                       value={teacherSchedule}
                       onChange={(e) => {
                         const value = e.target.value;
-                        // Allow only numbers, colons, commas, and spaces
-                        const sanitized = value.replace(/[^0-9:, ]/g, '');
+                        // Allow numbers, colons, commas, spaces, and AM/PM
+                        const sanitized = value.replace(/[^0-9:, APMapm]/g, '');
                         setTeacherSchedule(sanitized);
                       }}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                       required
-                      placeholder="e.g. 4:00, 5:00, 6:00"
+                      placeholder="e.g. 4:00, 5:00 PM, 2:00 AM"
                     />
                     <p className="text-sm text-gray-500 mt-2">
-                      Enter time slots separated by commas (e.g. 4:00, 5:00, 6:00)
+                      Enter time slots separated by commas (e.g. 4:00, 5:00 PM, 2:00 AM)
                     </p>
                   </div>
 

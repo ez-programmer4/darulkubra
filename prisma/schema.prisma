@@ -18,7 +18,7 @@ model wpos_wpdatatable_24 {
   ustazid                 String                      @id @db.VarChar(255)
   ustazname               String?                     @db.VarChar(120)
   phone                   String?                     @db.VarChar(32)
-  schedule                String?                     @db.Text
+  schedule                String?                     @db.VarChar(255)
   password                String                      @db.VarChar(255)
   control                 String?                     @db.VarChar(255)
   created_at              DateTime?                   @default(now()) @db.Timestamp(0)
@@ -381,6 +381,8 @@ model notification {
   createdAt DateTime @default(now()) @db.Timestamp(0)
   userId    String   @db.VarChar(255)
   userRole  String   @db.VarChar(50)
+
+  @@map("Notification")
 }
 
 model payment {
