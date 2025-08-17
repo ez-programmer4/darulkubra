@@ -53,8 +53,9 @@ export async function POST(
       return NextResponse.json({ error: "Not your student" }, { status: 403 });
     }
 
-    // Coerce/validate fields
+    // Coerce/validate fields - adjust for local timezone (Ethiopia is UTC+3)
     const now = new Date();
+    const localTime = new Date(now.getTime() + (3 * 60 * 60 * 1000)); // Add 3 hours for Ethiopia timezone
     const expiry = expiration_date ? new Date(expiration_date) : null;
     const tokenToUse: string =
       (tracking_token && String(tracking_token)) ||
@@ -69,7 +70,7 @@ export async function POST(
           ustazid: teacherId,
           link,
           tracking_token: tokenToUse,
-          sent_time: now,
+          sent_time: localTime,
           expiration_date: expiry ?? undefined,
         },
       });
@@ -80,7 +81,7 @@ export async function POST(
       try {
         await prisma.$executeRaw`
           INSERT INTO wpos_zoom_links (studentid, ustazid, link, tracking_token, sent_time, expiration_date, clicked_at, report, Click, Status)
-          VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${now}, ${expiry}, NULL, 0, 0, 'sent')
+          VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${localTime}, ${expiry}, NULL, 0, 0, 'sent')
         `;
         
         // Get the created record
