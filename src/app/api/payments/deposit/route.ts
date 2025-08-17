@@ -67,7 +67,6 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log("All payments found:", allPayments.length);
     // Now get deposits specifically, but first check all reasons
     const uniqueReasons = [...new Set(allPayments.map((p) => p.reason))];
     // Get deposits with any reason that might indicate a deposit
@@ -101,7 +100,6 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log("Deposits found:", deposits.length);
     // If we still don't find any deposits, let's try a more direct query
     if (deposits.length === 0) {
       const directDeposits = await prisma.payment.findMany({
@@ -125,7 +123,6 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      console.log("Direct deposits found:", directDeposits.length);
       // Use the direct query results as deposits
       const formattedDeposits = directDeposits.map((deposit) => {
         const formatted = {
@@ -142,7 +139,6 @@ export async function GET(request: NextRequest) {
         return formatted;
       });
 
-      console.log("Formatted deposits:", formattedDeposits.length);
       return NextResponse.json(formattedDeposits);
     }
 
@@ -159,7 +155,6 @@ export async function GET(request: NextRequest) {
       status: deposit.status || "pending",
     }));
 
-    console.log("Final formatted deposits:", formattedDeposits.length);
     return NextResponse.json(formattedDeposits);
   } catch (error) {
     return NextResponse.json(
@@ -243,7 +238,6 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      console.log("Deposit created:", deposit.id);
       // Format the response to match the expected format
       const formattedDeposit = {
         ...deposit,

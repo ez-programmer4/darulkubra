@@ -155,7 +155,6 @@ export function AttendanceAnalytics({
         });
         if (controllerCode) {
           params.append("controllerId", controllerCode); // API expects controllerId as param name
-          console.log(`Fetching with controllerCode: ${controllerCode}`);
         }
         const response = await fetch(
           `/api/admin/attendance/analytics?${params.toString()}`,

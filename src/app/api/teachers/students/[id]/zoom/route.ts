@@ -9,10 +9,8 @@ export async function POST(
 ) {
   try {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    console.log("Zoom API - Token:", token);
 
     if (!token || token.role !== "teacher") {
-      console.log("Zoom API - Access denied. Role:", token?.role);
       return NextResponse.json(
         { error: "Unauthorized - Teacher access required" },
         { status: 403 }
@@ -37,39 +35,32 @@ export async function POST(
       where: { wdt_ID: studentId },
       select: { ustaz: true, chatId: true, name: true, phoneno: true },
     });
-    console.log("Zoom API - Student check:", { studentId, student, teacherId });
 
     if (!student) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
     if (student.ustaz !== teacherId) {
-      console.log(
-        "Zoom API - Ownership denied. Student ustaz:",
-        student?.ustaz,
-        "Teacher ID:",
-        teacherId
-      );
       return NextResponse.json({ error: "Not your student" }, { status: 403 });
     }
 
     // Coerce/validate fields - adjust for local timezone (Ethiopia is UTC+3)
     const now = new Date();
-    const localTime = new Date(now.getTime() + (3 * 60 * 60 * 1000)); // Add 3 hours for Ethiopia timezone
+    const localTime = new Date(now.getTime() + 3 * 60 * 60 * 1000); // Add 3 hours for Ethiopia timezone
     const expiry = expiration_date ? new Date(expiration_date) : null;
-    
+
     // Format as 12-hour time string
-    const timeString = localTime.toLocaleTimeString('en-US', { hour12: true });
-    
+    const timeString = localTime.toLocaleTimeString("en-US", { hour12: true });
+
     // Format time as 12-hour with AM/PM for display
-    const formattedTime = localTime.toLocaleString('en-US', {
-      year: 'numeric',
-      month: '2-digit', 
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
+    const formattedTime = localTime.toLocaleString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
     });
     const tokenToUse: string =
       (tracking_token && String(tracking_token)) ||
@@ -90,43 +81,41 @@ export async function POST(
       });
     } catch (createError: any) {
       console.error("Zoom link creation error:", createError);
-      
+
       // Try raw SQL as fallback
       try {
         await prisma.$executeRaw`
           INSERT INTO wpos_zoom_links (studentid, ustazid, link, tracking_token, sent_time, expiration_date, clicked_at, report, Click, Status)
           VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${localTime}, ${expiry}, NULL, 0, 0, 'sent')
         `;
-        
+
         // Get the created record
         created = await prisma.wpos_zoom_links.findFirst({
           where: {
             studentid: studentId,
-            tracking_token: tokenToUse
+            tracking_token: tokenToUse,
           },
-          orderBy: { id: 'desc' }
+          orderBy: { id: "desc" },
         });
-        
+
         if (!created) {
           throw new Error("Failed to retrieve created zoom link");
         }
-        
-        console.log("Zoom link created with raw SQL");
       } catch (rawError: any) {
         console.error("Raw SQL zoom link creation failed:", {
           error: rawError,
           code: rawError.code,
           message: rawError.message,
-          meta: rawError.meta
+          meta: rawError.meta,
         });
-        
+
         // Return a response instead of throwing to avoid 500 error
         return NextResponse.json(
-          { 
-            error: "Database error", 
+          {
+            error: "Database error",
             details: rawError.message || "Failed to create zoom link",
             notification_sent: false,
-            notification_method: "none"
+            notification_method: "none",
           },
           { status: 500 }
         );
@@ -145,82 +134,68 @@ export async function POST(
     let notificationSent = false;
     let notificationError = null;
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    
-    console.log("Telegram config check:", {
-      hasBotToken: !!botToken,
-      studentChatId: student.chatId,
-      botTokenLength: botToken?.length
-    });
 
     if (!botToken) {
       notificationError = "Telegram bot token not configured";
       console.error("TELEGRAM_BOT_TOKEN environment variable is missing");
     } else if (!student.chatId) {
       notificationError = "Student has no Telegram chat ID";
-      console.log("Student has no chatId:", studentId);
     } else {
       try {
-        const message = `🎓 Assalamu Alaikum dear ${student.name ?? "student"},\n\nYour teacher has shared a Zoom link for your class. Click the button below to join:`;
-        
+        const message = `🎓 Assalamu Alaikum dear ${
+          student.name ?? "student"
+        },\n\nYour teacher has shared a Zoom link for your class. Click the button below to join:`;
+
         const requestPayload = {
           chat_id: student.chatId,
           text: message,
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [[
-              { 
-                text: "🔗 Join Zoom Class", 
-                url: trackURL 
-              }
-            ]]
-          }
+            inline_keyboard: [
+              [
+                {
+                  text: "🔗 Join Zoom Class",
+                  url: trackURL,
+                },
+              ],
+            ],
+          },
         };
-
-        console.log("Sending Telegram message:", {
-          chat_id: student.chatId,
-          messageLength: message.length,
-          trackURL
-        });
 
         const telegramResponse = await fetch(
           `https://api.telegram.org/bot${botToken}/sendMessage`,
           {
             method: "POST",
-            headers: { 
+            headers: {
               "Content-Type": "application/json",
-              "User-Agent": "ZoomLinkBot/1.0"
+              "User-Agent": "ZoomLinkBot/1.0",
             },
             body: JSON.stringify(requestPayload),
           }
         );
 
         const responseData = await telegramResponse.json();
-        console.log("Telegram API response:", {
-          ok: telegramResponse.ok,
-          status: telegramResponse.status,
-          data: responseData
-        });
 
         if (telegramResponse.ok && responseData.ok) {
           notificationSent = true;
-          console.log("✅ Zoom link sent via Telegram to student:", studentId);
         } else {
           notificationError = responseData.description || "Telegram API error";
           console.error("❌ Telegram API error:", {
             error_code: responseData.error_code,
             description: responseData.description,
-            parameters: responseData.parameters
+            parameters: responseData.parameters,
           });
         }
       } catch (err) {
-        notificationError = err instanceof Error ? err.message : "Unknown error";
+        notificationError =
+          err instanceof Error ? err.message : "Unknown error";
         console.error("❌ Telegram request failed:", err);
       }
     }
 
     return NextResponse.json(
-      { 
-        id: created.id, 
+      {
+        id: created.id,
         tracking_token: tokenToUse,
         tracking_url: trackURL,
         notification_sent: notificationSent,
@@ -228,7 +203,7 @@ export async function POST(
         notification_error: notificationError,
         student_name: student.name,
         student_chat_id: student.chatId,
-        sent_time_formatted: timeString
+        sent_time_formatted: timeString,
       },
       { status: 201 }
     );

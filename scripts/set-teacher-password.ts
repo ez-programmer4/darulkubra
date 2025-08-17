@@ -40,8 +40,6 @@ async function main() {
       where: { ustazid },
       data: { password: hashedPassword },
     });
-
-    console.log(`Successfully set password for teacher ${ustazid}.`);
   } catch (error) {
     console.error("An error occurred:", error);
   } finally {

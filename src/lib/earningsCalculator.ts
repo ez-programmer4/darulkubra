@@ -94,8 +94,6 @@ export class EarningsCalculator {
       const config = await this.getEarningsConfig();
       let controllerIds: string[] = [];
 
-      console.log("EarningsCalculator: params:", params);
-
       if (params.controllerId) {
         const controllerExists = await prisma.wpos_wpdatatable_28.findFirst({
           where: { code: params.controllerId },
@@ -105,10 +103,6 @@ export class EarningsCalculator {
           return [];
         }
         controllerIds = [params.controllerId];
-        console.log(
-          "EarningsCalculator: Using specific controller:",
-          params.controllerId
-        );
       } else {
         const students = await prisma.wpos_wpdatatable_23.findMany({
           where: { u_control: { not: null } },
@@ -160,10 +154,6 @@ export class EarningsCalculator {
               name: true,
             },
           });
-
-          console.log(
-            `Controller ${controllerId}: Found ${students.length} students`
-          );
 
           const activeStudentsArr = students.filter(
             (s) => s.status === "Active"
@@ -227,14 +217,6 @@ export class EarningsCalculator {
 
           // Log unpaid students for debugging
           if (unpaidActiveArr.length > 0) {
-            console.log(
-              `Controller ${controllerId}: Unpaid active students`,
-              unpaidActiveArr.map((s) => ({
-                id: s.wdt_ID,
-                name: s.name,
-                status: s.status,
-              }))
-            );
           }
 
           const referencedStudents = await prisma.wpos_wpdatatable_23.findMany({

@@ -292,8 +292,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log("Final u_control value:", u_control);
-
     if (!u_control) {
       return NextResponse.json(
         {

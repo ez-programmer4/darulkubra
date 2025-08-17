@@ -53,33 +53,28 @@ export const authOptions: NextAuthOptions = {
               where: { ustazname: credentials.username },
             });
             if (!user) {
-              console.log("Teacher not found:", credentials.username);
               return null;
             }
             if (!user.password) {
-              console.log("Teacher has no password:", credentials.username);
               return null;
             }
-            
+
             // Check if password is hashed (bcrypt hashes start with $2)
-            const isHashed = user.password.startsWith('$2');
+            const isHashed = user.password.startsWith("$2");
             let isValid = false;
-            
+
             if (isHashed) {
               // Password is hashed, use bcrypt compare
               isValid = await compare(credentials.password, user.password);
-              console.log("Using hashed password comparison for:", credentials.username);
             } else {
               // Password is plain text, compare directly
               isValid = credentials.password === user.password;
-              console.log("Using plain text password comparison for:", credentials.username);
             }
-            
+
             if (!isValid) {
-              console.log("Invalid password for teacher:", credentials.username, "- Password type:", isHashed ? "hashed" : "plain");
               return null;
             }
-            console.log("Teacher login successful:", credentials.username);
+
             return {
               id: user.ustazid,
               name: user.ustazname ?? "",

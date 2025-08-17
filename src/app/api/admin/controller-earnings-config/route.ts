@@ -77,8 +77,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+
     const parseResult = ConfigSchema.safeParse(body);
     if (!parseResult.success) {
+      console.error("Validation error:", parseResult.error.issues);
       return NextResponse.json(
         { error: "Invalid input", details: parseResult.error.issues },
         { status: 400 }
@@ -98,35 +100,16 @@ export async function POST(req: NextRequest) {
 
     const user = session.user as { id: string; role: string };
 
-    // Deactivate all existing configurations
-    await prisma.controllerearningsconfig.updateMany({
-      where: { isActive: true },
-      data: { isActive: false },
-    });
+    try {
+      // Deactivate all existing configurations
+      await prisma.controllerearningsconfig.updateMany({
+        where: { isActive: true },
+        data: { isActive: false },
+      });
 
-    // Create new configuration
-    const config = await prisma.controllerearningsconfig.create({
-      data: {
-        mainBaseRate,
-        referralBaseRate,
-        leavePenaltyMultiplier,
-        leaveThreshold,
-        unpaidPenaltyMultiplier,
-        referralBonusMultiplier,
-        targetEarnings,
-        effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
-        isActive: true,
-        adminId: user.id,
-        updatedAt: new Date(),
-      },
-    });
-
-    // Log the change
-    await prisma.auditlog.create({
-      data: {
-        actionType: "earnings_config_updated",
-        adminId: user.id,
-        details: JSON.stringify({
+      // Create new configuration
+      const config = await prisma.controllerearningsconfig.create({
+        data: {
           mainBaseRate,
           referralBaseRate,
           leavePenaltyMultiplier,
@@ -134,18 +117,57 @@ export async function POST(req: NextRequest) {
           unpaidPenaltyMultiplier,
           referralBonusMultiplier,
           targetEarnings,
-        }),
-      },
+          effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
+          isActive: true,
+          adminId: user.id,
+          updatedAt: new Date(),
+        },
+      });
+
+      // Log the change (optional, skip if audit table doesn't exist)
+      try {
+        await prisma.auditlog.create({
+          data: {
+            actionType: "earnings_config_updated",
+            adminId: user.id,
+            details: JSON.stringify({
+              mainBaseRate,
+              referralBaseRate,
+              leavePenaltyMultiplier,
+              leaveThreshold,
+              unpaidPenaltyMultiplier,
+              referralBonusMultiplier,
+              targetEarnings,
+            }),
+          },
+        });
+      } catch (auditError) {
+        console.warn("Failed to create audit log:", auditError);
+        // Continue without failing the main operation
+      }
+
+      return NextResponse.json(config, { status: 201 });
+    } catch (dbError: any) {
+      console.error("Database error:", {
+        message: dbError.message,
+        code: dbError.code,
+        meta: dbError.meta,
+      });
+      throw dbError;
+    }
+  } catch (err: any) {
+    console.error("Controller earnings config POST error:", {
+      message: err.message,
+      code: err.code,
+      meta: err.meta,
+      stack: err.stack,
     });
 
-    return NextResponse.json(config, { status: 201 });
-  } catch (err) {
-    const error = err as Error;
-    if (error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
     return NextResponse.json(
-      { error: "Failed to create earnings config." },
+      {
+        error: "Failed to create earnings config.",
+        details: err.message || "Unknown error",
+      },
       { status: 500 }
     );
   }

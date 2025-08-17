@@ -99,19 +99,6 @@ export async function GET(req: NextRequest) {
     dayPackageOr.push({ daypackages: null });
     dayPackageOr.push({ daypackages: "" });
 
-    console.log("Query Parameters:", {
-      date,
-      controllerId,
-      selectedDayName,
-      ustaz,
-      attendanceStatus,
-      sentStatus,
-      clickedStatus,
-      page,
-      limit,
-    });
-    console.log("dayPackageOr filter:", JSON.stringify(dayPackageOr, null, 2));
-
     // Notify logic
     if (notify) {
       const student = await prisma.wpos_wpdatatable_23.findUnique({
@@ -250,11 +237,6 @@ export async function GET(req: NextRequest) {
       skip: (page - 1) * limit,
       take: limit,
     });
-
-    console.log(
-      `Controller ${controllerId}: Filtered students for ${selectedDayName}`,
-      records.map((r) => ({ name: r.name, daypackages: r.daypackages }))
-    );
 
     const integratedData = records.map((record: any) => {
       function to24Hour(time12h: string | null | undefined) {

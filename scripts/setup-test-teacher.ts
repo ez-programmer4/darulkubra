@@ -19,11 +19,6 @@ async function main() {
       return;
     }
 
-    console.log("Found teacher:", {
-      id: teacher.ustazid,
-      name: teacher.ustazname,
-    });
-
     // Set a test password
     const testPassword = "test123";
     const hashedPassword = await hash(testPassword, 10);
@@ -32,16 +27,6 @@ async function main() {
       where: { ustazid: teacher.ustazid },
       data: { password: hashedPassword },
     });
-
-    console.log("\nTest account set up successfully:");
-    console.log("--------------------------------");
-    console.log("Teacher ID:", teacher.ustazid);
-    console.log("Teacher Name:", teacher.ustazname);
-    console.log("Password:", testPassword);
-    console.log("--------------------------------");
-    console.log(
-      "\nYou can now use these credentials to log in at /teachers/login"
-    );
   } catch (error) {
     console.error("An error occurred:", error);
   } finally {

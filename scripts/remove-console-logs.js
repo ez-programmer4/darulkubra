@@ -54,7 +54,7 @@ function removeConsoleLogs(filePath) {
 
     if (content !== originalContent) {
       fs.writeFileSync(filePath, content);
-      console.log(`Cleaned: ${filePath}`);
+
       return true;
     }
     return false;
@@ -68,14 +68,9 @@ function removeConsoleLogs(filePath) {
 const srcDir = path.join(__dirname, "..", "src");
 const files = findFiles(srcDir);
 
-console.log(`Found ${files.length} files to process...`);
-
 let cleanedCount = 0;
 files.forEach((file) => {
   if (removeConsoleLogs(file)) {
     cleanedCount++;
   }
 });
-
-console.log(`\nCleaned ${cleanedCount} files.`);
-console.log("Console.log statements have been removed from production files.");

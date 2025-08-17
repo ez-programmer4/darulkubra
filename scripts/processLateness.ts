@@ -128,14 +128,10 @@ async function main(dateArg?: string) {
           deductionTier,
         },
       });
-      console.log(
-        `Inserted lateness for teacher ${student.ustaz} student ${student.wdt_ID} on ${dateStr}`
-      );
     }
   }
 
   await prisma.$disconnect();
-  console.log("Lateness processing complete.");
 }
 
 // Run for today or a provided date (YYYY-MM-DD)

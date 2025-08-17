@@ -127,14 +127,7 @@ export default function AttendanceList() {
         { credentials: "include" }
       );
       const result = await response.json();
-      console.log(
-        "Attendance data:",
-        result.integratedData?.map((r: any) => ({
-          student: r.studentName,
-          status: r.attendance_status,
-          date: date,
-        }))
-      );
+
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
       if (notifyStudentId) {
@@ -168,7 +161,7 @@ export default function AttendanceList() {
           }
           // Parse scheduledAt
           let scheduled: Date | null = null;
-          if (record.scheduledAt && record.scheduledAt !== 'null') {
+          if (record.scheduledAt && record.scheduledAt !== "null") {
             scheduled = parseISO(record.scheduledAt);
             if (!isValid(scheduled)) scheduled = null;
           }
@@ -263,7 +256,6 @@ export default function AttendanceList() {
           else if (diff <= 3) diffLabel = "Early";
           else if (diff <= 5) diffLabel = "On Time";
           else diffLabel = "Very Late";
-
         }
         return [
           record.studentName,
@@ -331,7 +323,12 @@ export default function AttendanceList() {
   const totalPages = Math.ceil(total / limit);
 
   const formatDateSafely = (dateStr: string | null) => {
-    if (!dateStr || dateStr === "Not Sent" || dateStr === "N/A" || dateStr === "null") {
+    if (
+      !dateStr ||
+      dateStr === "Not Sent" ||
+      dateStr === "N/A" ||
+      dateStr === "null"
+    ) {
       return "N/A";
     }
     try {
@@ -351,13 +348,6 @@ export default function AttendanceList() {
   );
 
   // Attendance statistics calculation based on selected date
-  console.log(
-    "Filtered data:",
-    filteredData.map((r) => ({
-      name: r.studentName,
-      status: r.attendance_status,
-    }))
-  );
 
   const attendanceStats = filteredData.reduce(
     (
@@ -963,35 +953,47 @@ export default function AttendanceList() {
                               : null;
                           let colorClass = "bg-gray-100 text-gray-800";
                           let diffLabel = "N/A";
-                          if (link && link.sent_time && record.scheduledAt && record.scheduledAt !== 'null') {
+                          if (
+                            link &&
+                            link.sent_time &&
+                            record.scheduledAt &&
+                            record.scheduledAt !== "null"
+                          ) {
                             // Fix malformed scheduledAt format
-                            let fixedScheduledAt = record.scheduledAt.replace(/T(\d{1,2}):(\d{2}) (AM|PM)\.000Z/, (match, hour, min, period) => {
-                              let h = parseInt(hour);
-                              if (period === 'PM' && h !== 12) h += 12;
-                              if (period === 'AM' && h === 12) h = 0;
-                              return `T${h.toString().padStart(2, '0')}:${min}:00.000Z`;
-                            });
+                            let fixedScheduledAt = record.scheduledAt.replace(
+                              /T(\d{1,2}):(\d{2}) (AM|PM)\.000Z/,
+                              (match, hour, min, period) => {
+                                let h = parseInt(hour);
+                                if (period === "PM" && h !== 12) h += 12;
+                                if (period === "AM" && h === 12) h = 0;
+                                return `T${h
+                                  .toString()
+                                  .padStart(2, "0")}:${min}:00.000Z`;
+                              }
+                            );
                             const scheduled = new Date(fixedScheduledAt);
                             const sent = new Date(link.sent_time);
-                            if (!isNaN(scheduled.getTime()) && !isNaN(sent.getTime())) {
+                            if (
+                              !isNaN(scheduled.getTime()) &&
+                              !isNaN(sent.getTime())
+                            ) {
                               const diff = Math.round(
                                 (sent.getTime() - scheduled.getTime()) / 60000
                               );
-                            if (diff < 0) {
-                              diffLabel = `${Math.abs(diff)} min early`;
-                              colorClass = "bg-green-100 text-green-800";
-                            } else if (diff <= 3) {
-                              diffLabel = `Early (${diff} min)`;
-                              colorClass = "bg-green-100 text-green-800";
-                            } else if (diff <= 5) {
-                              diffLabel = `On Time (${diff} min)`;
-                              colorClass = "bg-blue-100 text-blue-800";
+                              if (diff < 0) {
+                                diffLabel = `${Math.abs(diff)} min early`;
+                                colorClass = "bg-green-100 text-green-800";
+                              } else if (diff <= 3) {
+                                diffLabel = `Early (${diff} min)`;
+                                colorClass = "bg-green-100 text-green-800";
+                              } else if (diff <= 5) {
+                                diffLabel = `On Time (${diff} min)`;
+                                colorClass = "bg-blue-100 text-blue-800";
                               } else {
                                 diffLabel = `Very Late (${diff} min)`;
                                 colorClass = "bg-red-100 text-red-800";
                               }
                             }
-
                           }
                           return (
                             <span

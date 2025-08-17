@@ -327,13 +327,6 @@ export default function AssignedStudents() {
       }
       setSending((s) => ({ ...s, [studentId]: true }));
 
-      console.log(
-        "Sending zoom link for student:",
-        studentId,
-        "with link:",
-        form.link
-      );
-
       const res = await fetch(`/api/teachers/students/${studentId}/zoom`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -342,8 +335,6 @@ export default function AssignedStudents() {
         }),
         credentials: "include",
       });
-
-      console.log("Zoom API response status:", res.status);
 
       if (!res.ok) {
         let errorMessage = "Failed to send Zoom link";
@@ -360,7 +351,6 @@ export default function AssignedStudents() {
       }
 
       const responseData = await res.json();
-      console.log("Zoom API success response:", responseData);
 
       // Show success message with notification details
       const successMessage = responseData.notification_sent

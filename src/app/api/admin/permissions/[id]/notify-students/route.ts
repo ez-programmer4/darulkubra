@@ -6,7 +6,7 @@ async function sendSMS(phone: string, message: string) {
   const apiToken = process.env.AFROMSG_API_TOKEN;
   const senderUid = process.env.AFROMSG_SENDER_UID;
   const senderName = process.env.AFROMSG_SENDER_NAME;
-  
+
   if (apiToken && senderUid && senderName) {
     const payload = {
       from: senderUid,
@@ -14,7 +14,7 @@ async function sendSMS(phone: string, message: string) {
       to: phone,
       message,
     };
-    
+
     const response = await fetch("https://api.afromessage.com/api/send", {
       method: "POST",
       headers: {
@@ -23,7 +23,7 @@ async function sendSMS(phone: string, message: string) {
       },
       body: JSON.stringify(payload),
     });
-    
+
     return response.ok;
   }
   return false;
@@ -48,40 +48,42 @@ export async function POST(
     });
 
     if (!permission) {
-      return NextResponse.json({ error: "Permission request not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Permission request not found" },
+        { status: 404 }
+      );
     }
-    
+
     // Use actual date from permission request
     const actualDate = permission.requestedDates;
     const dateToUse = actualDate || absenceDate;
-    const formattedDate = new Date(dateToUse).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    const formattedDate = new Date(dateToUse).toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
-    
-    console.log("Student notification - Permission date:", actualDate);
-    console.log("Student notification - Frontend date:", absenceDate);
-    console.log("Student notification - Using date:", dateToUse);
-    console.log("Student notification - Formatted date:", formattedDate);
 
     // Get all students assigned to this teacher
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: { ustaz: permission.teacherId },
-      select: { 
+      select: {
         wdt_ID: true,
-        name: true, 
+        name: true,
         phoneno: true,
-        chatId: true 
-      }
+        chatId: true,
+      },
     });
 
     let smsCount = 0;
     let telegramCount = 0;
     const methods = [];
 
-    const message = `Dear Student, your teacher ${teacherName || "your teacher"} will be absent on ${formattedDate} due to ${reason || "personal reasons"}. Please check for any schedule changes.`;
+    const message = `Dear Student, your teacher ${
+      teacherName || "your teacher"
+    } will be absent on ${formattedDate} due to ${
+      reason || "personal reasons"
+    }. Please check for any schedule changes.`;
 
     // Send SMS notifications
     for (const student of students) {
@@ -92,7 +94,10 @@ export async function POST(
             smsCount++;
           }
         } catch (error) {
-          console.error(`Failed to send SMS to student ${student.wdt_ID}:`, error);
+          console.error(
+            `Failed to send SMS to student ${student.wdt_ID}:`,
+            error
+          );
         }
       }
     }
@@ -120,7 +125,10 @@ export async function POST(
               telegramCount++;
             }
           } catch (error) {
-            console.error(`Failed to send Telegram to student ${student.wdt_ID}:`, error);
+            console.error(
+              `Failed to send Telegram to student ${student.wdt_ID}:`,
+              error
+            );
           }
         }
       }
@@ -140,7 +148,6 @@ export async function POST(
       totalStudents: students.length,
       message: `Notified ${totalSent} students out of ${students.length} total students`,
     });
-
   } catch (error) {
     console.error("Notify students error:", error);
     return NextResponse.json(

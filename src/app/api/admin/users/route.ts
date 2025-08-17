@@ -248,63 +248,48 @@ export async function POST(req: NextRequest) {
         // Validate controller exists by code
         const controller = await prisma.wpos_wpdatatable_28.findUnique({
           where: { code: controlIdStr },
-          select: { code: true, name: true }
+          select: { code: true, name: true },
         });
         if (!controller) {
-          console.log("Controller not found with code:", controlIdStr);
           return NextResponse.json(
             { error: `Controller with code '${controlIdStr}' not found` },
             { status: 404 }
           );
         }
-        console.log("Controller found:", controller);
-        
+
         // Check database schema for wpos_wpdatatable_24
         try {
-          const schemaCheck = await prisma.$queryRaw`DESCRIBE wpos_wpdatatable_24`;
-          console.log("Database schema for wpos_wpdatatable_24:", schemaCheck);
+          const schemaCheck =
+            await prisma.$queryRaw`DESCRIBE wpos_wpdatatable_24`;
         } catch (schemaError) {
           console.error("Schema check error:", schemaError);
         }
-        
+
         // Use teacher name as ustazid (username)
         const ustazid = name.toLowerCase().replace(/\s+/g, "");
 
         // Check if ustazid already exists
         const existingTeacher = await prisma.wpos_wpdatatable_24.findUnique({
-          where: { ustazid }
+          where: { ustazid },
         });
-        
+
         if (existingTeacher) {
           throw new Error(`Teacher ID ${ustazid} already exists`);
         }
-
-        // Debug: Log all data before creation
-        console.log("=== TEACHER CREATION DEBUG ===");
-        console.log("Data to create:", {
-          ustazid,
-          ustazname: name,
-          password: "[HIDDEN]",
-          schedule: schedule || "",
-          control: controlIdStr,
-          phone: phone || "",
-        });
-        console.log("Controller validation passed:", controller);
-        console.log("==============================");
 
         try {
           // Try raw SQL insert as fallback
           await prisma.$executeRaw`
             INSERT INTO wpos_wpdatatable_24 (ustazid, ustazname, password, schedule, control, phone, created_at)
-            VALUES (${ustazid}, ${name}, ${hashedPassword}, ${schedule || ""}, ${controlIdStr}, ${phone || ""}, NOW())
+            VALUES (${ustazid}, ${name}, ${hashedPassword}, ${
+            schedule || ""
+          }, ${controlIdStr}, ${phone || ""}, NOW())
           `;
-          
+
           // Fetch the created record
           newUser = await prisma.wpos_wpdatatable_24.findUnique({
-            where: { ustazid }
+            where: { ustazid },
           });
-          
-          console.log("Teacher created successfully with raw SQL:", ustazid);
         } catch (createError: any) {
           console.error("=== TEACHER CREATION ERROR ===");
           console.error("Error code:", createError.code);
@@ -312,21 +297,27 @@ export async function POST(req: NextRequest) {
           console.error("Error meta:", createError.meta);
           console.error("Full error:", createError);
           console.error("==============================");
-          
+
           // Check specific error types
-          if (createError.code === 'P2002') {
+          if (createError.code === "P2002") {
             throw new Error(`Teacher ID ${ustazid} already exists`);
           }
-          
-          if (createError.code === 'P2003') {
+
+          if (createError.code === "P2003") {
             throw new Error(`Invalid controller code: ${controlIdStr}`);
           }
-          
-          if (createError.code === 'P2021') {
-            throw new Error(`Database table issue - please contact administrator`);
+
+          if (createError.code === "P2021") {
+            throw new Error(
+              `Database table issue - please contact administrator`
+            );
           }
-          
-          throw new Error(`Failed to create teacher: ${createError.message || 'Unknown database error'}`);
+
+          throw new Error(
+            `Failed to create teacher: ${
+              createError.message || "Unknown database error"
+            }`
+          );
         }
         break;
       case "registral":
@@ -409,9 +400,10 @@ export async function PUT(req: NextRequest) {
       case "controller": {
         const idStr = String(id);
         const numeric = Number(idStr);
-        const whereUnique = Number.isFinite(numeric) && /^\d+$/.test(idStr)
-          ? { wdt_ID: numeric }
-          : { code: idStr };
+        const whereUnique =
+          Number.isFinite(numeric) && /^\d+$/.test(idStr)
+            ? { wdt_ID: numeric }
+            : { code: idStr };
         updatedUser = await prisma.wpos_wpdatatable_28.update({
           where: whereUnique,
           data,
@@ -509,9 +501,10 @@ export async function DELETE(req: NextRequest) {
       case "controller": {
         const idStr = String(id);
         const numeric = Number(idStr);
-        const whereUnique = Number.isFinite(numeric) && /^\d+$/.test(idStr)
-          ? { wdt_ID: numeric }
-          : { code: idStr };
+        const whereUnique =
+          Number.isFinite(numeric) && /^\d+$/.test(idStr)
+            ? { wdt_ID: numeric }
+            : { code: idStr };
         await prisma.wpos_wpdatatable_28.delete({
           where: whereUnique,
         });
@@ -521,11 +514,19 @@ export async function DELETE(req: NextRequest) {
         const teacherId = String(id);
         await prisma.$transaction([
           // Remove occupied times for this teacher
-          prisma.wpos_ustaz_occupied_times.deleteMany({ where: { ustaz_id: teacherId } }),
+          prisma.wpos_ustaz_occupied_times.deleteMany({
+            where: { ustaz_id: teacherId },
+          }),
           // Detach zoom links
-          prisma.wpos_zoom_links.updateMany({ where: { ustazid: teacherId }, data: { ustazid: null } }),
+          prisma.wpos_zoom_links.updateMany({
+            where: { ustazid: teacherId },
+            data: { ustazid: null },
+          }),
           // Detach students from this teacher
-          prisma.wpos_wpdatatable_23.updateMany({ where: { ustaz: teacherId }, data: { ustaz: null } }),
+          prisma.wpos_wpdatatable_23.updateMany({
+            where: { ustaz: teacherId },
+            data: { ustaz: null },
+          }),
           // Remove dependent records keyed by teacherId
           prisma.absencerecord.deleteMany({ where: { teacherId } }),
           prisma.attendancesubmissionlog.deleteMany({ where: { teacherId } }),

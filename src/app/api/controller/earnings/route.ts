@@ -48,18 +48,11 @@ export async function GET(request: NextRequest) {
     const controllerId = controller.code; // Use controller code as ID
 
     try {
-      console.log(
-        "Controller Earnings API: Calculating for controller:",
-        controllerId,
-        "month:",
-        yearMonth
-      );
       const calculator = new EarningsCalculator(yearMonth);
       const earnings = await calculator.calculateControllerEarnings({
         controllerId,
         yearMonth,
       });
-      console.log("Controller Earnings API: Found earnings:", earnings.length);
 
       if (earnings.length === 0) {
         return NextResponse.json({

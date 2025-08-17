@@ -33,7 +33,7 @@ export default function RootLayout({
             __html: `
               window.addEventListener('error', function(e) {
                 if (e.message.includes('ChunkLoadError') || e.message.includes('Loading chunk')) {
-                  console.log('Chunk loading error detected, reloading page...');
+              
                   setTimeout(() => {
                     window.location.reload();
                   }, 1000);

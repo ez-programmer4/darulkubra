@@ -86,23 +86,28 @@ export default function TeacherPermissions() {
           throw new Error(`Failed to fetch permissions: ${errorText}`);
         }
         const data = await response.json();
-        console.log("Permissions API response:", data);
-        // Map API response to frontend format
-        const mappedPermissions = Array.isArray(data) ? data.map(perm => ({
-          date: perm.requestedDates,
-          dates: Array.isArray(perm.requestedDates) ? perm.requestedDates : [perm.requestedDates],
-          reason: perm.reasonCategory,
-          details: perm.reasonDetails,
-          status: perm.status,
-          createdAt: perm.createdAt
-        })) : [];
+
+        const mappedPermissions = Array.isArray(data)
+          ? data.map((perm) => ({
+              date: perm.requestedDates,
+              dates: Array.isArray(perm.requestedDates)
+                ? perm.requestedDates
+                : [perm.requestedDates],
+              reason: perm.reasonCategory,
+              details: perm.reasonDetails,
+              status: perm.status,
+              createdAt: perm.createdAt,
+            }))
+          : [];
         setPermissions(mappedPermissions);
-        
+
         // Count today's requests
-        const today = new Date().toISOString().split('T')[0];
-        const todayCount = mappedPermissions.filter(perm => {
+        const today = new Date().toISOString().split("T")[0];
+        const todayCount = mappedPermissions.filter((perm) => {
           if (perm.createdAt) {
-            const requestDate = new Date(perm.createdAt).toISOString().split('T')[0];
+            const requestDate = new Date(perm.createdAt)
+              .toISOString()
+              .split("T")[0];
             return requestDate === today;
           }
           return false;
@@ -126,22 +131,38 @@ export default function TeacherPermissions() {
         });
         if (res.ok) {
           const data = await res.json();
-          console.log("Permission reasons data:", data);
+
           if (data.reasons && Array.isArray(data.reasons)) {
             setPermissionReasons(data.reasons);
           } else if (Array.isArray(data)) {
             setPermissionReasons(data.map((r: any) => r.reason || r.name || r));
           } else {
-            console.log("No valid permission reasons found, using defaults");
-            setPermissionReasons(["Sick Leave", "Personal Emergency", "Family Matter", "Medical Appointment", "Other"]);
+            setPermissionReasons([
+              "Sick Leave",
+              "Personal Emergency",
+              "Family Matter",
+              "Medical Appointment",
+              "Other",
+            ]);
           }
         } else {
-          console.log("Permission reasons API failed, using defaults");
-          setPermissionReasons(["Sick Leave", "Personal Emergency", "Family Matter", "Medical Appointment", "Other"]);
+          setPermissionReasons([
+            "Sick Leave",
+            "Personal Emergency",
+            "Family Matter",
+            "Medical Appointment",
+            "Other",
+          ]);
         }
       } catch (error) {
         console.error("Error loading permission reasons:", error);
-        setPermissionReasons(["Sick Leave", "Personal Emergency", "Family Matter", "Medical Appointment", "Other"]);
+        setPermissionReasons([
+          "Sick Leave",
+          "Personal Emergency",
+          "Family Matter",
+          "Medical Appointment",
+          "Other",
+        ]);
       }
     };
     if (!authLoading) loadReasons();
@@ -156,13 +177,17 @@ export default function TeacherPermissions() {
       if (response.ok) {
         const data = await response.json();
         // Map API response to frontend format
-        const mappedPermissions = Array.isArray(data) ? data.map(perm => ({
-          date: perm.requestedDates,
-          dates: Array.isArray(perm.requestedDates) ? perm.requestedDates : [perm.requestedDates],
-          reason: perm.reasonCategory,
-          details: perm.reasonDetails,
-          status: perm.status
-        })) : [];
+        const mappedPermissions = Array.isArray(data)
+          ? data.map((perm) => ({
+              date: perm.requestedDates,
+              dates: Array.isArray(perm.requestedDates)
+                ? perm.requestedDates
+                : [perm.requestedDates],
+              reason: perm.reasonCategory,
+              details: perm.reasonDetails,
+              status: perm.status,
+            }))
+          : [];
         setPermissions(mappedPermissions);
       }
     } catch {}
@@ -170,10 +195,8 @@ export default function TeacherPermissions() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Submit button clicked!", { date, reason, details });
-    
+
     if (!date || !reason) {
-      console.log("Validation failed: missing date or reason");
       toast({
         title: "Error",
         description: "Date and reason are required.",
@@ -181,9 +204,8 @@ export default function TeacherPermissions() {
       });
       return;
     }
-    
+
     if (!details || details.trim() === "") {
-      console.log("Validation failed: missing details");
       toast({
         title: "Error",
         description: "Details are required for the permission request.",
@@ -191,25 +213,18 @@ export default function TeacherPermissions() {
       });
       return;
     }
-    
-    console.log("All validations passed, proceeding with submission");
-    
-    // Check for duplicate date
-    console.log("Checking for duplicate dates...");
-    console.log("Current permissions:", permissions.map(p => ({ date: p.date, dates: p.dates, status: p.status })));
-    console.log("Checking against date:", date);
-    
+
     const duplicateCheck = permissions.some((req) => {
       const reqDate = req.date;
       const reqDates = req.dates;
-      const matches = (reqDate === date) || (Array.isArray(reqDates) && reqDates.includes(date));
-      console.log(`Comparing: ${reqDate} or ${reqDates} with ${date} = ${matches}`);
+      const matches =
+        reqDate === date ||
+        (Array.isArray(reqDates) && reqDates.includes(date));
+
       return matches;
     });
-    console.log("Duplicate check result:", duplicateCheck);
-    
+
     if (duplicateCheck) {
-      console.log("Duplicate date found, showing error");
       toast({
         title: "Error",
         description:
@@ -218,12 +233,9 @@ export default function TeacherPermissions() {
       });
       return;
     }
-    
-    console.log("No duplicates found, setting isSubmitting to true");
+
     setIsSubmitting(true);
-    console.log("isSubmitting set, now making API call");
-    console.log("Submitting permission request:", { date, reason, details });
-    
+
     try {
       const res = await fetch("/api/teachers/permissions", {
         method: "POST",
@@ -231,13 +243,12 @@ export default function TeacherPermissions() {
         body: JSON.stringify({ date, reason, details }),
         credentials: "include",
       });
-      
-      console.log("API Response status:", res.status);
+
       if (!res.ok) {
         let msg = "Failed to submit request";
         try {
           const j = await res.json();
-          console.log("API Error response:", j);
+
           if (j?.error) {
             msg = j.error;
           }
@@ -254,13 +265,14 @@ export default function TeacherPermissions() {
         }
         throw new Error(msg);
       }
-      
+
       const responseData = await res.json();
-      console.log("Permission request submitted successfully:", responseData);
+
       setSubmitted(true);
       toast({
         title: "Success",
-        description: responseData.message || "Permission request submitted successfully.",
+        description:
+          responseData.message || "Permission request submitted successfully.",
       });
       setDate("");
       setReason("");
@@ -274,7 +286,8 @@ export default function TeacherPermissions() {
       console.error("Permission request error:", err);
       toast({
         title: "Request Failed",
-        description: err.message || "Failed to submit request. Please try again.",
+        description:
+          err.message || "Failed to submit request. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -332,7 +345,10 @@ export default function TeacherPermissions() {
             <div className="h-12 bg-gray-200 rounded-2xl w-2/3 mb-8"></div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-white rounded-2xl p-6 space-y-4 shadow-lg border border-gray-200">
+                <div
+                  key={i}
+                  className="bg-white rounded-2xl p-6 space-y-4 shadow-lg border border-gray-200"
+                >
                   <div className="h-6 bg-gray-200 rounded-xl w-1/3"></div>
                   <div className="h-12 bg-gray-200 rounded-xl"></div>
                   <div className="h-4 bg-gray-200 rounded w-2/3"></div>
@@ -374,12 +390,12 @@ export default function TeacherPermissions() {
     <div className="flex min-h-screen bg-white text-gray-900">
       {/* Mobile Overlay */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden" 
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
-      
+
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-80 md:w-72 bg-black text-white flex flex-col transition-all duration-300 ease-in-out md:static md:translate-x-0 shadow-2xl ${
@@ -395,7 +411,9 @@ export default function TeacherPermissions() {
               <span className="text-lg md:text-xl font-extrabold text-white">
                 Teacher Portal
               </span>
-              <span className="text-xs text-gray-300 hidden md:block">Permission Management</span>
+              <span className="text-xs text-gray-300 hidden md:block">
+                Permission Management
+              </span>
             </div>
           </div>
           <button
@@ -481,7 +499,9 @@ export default function TeacherPermissions() {
                   <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-black">
                     My Permissions
                   </h1>
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium hidden sm:block">Manage your absence requests</p>
+                  <p className="text-gray-600 text-xs sm:text-sm font-medium hidden sm:block">
+                    Manage your absence requests
+                  </p>
                 </div>
               </div>
             </div>
@@ -491,7 +511,7 @@ export default function TeacherPermissions() {
                 className="bg-black hover:bg-gray-800 text-white flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 text-sm sm:text-base flex-1 sm:flex-none justify-center"
                 disabled={!permissions.length}
               >
-                <FiDownload className="h-4 w-4" /> 
+                <FiDownload className="h-4 w-4" />
                 <span className="hidden sm:inline">Export CSV</span>
                 <span className="sm:hidden">Export</span>
               </Button>
@@ -512,27 +532,37 @@ export default function TeacherPermissions() {
                   <h2 className="text-2xl sm:text-3xl font-bold text-black">
                     Permission Request
                   </h2>
-                  <p className="text-gray-600 text-sm sm:text-base mt-1">Submit and manage your absence requests professionally</p>
+                  <p className="text-gray-600 text-sm sm:text-base mt-1">
+                    Submit and manage your absence requests professionally
+                  </p>
                 </div>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
-                    <span className="text-sm font-medium text-gray-700">Current Month: </span>
-                    <span className="font-bold text-black">{selectedMonth.format("MMMM YYYY")}</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      Current Month:{" "}
+                    </span>
+                    <span className="font-bold text-black">
+                      {selectedMonth.format("MMMM YYYY")}
+                    </span>
                   </div>
                 </div>
-                
+
                 <Button
                   variant="outline"
                   className="border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm hover:shadow-md w-full sm:w-auto"
                   onClick={() => setShowForm((v) => !v)}
                 >
                   {showForm ? (
-                    <><FiX className="h-4 w-4 mr-2" /> Hide Request Form</>
+                    <>
+                      <FiX className="h-4 w-4 mr-2" /> Hide Request Form
+                    </>
                   ) : (
-                    <><FiPlus className="h-4 w-4 mr-2" /> New Permission Request</>
+                    <>
+                      <FiPlus className="h-4 w-4 mr-2" /> New Permission Request
+                    </>
                   )}
                 </Button>
               </div>
@@ -540,11 +570,13 @@ export default function TeacherPermissions() {
             {showForm && (
               <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                 {/* Daily Limit Warning */}
-                <div className={`mb-6 p-4 rounded-lg border ${
-                  todayRequestCount >= 1 
-                    ? "bg-red-50 border-red-200" 
-                    : "bg-blue-50 border-blue-200"
-                }`}>
+                <div
+                  className={`mb-6 p-4 rounded-lg border ${
+                    todayRequestCount >= 1
+                      ? "bg-red-50 border-red-200"
+                      : "bg-blue-50 border-blue-200"
+                  }`}
+                >
                   <div className="flex items-center gap-3">
                     {todayRequestCount >= 1 ? (
                       <FiX className="h-5 w-5 text-red-600" />
@@ -552,23 +584,37 @@ export default function TeacherPermissions() {
                       <FiInfo className="h-5 w-5 text-blue-600" />
                     )}
                     <div>
-                      <h4 className={`font-semibold ${
-                        todayRequestCount >= 1 ? "text-red-900" : "text-blue-900"
-                      }`}>
-                        {todayRequestCount >= 1 
-                          ? "Daily Limit Reached" 
-                          : "Permission Request Guidelines"
-                        }
+                      <h4
+                        className={`font-semibold ${
+                          todayRequestCount >= 1
+                            ? "text-red-900"
+                            : "text-blue-900"
+                        }`}
+                      >
+                        {todayRequestCount >= 1
+                          ? "Daily Limit Reached"
+                          : "Permission Request Guidelines"}
                       </h4>
                       {todayRequestCount >= 1 ? (
                         <p className="text-sm text-red-800 mt-2">
-                          You have already submitted <strong>{todayRequestCount} request{todayRequestCount > 1 ? 's' : ''}</strong> today. 
-                          Please wait until tomorrow to submit another permission request.
+                          You have already submitted{" "}
+                          <strong>
+                            {todayRequestCount} request
+                            {todayRequestCount > 1 ? "s" : ""}
+                          </strong>{" "}
+                          today. Please wait until tomorrow to submit another
+                          permission request.
                         </p>
                       ) : (
                         <ul className="text-sm text-blue-800 mt-2 space-y-1">
-                          <li>• You can submit only <strong>one permission request per day</strong></li>
-                          <li>• Requests can be made up to <strong>30 days in advance</strong></li>
+                          <li>
+                            • You can submit only{" "}
+                            <strong>one permission request per day</strong>
+                          </li>
+                          <li>
+                            • Requests can be made up to{" "}
+                            <strong>30 days in advance</strong>
+                          </li>
                           <li>• Cannot request permission for past dates</li>
                           <li>• Admin team will be automatically notified</li>
                         </ul>
@@ -643,7 +689,7 @@ export default function TeacherPermissions() {
                       className="min-h-[120px] border-gray-300 focus:ring-2 focus:ring-black focus:border-black bg-white shadow-sm transition-all duration-200 resize-none"
                     />
                   </div>
-                  
+
                   <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
                     <Button
                       type="button"
@@ -661,40 +707,39 @@ export default function TeacherPermissions() {
                       type="submit"
                       disabled={isSubmitting || todayRequestCount >= 1}
                       onClick={(e) => {
-                        console.log("Button clicked directly!");
                         // Let the form handle submission naturally
                       }}
                       className="bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                    {isSubmitting ? (
-                      <div className="flex items-center">
-                        <svg
-                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Submitting Request...
-                      </div>
-                    ) : todayRequestCount >= 1 ? (
-                      "Daily Limit Reached"
-                    ) : (
-                      "Submit Permission Request"
-                    )}
+                      {isSubmitting ? (
+                        <div className="flex items-center">
+                          <svg
+                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Submitting Request...
+                        </div>
+                      ) : todayRequestCount >= 1 ? (
+                        "Daily Limit Reached"
+                      ) : (
+                        "Submit Permission Request"
+                      )}
                     </Button>
                   </div>
                 </form>
@@ -908,7 +953,8 @@ export default function TeacherPermissions() {
           }
         }
         @keyframes bounce {
-          0%, 100% {
+          0%,
+          100% {
             transform: translateY(0) scale(1);
           }
           50% {
@@ -916,7 +962,8 @@ export default function TeacherPermissions() {
           }
         }
         @keyframes pulse {
-          0%, 100% {
+          0%,
+          100% {
             opacity: 1;
           }
           50% {
@@ -935,7 +982,7 @@ export default function TeacherPermissions() {
         .animate-pulse {
           animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
-        
+
         /* Custom scrollbar */
         .scrollbar-thin::-webkit-scrollbar {
           width: 6px;
@@ -951,7 +998,7 @@ export default function TeacherPermissions() {
         .scrollbar-thin::-webkit-scrollbar-thumb:hover {
           background: linear-gradient(to bottom, #4f46e5, #7c3aed);
         }
-        
+
         /* Mobile touch improvements */
         @media (max-width: 768px) {
           .touch-target {

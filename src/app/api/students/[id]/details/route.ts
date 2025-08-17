@@ -73,11 +73,6 @@ export async function GET(
       );
     }
 
-    console.log(
-      "Student attendance records:",
-      student.attendance_progress.length
-    );
-
     // Calculate attendance breakdown
     const attendanceBreakdown = student.attendance_progress.reduce(
       (acc, record) => {

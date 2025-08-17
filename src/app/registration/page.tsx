@@ -211,54 +211,98 @@ function RegistrationContent() {
     const fetchCountries = async () => {
       setLoadingCountries(true);
       setFetchError(null);
-      
+
       // Comprehensive fallback list
       const fallbackCountries = [
-        "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria",
-        "Bangladesh", "Belgium", "Brazil", "Canada", "China", "Denmark",
-        "Egypt", "Ethiopia", "Finland", "France", "Germany", "Ghana",
-        "India", "Indonesia", "Iran", "Iraq", "Italy", "Japan",
-        "Jordan", "Kenya", "Kuwait", "Lebanon", "Malaysia", "Morocco",
-        "Netherlands", "Nigeria", "Norway", "Pakistan", "Philippines", "Qatar",
-        "Russia", "Saudi Arabia", "Somalia", "South Africa", "Spain", "Sudan",
-        "Sweden", "Switzerland", "Syria", "Turkey", "UAE", "UK", "USA", "Yemen"
+        "Afghanistan",
+        "Albania",
+        "Algeria",
+        "Argentina",
+        "Australia",
+        "Austria",
+        "Bangladesh",
+        "Belgium",
+        "Brazil",
+        "Canada",
+        "China",
+        "Denmark",
+        "Egypt",
+        "Ethiopia",
+        "Finland",
+        "France",
+        "Germany",
+        "Ghana",
+        "India",
+        "Indonesia",
+        "Iran",
+        "Iraq",
+        "Italy",
+        "Japan",
+        "Jordan",
+        "Kenya",
+        "Kuwait",
+        "Lebanon",
+        "Malaysia",
+        "Morocco",
+        "Netherlands",
+        "Nigeria",
+        "Norway",
+        "Pakistan",
+        "Philippines",
+        "Qatar",
+        "Russia",
+        "Saudi Arabia",
+        "Somalia",
+        "South Africa",
+        "Spain",
+        "Sudan",
+        "Sweden",
+        "Switzerland",
+        "Syria",
+        "Turkey",
+        "UAE",
+        "UK",
+        "USA",
+        "Yemen",
       ];
-      
+
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-        
-        const response = await fetch("https://restcountries.com/v3.1/all?fields=name", {
-          signal: controller.signal,
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+
+        const response = await fetch(
+          "https://restcountries.com/v3.1/all?fields=name",
+          {
+            signal: controller.signal,
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
           }
-        });
-        
+        );
+
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const data: Country[] = await response.json();
-        
+
         if (!Array.isArray(data) || data.length === 0) {
           throw new Error("Invalid API response format");
         }
-        
+
         const countryNames = data
           .map((country) => country?.name?.common)
           .filter(Boolean)
           .sort();
-          
+
         if (countryNames.length > 0) {
           setCountries(countryNames);
         } else {
           throw new Error("No valid country names found");
         }
-        
       } catch (err) {
         console.warn("Countries API failed:", err);
         setFetchError("Using offline country list");
@@ -267,7 +311,7 @@ function RegistrationContent() {
         setLoadingCountries(false);
       }
     };
-    
+
     fetchCountries();
   }, []);
 
@@ -322,7 +366,9 @@ function RegistrationContent() {
         setSelectedTeacher("");
       }
       setTeachers(
-        (teacherData.teachers || []).filter((t: Teacher) => t.control && t.control.code)
+        (teacherData.teachers || []).filter(
+          (t: Teacher) => t.control && t.control.code
+        )
       );
       setError(null);
     } catch (err) {
@@ -351,7 +397,7 @@ function RegistrationContent() {
 
   useEffect(() => {
     if (status !== "authenticated") return; // Wait for session to load
-    console.log("Session role:", (session as any)?.role);
+
     if (step === 2) {
       if ((session as any)?.role === "registral") {
         fetchAllTeachers();
