@@ -97,9 +97,24 @@ export async function POST(
         }
         
         console.log("Zoom link created with raw SQL");
-      } catch (rawError) {
-        console.error("Raw SQL zoom link creation failed:", rawError);
-        throw new Error("Failed to create zoom link record");
+      } catch (rawError: any) {
+        console.error("Raw SQL zoom link creation failed:", {
+          error: rawError,
+          code: rawError.code,
+          message: rawError.message,
+          meta: rawError.meta
+        });
+        
+        // Return a response instead of throwing to avoid 500 error
+        return NextResponse.json(
+          { 
+            error: "Database error", 
+            details: rawError.message || "Failed to create zoom link",
+            notification_sent: false,
+            notification_method: "none"
+          },
+          { status: 500 }
+        );
       }
     }
 
