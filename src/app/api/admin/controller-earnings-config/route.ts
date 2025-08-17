@@ -107,22 +107,45 @@ export async function POST(req: NextRequest) {
         data: { isActive: false },
       });
 
-      // Create new configuration
-      const config = await prisma.controllerearningsconfig.create({
-        data: {
-          mainBaseRate,
-          referralBaseRate,
-          leavePenaltyMultiplier,
-          leaveThreshold,
-          unpaidPenaltyMultiplier,
-          referralBonusMultiplier,
-          targetEarnings,
-          effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
-          isActive: true,
-          adminId: user.id,
-          updatedAt: new Date(),
-        },
-      });
+      // Create new configuration with raw SQL fallback
+      let config;
+      try {
+        config = await prisma.controllerearningsconfig.create({
+          data: {
+            mainBaseRate,
+            referralBaseRate,
+            leavePenaltyMultiplier,
+            leaveThreshold,
+            unpaidPenaltyMultiplier,
+            referralBonusMultiplier,
+            targetEarnings,
+            effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
+            isActive: true,
+            adminId: user.id,
+            updatedAt: new Date(),
+          },
+        });
+      } catch (createError: any) {
+        console.error("Prisma create failed, using raw SQL:", createError);
+        
+        const effectiveDate = effectiveFrom ? new Date(effectiveFrom) : new Date();
+        const now = new Date();
+        
+        await prisma.$executeRaw`
+          INSERT INTO controllerearningsconfig 
+          (mainBaseRate, referralBaseRate, leavePenaltyMultiplier, leaveThreshold, 
+           unpaidPenaltyMultiplier, referralBonusMultiplier, targetEarnings, 
+           effectiveFrom, isActive, adminId, updatedAt)
+          VALUES (${mainBaseRate}, ${referralBaseRate}, ${leavePenaltyMultiplier}, ${leaveThreshold},
+                  ${unpaidPenaltyMultiplier}, ${referralBonusMultiplier}, ${targetEarnings},
+                  ${effectiveDate}, 1, ${user.id}, ${now})
+        `;
+        
+        config = await prisma.controllerearningsconfig.findFirst({
+          where: { adminId: user.id, isActive: true },
+          orderBy: { id: 'desc' }
+        });
+      }
 
       // Log the change (optional, skip if audit table doesn't exist)
       try {
