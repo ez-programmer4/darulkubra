@@ -292,19 +292,18 @@ export async function POST(req: NextRequest) {
         console.log("==============================");
 
         try {
-          // Try with minimal required fields first
-          newUser = await prisma.wpos_wpdatatable_24.create({
-            data: {
-              ustazid,
-              ustazname: name,
-              password: hashedPassword,
-              schedule: schedule || null,
-              control: controlIdStr || null,
-              phone: phone || null,
-            },
+          // Try raw SQL insert as fallback
+          await prisma.$executeRaw`
+            INSERT INTO wpos_wpdatatable_24 (ustazid, ustazname, password, schedule, control, phone, created_at)
+            VALUES (${ustazid}, ${name}, ${hashedPassword}, ${schedule || ""}, ${controlIdStr}, ${phone || ""}, NOW())
+          `;
+          
+          // Fetch the created record
+          newUser = await prisma.wpos_wpdatatable_24.findUnique({
+            where: { ustazid }
           });
           
-          console.log("Teacher created successfully:", ustazid);
+          console.log("Teacher created successfully with raw SQL:", ustazid);
         } catch (createError: any) {
           console.error("=== TEACHER CREATION ERROR ===");
           console.error("Error code:", createError.code);
