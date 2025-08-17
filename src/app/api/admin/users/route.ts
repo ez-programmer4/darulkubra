@@ -259,6 +259,14 @@ export async function POST(req: NextRequest) {
         }
         console.log("Controller found:", controller);
         
+        // Check database schema for wpos_wpdatatable_24
+        try {
+          const schemaCheck = await prisma.$queryRaw`DESCRIBE wpos_wpdatatable_24`;
+          console.log("Database schema for wpos_wpdatatable_24:", schemaCheck);
+        } catch (schemaError) {
+          console.error("Schema check error:", schemaError);
+        }
+        
         const ustazid = name.toLowerCase().replace(/\s+/g, "").substring(0, 10) + "_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
 
         // Check if ustazid already exists
@@ -270,35 +278,55 @@ export async function POST(req: NextRequest) {
           throw new Error(`Teacher ID ${ustazid} already exists`);
         }
 
+        // Debug: Log all data before creation
+        console.log("=== TEACHER CREATION DEBUG ===");
+        console.log("Data to create:", {
+          ustazid,
+          ustazname: name,
+          password: "[HIDDEN]",
+          schedule: schedule || "",
+          control: controlIdStr,
+          phone: phone || "",
+        });
+        console.log("Controller validation passed:", controller);
+        console.log("==============================");
+
         try {
+          // Try with minimal required fields first
           newUser = await prisma.wpos_wpdatatable_24.create({
             data: {
               ustazid,
               ustazname: name,
               password: hashedPassword,
-              schedule: schedule || "",
-              control: controlIdStr,
-              phone: phone || "",
+              schedule: schedule || null,
+              control: controlIdStr || null,
+              phone: phone || null,
             },
           });
           
           console.log("Teacher created successfully:", ustazid);
-        } catch (createError) {
-          console.error("Teacher creation error details:", {
-            error: createError,
-            ustazid,
-            name,
-            controlIdStr,
-            schedule,
-            phone
-          });
+        } catch (createError: any) {
+          console.error("=== TEACHER CREATION ERROR ===");
+          console.error("Error code:", createError.code);
+          console.error("Error message:", createError.message);
+          console.error("Error meta:", createError.meta);
+          console.error("Full error:", createError);
+          console.error("==============================");
           
-          // Check if it's a foreign key constraint error
-          if (createError instanceof Error && createError.message.includes('foreign key constraint')) {
+          // Check specific error types
+          if (createError.code === 'P2002') {
+            throw new Error(`Teacher ID ${ustazid} already exists`);
+          }
+          
+          if (createError.code === 'P2003') {
             throw new Error(`Invalid controller code: ${controlIdStr}`);
           }
           
-          throw new Error(`Failed to create teacher: ${createError instanceof Error ? createError.message : 'Unknown error'}`);
+          if (createError.code === 'P2021') {
+            throw new Error(`Database table issue - please contact administrator`);
+          }
+          
+          throw new Error(`Failed to create teacher: ${createError.message || 'Unknown database error'}`);
         }
         break;
       case "registral":
