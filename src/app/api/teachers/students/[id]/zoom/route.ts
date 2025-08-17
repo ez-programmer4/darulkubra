@@ -79,8 +79,8 @@ export async function POST(
       // Try raw SQL as fallback
       try {
         await prisma.$executeRaw`
-          INSERT INTO wpos_zoom_links (studentid, ustazid, link, tracking_token, sent_time, expiration_date, clicked_at, report)
-          VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${now}, ${expiry}, NULL, 0)
+          INSERT INTO wpos_zoom_links (studentid, ustazid, link, tracking_token, sent_time, expiration_date, clicked_at, report, Click)
+          VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${now}, ${expiry}, NULL, 0, 0)
         `;
         
         // Get the created record
