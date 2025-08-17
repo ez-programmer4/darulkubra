@@ -190,7 +190,7 @@ export async function GET(req: NextRequest) {
     // Build where clause
     const whereClause: any = {
       u_control: controllerId,
-      status: { in: ["Active", "Not Yet"] },
+      status: { in: ["active", "not yet", "Active", "Not Yet"] },
       OR: dayPackageOr,
     };
 

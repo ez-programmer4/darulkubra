@@ -19,7 +19,9 @@ export default function StatsCards({
             <FiUsers className="h-6 w-6 text-blue-600" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-600 mb-1">Total Students</p>
+            <p className="text-sm font-semibold text-gray-600 mb-1">
+              Total Students
+            </p>
             <p className="text-3xl font-bold text-black">{totalStudents}</p>
           </div>
         </div>
@@ -31,7 +33,9 @@ export default function StatsCards({
             <FiCheckCircle className="h-6 w-6 text-green-600" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-600 mb-1">Active Students</p>
+            <p className="text-sm font-semibold text-gray-600 mb-1">
+              Active Students
+            </p>
             <p className="text-3xl font-bold text-black">{activeStudents}</p>
           </div>
         </div>
@@ -43,7 +47,9 @@ export default function StatsCards({
             <FiClock className="h-6 w-6 text-yellow-600" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-600 mb-1">Pending Students</p>
+            <p className="text-sm font-semibold text-gray-600 mb-1">
+              Not yet Students
+            </p>
             <p className="text-3xl font-bold text-black">{notYetStudents}</p>
           </div>
         </div>
