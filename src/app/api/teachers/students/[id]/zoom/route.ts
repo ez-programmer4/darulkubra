@@ -61,16 +61,47 @@ export async function POST(
       crypto.randomBytes(16).toString("hex").toUpperCase();
 
     // Persist record
-    const created = await prisma.wpos_zoom_links.create({
-      data: {
-        studentid: studentId,
-        ustazid: teacherId,
-        link,
-        tracking_token: tokenToUse,
-        sent_time: now,
-        expiration_date: expiry ?? undefined,
-      },
-    });
+    let created;
+    try {
+      created = await prisma.wpos_zoom_links.create({
+        data: {
+          studentid: studentId,
+          ustazid: teacherId,
+          link,
+          tracking_token: tokenToUse,
+          sent_time: now,
+          expiration_date: expiry ?? undefined,
+        },
+      });
+    } catch (createError: any) {
+      console.error("Zoom link creation error:", createError);
+      
+      // Try raw SQL as fallback
+      try {
+        await prisma.$executeRaw`
+          INSERT INTO wpos_zoom_links (studentid, ustazid, link, tracking_token, sent_time, expiration_date)
+          VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${now}, ${expiry})
+        `;
+        
+        // Get the created record
+        created = await prisma.wpos_zoom_links.findFirst({
+          where: {
+            studentid: studentId,
+            tracking_token: tokenToUse
+          },
+          orderBy: { id: 'desc' }
+        });
+        
+        if (!created) {
+          throw new Error("Failed to retrieve created zoom link");
+        }
+        
+        console.log("Zoom link created with raw SQL");
+      } catch (rawError) {
+        console.error("Raw SQL zoom link creation failed:", rawError);
+        throw new Error("Failed to create zoom link record");
+      }
+    }
 
     // Build tracking URL from request headers
     const host = req.headers.get("host");
