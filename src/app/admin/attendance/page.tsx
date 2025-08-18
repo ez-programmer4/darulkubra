@@ -81,7 +81,8 @@ export default function AttendancePage() {
                   Attendance Analytics
                 </h1>
                 <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
-                  Analyze attendance trends and performance across the institution
+                  Analyze attendance trends and performance across the
+                  institution
                 </p>
               </div>
             </div>
@@ -91,28 +92,40 @@ export default function AttendancePage() {
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiUsers className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Controllers</span>
+                  <span className="text-sm font-semibold text-gray-600">
+                    Controllers
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-black">{controllers.length}</div>
+                <div className="text-2xl font-bold text-black">
+                  {controllers.length}
+                </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiTrendingUp className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Trends</span>
+                  <span className="text-sm font-semibold text-gray-600">
+                    Trends
+                  </span>
                 </div>
                 <div className="text-2xl font-bold text-black">Live</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiActivity className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Records</span>
+                  <span className="text-sm font-semibold text-gray-600">
+                    Records
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-black">{latenessRecords.length}</div>
+                <div className="text-2xl font-bold text-black">
+                  {latenessRecords.length}
+                </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiClock className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Status</span>
+                  <span className="text-sm font-semibold text-gray-600">
+                    Status
+                  </span>
                 </div>
                 <div className="text-2xl font-bold text-black">Active</div>
               </div>
@@ -151,12 +164,14 @@ export default function AttendancePage() {
                     <div className="flex items-center gap-2">
                       <FiBarChart className="h-5 w-5 text-blue-600" />
                       <span className="text-sm font-semibold text-blue-800">
-                        {selectedController ? "Controller Specific" : "Institution Wide"}
+                        {selectedController
+                          ? "Controller Specific"
+                          : "Institution Wide"}
                       </span>
                     </div>
                     <p className="text-xs text-blue-600 mt-1">
-                      {selectedController 
-                        ? "Analyzing selected controller data" 
+                      {selectedController
+                        ? "Analyzing selected controller data"
                         : "Analyzing all controllers"}
                     </p>
                   </div>
@@ -174,16 +189,18 @@ export default function AttendancePage() {
                 <FiTrendingUp className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-black">Analytics Dashboard</h2>
+                <h2 className="text-2xl font-bold text-black">
+                  Analytics Dashboard
+                </h2>
                 <p className="text-gray-600">
-                  {selectedController 
-                    ? `Showing data for selected controller` 
+                  {selectedController
+                    ? `Showing data for selected controller`
                     : "Showing data for all controllers"}
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="p-6 sm:p-8 lg:p-10">
             <AttendanceAnalytics controllerCode={selectedController} />
           </div>
@@ -198,96 +215,14 @@ export default function AttendancePage() {
                   <FiClock className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-black">Lateness Records</h2>
-                  <p className="text-gray-600">Track and monitor attendance punctuality</p>
+                  <h2 className="text-2xl font-bold text-black">
+                    Lateness Records
+                  </h2>
+                  <p className="text-gray-600">
+                    Track and monitor attendance punctuality
+                  </p>
                 </div>
               </div>
-            </div>
-            
-            <div className="p-6 sm:p-8 lg:p-10">
-              {latenessLoading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading lateness records...</p>
-                </div>
-              ) : latenessError ? (
-                <div className="text-center py-12">
-                  <div className="p-8 bg-red-50 rounded-full w-fit mx-auto mb-8">
-                    <FiClock className="h-16 w-16 text-red-500" />
-                  </div>
-                  <h3 className="text-3xl font-bold text-black mb-4">Error Loading Records</h3>
-                  <p className="text-red-600 text-xl">{latenessError}</p>
-                </div>
-              ) : latenessRecords.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
-                    <FiClock className="h-16 w-16 text-gray-500" />
-                  </div>
-                  <h3 className="text-3xl font-bold text-black mb-4">No Lateness Records</h3>
-                  <p className="text-gray-600 text-xl">All attendance records are on time!</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-semibold text-black">
-                      Recent Lateness Records ({latenessRecords.length})
-                    </h3>
-                    <input
-                      type="text"
-                      placeholder="Filter by teacher..."
-                      value={teacherFilter}
-                      onChange={(e) => setTeacherFilter(e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {latenessRecords
-                      .filter(record => 
-                        !teacherFilter || 
-                        record.teacherName?.toLowerCase().includes(teacherFilter.toLowerCase())
-                      )
-                      .slice(0, 12)
-                      .map((record, index) => (
-                        <div key={index} className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-red-100 rounded-lg">
-                              <FiClock className="h-5 w-5 text-red-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-black">
-                                {record.teacherName || "Unknown Teacher"}
-                              </h4>
-                              <p className="text-sm text-gray-500">
-                                {record.date || "No date"}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Status:</span>
-                              <span className="font-medium text-red-600">Late</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Time:</span>
-                              <span className="font-medium text-black">
-                                {record.time || "N/A"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                  
-                  {latenessRecords.length > 12 && (
-                    <div className="text-center mt-6">
-                      <p className="text-gray-600">
-                        Showing 12 of {latenessRecords.length} records
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         )}
