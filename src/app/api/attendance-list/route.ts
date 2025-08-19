@@ -7,20 +7,13 @@ const prisma = new PrismaClient();
 
 // Utility to format attendance status
 const formatAttendanceStatus = (status: string | null | undefined): string => {
+  const validStatuses = ["Present", "Absent", "Permission", "Not Taken"];
   if (!status) return "Not Taken";
-  
-  // Handle different case variations
-  const lowerStatus = status.toLowerCase();
-  switch (lowerStatus) {
-    case "present":
-      return "Present";
-    case "absent":
-      return "Absent";
-    case "permission":
-      return "Permission";
-    default:
-      return "Not Taken";
-  }
+  const normalizedStatus =
+    status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  return validStatuses.includes(normalizedStatus)
+    ? normalizedStatus
+    : "Not Taken";
 };
 
 export async function GET(req: NextRequest) {
@@ -51,10 +44,9 @@ export async function GET(req: NextRequest) {
     const notify = searchParams.get("notify")
       ? parseInt(searchParams.get("notify") || "0", 10)
       : 0;
-    let controllerId = searchParams.get("controllerId") || session.code || "";
+    const controllerId = searchParams.get("controllerId") || session.code || "";
 
-    // For admin users, allow viewing all controllers if no specific controller is selected
-    if (!controllerId && session.role !== "admin") {
+    if (!controllerId) {
       return NextResponse.json(
         { error: "Controller ID is required" },
         { status: 400 }
@@ -184,14 +176,10 @@ export async function GET(req: NextRequest) {
 
     // Build where clause
     const whereClause: any = {
+      u_control: controllerId,
       status: { in: ["active", "not yet", "Active", "Not Yet"] },
       OR: dayPackageOr,
     };
-
-    // Only filter by controller if specified (for admin, allow viewing all)
-    if (controllerId) {
-      whereClause.u_control = controllerId;
-    }
 
     if (ustaz) {
       whereClause.ustaz = ustaz;
@@ -251,27 +239,25 @@ export async function GET(req: NextRequest) {
     });
 
     const integratedData = records.map((record: any) => {
-      // Get scheduled time from occupied times
-      let scheduledTime = record.occupiedTimes?.[0]?.time_slot;
-      
-      // Convert to 24-hour format if needed
-      let time24 = scheduledTime;
-      if (scheduledTime && scheduledTime.includes('AM') || scheduledTime?.includes('PM')) {
+      function to24Hour(time12h: string | null | undefined) {
+        if (!time12h || !/\d{1,2}:\d{2}\s?(AM|PM)/i.test(time12h))
+          return "00:00";
         try {
-          const [time, modifier] = scheduledTime.split(' ');
-          let [hours, minutes] = time.split(':');
-          if (hours === '12') {
-            hours = modifier.toUpperCase() === 'AM' ? '00' : '12';
-          } else if (modifier.toUpperCase() === 'PM') {
+          const [time, modifier] = time12h.split(" ");
+          let [hours, minutes] = time.split(":");
+          if (hours === "12") {
+            hours = modifier.toUpperCase() === "AM" ? "00" : "12";
+          } else if (modifier.toUpperCase() === "PM") {
             hours = String(parseInt(hours, 10) + 12);
           }
-          time24 = `${hours.padStart(2, '0')}:${minutes || '00'}`;
+          return `${hours.padStart(2, "0")}:${minutes}`;
         } catch {
-          time24 = scheduledTime;
+          return "00:00";
         }
       }
-      
-      const scheduledAt = time24 ? `${date}T${time24}:00.000Z` : null;
+
+      const time24 = record.occupiedTimes?.[0]?.time_slot;
+      const scheduledAt = time24 ? `${date}T${time24}.000Z` : null;
 
       const linksForDay = (record.zoom_links || []).map((zl: any) => ({
         id: zl.id,

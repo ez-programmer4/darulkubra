@@ -99,7 +99,7 @@ export default function AdminAttendanceList() {
         ...(attendanceFilter && { attendanceStatus: attendanceFilter }),
       });
 
-      const response = await fetch(`/api/attendance-list?${params.toString()}`, {
+      const response = await fetch(`/api/admin/daily-attendance?${params.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
