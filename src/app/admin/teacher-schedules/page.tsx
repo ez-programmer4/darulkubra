@@ -2,66 +2,63 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
 import {
-  FiEdit,
-  FiSave,
-  FiX,
-  FiClock,
-  FiUser,
   FiCalendar,
-  FiPlus,
-  FiInfo,
-  FiTrendingUp,
-  FiShield,
-  FiStar,
-  FiCheckCircle,
-  FiLoader,
-  FiAlertTriangle,
   FiUsers,
-  FiTarget,
-  FiActivity,
+  FiClock,
+  FiFilter,
+  FiRefreshCw,
+  FiLink,
+  FiCheckCircle,
+  FiXCircle,
+  FiAlertCircle,
+  FiSend,
+  FiEye,
 } from "react-icons/fi";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import AnalyticsDashboard from "@/components/ui/AnalyticsDashboard";
-import DateRangePicker from "@/components/ui/DateRangePicker";
 
-interface Teacher {
-  ustazid: string;
-  ustazname: string;
-  schedule: string;
-  controlId?: number;
-  controller?: {
-    name: string;
-    username: string;
-  };
+interface AttendanceRecord {
+  student_id: number;
+  studentName: string;
+  ustazName: string;
+  controllerName: string;
+  scheduledAt: string | null;
+  links: {
+    id: number;
+    link: string;
+    sent_time: string | null;
+    clicked_at: string | null;
+    expiration_date: string | null;
+    report: number | null;
+    tracking_token: string | null;
+  }[];
+  attendance_status: string;
+  absentDaysCount: number;
+  daypackages: string;
 }
 
-interface TimeSlot {
-  id: number;
-  time: string;
-  category: string;
+interface Controller {
+  code: string;
+  name: string;
 }
 
-export default function AdminTeacherSchedules() {
+export default function AdminAttendanceList() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-  const [controllers, setControllers] = useState<
-    { wdt_ID: number; name: string; username: string }[]
-  >([]);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0],
-    endDate: new Date().toISOString().split("T")[0],
+  const [controllers, setControllers] = useState<Controller[]>([]);
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [selectedController, setSelectedController] = useState("");
+  const [attendanceFilter, setAttendanceFilter] = useState("");
+  const [stats, setStats] = useState({
+    totalLinks: 0,
+    totalSent: 0,
+    totalClicked: 0,
+    missedDeadlines: 0,
+    responseRate: "0%",
   });
 
   // Check authentication and role
@@ -73,127 +70,90 @@ export default function AdminTeacherSchedules() {
     }
   }, [status, session, router]);
 
-  // Fetch teachers and controllers
+  // Fetch controllers and attendance data
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role === "admin") {
-      fetchTeachers();
       fetchControllers();
-      fetchTimeSlots();
+      fetchAttendanceData();
     }
-  }, [status, session]);
+  }, [status, session, selectedDate, selectedController, attendanceFilter]);
 
-  const fetchTeachers = async () => {
+  const fetchControllers = async () => {
     try {
-      const response = await fetch("/api/admin/teachers");
-
+      const response = await fetch("/api/control-options");
       if (response.ok) {
         const data = await response.json();
-
-        // Map the response to match the Teacher interface
-        const teachersData =
-          data.teachers?.map((t: any) => ({
-            ustazid: t.id,
-            ustazname: t.name,
-            schedule: "", // Default empty schedule
-          })) || [];
-
-        setTeachers(teachersData);
-      } else {
-        console.error("Failed to fetch teachers:", response.status);
-        toast.error("Failed to fetch teachers");
+        setControllers(data.controllers || []);
       }
     } catch (error) {
-      console.error("Error fetching teachers:", error);
-      toast.error("Error fetching teachers");
+      console.error("Error fetching controllers:", error);
+    }
+  };
+
+  const fetchAttendanceData = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        date: selectedDate,
+        ...(selectedController && { controllerId: selectedController }),
+        ...(attendanceFilter && { attendanceStatus: attendanceFilter }),
+      });
+
+      const response = await fetch(`/api/attendance-list?${params.toString()}`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAttendanceData(data.integratedData || []);
+        setStats(data.stats || {
+          totalLinks: 0,
+          totalSent: 0,
+          totalClicked: 0,
+          missedDeadlines: 0,
+          responseRate: "0%",
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Attendance API error:', errorData);
+        toast.error(`Failed to fetch attendance data: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error("Error fetching attendance data:", error);
+      toast.error("Error fetching attendance data");
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchControllers = async () => {
-    try {
-      const response = await fetch("/api/admin/users");
-      if (response.ok) {
-        const data = await response.json();
-        setControllers(data.controllers || []);
-      }
-    } catch (error) {}
-  };
-
-  const fetchTimeSlots = async () => {
-    try {
-      const response = await fetch("/api/time-slots");
-
-      if (response.ok) {
-        const data = await response.json();
-
-        setTimeSlots(data.timeSlots || []);
-      } else {
-        console.error("Failed to fetch time slots:", response.status);
-      }
-    } catch (error) {
-      console.error("Error fetching time slots:", error);
+  const getAttendanceStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "present":
+        return "bg-green-100 text-green-800";
+      case "absent":
+        return "bg-red-100 text-red-800";
+      case "permission":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
-  const handleUpdateSchedule = async (teacher: Teacher) => {
+  const formatTime = (timeString: string | null) => {
+    if (!timeString) return "--";
     try {
-      const response = await fetch(
-        `/api/admin/teachers/${teacher.ustazid}/schedule`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ schedule: teacher.schedule }),
-        }
-      );
-
-      if (response.ok) {
-        toast.success("Teacher schedule updated successfully");
-        setEditingTeacher(null);
-        fetchTeachers();
-        fetchTimeSlots(); // Refresh time slots
-      } else {
-        const error = await response.json();
-        toast.error(error.message || "Failed to update schedule");
-      }
-    } catch (error) {
-      toast.error("Error updating schedule");
+      const date = new Date(timeString);
+      return date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch {
+      return "--";
     }
-  };
-
-  const parseSchedule = (schedule: string) => {
-    if (!schedule) return [];
-    return schedule.split(",").map((time) => time.trim());
-  };
-
-  const formatSchedule = (times: string[]) => {
-    return times.join(",");
-  };
-
-  const addTimeToSchedule = (teacher: Teacher, newTime: string) => {
-    const currentTimes = parseSchedule(teacher.schedule);
-    if (!currentTimes.includes(newTime)) {
-      const updatedTimes = [...currentTimes, newTime].sort();
-      return { ...teacher, schedule: formatSchedule(updatedTimes) };
-    }
-    return teacher;
-  };
-
-  const removeTimeFromSchedule = (teacher: Teacher, timeToRemove: string) => {
-    const currentTimes = parseSchedule(teacher.schedule);
-    const updatedTimes = currentTimes.filter((time) => time !== timeToRemove);
-    return { ...teacher, schedule: formatSchedule(updatedTimes) };
-  };
-
-  const getCategoryColor = (category: string) => {
-    const colors: { [key: string]: string } = {
-      Fajr: "bg-blue-100 text-blue-800",
-      Dhuhr: "bg-green-100 text-green-800",
-      Asr: "bg-yellow-100 text-yellow-800",
-      Maghrib: "bg-orange-100 text-orange-800",
-      Isha: "bg-purple-100 text-purple-800",
-    };
-    return colors[category] || "bg-gray-100 text-gray-800";
   };
 
   if (status === "loading" || loading) {
@@ -202,7 +162,7 @@ export default function AdminTeacherSchedules() {
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mb-6"></div>
           <p className="text-black font-medium text-lg">
-            Loading teacher schedules...
+            Loading attendance data...
           </p>
           <p className="text-gray-500 text-sm mt-2">
             Please wait while we fetch the data
@@ -224,14 +184,14 @@ export default function AdminTeacherSchedules() {
           <div className="flex flex-col lg:flex-row lg:items-center gap-8 mb-8">
             <div className="flex items-center gap-6">
               <div className="p-4 bg-black rounded-2xl shadow-lg">
-                <FiClock className="h-8 w-8 text-white" />
+                <FiCalendar className="h-8 w-8 text-white" />
               </div>
               <div>
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-2">
-                  Teacher Schedules
+                  Daily Attendance
                 </h1>
                 <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
-                  Manage teacher schedules and available time slots
+                  Monitor student attendance and zoom link activity
                 </p>
               </div>
             </div>
@@ -242,302 +202,247 @@ export default function AdminTeacherSchedules() {
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiUsers className="h-5 w-5 text-gray-600" />
                   <span className="text-sm font-semibold text-gray-600">
-                    Teachers
+                    Students
                   </span>
                 </div>
                 <div className="text-2xl font-bold text-black">
-                  {teachers.length}
+                  {attendanceData.length}
                 </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiClock className="h-5 w-5 text-gray-600" />
+                  <FiLink className="h-5 w-5 text-gray-600" />
                   <span className="text-sm font-semibold text-gray-600">
-                    Time Slots
+                    Links Sent
                   </span>
                 </div>
                 <div className="text-2xl font-bold text-black">
-                  {timeSlots.length}
+                  {stats.totalSent}
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <FiEye className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-600">
+                    Clicked
+                  </span>
+                </div>
+                <div className="text-2xl font-bold text-black">
+                  {stats.totalClicked}
                 </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiCheckCircle className="h-5 w-5 text-gray-600" />
                   <span className="text-sm font-semibold text-gray-600">
-                    Scheduled
+                    Response Rate
                   </span>
                 </div>
                 <div className="text-2xl font-bold text-black">
-                  {teachers.filter((t) => t.schedule).length}
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiActivity className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">
-                    Active
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-black">
-                  {
-                    teachers.filter((t) => t.schedule && t.schedule.length > 0)
-                      .length
-                  }
+                  {stats.responseRate}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Date Range Filter */}
+          {/* Controls */}
           <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-black rounded-xl">
-                <FiCalendar className="h-5 w-5 text-white" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-black mb-2">
+                  <FiCalendar className="inline h-4 w-4 mr-2" />
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                />
               </div>
-              <h3 className="text-xl font-semibold text-black">
-                Date Range Filter
-              </h3>
+              <div>
+                <label className="block text-sm font-bold text-black mb-2">
+                  <FiFilter className="inline h-4 w-4 mr-2" />
+                  Controller
+                </label>
+                <select
+                  value={selectedController}
+                  onChange={(e) => setSelectedController(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                >
+                  <option value="">All Controllers</option>
+                  {controllers.map((controller) => (
+                    <option key={controller.code} value={controller.code}>
+                      {controller.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-black mb-2">
+                  <FiCheckCircle className="inline h-4 w-4 mr-2" />
+                  Attendance
+                </label>
+                <select
+                  value={attendanceFilter}
+                  onChange={(e) => setAttendanceFilter(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                >
+                  <option value="">All Status</option>
+                  <option value="Present">Present</option>
+                  <option value="Absent">Absent</option>
+                  <option value="Permission">Permission</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-black mb-2">
+                  Actions
+                </label>
+                <button
+                  onClick={fetchAttendanceData}
+                  className="w-full px-4 py-3 bg-black hover:bg-gray-800 text-white rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2"
+                >
+                  <FiRefreshCw className="h-4 w-4" />
+                  Refresh
+                </button>
+              </div>
             </div>
-            <DateRangePicker
-              startDate={dateRange.startDate}
-              endDate={dateRange.endDate}
-              onDateChange={(startDate, endDate) =>
-                setDateRange({ startDate, endDate })
-              }
-            />
           </div>
         </div>
 
-        {/* Analytics Dashboard */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
-          <AnalyticsDashboard
-            timeSlots={timeSlots.map((slot) => ({
-              ...slot,
-              id: slot.id.toString(),
-            }))}
-          />
-        </div>
-
-        {/* Teachers List */}
+        {/* Attendance List */}
         <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
           <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-black rounded-xl">
-                <FiUser className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Available Time Slots */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
-          <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-black rounded-xl">
-                <FiClock className="h-6 w-6 text-white" />
+                <FiUsers className="h-6 w-6 text-white" />
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-black">
-                  Available Time Slots
+                  Student Attendance & Zoom Links
                 </h2>
                 <p className="text-gray-600">
-                  {timeSlots.length} slots available
+                  {selectedDate} - {attendanceData.length} students
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="p-6 sm:p-8 lg:p-10">
-            {timeSlots.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
-                  <FiClock className="h-16 w-16 text-gray-500" />
-                </div>
-                <h3 className="text-3xl font-bold text-black mb-4">
-                  No Time Slots Available
-                </h3>
-                <p className="text-gray-600 text-xl">
-                  Add teacher schedules to generate time slots
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {Object.entries(
-                  timeSlots.reduce((acc, slot) => {
-                    acc[slot.category] = acc[slot.category] || [];
-                    acc[slot.category].push(slot);
-                    return acc;
-                  }, {} as { [key: string]: TimeSlot[] })
-                ).map(([category, slots]) => (
-                  <div key={category} className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <h4 className="font-bold text-lg text-black">
-                        {category}
-                      </h4>
-                      <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-semibold">
-                        {slots.length} slots
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                      {slots.map((slot) => (
-                        <div
-                          key={slot.id}
-                          className={`px-3 py-2 rounded-xl text-sm font-medium text-center ${getCategoryColor(
-                            category
-                          )}`}
-                        >
-                          {slot.time}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr className="border-b border-gray-200">
+                  <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
+                    Student
+                  </th>
+                  <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
+                    Teacher
+                  </th>
+                  <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
+                    Scheduled
+                  </th>
+                  <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
+                    Zoom Link
+                  </th>
+                  <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
+                    Attendance
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {attendanceData.map((record) => (
+                  <tr
+                    key={record.student_id}
+                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="py-4 px-6">
+                      <div>
+                        <div className="font-bold text-black">
+                          {record.studentName}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Edit Teacher Schedule Modal */}
-        {editingTeacher && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-2xl font-bold text-black">
-                    Edit Schedule: {editingTeacher.ustazname}
-                  </h3>
-                  <p className="text-gray-600 mt-1">
-                    Configure available time slots for this teacher
-                  </p>
-                </div>
-                <button
-                  onClick={() => setEditingTeacher(null)}
-                  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                >
-                  <FiX className="h-6 w-6" />
-                </button>
-              </div>
-
-              {/* Instructions */}
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-6">
-                <div className="flex items-start space-x-4">
-                  <div className="p-3 bg-blue-600 rounded-xl">
-                    <FiInfo className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-blue-900 mb-3 text-lg">
-                      How to add time slots:
-                    </h4>
-                    <ul className="text-blue-800 space-y-2">
-                      <li className="flex items-center gap-2">
-                        <FiCheckCircle className="h-4 w-4 text-blue-600" />
-                        Use 12-hour format with AM/PM (e.g., "4:00 AM", "2:30
-                        PM")
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <FiCheckCircle className="h-4 w-4 text-blue-600" />
-                        Separate multiple times with commas
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <FiCheckCircle className="h-4 w-4 text-blue-600" />
-                        Example: "4:00 AM, 5:00 AM, 2:00 PM, 3:00 PM"
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-lg font-semibold text-black mb-3">
-                    Current Schedule (comma-separated)
-                  </label>
-                  <textarea
-                    value={editingTeacher.schedule}
-                    onChange={(e) =>
-                      setEditingTeacher({
-                        ...editingTeacher,
-                        schedule: e.target.value,
-                      })
-                    }
-                    rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-lg resize-none"
-                    placeholder="Example: 4:00 AM, 5:00 AM, 2:00 PM, 3:00 PM"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-lg font-semibold text-black mb-4">
-                    Quick Add Time Slots
-                  </label>
-                  <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                    {[
-                      "4:00 AM",
-                      "5:00 AM",
-                      "6:00 AM",
-                      "7:00 AM",
-                      "8:00 AM",
-                      "9:00 AM",
-                      "10:00 AM",
-                      "11:00 AM",
-                      "12:00 PM",
-                      "1:00 PM",
-                      "2:00 PM",
-                      "3:00 PM",
-                      "4:00 PM",
-                      "5:00 PM",
-                      "6:00 PM",
-                      "7:00 PM",
-                      "8:00 PM",
-                      "9:00 PM",
-                      "10:00 PM",
-                      "11:00 PM",
-                      "12:00 AM",
-                      "1:00 AM",
-                      "2:00 AM",
-                      "3:00 AM",
-                    ].map((time) => (
-                      <button
-                        key={time}
-                        onClick={() => {
-                          const currentTimes = parseSchedule(
-                            editingTeacher.schedule
-                          );
-                          if (!currentTimes.includes(time)) {
-                            const updatedTimes = [...currentTimes, time].sort();
-                            setEditingTeacher({
-                              ...editingTeacher,
-                              schedule: formatSchedule(updatedTimes),
-                            });
-                          }
-                        }}
-                        className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg border border-gray-300 transition-all duration-200"
+                        <div className="text-sm text-gray-500">
+                          ID: {record.student_id}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="text-gray-700">{record.ustazName}</div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="text-gray-700">
+                        {record.scheduledAt
+                          ? formatTime(record.scheduledAt)
+                          : "Not scheduled"}
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      {record.links.length > 0 ? (
+                        <div className="space-y-1">
+                          {record.links.map((link) => (
+                            <div key={link.id} className="text-sm">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`px-2 py-1 rounded text-xs font-medium ${
+                                    link.sent_time
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-gray-100 text-gray-800"
+                                  }`}
+                                >
+                                  {link.sent_time ? "Sent" : "Not sent"}
+                                </span>
+                                {link.clicked_at && (
+                                  <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                    Clicked
+                                  </span>
+                                )}
+                              </div>
+                              {link.sent_time && (
+                                <div className="text-xs text-gray-500">
+                                  Sent: {formatTime(link.sent_time)}
+                                  {link.clicked_at &&
+                                    ` | Clicked: ${formatTime(
+                                      link.clicked_at
+                                    )}`}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-gray-500 text-sm">
+                          No links
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6">
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          getAttendanceStatusColor(record.attendance_status)
+                        }`}
                       >
-                        {time}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex space-x-4 pt-6">
-                  <button
-                    onClick={() => handleUpdateSchedule(editingTeacher)}
-                    className="flex-1 bg-black hover:bg-gray-800 text-white font-semibold py-3 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
-                  >
-                    <FiSave className="h-5 w-5" />
-                    Save Schedule
-                  </button>
-                  <button
-                    onClick={() => setEditingTeacher(null)}
-                    className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-3 rounded-xl transition-all duration-200"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
+                        {record.attendance_status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
+
+          {attendanceData.length === 0 && !loading && (
+            <div className="text-center py-12">
+              <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
+                <FiUsers className="h-16 w-16 text-gray-500" />
+              </div>
+              <h3 className="text-3xl font-bold text-black mb-4">
+                No Attendance Data
+              </h3>
+              <p className="text-gray-600 text-xl">
+                No students found for the selected date and filters.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

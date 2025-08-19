@@ -25,6 +25,137 @@ import Modal from "@/app/components/Modal";
 import ConfirmModal from "@/app/components/ConfirmModal";
 import { useDebounce } from "use-debounce";
 
+// Schedule Generator Component
+const ScheduleGenerator = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
+  const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (value) {
+      setSelectedTimes(value.split(',').map(t => t.trim()).filter(Boolean));
+    }
+  }, [value]);
+
+  const generateTimeSlots = () => {
+    const slots = [];
+    
+    // Fixed prayer times for Ethiopia
+    const prayerTimes = {
+      Fajr: { start: 5 * 60 + 30, end: 12 * 60 + 30 }, // 5:30 to 12:30
+      Dhuhr: { start: 12 * 60 + 30, end: 15 * 60 + 30 }, // 12:30 to 15:30
+      Asr: { start: 15 * 60 + 30, end: 18 * 60 + 30 }, // 15:30 to 18:30
+      Maghrib: { start: 18 * 60 + 30, end: 20 * 60 }, // 18:30 to 20:00
+      Isha: { start: 20 * 60, end: 5 * 60 + 30 + 24 * 60 } // 20:00 to 5:30 next day
+    };
+    
+    // Generate all 30-minute intervals for full 24 hours
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        const currentTime = hour * 60 + minute;
+        
+        // Determine prayer period
+        let category = 'General';
+        
+        if (currentTime >= prayerTimes.Fajr.start && currentTime < prayerTimes.Fajr.end) {
+          category = 'Fajr';
+        } else if (currentTime >= prayerTimes.Dhuhr.start && currentTime < prayerTimes.Dhuhr.end) {
+          category = 'Dhuhr';
+        } else if (currentTime >= prayerTimes.Asr.start && currentTime < prayerTimes.Asr.end) {
+          category = 'Asr';
+        } else if (currentTime >= prayerTimes.Maghrib.start && currentTime < prayerTimes.Maghrib.end) {
+          category = 'Maghrib';
+        } else if (currentTime >= prayerTimes.Isha.start || currentTime < prayerTimes.Fajr.start) {
+          category = 'Isha';
+        }
+        
+        // Only add slots that belong to prayer periods (no General times)
+        if (category !== 'General') {
+          slots.push({
+            time: timeStr,
+            prayer: category,
+            offset: ''
+          });
+        }
+      }
+    }
+    
+    return slots;
+  };
+
+  const toggleTime = (time: string) => {
+    const newTimes = selectedTimes.includes(time)
+      ? selectedTimes.filter(t => t !== time)
+      : [...selectedTimes, time].sort();
+    
+    setSelectedTimes(newTimes);
+    onChange(newTimes.join(', '));
+  };
+
+  const timeSlots = generateTimeSlots();
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Enter manually: 4:00, 5:00, 6:00 or select from slots below"
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+        />
+      </div>
+      
+      <div className="space-y-6">
+        {['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map(prayer => {
+          const prayerSlots = timeSlots.filter(slot => slot.prayer === prayer);
+          const prayerColors = {
+            Fajr: 'border-blue-200 bg-blue-50',
+            Dhuhr: 'border-green-200 bg-green-50', 
+            Asr: 'border-yellow-200 bg-yellow-50',
+            Maghrib: 'border-orange-200 bg-orange-50',
+            Isha: 'border-purple-200 bg-purple-50'
+          };
+          
+          const prayerPeriods = {
+            Fajr: 'Subhi to Dhuhr (5:30 - 12:30)',
+            Dhuhr: 'Dhuhr to Asr (12:30 - 15:30)',
+            Asr: 'Asr to Maghrib (15:30 - 18:30)',
+            Maghrib: 'Maghrib to Isha (18:30 - 20:00)',
+            Isha: 'Isha to Subhi (20:00 - 5:30)'
+          };
+          
+          return (
+            <div key={prayer} className={`p-4 rounded-xl border-2 ${prayerColors[prayer as keyof typeof prayerColors]}`}>
+              <h4 className="font-bold text-lg mb-1 text-gray-800">{prayer} Period</h4>
+              <p className="text-sm text-gray-600 mb-3">{prayerPeriods[prayer as keyof typeof prayerPeriods]}</p>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                {prayerSlots.map((slot, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => toggleTime(slot.time)}
+                    className={`p-2 text-sm rounded-lg border transition-colors ${
+                      selectedTimes.includes(slot.time)
+                        ? 'bg-black text-white border-black'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="font-medium">{slot.time}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      
+      <p className="text-sm text-gray-500">
+        Select from prayer-based time slots (5:30-5:30 with 30min intervals)
+      </p>
+    </div>
+  );
+};
+
 type UserRole = "admin" | "controller" | "teacher" | "registral";
 
 interface User {
@@ -562,7 +693,7 @@ export default function UserManagementPage() {
 
         {/* Add/Edit User Modal */}
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-          <div className="w-full max-w-2xl mx-auto bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8 max-h-[95vh] overflow-y-auto">
             <h2 className="text-3xl font-bold text-black mb-8">
               {editingUser ? "Edit User" : "Add New User"}
             </h2>
@@ -645,23 +776,10 @@ export default function UserManagementPage() {
                     <label className="block text-lg text-black font-bold mb-3">
                       Schedule
                     </label>
-                    <input
-                      type="text"
-                      name="schedule"
+                    <ScheduleGenerator 
                       value={teacherSchedule}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        // Allow numbers, colons, commas, spaces, and AM/PM
-                        const sanitized = value.replace(/[^0-9:, APMapm]/g, '');
-                        setTeacherSchedule(sanitized);
-                      }}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
-                      required
-                      placeholder="e.g. 4:00, 5:00 PM, 2:00 AM"
+                      onChange={setTeacherSchedule}
                     />
-                    <p className="text-sm text-gray-500 mt-2">
-                      Enter time slots separated by commas (e.g. 4:00, 5:00 PM, 2:00 AM)
-                    </p>
                   </div>
 
                   <div>
