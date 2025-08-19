@@ -184,17 +184,17 @@ export default function AdminAttendanceList() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
         {/* Header + Stats */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-200/50 p-6 sm:p-8 lg:p-10 hover:shadow-3xl transition-all duration-300">
           <div className="flex flex-col lg:flex-row lg:items-center gap-8 mb-8">
             <div className="flex items-center gap-6">
-              <div className="p-4 bg-black rounded-2xl shadow-lg">
+              <div className="p-4 bg-gradient-to-br from-black to-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                 <FiCalendar className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-2">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-black to-gray-700 bg-clip-text text-transparent mb-2">
                   Daily Attendance
                 </h1>
                 <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
@@ -205,47 +205,47 @@ export default function AdminAttendanceList() {
 
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 text-center border border-blue-200 hover:shadow-lg transition-all duration-300 hover:scale-105 group">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiUsers className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">
+                  <FiUsers className="h-5 w-5 text-blue-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-semibold text-blue-700">
                     Students
                   </span>
                 </div>
-                <div className="text-2xl font-bold text-black">
+                <div className="text-2xl font-bold text-blue-900">
                   {attendanceData.length}
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-4 text-center border border-green-200 hover:shadow-lg transition-all duration-300 hover:scale-105 group">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiLink className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">
+                  <FiLink className="h-5 w-5 text-green-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-semibold text-green-700">
                     Links Sent
                   </span>
                 </div>
-                <div className="text-2xl font-bold text-black">
+                <div className="text-2xl font-bold text-green-900">
                   {stats.totalSent}
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 text-center border border-purple-200 hover:shadow-lg transition-all duration-300 hover:scale-105 group">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiEye className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">
+                  <FiEye className="h-5 w-5 text-purple-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-semibold text-purple-700">
                     Clicked
                   </span>
                 </div>
-                <div className="text-2xl font-bold text-black">
+                <div className="text-2xl font-bold text-purple-900">
                   {stats.totalClicked}
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-4 text-center border border-orange-200 hover:shadow-lg transition-all duration-300 hover:scale-105 group">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiCheckCircle className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">
+                  <FiCheckCircle className="h-5 w-5 text-orange-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-semibold text-orange-700">
                     Response Rate
                   </span>
                 </div>
-                <div className="text-2xl font-bold text-black">
+                <div className="text-2xl font-bold text-orange-900">
                   {stats.responseRate}
                 </div>
               </div>
@@ -253,8 +253,8 @@ export default function AdminAttendanceList() {
           </div>
 
           {/* Controls */}
-          <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl p-6 border border-gray-200/50 backdrop-blur-sm">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div>
                 <label className="block text-sm font-bold text-black mb-2">
                   <FiCalendar className="inline h-4 w-4 mr-2" />
@@ -264,7 +264,7 @@ export default function AdminAttendanceList() {
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-gray-900 shadow-sm hover:shadow-md transition-all duration-200"
                 />
               </div>
               <div>
@@ -275,7 +275,7 @@ export default function AdminAttendanceList() {
                 <select
                   value={selectedController}
                   onChange={(e) => setSelectedController(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-gray-900 shadow-sm hover:shadow-md transition-all duration-200"
                 >
                   <option value="">All Controllers</option>
                   {controllers.map((controller) => (
@@ -293,7 +293,7 @@ export default function AdminAttendanceList() {
                 <select
                   value={attendanceFilter}
                   onChange={(e) => setAttendanceFilter(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-gray-900 shadow-sm hover:shadow-md transition-all duration-200"
                 >
                   <option value="">All Status</option>
                   <option value="Present">Present</option>
@@ -307,9 +307,9 @@ export default function AdminAttendanceList() {
                 </label>
                 <button
                   onClick={fetchAttendanceData}
-                  className="w-full px-4 py-3 bg-black hover:bg-gray-800 text-white rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2"
+                  className="w-full px-4 py-3 bg-gradient-to-r from-black to-gray-800 hover:from-gray-800 hover:to-black text-white rounded-xl font-bold transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center gap-2 group"
                 >
-                  <FiRefreshCw className="h-4 w-4" />
+                  <FiRefreshCw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-300" />
                   Refresh
                 </button>
               </div>
@@ -318,17 +318,17 @@ export default function AdminAttendanceList() {
         </div>
 
         {/* Attendance List */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
-          <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-200/50 overflow-hidden hover:shadow-3xl transition-all duration-300">
+          <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200/50 bg-gradient-to-r from-white to-gray-50">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-black rounded-xl">
+              <div className="p-3 bg-gradient-to-br from-black to-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                 <FiUsers className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-black">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-black to-gray-700 bg-clip-text text-transparent">
                   Student Attendance & Zoom Links
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-gray-600 font-medium">
                   {selectedDate} - {attendanceData.length} students
                 </p>
               </div>
@@ -337,21 +337,21 @@ export default function AdminAttendanceList() {
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr className="border-b border-gray-200">
-                  <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
+              <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
+                <tr className="border-b border-gray-200/50">
+                  <th className="py-4 px-6 text-left font-bold text-gray-800 uppercase tracking-wider hover:text-black transition-colors">
                     Student
                   </th>
-                  <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
+                  <th className="py-4 px-6 text-left font-bold text-gray-800 uppercase tracking-wider hover:text-black transition-colors">
                     Teacher
                   </th>
-                  <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
+                  <th className="py-4 px-6 text-left font-bold text-gray-800 uppercase tracking-wider hover:text-black transition-colors">
                     Scheduled
                   </th>
-                  <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
+                  <th className="py-4 px-6 text-left font-bold text-gray-800 uppercase tracking-wider hover:text-black transition-colors">
                     Zoom Link
                   </th>
-                  <th className="py-4 px-6 text-left font-bold text-black uppercase tracking-wider">
+                  <th className="py-4 px-6 text-left font-bold text-gray-800 uppercase tracking-wider hover:text-black transition-colors">
                     Attendance
                   </th>
                 </tr>
@@ -360,14 +360,14 @@ export default function AdminAttendanceList() {
                 {attendanceData.map((record) => (
                   <tr
                     key={record.student_id}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                    className="border-b border-gray-100/50 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-purple-50/50 transition-all duration-300 hover:shadow-sm group"
                   >
                     <td className="py-4 px-6">
-                      <div>
-                        <div className="font-bold text-black">
+                      <div className="group-hover:scale-105 transition-transform duration-200">
+                        <div className="font-bold text-black group-hover:text-blue-900">
                           {record.studentName}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-500 group-hover:text-gray-600">
                           ID: {record.student_id}
                         </div>
                       </div>
@@ -453,10 +453,10 @@ export default function AdminAttendanceList() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6">
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-200/50 p-6 hover:shadow-3xl transition-all duration-300">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700">
-                Showing {((currentPage - 1) * 20) + 1} to {Math.min(currentPage * 20, totalRecords)} of {totalRecords} students
+              <div className="text-sm font-medium text-gray-700 bg-gray-50 px-4 py-2 rounded-lg">
+                Showing <span className="font-bold text-black">{((currentPage - 1) * 20) + 1}</span> to <span className="font-bold text-black">{Math.min(currentPage * 20, totalRecords)}</span> of <span className="font-bold text-black">{totalRecords}</span> students
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -464,7 +464,7 @@ export default function AdminAttendanceList() {
                     setCurrentPage(Math.max(1, currentPage - 1));
                   }}
                   disabled={currentPage === 1}
-                  className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-6 py-2 border border-gray-300 rounded-lg bg-gradient-to-r from-white to-gray-50 text-gray-700 hover:from-gray-50 hover:to-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-md font-medium"
                 >
                   Previous
                 </button>
@@ -476,10 +476,10 @@ export default function AdminAttendanceList() {
                       <button
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                           currentPage === pageNum
-                            ? 'bg-black text-white'
-                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                            ? 'bg-gradient-to-r from-black to-gray-800 text-white shadow-lg scale-105'
+                            : 'bg-gradient-to-r from-white to-gray-50 text-gray-700 hover:from-gray-50 hover:to-gray-100 border border-gray-300 hover:shadow-md hover:scale-105'
                         }`}
                       >
                         {pageNum}
@@ -493,7 +493,7 @@ export default function AdminAttendanceList() {
                     setCurrentPage(Math.min(totalPages, currentPage + 1));
                   }}
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-6 py-2 border border-gray-300 rounded-lg bg-gradient-to-r from-white to-gray-50 text-gray-700 hover:from-gray-50 hover:to-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-md font-medium"
                 >
                   Next
                 </button>
