@@ -53,6 +53,9 @@ export default function AdminAttendanceList() {
   );
   const [selectedController, setSelectedController] = useState("");
   const [attendanceFilter, setAttendanceFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [stats, setStats] = useState({
     totalLinks: 0,
     totalSent: 0,
@@ -76,7 +79,7 @@ export default function AdminAttendanceList() {
       fetchControllers();
       fetchAttendanceData();
     }
-  }, [status, session, selectedDate, selectedController, attendanceFilter]);
+  }, [status, session, selectedDate, selectedController, attendanceFilter, currentPage]);
 
   const fetchControllers = async () => {
     try {
@@ -95,6 +98,8 @@ export default function AdminAttendanceList() {
     try {
       const params = new URLSearchParams({
         date: selectedDate,
+        page: currentPage.toString(),
+        limit: "20",
         ...(selectedController && { controllerId: selectedController }),
         ...(attendanceFilter && { attendanceStatus: attendanceFilter }),
       });
@@ -109,6 +114,8 @@ export default function AdminAttendanceList() {
       if (response.ok) {
         const data = await response.json();
         setAttendanceData(data.integratedData || []);
+        setTotalRecords(data.total || 0);
+        setTotalPages(data.totalPages || 1);
         setStats(data.stats || {
           totalLinks: 0,
           totalSent: 0,
@@ -443,6 +450,57 @@ export default function AdminAttendanceList() {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing {((currentPage - 1) * 20) + 1} to {Math.min(currentPage * 20, totalRecords)} of {totalRecords} students
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setCurrentPage(Math.max(1, currentPage - 1));
+                  }}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
+                </button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-black text-white'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                <button
+                  onClick={() => {
+                    setCurrentPage(Math.min(totalPages, currentPage + 1));
+                  }}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

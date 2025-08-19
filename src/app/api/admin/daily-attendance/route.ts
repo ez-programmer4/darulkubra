@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
     const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
     const controllerId = searchParams.get("controllerId") || "";
     const attendanceFilter = searchParams.get("attendanceStatus") || "";
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
 
     // Validate date
     let dayStart, dayEnd;
@@ -47,7 +49,12 @@ export async function GET(req: NextRequest) {
       whereClause.u_control = controllerId;
     }
 
-    // Fetch students
+    // Get total count for pagination
+    const totalCount = await prisma.wpos_wpdatatable_23.count({
+      where: whereClause,
+    });
+
+    // Fetch students with pagination
     const records = await prisma.wpos_wpdatatable_23.findMany({
       where: whereClause,
       include: {
@@ -71,11 +78,39 @@ export async function GET(req: NextRequest) {
         controller: { select: { name: true } },
         occupiedTimes: { select: { time_slot: true } },
       },
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { name: 'asc' },
     });
 
     const integratedData = records.map((record: any) => {
+      // Handle scheduled time properly
+      let scheduledAt = null;
       const scheduledTime = record.occupiedTimes?.[0]?.time_slot;
-      const scheduledAt = scheduledTime ? `${date}T${scheduledTime}:00.000Z` : null;
+      
+      if (scheduledTime) {
+        // Check if time is in 24-hour format (HH:MM)
+        if (/^\d{2}:\d{2}$/.test(scheduledTime)) {
+          scheduledAt = `${date}T${scheduledTime}:00.000Z`;
+        } else {
+          // Handle 12-hour format conversion
+          try {
+            const [time, modifier] = scheduledTime.split(' ');
+            if (modifier) {
+              let [hours, minutes] = time.split(':');
+              if (hours === '12') {
+                hours = modifier.toUpperCase() === 'AM' ? '00' : '12';
+              } else if (modifier.toUpperCase() === 'PM') {
+                hours = String(parseInt(hours, 10) + 12);
+              }
+              const time24 = `${hours.padStart(2, '0')}:${minutes || '00'}`;
+              scheduledAt = `${date}T${time24}:00.000Z`;
+            }
+          } catch (e) {
+            console.log(`Failed to parse time: ${scheduledTime}`);
+          }
+        }
+      }
 
       const linksForDay = (record.zoom_links || []).map((zl: any) => ({
         id: zl.id,
@@ -87,24 +122,27 @@ export async function GET(req: NextRequest) {
         tracking_token: zl.tracking_token || null,
       }));
 
-      // Get attendance status - use raw value from database
-      const dailyAttendance = record.attendance_progress?.[0];
+      // Get attendance status - check all attendance records for the day
       let attendance_status = "Not Taken";
       
-      if (dailyAttendance?.attendance_status) {
-        const status = dailyAttendance.attendance_status.toLowerCase();
-        switch (status) {
-          case "present":
-            attendance_status = "Present";
-            break;
-          case "absent":
-            attendance_status = "Absent";
-            break;
-          case "permission":
-            attendance_status = "Permission";
-            break;
-          default:
-            attendance_status = "Not Taken";
+      if (record.attendance_progress && record.attendance_progress.length > 0) {
+        const dailyAttendance = record.attendance_progress[0];
+        if (dailyAttendance?.attendance_status) {
+          const status = String(dailyAttendance.attendance_status).toLowerCase().trim();
+          
+          switch (status) {
+            case "present":
+              attendance_status = "Present";
+              break;
+            case "absent":
+              attendance_status = "Absent";
+              break;
+            case "permission":
+              attendance_status = "Permission";
+              break;
+            default:
+              attendance_status = "Not Taken";
+          }
         }
       }
 
@@ -139,7 +177,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       integratedData: filteredData,
-      total: filteredData.length,
+      total: totalCount,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
       stats,
     });
   } catch (error: any) {
