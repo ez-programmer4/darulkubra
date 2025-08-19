@@ -227,6 +227,13 @@ export default function UserManagementPage() {
   const [teacherSchedule, setTeacherSchedule] = useState("");
   const [teacherControlId, setTeacherControlId] = useState("");
   const [teacherPhone, setTeacherPhone] = useState("");
+  const [totalCounts, setTotalCounts] = useState<Record<UserRole, number>>({
+    admin: 0,
+    controller: 0,
+    teacher: 0,
+    registral: 0,
+  });
+  const [totalUsers, setTotalUsers] = useState(0);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -252,7 +259,26 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     fetchUsers();
+    fetchTotalCounts();
   }, [fetchUsers]);
+
+  const fetchTotalCounts = async () => {
+    try {
+      const res = await fetch('/api/admin/users?getTotals=true');
+      if (res.ok) {
+        const data = await res.json();
+        setTotalCounts(data.totalsByRole || {
+          admin: 0,
+          controller: 0,
+          teacher: 0,
+          registral: 0,
+        });
+        setTotalUsers(data.totalUsers || 0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch total counts:', error);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/admin/users?role=controller&limit=1000")
@@ -418,7 +444,7 @@ export default function UserManagementPage() {
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-4 text-center border border-gray-200 hover:shadow-lg transition-all duration-300">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <FiUsers className="h-5 w-5 text-gray-600" />
                 <span className="text-sm font-semibold text-gray-600">
@@ -426,24 +452,48 @@ export default function UserManagementPage() {
                 </span>
               </div>
               <div className="text-2xl font-bold text-black">
-                {users.length}
+                {totalUsers}
               </div>
             </div>
             {roleOrder.map((role) => {
               const Icon = roleIcons[role];
+              const roleColors = {
+                admin: 'from-purple-50 to-purple-100 border-purple-200',
+                controller: 'from-blue-50 to-blue-100 border-blue-200',
+                teacher: 'from-green-50 to-green-100 border-green-200',
+                registral: 'from-orange-50 to-orange-100 border-orange-200',
+              };
+              const iconColors = {
+                admin: 'text-purple-600',
+                controller: 'text-blue-600',
+                teacher: 'text-green-600',
+                registral: 'text-orange-600',
+              };
+              const textColors = {
+                admin: 'text-purple-700',
+                controller: 'text-blue-700',
+                teacher: 'text-green-700',
+                registral: 'text-orange-700',
+              };
+              const numberColors = {
+                admin: 'text-purple-900',
+                controller: 'text-blue-900',
+                teacher: 'text-green-900',
+                registral: 'text-orange-900',
+              };
               return (
                 <div
                   key={role}
-                  className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200"
+                  className={`bg-gradient-to-br ${roleColors[role]} rounded-2xl p-4 text-center hover:shadow-lg transition-all duration-300 hover:scale-105 group`}
                 >
                   <div className="flex items-center justify-center gap-2 mb-2">
-                    <Icon className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-semibold text-gray-600">
+                    <Icon className={`h-5 w-5 ${iconColors[role]} group-hover:scale-110 transition-transform`} />
+                    <span className={`text-sm font-semibold ${textColors[role]}`}>
                       {roleLabels[role]}
                     </span>
                   </div>
-                  <div className="text-2xl font-bold text-black">
-                    {usersByRole[role].length}
+                  <div className={`text-2xl font-bold ${numberColors[role]}`}>
+                    {totalCounts[role]}
                   </div>
                 </div>
               );

@@ -30,6 +30,30 @@ export async function GET(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
+    const getTotals = searchParams.get("getTotals") === "true";
+    
+    // If requesting totals only, return total counts
+    if (getTotals) {
+      const [adminCount, controllerCount, teacherCount, registralCount] = await Promise.all([
+        prisma.admin.count(),
+        prisma.wpos_wpdatatable_28.count(),
+        prisma.wpos_wpdatatable_24.count(),
+        prisma.wpos_wpdatatable_33.count(),
+      ]);
+      
+      const totalUsers = adminCount + controllerCount + teacherCount + registralCount;
+      
+      return NextResponse.json({
+        totalsByRole: {
+          admin: adminCount,
+          controller: controllerCount,
+          teacher: teacherCount,
+          registral: registralCount,
+        },
+        totalUsers,
+      });
+    }
+    
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "10", 10);
     const searchQuery = searchParams.get("search") || "";

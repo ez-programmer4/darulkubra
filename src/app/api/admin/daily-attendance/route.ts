@@ -84,31 +84,37 @@ export async function GET(req: NextRequest) {
     });
 
     const integratedData = records.map((record: any) => {
-      // Handle scheduled time properly
+      // Handle scheduled time properly - match controller attendance-list logic
       let scheduledAt = null;
       const scheduledTime = record.occupiedTimes?.[0]?.time_slot;
       
-      if (scheduledTime) {
-        // Check if time is in 24-hour format (HH:MM)
-        if (/^\d{2}:\d{2}$/.test(scheduledTime)) {
-          scheduledAt = `${date}T${scheduledTime}:00.000Z`;
-        } else {
-          // Handle 12-hour format conversion
+      if (scheduledTime && scheduledTime !== 'null') {
+        // Check if time contains AM/PM (12-hour format)
+        if (scheduledTime.includes('AM') || scheduledTime.includes('PM')) {
+          // Handle 12-hour format like "4:00 AM" or "2:30 PM"
           try {
             const [time, modifier] = scheduledTime.split(' ');
-            if (modifier) {
-              let [hours, minutes] = time.split(':');
-              if (hours === '12') {
-                hours = modifier.toUpperCase() === 'AM' ? '00' : '12';
-              } else if (modifier.toUpperCase() === 'PM') {
-                hours = String(parseInt(hours, 10) + 12);
-              }
-              const time24 = `${hours.padStart(2, '0')}:${minutes || '00'}`;
-              scheduledAt = `${date}T${time24}:00.000Z`;
+            let [hours, minutes] = time.split(':');
+            let hour24 = parseInt(hours, 10);
+            
+            if (modifier.toUpperCase() === 'AM') {
+              if (hour24 === 12) hour24 = 0;
+            } else if (modifier.toUpperCase() === 'PM') {
+              if (hour24 !== 12) hour24 += 12;
             }
+            
+            const time24 = `${hour24.toString().padStart(2, '0')}:${minutes || '00'}`;
+            scheduledAt = `${date}T${time24}:00.000Z`;
           } catch (e) {
-            console.log(`Failed to parse time: ${scheduledTime}`);
+            console.log(`Failed to parse 12-hour time: ${scheduledTime}`);
           }
+        } else if (/^\d{1,2}:\d{2}$/.test(scheduledTime)) {
+          // Handle 24-hour format like "14:30" or "4:00"
+          const [hours, minutes] = scheduledTime.split(':');
+          const time24 = `${hours.padStart(2, '0')}:${minutes}`;
+          scheduledAt = `${date}T${time24}:00.000Z`;
+        } else {
+          console.log(`Unknown time format: ${scheduledTime}`);
         }
       }
 
