@@ -26,7 +26,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard", icon: Home },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/teacher-schedules", label: "Daily Attendance", icon: Clock },
-  { href: "/admin/attendance", label: "Attendance", icon: Calendar },
+
   { href: "/admin/lateness", label: "Lateness Analytics", icon: UserCheck },
   { href: "/admin/payments", label: "Payments", icon: DollarSign },
   { href: "/admin/permissions", label: "Permissions", icon: Shield },

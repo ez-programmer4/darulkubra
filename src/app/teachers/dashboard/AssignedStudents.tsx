@@ -401,7 +401,7 @@ export default function AssignedStudents() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            attendance_status: rec.status,
+            attendance_status: rec.status === "no class" ? "No Class" : rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
             surah: rec.surah || undefined,
             pages_read: rec.pages ? Number(rec.pages) : undefined,
             level: rec.level || undefined,
@@ -743,13 +743,26 @@ export default function AssignedStudents() {
                                 Send Zoom
                               </Button>
                               <Button
-                                onClick={() =>
+                                onClick={() => {
+                                  if (!zoomSent[s.id]) {
+                                    toast({
+                                      title: "Zoom Link Required",
+                                      description: "Please send the Zoom link first before marking attendance.",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
                                   setModal({
                                     type: "attendance",
                                     studentId: s.id,
-                                  })
-                                }
-                                className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                                  });
+                                }}
+                                disabled={!zoomSent[s.id]}
+                                className={`px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 ${
+                                  zoomSent[s.id]
+                                    ? "bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white"
+                                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                }`}
                               >
                                 <FiCheck className="h-4 w-4 mr-2" />
                                 Attendance
@@ -875,10 +888,23 @@ export default function AssignedStudents() {
                           Send Zoom Link
                         </Button>
                         <Button
-                          onClick={() =>
-                            setModal({ type: "attendance", studentId: s.id })
-                          }
-                          className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white py-4 rounded-xl font-bold shadow-lg touch-manipulation hover:scale-105 transition-all duration-200"
+                          onClick={() => {
+                            if (!zoomSent[s.id]) {
+                              toast({
+                                title: "Zoom Link Required",
+                                description: "Please send the Zoom link first before marking attendance.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setModal({ type: "attendance", studentId: s.id });
+                          }}
+                          disabled={!zoomSent[s.id]}
+                          className={`py-4 rounded-xl font-bold shadow-lg touch-manipulation transition-all duration-200 ${
+                            zoomSent[s.id]
+                              ? "bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white hover:scale-105"
+                              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          }`}
                         >
                           <FiCheck className="h-4 w-4 mr-2" />
                           Mark Attendance
@@ -1033,29 +1059,63 @@ export default function AssignedStudents() {
 
                   {modal.type === "attendance" && (
                     <div className="space-y-6">
+                      {!zoomSent[modal.studentId!] && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+                          <div className="flex items-center gap-2 mb-2">
+                            <FiAlertTriangle className="h-4 w-4 text-yellow-600" />
+                            <span className="text-sm font-bold text-yellow-800">
+                              Zoom Link Required
+                            </span>
+                          </div>
+                          <p className="text-sm text-yellow-700">
+                            Please send the Zoom link first before marking attendance.
+                          </p>
+                        </div>
+                      )}
                       <div>
                         <label className="block text-sm font-bold text-gray-800 mb-3">
                           Attendance Status *
                         </label>
-                        <div className="grid grid-cols-3 gap-3">
-                          {(["present", "absent"] as const).map((status) => (
-                            <button
-                              key={status}
-                              onClick={() =>
-                                updateAttend(modal.studentId!, { status })
+                        <div className="grid grid-cols-2 gap-3">
+                          {(["present", "absent", "permission", "no class"] as const).map((status) => {
+                            const getStatusColor = (status: string) => {
+                              switch (status) {
+                                case "present":
+                                  return attend[modal.studentId!]?.status === status
+                                    ? "bg-green-600 text-white border-green-600"
+                                    : "border-green-300 text-green-700 hover:bg-green-50";
+                                case "absent":
+                                  return attend[modal.studentId!]?.status === status
+                                    ? "bg-red-600 text-white border-red-600"
+                                    : "border-red-300 text-red-700 hover:bg-red-50";
+                                case "permission":
+                                  return attend[modal.studentId!]?.status === status
+                                    ? "bg-yellow-600 text-white border-yellow-600"
+                                    : "border-yellow-300 text-yellow-700 hover:bg-yellow-50";
+                                case "no class":
+                                  return attend[modal.studentId!]?.status === status
+                                    ? "bg-gray-600 text-white border-gray-600"
+                                    : "border-gray-300 text-gray-700 hover:bg-gray-50";
+                                default:
+                                  return "border-gray-300 text-gray-700 hover:bg-gray-50";
                               }
-                              className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${
-                                attend[modal.studentId!]?.status === status
-                                  ? "bg-green-600 text-white border-green-600"
-                                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                              }`}
-                              aria-pressed={
-                                attend[modal.studentId!]?.status === status
-                              }
-                            >
-                              {status.charAt(0).toUpperCase() + status.slice(1)}
-                            </button>
-                          ))}
+                            };
+                            
+                            return (
+                              <button
+                                key={status}
+                                onClick={() =>
+                                  updateAttend(modal.studentId!, { status })
+                                }
+                                className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${getStatusColor(status)}`}
+                                aria-pressed={
+                                  attend[modal.studentId!]?.status === status
+                                }
+                              >
+                                {status === "no class" ? "No Class" : status.charAt(0).toUpperCase() + status.slice(1)}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
 
@@ -1152,7 +1212,8 @@ export default function AssignedStudents() {
                         onClick={() => saveAttendance(modal.studentId!)}
                         disabled={
                           !!sending[modal.studentId] ||
-                          !attend[modal.studentId]?.status
+                          !attend[modal.studentId]?.status ||
+                          !zoomSent[modal.studentId!]
                         }
                         className="w-full bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
                       >

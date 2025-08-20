@@ -424,7 +424,7 @@ export default function AdminDashboardPage() {
     },
     {
       label: "Pending Payments",
-      value: `${stats.pendingPaymentCount} ($${stats.pendingPaymentAmount})`,
+      value: `${stats.pendingPaymentCount}`,
       icon: <FiDollarSign className="text-teal-500 w-6 h-6" />,
       color: "from-teal-500 to-emerald-600",
     },
