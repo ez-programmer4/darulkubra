@@ -11,13 +11,14 @@ export async function GET(req: NextRequest) {
       req,
       secret: process.env.NEXTAUTH_SECRET,
     });
-    
+
     if (!session || session.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
-    const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
+    const date =
+      searchParams.get("date") || new Date().toISOString().split("T")[0];
     const controllerId = searchParams.get("controllerId") || "";
     const attendanceFilter = searchParams.get("attendanceStatus") || "";
     const page = parseInt(searchParams.get("page") || "1", 10);
@@ -80,39 +81,41 @@ export async function GET(req: NextRequest) {
       },
       skip: (page - 1) * limit,
       take: limit,
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
 
     const integratedData = records.map((record: any) => {
       // Handle scheduled time properly - match controller attendance-list logic
       let scheduledAt = null;
       const scheduledTime = record.occupiedTimes?.[0]?.time_slot;
-      
-      if (scheduledTime && scheduledTime !== 'null') {
+
+      if (scheduledTime && scheduledTime !== "null") {
         // Check if time contains AM/PM (12-hour format)
-        if (scheduledTime.includes('AM') || scheduledTime.includes('PM')) {
+        if (scheduledTime.includes("AM") || scheduledTime.includes("PM")) {
           // Handle 12-hour format like "4:00 AM" or "2:30 PM"
           try {
-            const [time, modifier] = scheduledTime.split(' ');
-            let [hours, minutes] = time.split(':');
+            const [time, modifier] = scheduledTime.split(" ");
+            let [hours, minutes] = time.split(":");
             let hour24 = parseInt(hours, 10);
-            
-            if (modifier.toUpperCase() === 'AM') {
+
+            if (modifier.toUpperCase() === "AM") {
               if (hour24 === 12) hour24 = 0;
-            } else if (modifier.toUpperCase() === 'PM') {
+            } else if (modifier.toUpperCase() === "PM") {
               if (hour24 !== 12) hour24 += 12;
             }
-            
-            const time24 = `${hour24.toString().padStart(2, '0')}:${minutes || '00'}`;
+
+            const time24 = `${hour24.toString().padStart(2, "0")}:${
+              minutes || "00"
+            }`;
             scheduledAt = `${date}T${time24}:00.000Z`;
           } catch (e) {
             console.log(`Failed to parse 12-hour time: ${scheduledTime}`);
           }
         } else if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(scheduledTime)) {
           // Handle 24-hour format like "14:30", "4:00", or "13:00:00"
-          const timeParts = scheduledTime.split(':');
-          const hours = timeParts[0].padStart(2, '0');
-          const minutes = timeParts[1] || '00';
+          const timeParts = scheduledTime.split(":");
+          const hours = timeParts[0].padStart(2, "0");
+          const minutes = timeParts[1] || "00";
           const time24 = `${hours}:${minutes}`;
           scheduledAt = `${date}T${time24}:00.000Z`;
         } else {
@@ -125,19 +128,23 @@ export async function GET(req: NextRequest) {
         link: zl.link,
         sent_time: zl.sent_time ? zl.sent_time.toISOString() : null,
         clicked_at: zl.clicked_at ? zl.clicked_at.toISOString() : null,
-        expiration_date: zl.expiration_date ? zl.expiration_date.toISOString() : null,
+        expiration_date: zl.expiration_date
+          ? zl.expiration_date.toISOString()
+          : null,
         report: zl.report || null,
         tracking_token: zl.tracking_token || null,
       }));
 
       // Get attendance status - check all attendance records for the day
-      let attendance_status = "Not Taken";
-      
+      let attendance_status = "Not taken";
+
       if (record.attendance_progress && record.attendance_progress.length > 0) {
         const dailyAttendance = record.attendance_progress[0];
         if (dailyAttendance?.attendance_status) {
-          const status = String(dailyAttendance.attendance_status).toLowerCase().trim();
-          
+          const status = String(dailyAttendance.attendance_status)
+            .toLowerCase()
+            .trim();
+
           switch (status) {
             case "present":
               attendance_status = "Present";
@@ -149,7 +156,7 @@ export async function GET(req: NextRequest) {
               attendance_status = "Permission";
               break;
             default:
-              attendance_status = "Not Taken";
+              attendance_status = "Not taken";
           }
         }
       }
@@ -167,20 +174,38 @@ export async function GET(req: NextRequest) {
     });
 
     // Apply attendance filter if specified
-    const filteredData = attendanceFilter 
-      ? integratedData.filter(record => record.attendance_status === attendanceFilter)
+    const filteredData = attendanceFilter
+      ? integratedData.filter(
+          (record) => record.attendance_status === attendanceFilter
+        )
       : integratedData;
 
     const stats = {
-      totalLinks: filteredData.reduce((sum: number, r: any) => sum + r.links.length, 0),
-      totalSent: filteredData.reduce((sum: number, r: any) => 
-        sum + r.links.filter((l: any) => l.sent_time).length, 0),
-      totalClicked: filteredData.reduce((sum: number, r: any) => 
-        sum + r.links.filter((l: any) => l.clicked_at).length, 0),
+      totalLinks: filteredData.reduce(
+        (sum: number, r: any) => sum + r.links.length,
+        0
+      ),
+      totalSent: filteredData.reduce(
+        (sum: number, r: any) =>
+          sum + r.links.filter((l: any) => l.sent_time).length,
+        0
+      ),
+      totalClicked: filteredData.reduce(
+        (sum: number, r: any) =>
+          sum + r.links.filter((l: any) => l.clicked_at).length,
+        0
+      ),
       missedDeadlines: 0,
-      responseRate: filteredData.length > 0
-        ? `${((filteredData.filter((r: any) => r.attendance_status === "Present").length / filteredData.length) * 100).toFixed(2)}%`
-        : "0.00%",
+      responseRate:
+        filteredData.length > 0
+          ? `${(
+              (filteredData.filter(
+                (r: any) => r.attendance_status === "Present"
+              ).length /
+                filteredData.length) *
+              100
+            ).toFixed(2)}%`
+          : "0.00%",
     };
 
     return NextResponse.json({

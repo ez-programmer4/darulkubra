@@ -240,6 +240,9 @@ const RoleBadge = ({ role }: { role: UserRole }) => {
     teacher: "bg-green-100 text-green-800",
     registral: "bg-orange-100 text-orange-800",
   };
+  
+  if (!role) return null;
+  
   return (
     <span
       className={`px-3 py-1 text-sm font-semibold rounded-full ${roleStyles[role]}`}
@@ -714,7 +717,7 @@ export default function UserManagementPage() {
                                       <div className="text-gray-700">
                                         {user.controlId
                                           ? controllers.find(
-                                              (c) => c.id === user.controlId
+                                              (c) => c && c.id === user.controlId
                                             )?.name || "Unknown"
                                           : "Not assigned"}
                                       </div>
@@ -865,14 +868,11 @@ export default function UserManagementPage() {
                       required
                     >
                       <option value="">Select Controller</option>
-                      {controllers.map((ctrl) => {
-                        if (!ctrl.code || ctrl.code === "0") return null;
-                        return (
-                          <option key={ctrl.id} value={ctrl.code}>
-                            {ctrl.name} ({ctrl.code})
-                          </option>
-                        );
-                      })}
+                      {controllers.filter(ctrl => ctrl && ctrl.code && ctrl.code !== "0").map((ctrl) => (
+                        <option key={ctrl.id} value={ctrl.code}>
+                          {ctrl.name} ({ctrl.code})
+                        </option>
+                      ))}
                     </select>
                   </div>
 
