@@ -661,12 +661,12 @@ export default function UserManagementPage() {
                                   <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center">
                                       <span className="text-white font-bold">
-                                        {user.name.charAt(0).toUpperCase()}
+                                        {user.name ? user.name.charAt(0).toUpperCase() : "?"}
                                       </span>
                                     </div>
                                     <div>
                                       <div className="font-bold text-black">
-                                        {user.name}
+                                        {user.name || "Unknown User"}
                                       </div>
                                       {user.username && (
                                         <div className="text-sm text-gray-500">
