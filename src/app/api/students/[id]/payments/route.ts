@@ -181,7 +181,7 @@ export async function POST(
     }
 
     // Distribute payment across months proportionally
-    const createdPayments = [];
+    const createdPayments: any[] = [];
     let remainingAmount = totalPaidAmount;
     
     await prisma.$transaction(async (tx) => {
@@ -221,7 +221,6 @@ export async function POST(
             payment_type: paymentType,
             start_date: startDate,
             end_date: endDate,
-            transaction_id: transactionId,
           },
         });
         
