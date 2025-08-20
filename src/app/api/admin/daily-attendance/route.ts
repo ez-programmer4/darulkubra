@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     const date =
       searchParams.get("date") || new Date().toISOString().split("T")[0];
     const controllerId = searchParams.get("controllerId") || "";
+    const teacherId = searchParams.get("teacherId") || "";
     const attendanceFilter = searchParams.get("attendanceStatus") || "";
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
@@ -48,6 +49,11 @@ export async function GET(req: NextRequest) {
     // Filter by controller if specified
     if (controllerId) {
       whereClause.u_control = controllerId;
+    }
+
+    // Filter by teacher if specified
+    if (teacherId) {
+      whereClause.ustazid = teacherId;
     }
 
     // Get total count for pagination
