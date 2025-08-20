@@ -112,7 +112,12 @@ export async function POST(
     
     let totalExpectedAmount = 0;
     let totalAlreadyPaid = 0;
-    const monthDetails = [];
+    const monthDetails: {
+      month: string;
+      expectedAmount: number;
+      alreadyPaid: number;
+      remaining: number;
+    }[] = [];
     
     for (const month of normalizedMonths) {
       const [year, monthNum] = month.split("-").map(Number);
