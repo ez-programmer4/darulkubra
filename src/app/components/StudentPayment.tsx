@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiX } from "react-icons/fi";
 import { format } from "date-fns";
 
@@ -43,13 +43,37 @@ export default function StudentPayment({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState({
-    month: format(new Date(), "yyyy-MM"),
+    months: [format(new Date(), "yyyy-MM")],
     amount: student.classfee.toString(),
     transactionId: "",
   });
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+
+  // Generate available months (current and next 11 months)
+  useEffect(() => {
+    const months = [];
+    const currentDate = new Date();
+    for (let i = 0; i < 12; i++) {
+      const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
+      months.push(format(monthDate, "yyyy-MM"));
+    }
+    setAvailableMonths(months);
+  }, []);
+
+  // Calculate total amount when months change
+  useEffect(() => {
+    const totalAmount = paymentData.months.length * student.classfee;
+    setPaymentData(prev => ({ ...prev, amount: totalAmount.toString() }));
+  }, [paymentData.months, student.classfee]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (paymentData.months.length === 0) {
+      setError("Please select at least one month");
+      return;
+    }
+    
     setIsSubmitting(true);
     setError(null);
 
@@ -60,7 +84,11 @@ export default function StudentPayment({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(paymentData),
+        body: JSON.stringify({
+          months: paymentData.months,
+          amount: paymentData.amount,
+          transactionId: paymentData.transactionId,
+        }),
       });
 
       if (!response.ok) {
@@ -97,22 +125,50 @@ export default function StudentPayment({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Month
+                Select Months ({paymentData.months.length} selected)
               </label>
-              <input
-                type="month"
-                value={paymentData.month}
-                onChange={(e) =>
-                  setPaymentData({ ...paymentData, month: e.target.value })
-                }
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50"
-                required
-              />
+              <div className="grid grid-cols-3 gap-2 p-4 border border-gray-300 rounded-xl bg-gray-50 max-h-48 overflow-y-auto">
+                {availableMonths.map((month) => {
+                  const monthDate = new Date(month + "-01");
+                  const monthName = monthDate.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long' 
+                  });
+                  const isSelected = paymentData.months.includes(month);
+                  
+                  return (
+                    <label key={month} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setPaymentData(prev => ({
+                              ...prev,
+                              months: [...prev.months, month].sort()
+                            }));
+                          } else {
+                            setPaymentData(prev => ({
+                              ...prev,
+                              months: prev.months.filter(m => m !== month)
+                            }));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{monthName}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              {paymentData.months.length === 0 && (
+                <p className="text-sm text-red-600 mt-1">Please select at least one month</p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Amount
+                Total Amount
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
@@ -129,6 +185,11 @@ export default function StudentPayment({
                   min="0"
                   step="0.01"
                 />
+              </div>
+              <div className="mt-2 text-sm text-gray-600">
+                <p>Monthly fee: ${student.classfee}</p>
+                <p>Selected months: {paymentData.months.length}</p>
+                <p>Calculated total: ${(paymentData.months.length * student.classfee).toFixed(2)}</p>
               </div>
             </div>
 
