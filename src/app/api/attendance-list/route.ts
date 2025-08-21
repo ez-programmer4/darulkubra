@@ -285,14 +285,18 @@ export async function GET(req: NextRequest) {
         isValid(new Date(startDate)) &&
         isValid(new Date(endDate))
       ) {
-        absentDaysCount = record.attendance_progress.filter((ap: any) => {
-          const attendanceDate = new Date(ap.date);
-          return (
-            attendanceDate >= new Date(startDate) &&
-            attendanceDate <= new Date(endDate) &&
-            ap.attendance_status?.toLowerCase() === "absent"
-          );
-        }).length;
+        // Get all attendance records for this student in the date range
+        const attendanceInRange = await prisma.student_attendance_progress.findMany({
+          where: {
+            student_id: record.wdt_ID,
+            date: {
+              gte: new Date(startDate),
+              lte: new Date(endDate),
+            },
+            attendance_status: "Absent"
+          }
+        });
+        absentDaysCount = attendanceInRange.length;
       }
 
       return {

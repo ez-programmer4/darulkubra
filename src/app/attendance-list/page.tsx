@@ -982,7 +982,7 @@ export default function AttendanceList() {
                               ? sortedLinks[0]
                               : null;
                           return link && link.sent_time
-                            ? formatDateSafely(link.sent_time)
+                            ? formatTimeOnly(link.sent_time)
                             : "N/A";
                         })()}
                       </td>
@@ -1000,7 +1000,7 @@ export default function AttendanceList() {
                               ? sortedLinks[0]
                               : null;
                           return link && link.clicked_at
-                            ? formatDateSafely(link.clicked_at)
+                            ? formatTimeOnly(link.clicked_at)
                             : "N/A";
                         })()}
                       </td>
