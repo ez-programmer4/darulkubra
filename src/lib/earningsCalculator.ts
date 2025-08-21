@@ -169,9 +169,21 @@ export class EarningsCalculator {
           const allLeaveStudents = students.filter((s) => s.status === "Leave");
           const leaveStudentsArr = allLeaveStudents; // For now, count all leave students
           
-          console.log(`All students for controller ${controllerId}:`, students.length);
-          console.log(`All leave students for controller ${controllerId}:`, allLeaveStudents.map(s => ({ name: s.name, status: s.status, controller: s.u_control, startdate: s.startdate })));
-          console.log(`Leave students counted for penalty:`, leaveStudentsArr.length);
+          console.log(`\n=== DEBUGGING CONTROLLER ${controllerId} ===`);
+          console.log(`Query returned ${students.length} total students`);
+          console.log(`Controller ID we're looking for: "${controllerId}"`);
+          console.log(`Sample students and their controllers:`);
+          students.slice(0, 5).forEach(s => {
+            console.log(`  Student: ${s.name}, Status: ${s.status}, Controller: "${s.u_control}"`);
+          });
+          console.log(`Leave students found: ${allLeaveStudents.length}`);
+          if (allLeaveStudents.length > 0) {
+            console.log(`First 3 leave students:`);
+            allLeaveStudents.slice(0, 3).forEach(s => {
+              console.log(`  Leave Student: ${s.name}, Controller: "${s.u_control}"`);
+            });
+          }
+          console.log(`===============================\n`);
           const ramadanLeaveStudentsArr = students.filter(
             (s) => s.status === "Ramadan Leave"
           );
