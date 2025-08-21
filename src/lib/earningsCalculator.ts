@@ -164,18 +164,14 @@ export class EarningsCalculator {
           const notYetStudentsArr = students.filter(
             (s) => s.status === "Not Yet"
           );
-          // Count students who changed to Leave status during this month
-          // For now, we'll use students with Leave status and startdate in this month
-          // This assumes startdate reflects when they went on leave
-          const leaveStudentsArr = students.filter((s) => 
-            s.status === "Leave" && 
-            s.u_control === controllerId &&
-            s.startdate &&
-            s.startdate >= this.startDate &&
-            s.startdate <= this.endDate
-          );
+          // Count all students with Leave status under this controller
+          // TODO: Implement proper status change tracking for month-specific penalties
+          const allLeaveStudents = students.filter((s) => s.status === "Leave");
+          const leaveStudentsArr = allLeaveStudents; // For now, count all leave students
           
-          console.log(`Leave students for controller ${controllerId} in month ${this.yearMonth}:`, leaveStudentsArr.map(s => ({ name: s.name, status: s.status, controller: s.u_control, startdate: s.startdate })));
+          console.log(`All students for controller ${controllerId}:`, students.length);
+          console.log(`All leave students for controller ${controllerId}:`, allLeaveStudents.map(s => ({ name: s.name, status: s.status, controller: s.u_control, startdate: s.startdate })));
+          console.log(`Leave students counted for penalty:`, leaveStudentsArr.length);
           const ramadanLeaveStudentsArr = students.filter(
             (s) => s.status === "Ramadan Leave"
           );
