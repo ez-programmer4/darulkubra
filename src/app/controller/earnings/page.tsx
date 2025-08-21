@@ -247,7 +247,7 @@ export default function ControllerEarningsPage() {
                 </Button>
                 <div>
                   <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
-                    My Earnings Dashboard
+                    My Earningss Dashboard
                   </h1>
                   <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2">
                     Track your performance and earnings for{" "}

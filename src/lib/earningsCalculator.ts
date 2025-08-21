@@ -170,22 +170,47 @@ export class EarningsCalculator {
           );
           // Count only leave students that actually belong to this controller
           const allLeaveStudents = students.filter(
-            (s) => s.status === "Leave" && s.u_control === controllerId
+            (s) =>
+              s.status === "Leave" &&
+              s.u_control === controllerId &&
+              s.u_control !== null &&
+              s.u_control !== "" &&
+              s.u_control !== undefined
           );
           const leaveStudentsArr = allLeaveStudents;
+
+          // Additional verification - log only students that match the controller
+          const verifiedLeaveStudents = allLeaveStudents.filter(
+            (s) => s.u_control === controllerId
+          );
+          console.log(
+            `Verified leave students for controller ${controllerId}: ${verifiedLeaveStudents.length}`
+          );
+          if (verifiedLeaveStudents.length !== allLeaveStudents.length) {
+            console.log(`WARNING: Mismatch in leave student count!`);
+          }
 
           console.log(`\n=== DEBUGGING CONTROLLER ${controllerId} ===`);
           console.log(`Query returned ${students.length} total students`);
           console.log(`Controller ID we're looking for: "${controllerId}"`);
-          console.log(`Sample students and their controllers:`);
-          students.slice(0, 5).forEach((s) => {
+
+          // Only show students that actually match the controller
+          const matchingStudents = students.filter(
+            (s) => s.u_control === controllerId
+          );
+          console.log(
+            `Students that match controller: ${matchingStudents.length}`
+          );
+          console.log(`Sample matching students:`);
+          matchingStudents.slice(0, 5).forEach((s) => {
             console.log(
               `  Student: ${s.name}, Status: ${s.status}, Controller: "${s.u_control}"`
             );
           });
+
           console.log(`Leave students found: ${allLeaveStudents.length}`);
           if (allLeaveStudents.length > 0) {
-            console.log(`First 3 leave students:`);
+            console.log(`Leave students that match controller:`);
             allLeaveStudents.slice(0, 3).forEach((s) => {
               console.log(
                 `  Leave Student: ${s.name}, Controller: "${s.u_control}"`
