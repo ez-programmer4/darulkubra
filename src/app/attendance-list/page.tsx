@@ -720,8 +720,69 @@ export default function AttendanceList() {
         </div>
       )}
 
-      {/* Emergency Section */}
-      {emergencyStudents.length > 0 && (
+      {/* Emergency Section - Always show for testing */}
+      <div className="mb-6 p-4 bg-red-50 rounded-lg border-2 border-red-200">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-red-800 flex items-center">
+            <FiBell className="mr-2 text-red-600" />
+            🚨 EMERGENCY: Links Not Sent ({emergencyStudents.length})
+          </h3>
+          <button
+            onClick={() => setShowEmergency(!showEmergency)}
+            className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
+          >
+            {showEmergency ? 'Hide' : 'Show'} Details
+          </button>
+        </div>
+        <p className="text-sm text-red-700 mb-3">
+          Students whose scheduled time has passed by 3+ minutes without zoom links being sent (within 15min range).
+        </p>
+        <p className="text-xs text-gray-600 mb-2">
+          Debug: Total filtered data: {filteredData.length}, Emergency students: {emergencyStudents.length}
+        </p>
+        
+        {showEmergency && (
+          <div className="bg-white rounded-lg p-3 border border-red-200">
+            {emergencyStudents.length > 0 ? (
+              <div className="grid gap-2">
+                {emergencyStudents.map(student => {
+                  const timePassed = Math.floor((new Date().getTime() - (student.scheduledDateObj?.getTime() || 0)) / (1000 * 60));
+                  return (
+                    <div key={student.student_id} className="flex justify-between items-center p-2 bg-red-50 rounded border">
+                      <div>
+                        <span className="font-medium text-red-800">{student.studentName}</span>
+                        <span className="text-sm text-red-600 ml-2">({student.ustazName})</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-red-700">
+                            Scheduled: {formatTimeOnly(student.scheduledAt)}
+                          </div>
+                          <div className="text-xs text-red-600">
+                            {timePassed} minutes overdue
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleNotifyClick(student.student_id, student.scheduledAt?.substring(0, 10) || '')}
+                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 flex items-center"
+                          title="Notify teacher about missing link"
+                        >
+                          <FiBell className="mr-1" /> Notify
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-gray-600 text-center py-4">No emergency students found</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Original Emergency Section (hidden) */}
+      {false && emergencyStudents.length > 0 && (
         <div className="mb-6 p-4 bg-red-50 rounded-lg border-2 border-red-200">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-bold text-red-800 flex items-center">
