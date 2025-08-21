@@ -161,11 +161,8 @@ export class EarningsCalculator {
           const notYetStudentsArr = students.filter(
             (s) => s.status === "Not Yet"
           );
-          // Get students who changed to Leave status during this month
+          // Count all students with Leave status under this controller
           const leaveStudentsArr = students.filter((s) => s.status === "Leave");
-          
-          // For more accurate leave tracking, we should check status change history
-          // For now, we'll count all current Leave students as potential penalties
           const ramadanLeaveStudentsArr = students.filter(
             (s) => s.status === "Ramadan Leave"
           );
@@ -264,6 +261,9 @@ export class EarningsCalculator {
             config.referralBaseRate;
           const totalEarnings =
             baseEarnings - leavePenalty - unpaidPenalty + referencedBonus;
+            
+          // Debug logging for leave penalty calculation
+          console.log(`Controller ${controllerId} - Leave Students: ${leaveStudentsArr.length}, Threshold: ${config.leaveThreshold}, Penalty: ${leavePenalty}`);
 
           const previousMonth = new Date(this.startDate);
           previousMonth.setMonth(previousMonth.getMonth() - 1);
