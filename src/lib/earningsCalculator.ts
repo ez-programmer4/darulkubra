@@ -144,11 +144,11 @@ export class EarningsCalculator {
 
           const students = await prisma.wpos_wpdatatable_23.findMany({
             where: { 
-              u_control: {
-                equals: controllerId,
-                not: null,
-                not: ""
-              }
+              AND: [
+                { u_control: controllerId },
+                { u_control: { not: null } },
+                { u_control: { not: "" } }
+              ]
             },
             select: {
               wdt_ID: true,
