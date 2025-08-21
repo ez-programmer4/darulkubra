@@ -240,7 +240,7 @@ export async function GET(req: NextRequest) {
       take: limit,
     });
 
-    const integratedData = records.map((record: any) => {
+    const integratedData = await Promise.all(records.map(async (record: any) => {
       function to24Hour(time12h: string | null | undefined) {
         if (!time12h || !/\d{1,2}:\d{2}\s?(AM|PM)/i.test(time12h))
           return "00:00";
@@ -310,7 +310,7 @@ export async function GET(req: NextRequest) {
         absentDaysCount,
         daypackages: record.daypackages || "All days",
       };
-    });
+    }));
 
     const total = await prisma.wpos_wpdatatable_23.count({
       where: whereClause,
@@ -392,10 +392,26 @@ export async function GET(req: NextRequest) {
           : "0.00%",
     };
 
+    // Get all unique teachers for filter dropdown
+    const allTeachersQuery = await prisma.wpos_wpdatatable_23.findMany({
+      where: {
+        u_control: controllerId,
+        status: { in: ["active", "not yet", "Active", "Not Yet", "Not yet"] },
+        OR: dayPackageOr,
+      },
+      include: {
+        teacher: { select: { ustazname: true } },
+      },
+      distinct: ['ustaz'],
+    });
+    
+    const allTeachers = [...new Set(allTeachersQuery.map(r => r.teacher?.ustazname).filter(Boolean))];
+
     return NextResponse.json({
       integratedData,
       total,
       stats,
+      allTeachers,
     });
   } catch (error: any) {
     console.error("Error in /api/attendance-list:", {
