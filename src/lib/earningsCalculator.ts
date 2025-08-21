@@ -162,21 +162,12 @@ export class EarningsCalculator {
             },
           });
 
-          const activeStudentsArr = students.filter(
-            (s) => s.status === "Active"
-          );
-          const notYetStudentsArr = students.filter(
-            (s) => s.status === "Not Yet"
-          );
+          // SIMPLE FIX: Only use students that actually belong to this controller
+          const actualStudents = students.filter(s => s.u_control === controllerId);
+          const activeStudentsArr = actualStudents.filter(s => s.status === "Active");
+          const notYetStudentsArr = actualStudents.filter(s => s.status === "Not Yet");
           // Count only leave students that actually belong to this controller
-          const allLeaveStudents = students.filter(
-            (s) =>
-              s.status === "Leave" &&
-              s.u_control === controllerId &&
-              s.u_control !== null &&
-              s.u_control !== "" &&
-              s.u_control !== undefined
-          );
+          const allLeaveStudents = actualStudents.filter(s => s.status === "Leave");
           const leaveStudentsArr = allLeaveStudents;
 
           // Additional verification - log only students that match the controller
