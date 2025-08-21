@@ -75,7 +75,7 @@ export default function AttendanceList() {
   const [sentStatus, setSentStatus] = useState("");
   const [clickedStatus, setClickedStatus] = useState("");
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedStudentId, setExpandedStudentId] = useState<number | null>(
@@ -186,7 +186,7 @@ export default function AttendanceList() {
 
   useEffect(() => {
     fetchData();
-  }, [date, ustaz, attendanceStatus, sentStatus, clickedStatus, page, limit]);
+  }, [date, startDate, endDate, ustaz, attendanceStatus, sentStatus, clickedStatus, page, limit]);
 
   // Early returns after all hooks
   if (status === "loading") return <div>Loading...</div>;
@@ -280,6 +280,8 @@ export default function AttendanceList() {
 
   const clearFilters = () => {
     setDate(format(new Date(), "yyyy-MM-dd"));
+    setStartDate("");
+    setEndDate("");
     setUstaz("");
     setAttendanceStatus("");
     setSentStatus("");
@@ -342,14 +344,58 @@ export default function AttendanceList() {
     }
   };
 
-  // Filter data based on search query
-  const filteredData = data.filter((record) =>
-    record.studentName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const formatTimeOnly = (dateStr: string | null) => {
+    if (
+      !dateStr ||
+      dateStr === "Not Sent" ||
+      dateStr === "N/A" ||
+      dateStr === "null"
+    ) {
+      return "N/A";
+    }
+    try {
+      // Extract only time part: "2025-06-20T16:00:00.000Z" -> "16:00"
+      const timePart = dateStr.substring(11, 16);
+      return timePart;
+    } catch (e) {
+      return "N/A";
+    }
+  };
 
-  // Attendance statistics calculation based on selected date
+  // Filter data based on search query only (other filters handled by backend)
+  const filteredData = data.filter((record) => {
+    // Search query filter
+    if (searchQuery && !record.studentName.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
+    }
+    
+    // Sent status filter (frontend only)
+    if (sentStatus) {
+      const hasValidLink = record.links.some(link => link.sent_time);
+      if (sentStatus === 'sent' && !hasValidLink) return false;
+      if (sentStatus === 'notSent' && hasValidLink) return false;
+    }
+    
+    // Clicked status filter (frontend only)
+    if (clickedStatus) {
+      const hasClickedLink = record.links.some(link => link.clicked_at);
+      if (clickedStatus === 'clicked' && !hasClickedLink) return false;
+      if (clickedStatus === 'notClicked' && hasClickedLink) return false;
+    }
+    
+    return true;
+  });
 
-  const attendanceStats = filteredData.reduce(
+  // Attendance statistics calculation based on all data (not just current page)
+  const [allData, setAllData] = useState<IntegratedRecord[]>([]);
+  
+  const attendanceStats = (stats && stats.totalStudents) ? {
+    total: stats.totalStudents,
+    Present: stats.presentCount || 0,
+    Absent: stats.absentCount || 0,
+    Permission: stats.permissionCount || 0,
+    "Not Taken": stats.notTakenCount || 0
+  } : filteredData.reduce(
     (
       acc: {
         [key: string]: number;
@@ -474,7 +520,22 @@ export default function AttendanceList() {
             />
           </div>
         </div>
-        <div className="flex gap-3 justify-end">
+        <div className="flex gap-3 justify-end items-center">
+          <select
+            value={limit}
+            onChange={(e) => {
+              const newLimit = e.target.value === 'all' ? 1000 : parseInt(e.target.value);
+              setLimit(newLimit);
+              setPage(1);
+            }}
+            className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+          >
+            <option value={10}>10 per page</option>
+            <option value={20}>20 per page</option>
+            <option value={50}>50 per page</option>
+            <option value={100}>100 per page</option>
+            <option value="all">All students</option>
+          </select>
           <button
             onClick={handleRefresh}
             className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white rounded-lg hover:from-indigo-600 hover:to-indigo-800 flex items-center shadow-md transition-transform hover:scale-105"
@@ -642,7 +703,7 @@ export default function AttendanceList() {
             Showing attendance statistics for the selected date
           </p>
           <p className="text-xs text-indigo-500 mt-1">
-            📋 <strong>Note:</strong> Only active students are included in
+            📋 <strong>Note:</strong> Only Active and "Not yet" students are included in
             attendance tracking and analytics.
           </p>
         </div>
@@ -900,7 +961,7 @@ export default function AttendanceList() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                        {formatDateSafely(record.scheduledAt)}
+                        {formatTimeOnly(record.scheduledAt)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                         {(() => {
@@ -1116,7 +1177,7 @@ export default function AttendanceList() {
         </table>
       </div>
 
-      {total > limit && (
+      {total > limit && limit < 1000 && (
         <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-2">
           <button
             onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
@@ -1126,7 +1187,7 @@ export default function AttendanceList() {
             Previous
           </button>
           <span className="text-sm text-gray-700 font-medium">
-            Page {page} of {totalPages}
+            Page {page} of {totalPages} ({total} total students)
           </span>
           <button
             onClick={() =>

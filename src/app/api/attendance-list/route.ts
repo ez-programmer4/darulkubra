@@ -174,15 +174,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Build where clause
+    // Build where clause - ensure only Active and Not yet students
     const whereClause: any = {
       u_control: controllerId,
-      status: { in: ["active", "not yet", "Active", "Not Yet"] },
+      status: { in: ["active", "not yet", "Active", "Not Yet", "Not yet"] },
       OR: dayPackageOr,
     };
 
     if (ustaz) {
-      whereClause.ustaz = ustaz;
+      whereClause.teacher = {
+        ustazname: ustaz
+      };
     }
 
     if (attendanceStatus) {
@@ -310,39 +312,77 @@ export async function GET(req: NextRequest) {
       where: whereClause,
     });
 
+    // Get total stats for all matching students (not just current page)
+    const totalRecords = await prisma.wpos_wpdatatable_23.findMany({
+      where: whereClause,
+      include: {
+        teacher: { select: { ustazname: true, phone: true } },
+        zoom_links: {
+          where: {
+            sent_time: {
+              gte: dayStart,
+              lte: dayEnd,
+            },
+          },
+          select: {
+            id: true,
+            link: true,
+            sent_time: true,
+            clicked_at: true,
+          },
+        },
+        attendance_progress: {
+          where: {
+            date: {
+              gte: dayStart,
+              lte: dayEnd,
+            },
+          },
+          select: {
+            attendance_status: true,
+          },
+        },
+      },
+    });
+
+    const allIntegratedData = totalRecords.map((record: any) => {
+      const dailyAttendance = record.attendance_progress?.[0];
+      const attendance_status = formatAttendanceStatus(
+        dailyAttendance?.attendance_status
+      );
+      return {
+        attendance_status,
+        links: record.zoom_links || [],
+      };
+    });
+
     const stats = {
-      totalLinks: integratedData.reduce(
+      totalStudents: allIntegratedData.length,
+      presentCount: allIntegratedData.filter(r => r.attendance_status === "Present").length,
+      absentCount: allIntegratedData.filter(r => r.attendance_status === "Absent").length,
+      permissionCount: allIntegratedData.filter(r => r.attendance_status === "Permission").length,
+      notTakenCount: allIntegratedData.filter(r => r.attendance_status === "Not Taken").length,
+      totalLinks: allIntegratedData.reduce(
         (sum: number, r: any) => sum + r.links.length,
         0
       ),
-      totalSent: integratedData.reduce(
+      totalSent: allIntegratedData.reduce(
         (sum: number, r: any) =>
           sum + r.links.filter((l: any) => l.sent_time).length,
         0
       ),
-      totalClicked: integratedData.reduce(
+      totalClicked: allIntegratedData.reduce(
         (sum: number, r: any) =>
           sum + r.links.filter((l: any) => l.clicked_at).length,
         0
       ),
-      missedDeadlines: integratedData.reduce((sum: number, r: any) => {
-        return (
-          sum +
-          r.links.filter((l: any) => {
-            if (!l.sent_time) return false;
-            const sent = new Date(l.sent_time);
-            const scheduled = new Date(r.scheduledAt);
-            return sent > new Date(scheduled.getTime() + 5 * 60000);
-          }).length
-        );
-      }, 0),
       responseRate:
-        integratedData.length > 0
+        allIntegratedData.length > 0
           ? `${(
-              (integratedData.filter(
+              (allIntegratedData.filter(
                 (r: any) => r.attendance_status === "Present"
               ).length /
-                integratedData.length) *
+                allIntegratedData.length) *
               100
             ).toFixed(2)}%`
           : "0.00%",
