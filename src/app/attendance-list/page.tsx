@@ -364,9 +364,12 @@ export default function AttendanceList() {
       return "N/A";
     }
     try {
-      // Extract only time part: "2025-06-20T16:00:00.000Z" -> "16:00"
-      const timePart = dateStr.substring(11, 16);
-      return timePart;
+      // Extract time part and convert to 12-hour format
+      const timePart = dateStr.substring(11, 16); // "16:00"
+      const [hours, minutes] = timePart.split(':').map(Number);
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
     } catch (e) {
       return "N/A";
     }
@@ -1078,10 +1081,12 @@ export default function AttendanceList() {
                         <span
                           className={`px-3 py-1 inline-flex text-xs font-medium rounded-full shadow-sm
                             ${
-                              record.attendance_status === "present"
+                              record.attendance_status === "Present"
                                 ? "bg-green-100 text-green-800"
-                                : record.attendance_status === "absent"
+                                : record.attendance_status === "Absent"
                                 ? "bg-red-100 text-red-800"
+                                : record.attendance_status === "Permission"
+                                ? "bg-yellow-100 text-yellow-800"
                                 : "bg-gray-100 text-gray-800"
                             }
                           `}
