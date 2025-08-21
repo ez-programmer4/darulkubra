@@ -143,12 +143,12 @@ export class EarningsCalculator {
           }
 
           const students = await prisma.wpos_wpdatatable_23.findMany({
-            where: { 
+            where: {
               AND: [
                 { u_control: controllerId },
                 { u_control: { not: null } },
-                { u_control: { not: "" } }
-              ]
+                { u_control: { not: "" } },
+              ],
             },
             select: {
               wdt_ID: true,
@@ -168,23 +168,28 @@ export class EarningsCalculator {
           const notYetStudentsArr = students.filter(
             (s) => s.status === "Not Yet"
           );
-          // Count all students with Leave status under this controller
-          // TODO: Implement proper status change tracking for month-specific penalties
-          const allLeaveStudents = students.filter((s) => s.status === "Leave");
-          const leaveStudentsArr = allLeaveStudents; // For now, count all leave students
-          
+          // Count only leave students that actually belong to this controller
+          const allLeaveStudents = students.filter(
+            (s) => s.status === "Leave" && s.u_control === controllerId
+          );
+          const leaveStudentsArr = allLeaveStudents;
+
           console.log(`\n=== DEBUGGING CONTROLLER ${controllerId} ===`);
           console.log(`Query returned ${students.length} total students`);
           console.log(`Controller ID we're looking for: "${controllerId}"`);
           console.log(`Sample students and their controllers:`);
-          students.slice(0, 5).forEach(s => {
-            console.log(`  Student: ${s.name}, Status: ${s.status}, Controller: "${s.u_control}"`);
+          students.slice(0, 5).forEach((s) => {
+            console.log(
+              `  Student: ${s.name}, Status: ${s.status}, Controller: "${s.u_control}"`
+            );
           });
           console.log(`Leave students found: ${allLeaveStudents.length}`);
           if (allLeaveStudents.length > 0) {
             console.log(`First 3 leave students:`);
-            allLeaveStudents.slice(0, 3).forEach(s => {
-              console.log(`  Leave Student: ${s.name}, Controller: "${s.u_control}"`);
+            allLeaveStudents.slice(0, 3).forEach((s) => {
+              console.log(
+                `  Leave Student: ${s.name}, Controller: "${s.u_control}"`
+              );
             });
           }
           console.log(`===============================\n`);
@@ -286,17 +291,23 @@ export class EarningsCalculator {
             config.referralBaseRate;
           const totalEarnings =
             baseEarnings - leavePenalty - unpaidPenalty + referencedBonus;
-            
+
           // Debug logging for leave penalty calculation
           console.log(`\n=== Controller ${controllerId} Earnings Debug ===`);
           console.log(`Active Students: ${activeStudentsArr.length}`);
           console.log(`Leave Students: ${leaveStudentsArr.length}`);
           console.log(`Leave Threshold: ${config.leaveThreshold}`);
-          console.log(`Leave Penalty Multiplier: ${config.leavePenaltyMultiplier}`);
+          console.log(
+            `Leave Penalty Multiplier: ${config.leavePenaltyMultiplier}`
+          );
           console.log(`Base Rate: ${config.mainBaseRate}`);
-          console.log(`Leave Penalty Calculation: Math.max(${leaveStudentsArr.length} - ${config.leaveThreshold}, 0) * ${config.leavePenaltyMultiplier} * ${config.mainBaseRate} = ${leavePenalty}`);
+          console.log(
+            `Leave Penalty Calculation: Math.max(${leaveStudentsArr.length} - ${config.leaveThreshold}, 0) * ${config.leavePenaltyMultiplier} * ${config.mainBaseRate} = ${leavePenalty}`
+          );
           console.log(`Base Earnings: ${baseEarnings}`);
-          console.log(`Total Earnings: ${baseEarnings} - ${leavePenalty} - ${unpaidPenalty} + ${referencedBonus} = ${totalEarnings}`);
+          console.log(
+            `Total Earnings: ${baseEarnings} - ${leavePenalty} - ${unpaidPenalty} + ${referencedBonus} = ${totalEarnings}`
+          );
           console.log(`===============================\n`);
 
           const previousMonth = new Date(this.startDate);
@@ -378,11 +389,12 @@ export class EarningsCalculator {
       const activeStudents = students.filter(
         (s) => s.status === "Active"
       ).length;
-      const leaveStudents = students.filter((s) => 
-        s.status === "Leave" &&
-        s.startdate &&
-        s.startdate >= startDate &&
-        s.startdate <= endDate
+      const leaveStudents = students.filter(
+        (s) =>
+          s.status === "Leave" &&
+          s.startdate &&
+          s.startdate >= startDate &&
+          s.startdate <= endDate
       ).length;
 
       const monthPayments = await prisma.months_table.findMany({
