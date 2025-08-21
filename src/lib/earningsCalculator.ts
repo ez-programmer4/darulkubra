@@ -263,7 +263,16 @@ export class EarningsCalculator {
             baseEarnings - leavePenalty - unpaidPenalty + referencedBonus;
             
           // Debug logging for leave penalty calculation
-          console.log(`Controller ${controllerId} - Leave Students: ${leaveStudentsArr.length}, Threshold: ${config.leaveThreshold}, Penalty: ${leavePenalty}`);
+          console.log(`\n=== Controller ${controllerId} Earnings Debug ===`);
+          console.log(`Active Students: ${activeStudentsArr.length}`);
+          console.log(`Leave Students: ${leaveStudentsArr.length}`);
+          console.log(`Leave Threshold: ${config.leaveThreshold}`);
+          console.log(`Leave Penalty Multiplier: ${config.leavePenaltyMultiplier}`);
+          console.log(`Base Rate: ${config.mainBaseRate}`);
+          console.log(`Leave Penalty Calculation: Math.max(${leaveStudentsArr.length} - ${config.leaveThreshold}, 0) * ${config.leavePenaltyMultiplier} * ${config.mainBaseRate} = ${leavePenalty}`);
+          console.log(`Base Earnings: ${baseEarnings}`);
+          console.log(`Total Earnings: ${baseEarnings} - ${leavePenalty} - ${unpaidPenalty} + ${referencedBonus} = ${totalEarnings}`);
+          console.log(`===============================\n`);
 
           const previousMonth = new Date(this.startDate);
           previousMonth.setMonth(previousMonth.getMonth() - 1);
