@@ -56,8 +56,13 @@ interface Stats {
   totalLinks: number;
   totalSent: number;
   totalClicked: number;
-  missedDeadlines: number;
+  missedDeadlines?: number;
   responseRate: string;
+  totalStudents?: number;
+  presentCount?: number;
+  absentCount?: number;
+  permissionCount?: number;
+  notTakenCount?: number;
 }
 
 export default function AttendanceList() {
