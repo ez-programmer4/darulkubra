@@ -161,13 +161,11 @@ export class EarningsCalculator {
           const notYetStudentsArr = students.filter(
             (s) => s.status === "Not Yet"
           );
-          const leaveStudentsArr = students.filter(
-            (s) =>
-              s.status === "Leave" &&
-              s.startdate &&
-              s.startdate >= this.startDate &&
-              s.startdate <= this.endDate
-          );
+          // Get students who changed to Leave status during this month
+          const leaveStudentsArr = students.filter((s) => s.status === "Leave");
+          
+          // For more accurate leave tracking, we should check status change history
+          // For now, we'll count all current Leave students as potential penalties
           const ramadanLeaveStudentsArr = students.filter(
             (s) => s.status === "Ramadan Leave"
           );
@@ -346,13 +344,7 @@ export class EarningsCalculator {
       const activeStudents = students.filter(
         (s) => s.status === "Active"
       ).length;
-      const leaveStudents = students.filter(
-        (s) =>
-          s.status === "Leave" &&
-          s.startdate &&
-          s.startdate >= startDate &&
-          s.startdate <= endDate
-      ).length;
+      const leaveStudents = students.filter((s) => s.status === "Leave").length;
 
       const monthPayments = await prisma.months_table.findMany({
         where: {
