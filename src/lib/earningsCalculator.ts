@@ -113,7 +113,6 @@ export class EarningsCalculator {
           .map((s) => s.u_control)
           .filter(Boolean) as string[];
 
-        // Validate controllerIds
         const validControllers = await prisma.wpos_wpdatatable_28.findMany({
           where: { code: { in: controllerIds } },
           select: { code: true },
@@ -162,84 +161,65 @@ export class EarningsCalculator {
             },
           });
 
-          // SIMPLE FIX: Only use students that actually belong to this controller
-          const actualStudents = students.filter(s => s.u_control === controllerId);
-          const activeStudentsArr = actualStudents.filter(s => s.status === "Active");
-          const notYetStudentsArr = actualStudents.filter(s => s.status === "Not Yet");
-          // Count only leave students that actually belong to this controller
-          // Only count students who went on leave during this specific month
-          // For now, we'll use a simple approach: count students with Leave status and startdate in this month
-          const monthLeaveStudents = actualStudents.filter(s => 
-            s.status === "Leave" && 
-            s.startdate && 
-            s.startdate >= this.startDate && 
-            s.startdate <= this.endDate
-          );
-          
-          // If no students have startdate in this month, use a reasonable cap (max 10% of active students)
-          const maxReasonableLeave = Math.max(Math.floor(activeStudentsArr.length * 0.1), 5);
-          const leaveStudentsArr = monthLeaveStudents.length > 0 ? monthLeaveStudents : 
-            actualStudents.filter(s => s.status === "Leave").slice(0, maxReasonableLeave);
-          
-          console.log(`Month-specific leave students: ${monthLeaveStudents.length}`);
-          console.log(`Using leave students for penalty: ${leaveStudentsArr.length}`);
-
-          // Additional verification - log only students that match the controller
-          const verifiedLeaveStudents = allLeaveStudents.filter(
+          // Filter students for this controller
+          const actualStudents = students.filter(
             (s) => s.u_control === controllerId
           );
-          console.log(
-            `Verified leave students for controller ${controllerId}: ${verifiedLeaveStudents.length}`
+          const activeStudentsArr = actualStudents.filter(
+            (s) => s.status === "Active"
           );
-          if (verifiedLeaveStudents.length !== allLeaveStudents.length) {
-            console.log(`WARNING: Mismatch in leave student count!`);
-          }
+          const notYetStudentsArr = actualStudents.filter(
+            (s) => s.status === "Not Yet"
+          );
 
+          // Filter leave students for the selected month using startdate
+          const leaveStudentsArr = actualStudents.filter(
+            (s) =>
+              s.status === "Leave" &&
+              s.startdate &&
+              isValid(s.startdate) &&
+              s.startdate >= this.startDate &&
+              s.startdate <= this.endDate
+          );
+
+          // Debug logging for leave students
           console.log(`\n=== DEBUGGING CONTROLLER ${controllerId} ===`);
-          console.log(`Query returned ${students.length} total students`);
-          console.log(`Controller ID we're looking for: "${controllerId}"`);
-
-          // Only show students that actually match the controller
-          const matchingStudents = students.filter(
-            (s) => s.u_control === controllerId
-          );
+          console.log(`Month: ${this.yearMonth}`);
+          console.log(`Total students queried: ${students.length}`);
+          console.log(`Students matching controller: ${actualStudents.length}`);
+          console.log(`Active students: ${activeStudentsArr.length}`);
+          console.log(`Not Yet students: ${notYetStudentsArr.length}`);
           console.log(
-            `Students that match controller: ${matchingStudents.length}`
+            `Leave students in ${this.yearMonth}: ${leaveStudentsArr.length}`
           );
-          console.log(`Sample matching students:`);
-          matchingStudents.slice(0, 5).forEach((s) => {
-            console.log(
-              `  Student: ${s.name}, Status: ${s.status}, Controller: "${s.u_control}"`
-            );
-          });
-
-          console.log(`Leave students found: ${allLeaveStudents.length}`);
-          if (allLeaveStudents.length > 0) {
-            console.log(`Leave students that match controller:`);
-            allLeaveStudents.slice(0, 3).forEach((s) => {
+          if (leaveStudentsArr.length > 0) {
+            console.log(`Leave students details:`);
+            leaveStudentsArr.forEach((s) => {
               console.log(
-                `  Leave Student: ${s.name}, Controller: "${s.u_control}"`
+                `  Student: ${s.name}, ID: ${s.wdt_ID}, Status: ${
+                  s.status
+                }, Start Date: ${s.startdate?.toISOString() || "N/A"}`
               );
             });
           }
-          console.log(`===============================\n`);
-          const ramadanLeaveStudentsArr = students.filter(
+
+          const ramadanLeaveStudentsArr = actualStudents.filter(
             (s) => s.status === "Ramadan Leave"
           );
-          const linkedStudentsArr = students.filter(
+          const linkedStudentsArr = actualStudents.filter(
             (s) =>
               (s.status === "Active" || s.status === "Not Yet") &&
               s.chatId &&
               s.chatId !== ""
           );
 
-          // Check payments with buffer dates to catch late/early payments
+          // Payment calculations with buffer dates
           const paymentStartDate = subDays(this.startDate, 7);
           const paymentEndDate = addDays(this.endDate, 7);
 
           const monthPayments = await prisma.months_table.findMany({
             where: {
-              studentid: { in: students.map((s) => s.wdt_ID) },
+              studentid: { in: actualStudents.map((s) => s.wdt_ID) },
               OR: [
                 {
                   month: this.yearMonth,
@@ -252,7 +232,7 @@ export class EarningsCalculator {
 
           const paymentRecords = await prisma.payment.findMany({
             where: {
-              studentid: { in: students.map((s) => s.wdt_ID) },
+              studentid: { in: actualStudents.map((s) => s.wdt_ID) },
               paymentdate: { gte: paymentStartDate, lte: paymentEndDate },
               status: { in: ["completed", "Completed"] },
             },
@@ -270,8 +250,12 @@ export class EarningsCalculator {
             (s) => !paidStudentIds.has(s.wdt_ID)
           );
 
-          // Log unpaid students for debugging
+          // Log unpaid students
           if (unpaidActiveArr.length > 0) {
+            console.log(`Unpaid active students: ${unpaidActiveArr.length}`);
+            unpaidActiveArr.forEach((s) => {
+              console.log(`  Unpaid Student: ${s.name}, ID: ${s.wdt_ID}`);
+            });
           }
 
           const referencedStudents = await prisma.wpos_wpdatatable_23.findMany({
@@ -322,19 +306,20 @@ export class EarningsCalculator {
           const totalEarnings =
             baseEarnings - leavePenalty - unpaidPenalty + referencedBonus;
 
-          // Debug logging for leave penalty calculation
-          console.log(`\n=== Controller ${controllerId} Earnings Debug ===`);
-          console.log(`Active Students: ${activeStudentsArr.length}`);
-          console.log(`Leave Students: ${leaveStudentsArr.length}`);
-          console.log(`Leave Threshold: ${config.leaveThreshold}`);
+          // Detailed earnings debug
+          console.log(`\n=== EARNINGS FOR CONTROLLER ${controllerId} ===`);
           console.log(
-            `Leave Penalty Multiplier: ${config.leavePenaltyMultiplier}`
+            `Base Earnings: ${activeStudentsArr.length} * ${config.mainBaseRate} = ${baseEarnings}`
           );
-          console.log(`Base Rate: ${config.mainBaseRate}`);
           console.log(
-            `Leave Penalty Calculation: Math.max(${leaveStudentsArr.length} - ${config.leaveThreshold}, 0) * ${config.leavePenaltyMultiplier} * ${config.mainBaseRate} = ${leavePenalty}`
+            `Leave Penalty: max(${leaveStudentsArr.length} - ${config.leaveThreshold}, 0) * ${config.leavePenaltyMultiplier} * ${config.mainBaseRate} = ${leavePenalty}`
           );
-          console.log(`Base Earnings: ${baseEarnings}`);
+          console.log(
+            `Unpaid Penalty: ${unpaidActiveArr.length} * ${config.unpaidPenaltyMultiplier} * ${config.mainBaseRate} = ${unpaidPenalty}`
+          );
+          console.log(
+            `Referenced Bonus: ${referencedActiveArr.length} * ${config.referralBonusMultiplier} * ${config.referralBaseRate} = ${referencedBonus}`
+          );
           console.log(
             `Total Earnings: ${baseEarnings} - ${leavePenalty} - ${unpaidPenalty} + ${referencedBonus} = ${totalEarnings}`
           );
@@ -423,6 +408,7 @@ export class EarningsCalculator {
         (s) =>
           s.status === "Leave" &&
           s.startdate &&
+          isValid(s.startdate) &&
           s.startdate >= startDate &&
           s.startdate <= endDate
       ).length;
@@ -483,13 +469,20 @@ export class EarningsCalculator {
           u_control: controllerId,
           registrationdate: { gte: startDate, lt: endDate },
         },
-        select: { wdt_ID: true, status: true },
+        select: { wdt_ID: true, status: true, startdate: true },
       });
 
       const activeStudents = students.filter(
         (s) => s.status === "Active"
       ).length;
-      const leaveStudents = students.filter((s) => s.status === "Leave").length;
+      const leaveStudents = students.filter(
+        (s) =>
+          s.status === "Leave" &&
+          s.startdate &&
+          isValid(s.startdate) &&
+          s.startdate >= startDate &&
+          s.startdate <= endDate
+      ).length;
 
       const monthPayments = await prisma.months_table.findMany({
         where: {
