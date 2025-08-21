@@ -101,6 +101,7 @@ export default function AttendanceList() {
   }>({});
   const [allTeachers, setAllTeachers] = useState<string[]>([]);
   const [showEmergency, setShowEmergency] = useState(false);
+  const [allData, setAllData] = useState<IntegratedRecord[]>([]);
 
   useEffect(() => {
     // Save notified student-date keys to localStorage whenever they change
@@ -185,6 +186,8 @@ export default function AttendanceList() {
         if (result.allTeachers && Array.isArray(result.allTeachers)) {
           setAllTeachers(result.allTeachers);
         }
+        
+        // Emergency data will be fetched in useEffect
       }
     } catch (err) {
       setError(
@@ -198,6 +201,13 @@ export default function AttendanceList() {
   useEffect(() => {
     fetchData();
   }, [date, startDate, endDate, ustaz, attendanceStatus, sentStatus, clickedStatus, page, limit]);
+
+  // Fetch all data for emergency detection
+  useEffect(() => {
+    if (page === 1) {
+      fetchAllDataForEmergencyAsync();
+    }
+  }, [date, ustaz, attendanceStatus, sentStatus, clickedStatus, startDate, endDate]);
 
   // Early returns after all hooks
   if (status === "loading") return <div>Loading...</div>;
@@ -227,9 +237,53 @@ export default function AttendanceList() {
     })),
   ];
 
+  const fetchAllDataForEmergencyAsync = async () => {
+    try {
+      const params = new URLSearchParams({
+        date,
+        ustaz,
+        attendanceStatus,
+        sentStatus,
+        clickedStatus,
+        page: "1",
+        limit: "1000", // Get all records for emergency detection
+        ...(startDate && { startDate }),
+        ...(endDate && { endDate }),
+      });
+      const response = await fetch(
+        `/api/attendance-list?${params.toString()}`,
+        { credentials: "include" }
+      );
+      const result = await response.json();
+      
+      if (response.ok && result.integratedData) {
+        const updatedData = result.integratedData.map((record: any) => {
+          let scheduled: Date | null = null;
+          if (record.scheduledAt && record.scheduledAt !== "null") {
+            scheduled = parseISO(record.scheduledAt);
+            if (!isValid(scheduled)) scheduled = null;
+          }
+          return {
+            ...record,
+            scheduledDateObj: scheduled,
+          };
+        });
+        setAllData(updatedData);
+      }
+    } catch (err) {
+      console.error("Failed to fetch all data for emergency:", err);
+    }
+  };
+
   const handleRefresh = () => {
     fetchData();
   };
+
+  const handleNotifyClick = (studentId: number, scheduledDate: string) => {
+    setStudentToNotify(`${studentId}|${scheduledDate}`);
+  };
+
+
 
   const exportToCSV = () => {
     const headers = [
@@ -299,10 +353,6 @@ export default function AttendanceList() {
     setClickedStatus("");
     setSearchQuery("");
     setPage(1);
-  };
-
-  const handleNotifyClick = (studentId: number, scheduledDate: string) => {
-    setStudentToNotify(`${studentId}|${scheduledDate ?? ""}`);
   };
 
   const confirmNotify = async () => {
@@ -402,8 +452,8 @@ export default function AttendanceList() {
     return true;
   });
 
-  // Get emergency students (scheduled time passed by 3+ minutes but within 15 minutes, no link sent)
-  const emergencyStudents = filteredData.filter(record => {
+  // Get emergency students from all data (not just current page)
+  const emergencyStudents = allData.filter(record => {
     if (!record.scheduledDateObj) return false;
     
     const now = new Date();
@@ -738,7 +788,7 @@ export default function AttendanceList() {
           Students whose scheduled time has passed by 3+ minutes without zoom links being sent (within 15min range).
         </p>
         <p className="text-xs text-gray-600 mb-2">
-          Debug: Total filtered data: {filteredData.length}, Emergency students: {emergencyStudents.length}
+          Debug: Total all data: {allData.length}, Current page data: {filteredData.length}, Emergency students: {emergencyStudents.length}
         </p>
         
         {showEmergency && (
@@ -1311,11 +1361,11 @@ export default function AttendanceList() {
       )}
 
       <ConfirmModal
-        open={!!studentToNotify}
+        isOpen={!!studentToNotify}
+        onClose={() => setStudentToNotify(null)}
+        onConfirm={confirmNotify}
         title="Confirm Notification"
         message="Are you sure you want to send an SMS reminder to this teacher?"
-        onConfirm={confirmNotify}
-        onCancel={() => setStudentToNotify(null)}
       />
 
       {/* Attendance Details Modal/Expandable Row */}
