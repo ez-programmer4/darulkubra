@@ -143,7 +143,10 @@ export class EarningsCalculator {
           }
 
           const students = await prisma.wpos_wpdatatable_23.findMany({
-            where: { u_control: controllerId },
+            where: { 
+              u_control: controllerId,
+              u_control: { not: null }
+            },
             select: {
               wdt_ID: true,
               status: true,
@@ -152,6 +155,7 @@ export class EarningsCalculator {
               chatId: true,
               refer: true,
               name: true,
+              u_control: true,
             },
           });
 
@@ -161,8 +165,18 @@ export class EarningsCalculator {
           const notYetStudentsArr = students.filter(
             (s) => s.status === "Not Yet"
           );
-          // Count all students with Leave status under this controller
-          const leaveStudentsArr = students.filter((s) => s.status === "Leave");
+          // Count students who changed to Leave status during this month
+          // For now, we'll use students with Leave status and startdate in this month
+          // This assumes startdate reflects when they went on leave
+          const leaveStudentsArr = students.filter((s) => 
+            s.status === "Leave" && 
+            s.u_control === controllerId &&
+            s.startdate &&
+            s.startdate >= this.startDate &&
+            s.startdate <= this.endDate
+          );
+          
+          console.log(`Leave students for controller ${controllerId} in month ${this.yearMonth}:`, leaveStudentsArr.map(s => ({ name: s.name, status: s.status, controller: s.u_control, startdate: s.startdate })));
           const ramadanLeaveStudentsArr = students.filter(
             (s) => s.status === "Ramadan Leave"
           );
@@ -353,7 +367,12 @@ export class EarningsCalculator {
       const activeStudents = students.filter(
         (s) => s.status === "Active"
       ).length;
-      const leaveStudents = students.filter((s) => s.status === "Leave").length;
+      const leaveStudents = students.filter((s) => 
+        s.status === "Leave" &&
+        s.startdate &&
+        s.startdate >= startDate &&
+        s.startdate <= endDate
+      ).length;
 
       const monthPayments = await prisma.months_table.findMany({
         where: {
