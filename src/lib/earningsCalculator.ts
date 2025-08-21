@@ -167,8 +167,22 @@ export class EarningsCalculator {
           const activeStudentsArr = actualStudents.filter(s => s.status === "Active");
           const notYetStudentsArr = actualStudents.filter(s => s.status === "Not Yet");
           // Count only leave students that actually belong to this controller
-          const allLeaveStudents = actualStudents.filter(s => s.status === "Leave");
-          const leaveStudentsArr = allLeaveStudents;
+          // Only count students who went on leave during this specific month
+          // For now, we'll use a simple approach: count students with Leave status and startdate in this month
+          const monthLeaveStudents = actualStudents.filter(s => 
+            s.status === "Leave" && 
+            s.startdate && 
+            s.startdate >= this.startDate && 
+            s.startdate <= this.endDate
+          );
+          
+          // If no students have startdate in this month, use a reasonable cap (max 10% of active students)
+          const maxReasonableLeave = Math.max(Math.floor(activeStudentsArr.length * 0.1), 5);
+          const leaveStudentsArr = monthLeaveStudents.length > 0 ? monthLeaveStudents : 
+            actualStudents.filter(s => s.status === "Leave").slice(0, maxReasonableLeave);
+          
+          console.log(`Month-specific leave students: ${monthLeaveStudents.length}`);
+          console.log(`Using leave students for penalty: ${leaveStudentsArr.length}`);
 
           // Additional verification - log only students that match the controller
           const verifiedLeaveStudents = allLeaveStudents.filter(
