@@ -100,6 +100,7 @@ export default function AttendanceList() {
     [studentId: number]: number;
   }>({});
   const [allTeachers, setAllTeachers] = useState<string[]>([]);
+  const [showEmergency, setShowEmergency] = useState(false);
 
   useEffect(() => {
     // Save notified student-date keys to localStorage whenever they change
@@ -375,6 +376,8 @@ export default function AttendanceList() {
     }
   };
 
+
+
   // Filter data based on search query only (other filters handled by backend)
   const filteredData = data.filter((record) => {
     // Search query filter
@@ -397,6 +400,18 @@ export default function AttendanceList() {
     }
     
     return true;
+  });
+
+  // Get emergency students (scheduled time passed by 3+ minutes but within 15 minutes, no link sent)
+  const emergencyStudents = filteredData.filter(record => {
+    if (!record.scheduledDateObj) return false;
+    
+    const now = new Date();
+    const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60); // minutes
+    const hasNoLink = !record.links || record.links.length === 0 || !record.links.some(l => l.sent_time);
+    
+    // Emergency: 3+ minutes overdue but within 15 minutes range
+    return timeDiff >= 3 && timeDiff <= 15 && hasNoLink;
   });
 
   // Attendance statistics calculation based on all data (not just current page)
@@ -702,6 +717,62 @@ export default function AttendanceList() {
             {format(parseISO(startDate), "MMMM dd, yyyy")} to{" "}
             {format(parseISO(endDate), "MMMM dd, yyyy")}
           </p>
+        </div>
+      )}
+
+      {/* Emergency Section */}
+      {emergencyStudents.length > 0 && (
+        <div className="mb-6 p-4 bg-red-50 rounded-lg border-2 border-red-200">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold text-red-800 flex items-center">
+              <FiBell className="mr-2 text-red-600" />
+              🚨 EMERGENCY: Links Not Sent ({emergencyStudents.length})
+            </h3>
+            <button
+              onClick={() => setShowEmergency(!showEmergency)}
+              className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
+            >
+              {showEmergency ? 'Hide' : 'Show'} Details
+            </button>
+          </div>
+          <p className="text-sm text-red-700 mb-3">
+            Students whose scheduled time has passed by 3+ minutes without zoom links being sent (within 15min range).
+          </p>
+          
+          {showEmergency && (
+            <div className="bg-white rounded-lg p-3 border border-red-200">
+              <div className="grid gap-2">
+                {emergencyStudents.map(student => {
+                  const timePassed = Math.floor((new Date().getTime() - (student.scheduledDateObj?.getTime() || 0)) / (1000 * 60));
+                  return (
+                    <div key={student.student_id} className="flex justify-between items-center p-2 bg-red-50 rounded border">
+                      <div>
+                        <span className="font-medium text-red-800">{student.studentName}</span>
+                        <span className="text-sm text-red-600 ml-2">({student.ustazName})</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-red-700">
+                            Scheduled: {formatTimeOnly(student.scheduledAt)}
+                          </div>
+                          <div className="text-xs text-red-600">
+                            {timePassed} minutes overdue
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleNotifyClick(student.student_id, student.scheduledAt?.substring(0, 10) || '')}
+                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 flex items-center"
+                          title="Notify teacher about missing link"
+                        >
+                          <FiBell className="mr-1" /> Notify
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1128,50 +1199,13 @@ export default function AttendanceList() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                        {(() => {
-                          const isNotified =
-                            notifiedStudentDateKeys.includes(notifyKey);
-                          const canNotify =
-                            (!record.links ||
-                              record.links.length === 0 ||
-                              !record.links.some((l) => l.sent_time)) &&
-                            record.scheduledDateObj &&
-                            new Date() >
-                              new Date(
-                                record.scheduledDateObj.getTime() + 5 * 60000
-                              );
-                          if (isNotified) {
-                            return (
-                              <button
-                                disabled
-                                className="px-3 py-1 bg-green-200 text-green-800 rounded-lg flex items-center shadow-sm cursor-not-allowed"
-                              >
-                                <FiCheckSquare className="mr-1" /> Notified
-                              </button>
-                            );
-                          }
-                          if (canNotify) {
-                            return (
-                              <button
-                                onClick={() =>
-                                  handleNotifyClick(
-                                    record.student_id,
-                                    scheduledDateStr
-                                  )
-                                }
-                                className="px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 flex items-center shadow-md transition-transform hover:scale-105"
-                                title="Notify the teacher that the link was not sent after 5 minutes past scheduled time"
-                              >
-                                <FiBell className="mr-1" /> Notify Teacher
-                              </button>
-                            );
-                          }
-                          return (
-                            <span className="px-3 py-1 text-xs text-gray-500">
-                              No Action
-                            </span>
-                          );
-                        })()}
+                        <button
+                          onClick={() => setExpandedStudentId(record.student_id)}
+                          className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center shadow-md transition-transform hover:scale-105"
+                          title="View details"
+                        >
+                          <FiUser className="mr-1" /> Details
+                        </button>
                       </td>
                     </tr>
                   );
