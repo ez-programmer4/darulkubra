@@ -319,8 +319,8 @@ export async function POST(request: NextRequest) {
         const expectedAmount =
           (Number(student.classfee) * daysInClass) / daysInMonth;
 
-        // If this is a prize payment, skip the unpaid check
-        if (payment_type === "prizepartial" || payment_type === "free")
+        // If this is a prize payment or partial payment, skip the unpaid check
+        if (payment_type === "prizepartial" || payment_type === "free" || payment_type === "partial")
           continue;
 
         // Check if the month is fully paid

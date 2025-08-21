@@ -54,7 +54,11 @@ export default function StudentPayment({
     const months = [];
     const currentDate = new Date();
     for (let i = 0; i < 12; i++) {
-      const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
+      const monthDate = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + i,
+        1
+      );
       months.push(format(monthDate, "yyyy-MM"));
     }
     setAvailableMonths(months);
@@ -63,17 +67,17 @@ export default function StudentPayment({
   // Calculate total amount when months change
   useEffect(() => {
     const totalAmount = paymentData.months.length * student.classfee;
-    setPaymentData(prev => ({ ...prev, amount: totalAmount.toString() }));
+    setPaymentData((prev) => ({ ...prev, amount: totalAmount.toString() }));
   }, [paymentData.months, student.classfee]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (paymentData.months.length === 0) {
       setError("Please select at least one month");
       return;
     }
-    
+
     setIsSubmitting(true);
     setError(null);
 
@@ -130,27 +134,30 @@ export default function StudentPayment({
               <div className="grid grid-cols-3 gap-2 p-4 border border-gray-300 rounded-xl bg-gray-50 max-h-48 overflow-y-auto">
                 {availableMonths.map((month) => {
                   const monthDate = new Date(month + "-01");
-                  const monthName = monthDate.toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'long' 
+                  const monthName = monthDate.toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
                   });
                   const isSelected = paymentData.months.includes(month);
-                  
+
                   return (
-                    <label key={month} className="flex items-center space-x-2 cursor-pointer">
+                    <label
+                      key={month}
+                      className="flex items-center space-x-2 cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setPaymentData(prev => ({
+                            setPaymentData((prev) => ({
                               ...prev,
-                              months: [...prev.months, month].sort()
+                              months: [...prev.months, month].sort(),
                             }));
                           } else {
-                            setPaymentData(prev => ({
+                            setPaymentData((prev) => ({
                               ...prev,
-                              months: prev.months.filter(m => m !== month)
+                              months: prev.months.filter((m) => m !== month),
                             }));
                           }
                         }}
@@ -162,7 +169,9 @@ export default function StudentPayment({
                 })}
               </div>
               {paymentData.months.length === 0 && (
-                <p className="text-sm text-red-600 mt-1">Please select at least one month</p>
+                <p className="text-sm text-red-600 mt-1">
+                  Please select at least one month
+                </p>
               )}
             </div>
 
@@ -189,7 +198,10 @@ export default function StudentPayment({
               <div className="mt-2 text-sm text-gray-600">
                 <p>Monthly fee: ${student.classfee}</p>
                 <p>Selected months: {paymentData.months.length}</p>
-                <p>Calculated total: ${(paymentData.months.length * student.classfee).toFixed(2)}</p>
+                <p>
+                  Calculated total: $
+                  {(paymentData.months.length * student.classfee).toFixed(2)}
+                </p>
               </div>
             </div>
 

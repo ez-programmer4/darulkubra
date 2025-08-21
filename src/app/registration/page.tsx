@@ -1666,7 +1666,7 @@ function RegistrationContent() {
                         <FiBook className="mr-2 text-teal-600" />
                         Subject *
                       </label>
-                      <input
+                      <select
                         {...register("subject", {
                           required: "Subject is required",
                         })}
@@ -1675,8 +1675,13 @@ function RegistrationContent() {
                             ? "border-red-500"
                             : "border-gray-200 hover:border-teal-300"
                         }`}
-                        placeholder="Enter subject"
-                      />
+                      >
+                        <option value="">Select subject</option>
+                        <option value="Qaidah">Qaidah</option>
+                        <option value="Nethor">Nethor</option>
+                        <option value="Hifz">Hifz</option>
+                        <option value="Kitab">Kitab</option>
+                      </select>
                       {errors.subject && (
                         <p className="mt-1 text-xs text-red-600 font-medium">
                           {errors.subject.message}

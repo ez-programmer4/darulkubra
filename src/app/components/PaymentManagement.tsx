@@ -92,7 +92,7 @@ interface PaymentManagementProps {
 }
 
 interface MonthlyPaymentForm {
-  month: string;
+  months: string[];
   amount: number;
   calculatedAmount: number;
   paymentType: "full" | "partial";
@@ -178,12 +178,14 @@ export default function PaymentManagement({
   const [depositErrors, setDepositErrors] = useState<{
     [key: string]: string | undefined;
   }>({});
-  const [newMonthlyPayment, setNewMonthlyPayment] = useState({
-    month: "",
-    amount: 0,
-    calculatedAmount: 0,
-    paymentType: "full" as "full" | "partial",
-  });
+  const [newMonthlyPayment, setNewMonthlyPayment] =
+    useState<MonthlyPaymentForm>({
+      months: [format(new Date(), "yyyy-MM")],
+      amount: 0,
+      calculatedAmount: 0,
+      paymentType: "full" as "full" | "partial",
+    });
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [monthlyError, setMonthlyError] = useState<string | null>(null);
   const [selectedDeposit, setSelectedDeposit] = useState<
     Payment | MonthlyPayment | null
@@ -260,20 +262,40 @@ export default function PaymentManagement({
   // Debug logging for user role
   useEffect(() => {}, [user]);
 
-  // Add useEffect to calculate amount when month or payment type changes
+  // Generate available months (current and next 11 months)
   useEffect(() => {
-    if (student && newMonthlyPayment.month && newMonthlyPayment.paymentType) {
-      const calculatedAmount = calculateMonthlyAmount(
-        newMonthlyPayment.month,
-        student.startdate,
-        student.classfee
+    const months = [];
+    const currentDate = new Date();
+    for (let i = 0; i < 12; i++) {
+      const monthDate = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + i,
+        1
       );
+      months.push(format(monthDate, "yyyy-MM"));
+    }
+    setAvailableMonths(months);
+  }, []);
+
+  // Calculate total amount when months change
+  useEffect(() => {
+    if (
+      student &&
+      newMonthlyPayment.months &&
+      newMonthlyPayment.months.length > 0
+    ) {
+      const totalAmount = newMonthlyPayment.months.reduce((sum, month) => {
+        return (
+          sum +
+          calculateMonthlyAmount(month, student.startdate, student.classfee)
+        );
+      }, 0);
       setNewMonthlyPayment((prev) => ({
         ...prev,
-        calculatedAmount,
+        calculatedAmount: totalAmount,
       }));
     }
-  }, [student, newMonthlyPayment.month, newMonthlyPayment.paymentType]);
+  }, [student, newMonthlyPayment.months]);
 
   // Calculate prorated amount based on start date and selected month
   const calculateMonthlyAmount = (
@@ -359,7 +381,7 @@ export default function PaymentManagement({
         student.classfee
       );
       setNewMonthlyPayment({
-        month: currentMonth,
+        months: [currentMonth],
         amount: 0,
         calculatedAmount,
         paymentType: calculatedAmount === student.classfee ? "full" : "partial",
@@ -439,33 +461,24 @@ export default function PaymentManagement({
   };
 
   const handleMonthlySubmit = async () => {
-    if (!newMonthlyPayment.month || !student) {
-      toast.error("Please select a month");
+    if (!newMonthlyPayment.months?.length || !student) {
+      toast.error("Please select at least one month");
       return;
     }
-    // Guard: Ensure student and student.wdt_ID are present
+
     if (!student || (!student.id && !student.wdt_ID)) {
       toast.error("Student not loaded. Please try again.");
       return;
     }
 
-    // Calculate current remaining balance
     const currentBalance = calculateRemainingBalance();
+    const totalAmount = newMonthlyPayment.calculatedAmount;
 
-    // Get the calculated amount for the selected month
-    const calculatedAmount = calculateMonthlyAmount(
-      newMonthlyPayment.month,
-      student.startdate,
-      student.classfee
-    );
-
-    // Check if the new payment would result in a negative balance
-    const newBalance = currentBalance - calculatedAmount;
-    if (newBalance < 0) {
+    if (currentBalance < totalAmount) {
       toast.error(
-        `Insufficient balance. Adding this payment (${calculatedAmount.toFixed(
+        `Insufficient balance. Total payment (${totalAmount.toFixed(
           2
-        )}) would result in a balance of ${newBalance.toFixed(
+        )}) exceeds available balance of ${currentBalance.toFixed(
           2
         )}. Please add a deposit first.`
       );
@@ -473,61 +486,48 @@ export default function PaymentManagement({
     }
 
     try {
-      // Check if there's a full prize (free month) for this month
-      const existingFullPrize = monthlyPayments.find(
-        (payment) =>
-          payment.month === newMonthlyPayment.month &&
-          payment.payment_type === "free"
-      );
-
-      if (existingFullPrize) {
-        toast.error("This month is fully covered by a prize");
-        return;
-      }
-
-      // Check if there's a partial prize for this month
-      const existingPartialPrize = monthlyPayments.find(
-        (payment) =>
-          payment.month === newMonthlyPayment.month &&
-          payment.payment_type === "prizepartial"
-      );
-
-      // Use the calculated prorated amount
-      const amount = newMonthlyPayment.calculatedAmount;
-
-      // Determine payment type based on amount and existing prizes
-      let paymentType = "full";
-      if (existingPartialPrize) {
-        paymentType = "partial";
-      } else if (amount < student.classfee) {
-        paymentType = "partial";
-      }
-
       const studentId = student.wdt_ID || student.id;
-      const payload = {
-        studentId,
-        month: newMonthlyPayment.month,
-        paidAmount: amount.toFixed(2),
-        paymentStatus: "paid",
-        payment_type: paymentType,
-      };
-      const response = await fetch("/api/payments/monthly", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to submit monthly payment");
+      // Process each selected month
+      for (const month of newMonthlyPayment.months) {
+        const monthAmount = calculateMonthlyAmount(
+          month,
+          student.startdate,
+          student.classfee
+        );
+
+        if (monthAmount > 0) {
+          const payload = {
+            studentId,
+            month,
+            paidAmount: monthAmount.toFixed(2),
+            paymentStatus: "paid",
+            payment_type: monthAmount === student.classfee ? "full" : "partial",
+          };
+
+          const response = await fetch("/api/payments/monthly", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(
+              error.error || `Failed to submit payment for ${month}`
+            );
+          }
+        }
       }
 
-      toast.success("Monthly payment submitted successfully");
+      toast.success(
+        `Monthly payments submitted successfully for ${newMonthlyPayment.months.length} month(s)`
+      );
       setShowMonthlyModal(false);
       setNewMonthlyPayment({
-        month: "",
+        months: [format(new Date(), "yyyy-MM")],
         amount: 0,
         calculatedAmount: 0,
         paymentType: "full",
@@ -537,7 +537,7 @@ export default function PaymentManagement({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to submit monthly payment"
+          : "Failed to submit monthly payments"
       );
     }
   };
@@ -1140,7 +1140,7 @@ export default function PaymentManagement({
                   onClick={() => {
                     setShowMonthlyModal(true);
                     setNewMonthlyPayment({
-                      month: "",
+                      months: [format(new Date(), "yyyy-MM")],
                       amount: 0,
                       calculatedAmount: 0,
                       paymentType: "full",
@@ -1784,7 +1784,7 @@ export default function PaymentManagement({
                         Add Monthly Payment
                       </h3>
                       <p className="text-sm text-gray-500 mt-1">
-                        Process a monthly payment for the student
+                        Process monthly payments for multiple months
                       </p>
                     </div>
                   </div>
@@ -1792,7 +1792,7 @@ export default function PaymentManagement({
                     onClick={() => {
                       setShowMonthlyModal(false);
                       setNewMonthlyPayment({
-                        month: "",
+                        months: [format(new Date(), "yyyy-MM")],
                         amount: 0,
                         calculatedAmount: 0,
                         paymentType: "full",
@@ -1808,93 +1808,92 @@ export default function PaymentManagement({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Month
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Months ({newMonthlyPayment.months?.length || 0}{" "}
+                        selected)
                       </label>
-                      <input
-                        type="month"
-                        value={newMonthlyPayment.month}
-                        onChange={(e) => {
-                          const selectedMonth = e.target.value;
-                          if (student) {
-                            const startDate = new Date(student.startdate);
-                            const minMonth = `${startDate.getFullYear()}-${String(
-                              startDate.getMonth() + 1
-                            ).padStart(2, "0")}`;
-
-                            // Convert selected month to Date object for comparison
-                            const selectedDate = new Date(
-                              selectedMonth + "-01"
-                            );
-                            const minDate = new Date(minMonth + "-01");
-
-                            // Only allow selection if the month is >= start month
-                            if (selectedDate >= minDate) {
-                              if (isMonthFullyCoveredByPrizes(selectedMonth)) {
-                                toast.error(
-                                  "This month is fully covered by prizes"
+                      <div className="grid grid-cols-3 gap-2 p-4 border border-gray-300 rounded-xl bg-gray-50 max-h-48 overflow-y-auto">
+                        {availableMonths.map((month) => {
+                          const monthDate = new Date(month + "-01");
+                          const monthName = monthDate.toLocaleDateString(
+                            "en-US",
+                            {
+                              year: "numeric",
+                              month: "long",
+                            }
+                          );
+                          const isSelected =
+                            newMonthlyPayment.months?.includes(month) || false;
+                          const isDisabled = student
+                            ? (() => {
+                                const startDate = new Date(student.startdate);
+                                const minMonth = `${startDate.getFullYear()}-${String(
+                                  startDate.getMonth() + 1
+                                ).padStart(2, "0")}`;
+                                const selectedDate = new Date(month + "-01");
+                                const minDate = new Date(minMonth + "-01");
+                                return (
+                                  selectedDate < minDate ||
+                                  isMonthFullyCoveredByPrizes(month) ||
+                                  isMonthPaid(month)
                                 );
-                                return;
-                              }
-                              const calculatedAmount = calculateMonthlyAmount(
-                                selectedMonth,
-                                student.startdate,
-                                student.classfee
-                              );
-                              setNewMonthlyPayment((prev) => ({
-                                ...prev,
-                                month: selectedMonth,
-                                calculatedAmount,
-                                paymentType:
-                                  calculatedAmount === student.classfee
-                                    ? "full"
-                                    : "partial",
-                              }));
-                            } else {
-                              toast.error(
-                                `Please select a month starting from ${format(
-                                  new Date(minMonth + "-01"),
-                                  "MMMM yyyy"
-                                )}`
-                              );
-                            }
-                          }
-                        }}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        min={
-                          student
-                            ? `${new Date(
-                                student.startdate
-                              ).getFullYear()}-${String(
-                                new Date(student.startdate).getMonth() + 1
-                              ).padStart(2, "0")}`
-                            : undefined
-                        }
-                      />
-                      {newMonthlyPayment.month && (
-                        <div className="mt-2">
-                          {(() => {
-                            const monthPayment = monthlyPayments.find(
-                              (payment) =>
-                                payment.month === newMonthlyPayment.month &&
-                                payment.is_free_month
-                            );
-                            if (monthPayment) {
-                              return (
-                                <div className="text-sm text-purple-600">
-                                  {monthPayment.free_month_reason}
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </div>
+                              })()
+                            : true;
+
+                          return (
+                            <label
+                              key={month}
+                              className={`flex items-center space-x-2 cursor-pointer p-2 rounded-lg transition-colors ${
+                                isDisabled
+                                  ? "opacity-50 cursor-not-allowed bg-gray-200"
+                                  : "hover:bg-gray-100"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                disabled={isDisabled}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setNewMonthlyPayment((prev) => ({
+                                      ...prev,
+                                      months: [
+                                        ...(prev.months || []),
+                                        month,
+                                      ].sort(),
+                                    }));
+                                  } else {
+                                    setNewMonthlyPayment((prev) => ({
+                                      ...prev,
+                                      months: (prev.months || []).filter(
+                                        (m) => m !== month
+                                      ),
+                                    }));
+                                  }
+                                }}
+                                className="rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-50"
+                              />
+                              <span
+                                className={`text-sm ${
+                                  isDisabled ? "text-gray-400" : "text-gray-700"
+                                }`}
+                              >
+                                {monthName}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {newMonthlyPayment.months?.length === 0 && (
+                        <p className="text-sm text-red-600 mt-1">
+                          Please select at least one month
+                        </p>
                       )}
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Calculated Amount
+                        Total Calculated Amount
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
@@ -1910,14 +1909,39 @@ export default function PaymentManagement({
                           className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-300 bg-gray-50 text-gray-900 font-medium"
                         />
                       </div>
-                      <p className="mt-2 text-sm text-gray-500">
-                        {newMonthlyPayment.calculatedAmount === 0
-                          ? "No payment required for this month"
-                          : newMonthlyPayment.calculatedAmount ===
-                            student?.classfee
-                          ? "Full month payment"
-                          : "Prorated payment based on start date"}
-                      </p>
+                      <div className="mt-2 text-sm text-gray-500">
+                        <p>
+                          Selected months:{" "}
+                          {newMonthlyPayment.months?.length || 0}
+                        </p>
+                        <p>
+                          Monthly fee: $
+                          {student?.classfee?.toFixed(2) || "0.00"}
+                        </p>
+                        {newMonthlyPayment.months &&
+                          newMonthlyPayment.months.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {newMonthlyPayment.months.map((month) => {
+                                const amount = student
+                                  ? calculateMonthlyAmount(
+                                      month,
+                                      student.startdate,
+                                      student.classfee
+                                    )
+                                  : 0;
+                                return (
+                                  <div
+                                    key={month}
+                                    className="flex justify-between text-xs"
+                                  >
+                                    <span>{formatPaymentMonth(month)}:</span>
+                                    <span>${amount.toFixed(2)}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                      </div>
                     </div>
                   </div>
 
@@ -2036,7 +2060,7 @@ export default function PaymentManagement({
                     onClick={() => {
                       setShowMonthlyModal(false);
                       setNewMonthlyPayment({
-                        month: "",
+                        months: [format(new Date(), "yyyy-MM")],
                         amount: 0,
                         calculatedAmount: 0,
                         paymentType: "full",
