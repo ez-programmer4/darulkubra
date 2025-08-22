@@ -213,36 +213,23 @@ export class EarningsCalculator {
               s.chatId !== ""
           );
 
-          // Payment calculations with buffer dates
-          const paymentStartDate = subDays(this.startDate, 7);
-          const paymentEndDate = addDays(this.endDate, 7);
-
+          // Payment calculations using only months_table
           const monthPayments = await prisma.months_table.findMany({
             where: {
               studentid: { in: actualStudents.map((s) => s.wdt_ID) },
               OR: [
                 {
                   month: this.yearMonth,
-                  payment_status: { in: ["paid", "Paid"] },
+                  payment_status: { in: ["paid", "Paid", "PAID"] },
                 },
                 { month: this.yearMonth, is_free_month: true },
               ],
             },
+            select: { studentid: true },
+            distinct: ["studentid"],
           });
 
-          const paymentRecords = await prisma.payment.findMany({
-            where: {
-              studentid: { in: actualStudents.map((s) => s.wdt_ID) },
-              paymentdate: { gte: paymentStartDate, lte: paymentEndDate },
-              status: { in: ["completed", "Completed"] },
-            },
-          });
-
-          const paidStudentIds = new Set([
-            ...monthPayments.map((p) => p.studentid),
-            ...paymentRecords.map((p) => p.studentid),
-          ]);
-
+          const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
           const paidThisMonthArr = activeStudentsArr.filter((s) =>
             paidStudentIds.has(s.wdt_ID)
           );
@@ -270,24 +257,16 @@ export class EarningsCalculator {
                 where: {
                   month: this.yearMonth,
                   OR: [
-                    { payment_status: { in: ["paid", "Paid"] } },
+                    { payment_status: { in: ["paid", "Paid", "PAID"] } },
                     { is_free_month: true },
                   ],
-                },
-              },
-              payment: {
-                where: {
-                  paymentdate: { gte: paymentStartDate, lte: paymentEndDate },
-                  status: { in: ["completed", "Completed"] },
                 },
               },
             },
           });
 
           const referencedActiveArr = referencedStudents.filter(
-            (s) =>
-              (s.months_table.length > 0 || s.payment.length > 0) &&
-              !s.rigistral
+            (s) => s.months_table.length > 0 && !s.rigistral
           );
 
           const baseEarnings = activeStudentsArr.length * config.mainBaseRate;
@@ -393,8 +372,6 @@ export class EarningsCalculator {
       const config = await this.getEarningsConfig();
       const startDate = startOfMonth(new Date(`${month}-01`));
       const endDate = endOfMonth(new Date(`${month}-01`));
-      const paymentStartDate = subDays(startDate, 7);
-      const paymentEndDate = addDays(endDate, 7);
 
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: { u_control: controllerId },
@@ -417,25 +394,13 @@ export class EarningsCalculator {
           studentid: { in: students.map((s) => s.wdt_ID) },
           month,
           OR: [
-            { payment_status: { in: ["paid", "Paid"] } },
+            { payment_status: { in: ["paid", "Paid", "PAID"] } },
             { is_free_month: true },
           ],
         },
       });
 
-      const paymentRecords = await prisma.payment.findMany({
-        where: {
-          studentid: { in: students.map((s) => s.wdt_ID) },
-          paymentdate: { gte: paymentStartDate, lte: paymentEndDate },
-          status: { in: ["completed", "Completed"] },
-        },
-      });
-
-      const paidStudentIds = new Set([
-        ...monthPayments.map((p) => p.studentid),
-        ...paymentRecords.map((p) => p.studentid),
-      ]);
-
+      const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
       const unpaidStudents = students.filter(
         (s) => s.status === "Active" && !paidStudentIds.has(s.wdt_ID)
       ).length;
@@ -487,25 +452,13 @@ export class EarningsCalculator {
           studentid: { in: students.map((s) => s.wdt_ID) },
           month: { startsWith: `${currentYear}-` },
           OR: [
-            { payment_status: { in: ["paid", "Paid"] } },
+            { payment_status: { in: ["paid", "Paid", "PAID"] } },
             { is_free_month: true },
           ],
         },
       });
 
-      const paymentRecords = await prisma.payment.findMany({
-        where: {
-          studentid: { in: students.map((s) => s.wdt_ID) },
-          paymentdate: { gte: startDate, lte: endDate },
-          status: { in: ["completed", "Completed"] },
-        },
-      });
-
-      const paidStudentIds = new Set([
-        ...monthPayments.map((p) => p.studentid),
-        ...paymentRecords.map((p) => p.studentid),
-      ]);
-
+      const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
       const unpaidStudents = students.filter(
         (s) => s.status === "Active" && !paidStudentIds.has(s.wdt_ID)
       ).length;

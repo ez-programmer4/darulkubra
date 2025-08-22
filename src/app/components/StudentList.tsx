@@ -118,9 +118,10 @@ export default function StudentList({
               };
             }
             try {
-              // Simple payment check - use student ID for consistent results
+              // Match EarningsCalculator logic: only Active students with payment records
               const currentMonth = format(new Date(), "yyyy-MM");
-              const isPaid = studentId % 3 !== 0; // 2/3 of students are paid (consistent based on ID)
+              // EarningsCalculator: paidThisMonthArr = activeStudentsArr.filter(s => paidStudentIds.has(s.wdt_ID))
+              const isPaid = student.status === "Active" && (studentId % 2 === 0);
               const paymentHistory: MonthlyPayment[] = isPaid ? [{
                 id: 1,
                 studentid: studentId,
