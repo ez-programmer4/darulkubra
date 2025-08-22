@@ -246,7 +246,7 @@ export default function AttendanceList() {
         sentStatus,
         clickedStatus,
         page: "1",
-        limit: "1000", // Get all records for emergency detection
+        limit: "all", // Get all records for emergency detection
         ...(startDate && { startDate }),
         ...(endDate && { endDate }),
       });
@@ -770,59 +770,104 @@ export default function AttendanceList() {
         </div>
       )}
 
-      {/* Emergency Section - Always show for testing */}
+      {/* Emergency Section */}
       <div className="mb-6 p-4 bg-red-50 rounded-lg border-2 border-red-200">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-bold text-red-800 flex items-center">
             <FiBell className="mr-2 text-red-600" />
             🚨 EMERGENCY: Links Not Sent ({emergencyStudents.length})
           </h3>
-          <button
-            onClick={() => setShowEmergency(!showEmergency)}
-            className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
-          >
-            {showEmergency ? 'Hide' : 'Show'} Details
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                emergencyStudents.forEach(student => {
+                  handleNotifyClick(student.student_id, student.scheduledAt?.substring(0, 10) || '');
+                });
+              }}
+              disabled={emergencyStudents.length === 0}
+              className="px-3 py-1 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm disabled:bg-gray-400"
+            >
+              Notify All
+            </button>
+            <button
+              onClick={() => setShowEmergency(!showEmergency)}
+              className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
+            >
+              {showEmergency ? 'Hide' : 'Show'} Details
+            </button>
+          </div>
         </div>
-        <p className="text-sm text-red-700 mb-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+          <div className="bg-white rounded-lg p-3 border border-red-200">
+            <div className="text-sm font-medium text-red-700">Critical (10+ min)</div>
+            <div className="text-lg font-bold text-red-800">
+              {emergencyStudents.filter(s => {
+                const timePassed = (new Date().getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
+                return timePassed >= 10;
+              }).length}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-orange-200">
+            <div className="text-sm font-medium text-orange-700">Warning (5-10 min)</div>
+            <div className="text-lg font-bold text-orange-800">
+              {emergencyStudents.filter(s => {
+                const timePassed = (new Date().getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
+                return timePassed >= 5 && timePassed < 10;
+              }).length}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-yellow-200">
+            <div className="text-sm font-medium text-yellow-700">Alert (3-5 min)</div>
+            <div className="text-lg font-bold text-yellow-800">
+              {emergencyStudents.filter(s => {
+                const timePassed = (new Date().getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
+                return timePassed >= 3 && timePassed < 5;
+              }).length}
+            </div>
+          </div>
+        </div>
+        <p className="text-sm text-red-700 mb-2">
           Students whose scheduled time has passed by 3+ minutes without zoom links being sent (within 15min range).
-        </p>
-        <p className="text-xs text-gray-600 mb-2">
-          Debug: Total all data: {allData.length}, Current page data: {filteredData.length}, Emergency students: {emergencyStudents.length}
         </p>
         
         {showEmergency && (
-          <div className="bg-white rounded-lg p-3 border border-red-200">
+          <div className="bg-white rounded-lg p-3 border border-red-200 max-h-96 overflow-y-auto">
             {emergencyStudents.length > 0 ? (
               <div className="grid gap-2">
-                {emergencyStudents.map(student => {
-                  const timePassed = Math.floor((new Date().getTime() - (student.scheduledDateObj?.getTime() || 0)) / (1000 * 60));
-                  return (
-                    <div key={student.student_id} className="flex justify-between items-center p-2 bg-red-50 rounded border">
-                      <div>
-                        <span className="font-medium text-red-800">{student.studentName}</span>
-                        <span className="text-sm text-red-600 ml-2">({student.ustazName})</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-red-700">
-                            Scheduled: {formatTimeOnly(student.scheduledAt)}
+                {emergencyStudents
+                  .sort((a, b) => {
+                    const timeA = (new Date().getTime() - (a.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
+                    const timeB = (new Date().getTime() - (b.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
+                    return timeB - timeA; // Most overdue first
+                  })
+                  .map(student => {
+                    const timePassed = Math.floor((new Date().getTime() - (student.scheduledDateObj?.getTime() || 0)) / (1000 * 60));
+                    const urgencyColor = timePassed >= 10 ? 'bg-red-100 border-red-300' : 
+                                       timePassed >= 5 ? 'bg-orange-100 border-orange-300' : 
+                                       'bg-yellow-100 border-yellow-300';
+                    return (
+                      <div key={student.student_id} className={`flex justify-between items-center p-2 rounded border ${urgencyColor}`}>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-800">{student.studentName}</span>
+                            <span className="text-sm text-gray-600">({student.ustazName})</span>
+                            {timePassed >= 10 && <span className="text-xs bg-red-500 text-white px-2 py-1 rounded">CRITICAL</span>}
+                            {timePassed >= 5 && timePassed < 10 && <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded">WARNING</span>}
                           </div>
-                          <div className="text-xs text-red-600">
-                            {timePassed} minutes overdue
+                          <div className="text-xs text-gray-600 mt-1">
+                            Scheduled: {formatTimeOnly(student.scheduledAt)} | {timePassed} min overdue
                           </div>
                         </div>
                         <button
                           onClick={() => handleNotifyClick(student.student_id, student.scheduledAt?.substring(0, 10) || '')}
-                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 flex items-center"
+                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 flex items-center ml-2"
                           title="Notify teacher about missing link"
                         >
                           <FiBell className="mr-1" /> Notify
                         </button>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             ) : (
               <p className="text-gray-600 text-center py-4">No emergency students found</p>
