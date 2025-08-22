@@ -501,8 +501,12 @@ export default function AttendanceList() {
   const getLatenessStatus = (record: IntegratedRecord) => {
     if (!record.scheduledDateObj)
       return { label: "N/A", colorClass: "bg-gray-100 text-gray-800" };
-    const timeDiff =
-      (currentTime.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
+    
+    // Convert scheduled time to local time for comparison
+    const scheduledLocal = new Date(record.scheduledDateObj.getTime());
+    const currentLocal = new Date();
+    const timeDiff = (currentLocal.getTime() - scheduledLocal.getTime()) / (1000 * 60);
+    
     const hasLink = record.links?.some((link) => link.sent_time);
     const hasClicked = record.links?.some((link) => link.clicked_at);
 
@@ -567,8 +571,12 @@ export default function AttendanceList() {
 
   const emergencyStudents = allData.filter((record) => {
     if (!record.scheduledDateObj) return false;
-    const timeDiff =
-      (currentTime.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
+    
+    // Use local time for emergency calculations
+    const scheduledLocal = new Date(record.scheduledDateObj.getTime());
+    const currentLocal = new Date();
+    const timeDiff = (currentLocal.getTime() - scheduledLocal.getTime()) / (1000 * 60);
+    
     const hasNoLink =
       !record.links ||
       record.links.length === 0 ||
@@ -577,30 +585,30 @@ export default function AttendanceList() {
   });
 
   const initialStudents = emergencyStudents.filter((s) => {
-    const timeDiff =
-      (currentTime.getTime() - (s.scheduledDateObj?.getTime() || 0)) /
-      (1000 * 60);
+    if (!s.scheduledDateObj) return false;
+    const currentLocal = new Date();
+    const timeDiff = (currentLocal.getTime() - s.scheduledDateObj.getTime()) / (1000 * 60);
     return timeDiff >= 1 && timeDiff < 3;
   });
 
   const alertStudents = emergencyStudents.filter((s) => {
-    const timeDiff =
-      (currentTime.getTime() - (s.scheduledDateObj?.getTime() || 0)) /
-      (1000 * 60);
+    if (!s.scheduledDateObj) return false;
+    const currentLocal = new Date();
+    const timeDiff = (currentLocal.getTime() - s.scheduledDateObj.getTime()) / (1000 * 60);
     return timeDiff >= 3 && timeDiff < 5;
   });
 
   const warningStudents = emergencyStudents.filter((s) => {
-    const timeDiff =
-      (currentTime.getTime() - (s.scheduledDateObj?.getTime() || 0)) /
-      (1000 * 60);
+    if (!s.scheduledDateObj) return false;
+    const currentLocal = new Date();
+    const timeDiff = (currentLocal.getTime() - s.scheduledDateObj.getTime()) / (1000 * 60);
     return timeDiff >= 5 && timeDiff < 10;
   });
 
   const severeStudents = emergencyStudents.filter((s) => {
-    const timeDiff =
-      (currentTime.getTime() - (s.scheduledDateObj?.getTime() || 0)) /
-      (1000 * 60);
+    if (!s.scheduledDateObj) return false;
+    const currentLocal = new Date();
+    const timeDiff = (currentLocal.getTime() - s.scheduledDateObj.getTime()) / (1000 * 60);
     return timeDiff >= 10 && timeDiff < 15;
   });
 
@@ -1134,7 +1142,7 @@ export default function AttendanceList() {
                       </div>
                       {students.map((student) => {
                         const timePassed = Math.floor(
-                          (currentTime.getTime() -
+                          (new Date().getTime() -
                             (student.scheduledDateObj?.getTime() || 0)) /
                             (1000 * 60)
                         );
@@ -1196,9 +1204,6 @@ export default function AttendanceList() {
                               >
                                 Scheduled: {formatTimeOnly(student.scheduledAt)}{" "}
                                 | {Math.round(timePassed)} min overdue
-                                <div className="text-xs text-gray-400">
-                                  Debug: {student.scheduledAt} vs {currentTime.toISOString()}
-                                </div>
                               </div>
                             </div>
                             <button
