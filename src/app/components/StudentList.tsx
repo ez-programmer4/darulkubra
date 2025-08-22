@@ -118,9 +118,9 @@ export default function StudentList({
               };
             }
             try {
-              // Simple payment check - assume some students are paid
+              // Simple payment check - use student ID for consistent results
               const currentMonth = format(new Date(), "yyyy-MM");
-              const isPaid = Math.random() > 0.5; // Random for demo
+              const isPaid = studentId % 3 !== 0; // 2/3 of students are paid (consistent based on ID)
               const paymentHistory: MonthlyPayment[] = isPaid ? [{
                 id: 1,
                 studentid: studentId,

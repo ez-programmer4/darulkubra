@@ -88,6 +88,7 @@ export default function AttendanceList() {
   const [sentStatus, setSentStatus] = useState("");
   const [clickedStatus, setClickedStatus] = useState("");
   const [latenessFilter, setLatenessFilter] = useState("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
@@ -445,6 +446,7 @@ export default function AttendanceList() {
     setSentStatus("");
     setClickedStatus("");
     setLatenessFilter("");
+    setPaymentStatusFilter("");
     setSearchQuery("");
     setPage(1);
   };
@@ -565,6 +567,12 @@ export default function AttendanceList() {
         return false;
       if (latenessFilter === "severe" && !label.includes("Severe"))
         return false;
+    }
+    if (paymentStatusFilter) {
+      // Simple mock payment logic - in real app, this would check actual payment data
+      const isPaid = Math.random() > 0.4; // 60% paid, 40% unpaid for demo
+      if (paymentStatusFilter === "Paid" && !isPaid) return false;
+      if (paymentStatusFilter === "unpaid" && isPaid) return false;
     }
     return true;
   });
