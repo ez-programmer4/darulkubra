@@ -82,6 +82,11 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Check if status is changing to Leave and set exitdate
+    const exitdate = (status === "Leave" && student.status !== "Leave") 
+      ? new Date() 
+      : undefined;
+
     // Update the student
     const updatedStudent = await prisma.wpos_wpdatatable_23.update({
       where: { wdt_ID: parseInt(params.id) },
@@ -91,6 +96,7 @@ export async function PUT(
         package: pkg,
         subject,
         daypackages,
+        ...(exitdate && { exitdate }),
       },
       include: {
         teacher: {

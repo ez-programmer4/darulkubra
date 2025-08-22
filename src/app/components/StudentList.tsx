@@ -67,7 +67,7 @@ export default function StudentList({
   user,
 }: StudentListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("active-notyet");
+  const [statusFilter, setStatusFilter] = useState("active-Not yet");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [ustazFilter, setUstazFilter] = useState("all");
   const [packageFilter, setPackageFilter] = useState("all");
@@ -76,7 +76,9 @@ export default function StudentList({
   const [currentPage, setCurrentPage] = useState(1);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const itemsPerPage = 10;
-  const [studentsWithPaymentStatus, setStudentsWithPaymentStatus] = useState<Student[]>(
+  const [studentsWithPaymentStatus, setStudentsWithPaymentStatus] = useState<
+    Student[]
+  >(
     students.map((student) => ({
       ...student,
       paymentStatus: {
@@ -141,16 +143,17 @@ export default function StudentList({
               }
 
               const paymentHistory: MonthlyPayment[] = await response.json();
-              const latestPayment = paymentHistory.length > 0
-                ? paymentHistory.sort((a, b) => {
-                    const dateA = safeParseISO(a.end_date);
-                    const dateB = safeParseISO(b.end_date);
-                    if (!dateA && !dateB) return 0;
-                    if (!dateA) return 1;
-                    if (!dateB) return -1;
-                    return dateB.getTime() - dateA.getTime();
-                  })[0]
-                : undefined;
+              const latestPayment =
+                paymentHistory.length > 0
+                  ? paymentHistory.sort((a, b) => {
+                      const dateA = safeParseISO(a.end_date);
+                      const dateB = safeParseISO(b.end_date);
+                      if (!dateA && !dateB) return 0;
+                      if (!dateA) return 1;
+                      if (!dateB) return -1;
+                      return dateB.getTime() - dateA.getTime();
+                    })[0]
+                  : undefined;
 
               const currentMonth = format(new Date(), "yyyy-MM");
               const hasOverdue = paymentHistory.some(
@@ -159,7 +162,9 @@ export default function StudentList({
                   (p.payment_status !== "paid" &&
                     (() => {
                       const endDate = safeParseISO(p.end_date);
-                      return endDate ? endDate.getTime() < new Date().getTime() : false;
+                      return endDate
+                        ? endDate.getTime() < new Date().getTime()
+                        : false;
                     })())
               );
               const currentMonthPaid = paymentHistory.some(
@@ -205,7 +210,7 @@ export default function StudentList({
     const uniqueStatuses = [
       ...new Set(students.map((student) => student.status).filter(Boolean)),
     ];
-    return ["active-notyet", "all", ...uniqueStatuses];
+    return ["active-Not yet", "all", ...uniqueStatuses];
   }, [students]);
 
   const subjects = useMemo(() => {
@@ -247,17 +252,21 @@ export default function StudentList({
           .toLowerCase()
           .includes(searchQuery.toLowerCase());
 
-      const matchesStatus = 
-        statusFilter === "all" || 
+      const matchesStatus =
+        statusFilter === "all" ||
         student.status === statusFilter ||
-        (statusFilter === "active-notyet" && 
-         (student.status.toLowerCase() === "active" || student.status.toLowerCase() === "not yet"));
-      const matchesSubject = subjectFilter === "all" || student.subject === subjectFilter;
+        (statusFilter === "active-Not yet" &&
+          (student.status.toLowerCase() === "active" ||
+            student.status.toLowerCase() === "not yet"));
+      const matchesSubject =
+        subjectFilter === "all" || student.subject === subjectFilter;
       const matchesUstaz =
         ustazFilter === "all" ||
         (student.teacher?.ustazname || student.ustaz) === ustazFilter;
-      const matchesPackage = packageFilter === "all" || student.package === packageFilter;
-      const matchesTimeSlot = timeSlotFilter === "all" || student.selectedTime === timeSlotFilter;
+      const matchesPackage =
+        packageFilter === "all" || student.package === packageFilter;
+      const matchesTimeSlot =
+        timeSlotFilter === "all" || student.selectedTime === timeSlotFilter;
 
       const paymentStatus = student.paymentStatus;
       let matchesPaymentStatus = true;
@@ -294,7 +303,10 @@ export default function StudentList({
 
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedStudents = filteredStudents.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedStudents = filteredStudents.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
 
   const debouncedSearch = useMemo(
     () => debounce((query: string) => setSearchQuery(query), 300),
@@ -307,7 +319,7 @@ export default function StudentList({
 
   const clearAllFilters = () => {
     setSearchQuery("");
-    setStatusFilter("active-notyet");
+    setStatusFilter("active-Not yet");
     setSubjectFilter("all");
     setUstazFilter("all");
     setPackageFilter("all");
@@ -319,7 +331,7 @@ export default function StudentList({
   const getActiveFiltersCount = () => {
     let count = 0;
     if (searchQuery) count++;
-    if (statusFilter !== "active-notyet") count++;
+    if (statusFilter !== "active-Not yet") count++;
     if (subjectFilter !== "all") count++;
     if (ustazFilter !== "all") count++;
     if (packageFilter !== "all") count++;
@@ -377,7 +389,9 @@ export default function StudentList({
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
-              <label className="block text-sm font-bold text-black mb-2">Status</label>
+              <label className="block text-sm font-bold text-black mb-2">
+                Status
+              </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -385,15 +399,20 @@ export default function StudentList({
               >
                 {statuses.map((status) => (
                   <option key={status} value={status}>
-                    {status === "all" ? "All Statuses" : 
-                     status === "active-notyet" ? "Active & Not Yet" : status}
+                    {status === "all"
+                      ? "All Statuses"
+                      : status === "active-Not yet"
+                      ? "Active & Not Yet"
+                      : status}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-black mb-2">Teacher</label>
+              <label className="block text-sm font-bold text-black mb-2">
+                Teacher
+              </label>
               <select
                 value={ustazFilter}
                 onChange={(e) => setUstazFilter(e.target.value)}
@@ -408,7 +427,9 @@ export default function StudentList({
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-black mb-2">Subject</label>
+              <label className="block text-sm font-bold text-black mb-2">
+                Subject
+              </label>
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
@@ -423,7 +444,9 @@ export default function StudentList({
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-black mb-2">Payment Status</label>
+              <label className="block text-sm font-bold text-black mb-2">
+                Payment Status
+              </label>
               <select
                 value={paymentStatusFilter}
                 onChange={(e) => setPaymentStatusFilter(e.target.value)}
@@ -437,7 +460,9 @@ export default function StudentList({
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-black mb-2">Package</label>
+              <label className="block text-sm font-bold text-black mb-2">
+                Package
+              </label>
               <select
                 value={packageFilter}
                 onChange={(e) => setPackageFilter(e.target.value)}
@@ -452,7 +477,9 @@ export default function StudentList({
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-black mb-2">Time Slot</label>
+              <label className="block text-sm font-bold text-black mb-2">
+                Time Slot
+              </label>
               <select
                 value={timeSlotFilter}
                 onChange={(e) => setTimeSlotFilter(e.target.value)}
@@ -472,7 +499,8 @@ export default function StudentList({
       {/* Results Summary */}
       <div className="flex items-center justify-between text-sm text-gray-600">
         <span>
-          Showing {paginatedStudents.length} of {filteredStudents.length} students
+          Showing {paginatedStudents.length} of {filteredStudents.length}{" "}
+          students
         </span>
         {filteredStudents.length !== students.length && (
           <span className="text-blue-600 font-semibold">
@@ -488,7 +516,9 @@ export default function StudentList({
             <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
               <FiUsers className="h-16 w-16 text-gray-500" />
             </div>
-            <h3 className="text-3xl font-bold text-black mb-4">No Students Found</h3>
+            <h3 className="text-3xl font-bold text-black mb-4">
+              No Students Found
+            </h3>
             <p className="text-gray-600 text-xl">
               {searchQuery || getActiveFiltersCount() > 0
                 ? "No students match your current filters."
@@ -532,7 +562,9 @@ export default function StudentList({
               <FiChevronLeft className="h-6 w-6" />
             </button>
             <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              onClick={() =>
+                setCurrentPage(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
               className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
             >

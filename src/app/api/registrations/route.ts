@@ -317,7 +317,7 @@ export async function POST(request: NextRequest) {
           u_control,
           status: status
             ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
-            : "Pending",
+            : "Not yet",
           ustaz,
           package: regionPackage || null,
           subject: subject || null,
@@ -533,6 +533,22 @@ export async function PUT(request: NextRequest) {
     }
 
     const updatedRegistration = await prismaClient.$transaction(async (tx) => {
+      // Get current status to check if changing to Leave
+      const currentRecord = await tx.wpos_wpdatatable_23.findUnique({
+        where: { wdt_ID: parseInt(id) },
+        select: { status: true },
+      });
+
+      const newStatus = status
+        ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+        : "Pending";
+
+      // Set exitdate if status is changing to Leave
+      const exitdate =
+        newStatus === "Leave" && currentRecord?.status !== "Leave"
+          ? new Date()
+          : undefined;
+
       const registration = await tx.wpos_wpdatatable_23.update({
         where: { wdt_ID: parseInt(id) },
         data: {
@@ -541,9 +557,7 @@ export async function PUT(request: NextRequest) {
           classfee: classfee ? parseFloat(classfee) : null,
           startdate: startdate ? new Date(startdate) : null,
           u_control,
-          status: status
-            ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
-            : "Pending",
+          status: newStatus,
           ustaz,
           package: regionPackage || null,
           subject: subject || null,
@@ -557,6 +571,7 @@ export async function PUT(request: NextRequest) {
           registrationdate: registrationdate
             ? new Date(registrationdate)
             : undefined,
+          ...(exitdate && { exitdate }),
         },
       });
 
@@ -988,7 +1003,7 @@ export async function PATCH(request: NextRequest) {
           "pending",
           "leave",
           "remadan leave",
-          "notyet",
+          "Not yet",
           "fresh",
         ].includes(status.toLowerCase())
       ) {
@@ -1016,16 +1031,33 @@ export async function PATCH(request: NextRequest) {
         );
       }
 
-      await prismaClient.wpos_wpdatatable_23.updateMany({
-        where: {
-          wdt_ID: { in: ids.map((id: string) => parseInt(id)) },
-          u_control: session.role === "controller" ? session.code : undefined,
-        },
-        data: {
-          status:
-            status.charAt(0).toUpperCase() + status.slice(1).toLowerCase(),
-        },
-      });
+      const newStatus =
+        status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+
+      // If changing to Leave status, set exitdate for all affected records
+      if (newStatus === "Leave") {
+        await prismaClient.wpos_wpdatatable_23.updateMany({
+          where: {
+            wdt_ID: { in: ids.map((id: string) => parseInt(id)) },
+            u_control: session.role === "controller" ? session.code : undefined,
+            status: { not: "Leave" }, // Only update if not already Leave
+          },
+          data: {
+            status: newStatus,
+            exitdate: new Date(),
+          },
+        });
+      } else {
+        await prismaClient.wpos_wpdatatable_23.updateMany({
+          where: {
+            wdt_ID: { in: ids.map((id: string) => parseInt(id)) },
+            u_control: session.role === "controller" ? session.code : undefined,
+          },
+          data: {
+            status: newStatus,
+          },
+        });
+      }
 
       return NextResponse.json(
         { message: "Statuses updated successfully" },
