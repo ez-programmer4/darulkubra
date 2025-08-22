@@ -159,6 +159,7 @@ export class EarningsCalculator {
               name: true,
               u_control: true,
               exitdate: true,
+              package: true, // Added package field
             },
           });
 
@@ -167,13 +168,13 @@ export class EarningsCalculator {
             (s) => s.u_control === controllerId
           );
           const activeStudentsArr = actualStudents.filter(
-            (s) => s.status === "Active"
+            (s) => s.status === "Active" && s.package !== "0 fee"
           );
           const notYetStudentsArr = actualStudents.filter(
             (s) => s.status === "Not Yet"
           );
 
-          // Filter leave students for the selected month using startdate
+          // Filter leave students for the selected month using exitdate
           const leaveStudentsArr = actualStudents.filter(
             (s) =>
               s.status === "Leave" &&
@@ -187,7 +188,9 @@ export class EarningsCalculator {
           console.log(`Month: ${this.yearMonth}`);
           console.log(`Total students queried: ${students.length}`);
           console.log(`Students matching controller: ${actualStudents.length}`);
-          console.log(`Active students: ${activeStudentsArr.length}`);
+          console.log(
+            `Active students (package != '0 fee'): ${activeStudentsArr.length}`
+          );
           console.log(`Not Yet students: ${notYetStudentsArr.length}`);
           console.log(
             `Leave students in ${this.yearMonth}: ${leaveStudentsArr.length}`
@@ -241,7 +244,9 @@ export class EarningsCalculator {
           if (unpaidActiveArr.length > 0) {
             console.log(`Unpaid active students: ${unpaidActiveArr.length}`);
             unpaidActiveArr.forEach((s) => {
-              console.log(`  Unpaid Student: ${s.name}, ID: ${s.wdt_ID}`);
+              console.log(
+                `  Unpaid Student: ${s.name}, ID: ${s.wdt_ID}, Package: ${s.package}`
+              );
             });
           }
 
@@ -375,11 +380,16 @@ export class EarningsCalculator {
 
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: { u_control: controllerId },
-        select: { wdt_ID: true, status: true, exitdate: true },
+        select: {
+          wdt_ID: true,
+          status: true,
+          exitdate: true,
+          package: true, // Added package field
+        },
       });
 
       const activeStudents = students.filter(
-        (s) => s.status === "Active"
+        (s) => s.status === "Active" && s.package !== "0 fee"
       ).length;
       const leaveStudents = students.filter(
         (s) =>
@@ -398,11 +408,16 @@ export class EarningsCalculator {
             { is_free_month: true },
           ],
         },
+        select: { studentid: true },
+        distinct: ["studentid"],
       });
 
       const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
       const unpaidStudents = students.filter(
-        (s) => s.status === "Active" && !paidStudentIds.has(s.wdt_ID)
+        (s) =>
+          s.status === "Active" &&
+          !paidStudentIds.has(s.wdt_ID) &&
+          s.package !== "0 fee"
       ).length;
 
       return (
@@ -433,11 +448,16 @@ export class EarningsCalculator {
           u_control: controllerId,
           registrationdate: { gte: startDate, lt: endDate },
         },
-        select: { wdt_ID: true, status: true, exitdate: true },
+        select: {
+          wdt_ID: true,
+          status: true,
+          exitdate: true,
+          package: true, // Added package field
+        },
       });
 
       const activeStudents = students.filter(
-        (s) => s.status === "Active"
+        (s) => s.status === "Active" && s.package !== "0 fee"
       ).length;
       const leaveStudents = students.filter(
         (s) =>
@@ -456,11 +476,16 @@ export class EarningsCalculator {
             { is_free_month: true },
           ],
         },
+        select: { studentid: true },
+        distinct: ["studentid"],
       });
 
       const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
       const unpaidStudents = students.filter(
-        (s) => s.status === "Active" && !paidStudentIds.has(s.wdt_ID)
+        (s) =>
+          s.status === "Active" &&
+          !paidStudentIds.has(s.wdt_ID) &&
+          s.package !== "0 fee"
       ).length;
 
       return (
