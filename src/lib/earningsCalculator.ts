@@ -158,6 +158,7 @@ export class EarningsCalculator {
               refer: true,
               name: true,
               u_control: true,
+              exitdate: true,
             },
           });
 
@@ -397,7 +398,7 @@ export class EarningsCalculator {
 
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: { u_control: controllerId },
-        select: { wdt_ID: true, status: true, startdate: true },
+        select: { wdt_ID: true, status: true, exitdate: true },
       });
 
       const activeStudents = students.filter(
@@ -467,7 +468,7 @@ export class EarningsCalculator {
           u_control: controllerId,
           registrationdate: { gte: startDate, lt: endDate },
         },
-        select: { wdt_ID: true, status: true, startdate: true },
+        select: { wdt_ID: true, status: true, exitdate: true },
       });
 
       const activeStudents = students.filter(
