@@ -539,9 +539,17 @@ export async function PUT(request: NextRequest) {
         select: { status: true },
       });
 
-      const newStatus = status
-        ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
-        : "Pending";
+      // Handle special case for "Not yet" and other statuses
+      let newStatus;
+      if (status) {
+        if (status.toLowerCase() === "not yet") {
+          newStatus = "Not yet";
+        } else {
+          newStatus = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+        }
+      } else {
+        newStatus = "Pending";
+      }
 
       // Set exitdate if status is changing to Leave
       const exitdate =
@@ -995,22 +1003,21 @@ export async function PATCH(request: NextRequest) {
         );
       }
 
-      if (
-        !status ||
-        ![
-          "active",
-          "inactive",
-          "pending",
-          "leave",
-          "remadan leave",
-          "Not yet",
-          "fresh",
-        ].includes(status.toLowerCase())
-      ) {
+      const validStatuses = [
+        "active",
+        "inactive", 
+        "pending",
+        "leave",
+        "remadan leave",
+        "not yet",
+        "fresh"
+      ];
+      
+      if (!status || !validStatuses.includes(status.toLowerCase())) {
         return NextResponse.json(
           {
             message:
-              "Status must be active, inactive, pending, leave, remadan leave, notyet, or fresh",
+              "Status must be Active, Leave, Remadan leave, Not yet, or Fresh",
           },
           { status: 400 }
         );
@@ -1031,8 +1038,13 @@ export async function PATCH(request: NextRequest) {
         );
       }
 
-      const newStatus =
-        status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+      // Handle special case for "Not yet"
+      let newStatus;
+      if (status.toLowerCase() === "not yet") {
+        newStatus = "Not yet";
+      } else {
+        newStatus = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+      }
 
       // If changing to Leave status, set exitdate for all affected records
       if (newStatus === "Leave") {
