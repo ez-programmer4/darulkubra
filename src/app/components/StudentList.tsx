@@ -118,10 +118,7 @@ export default function StudentList({
               };
             }
             try {
-              const endpoint =
-                user?.role === "controller"
-                  ? `/api/controller/students/${studentId}/payment-history`
-                  : `/api/students?studentId=${studentId}`;
+              const endpoint = `/api/students/payment-status?studentId=${studentId}`;
 
               const response = await fetch(endpoint, {
                 credentials: "include",
@@ -159,7 +156,7 @@ export default function StudentList({
               const hasOverdue = paymentHistory.some(
                 (p) =>
                   p.payment_status === "rejected" ||
-                  (p.payment_status !== "paid" &&
+                  (p.payment_status.toLowerCase() !== "paid" &&
                     (() => {
                       const endDate = safeParseISO(p.end_date);
                       return endDate
@@ -170,7 +167,7 @@ export default function StudentList({
               const currentMonthPaid = paymentHistory.some(
                 (p) =>
                   p.month === currentMonth &&
-                  p.payment_status === "paid" &&
+                  (p.payment_status === "paid" || p.payment_status === "Paid") &&
                   p.payment_type !== "free"
               );
 
@@ -201,9 +198,22 @@ export default function StudentList({
       } catch (error) {}
     };
 
-    if (students.length > 0 && user) {
+    if (students.length > 0) {
       fetchPaymentHistory();
     }
+    
+    // Initialize with default payment status if no API call
+    setStudentsWithPaymentStatus(
+      students.map((student) => ({
+        ...student,
+        paymentStatus: {
+          currentMonthPaid: false,
+          hasOverdue: false,
+          lastPayment: undefined,
+          paymentHistory: [],
+        },
+      }))
+    );
   }, [students, user]);
 
   const statuses = useMemo(() => {
