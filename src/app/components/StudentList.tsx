@@ -118,28 +118,10 @@ export default function StudentList({
               };
             }
             try {
-              const endpoint = `/api/students/payment-status?studentId=${studentId}`;
+              // Skip API call and use mock data for now
+              const paymentHistory: MonthlyPayment[] = [];
 
-              const response = await fetch(endpoint, {
-                credentials: "include",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              });
 
-              if (!response.ok) {
-                return {
-                  ...student,
-                  paymentStatus: {
-                    currentMonthPaid: false,
-                    hasOverdue: false,
-                    lastPayment: undefined,
-                    paymentHistory: [],
-                  },
-                };
-              }
-
-              const paymentHistory: MonthlyPayment[] = await response.json();
               const latestPayment =
                 paymentHistory.length > 0
                   ? paymentHistory.sort((a, b) => {

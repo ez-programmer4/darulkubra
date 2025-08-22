@@ -262,7 +262,7 @@ export default function AttendanceList() {
         sentStatus,
         clickedStatus,
         page: "1",
-        limit: "all", // Get all records for emergency detection
+        limit: "1000", // Get all records for emergency detection
         ...(startDate && { startDate }),
         ...(endDate && { endDate }),
       });
