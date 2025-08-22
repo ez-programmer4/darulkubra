@@ -1406,9 +1406,9 @@ export default function AttendanceList() {
       )}
 
       <ConfirmModal
-        isOpen={!!studentToNotify}
-        onClose={() => setStudentToNotify(null)}
+        open={!!studentToNotify}
         onConfirm={confirmNotify}
+        onCancel={() => setStudentToNotify(null)}
         title="Confirm Notification"
         message="Are you sure you want to send an SMS reminder to this teacher?"
       />
