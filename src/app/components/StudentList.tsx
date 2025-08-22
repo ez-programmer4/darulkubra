@@ -156,7 +156,7 @@ export default function StudentList({
               const hasOverdue = paymentHistory.some(
                 (p) =>
                   p.payment_status === "rejected" ||
-                  (p.payment_status.toLowerCase() !== "paid" &&
+                  (p.payment_status.toLowerCase() !== "Paid" &&
                     (() => {
                       const endDate = safeParseISO(p.end_date);
                       return endDate
@@ -167,7 +167,8 @@ export default function StudentList({
               const currentMonthPaid = paymentHistory.some(
                 (p) =>
                   p.month === currentMonth &&
-                  (p.payment_status === "paid" || p.payment_status === "Paid") &&
+                  (p.payment_status === "Paid" ||
+                    p.payment_status === "Paid") &&
                   p.payment_type !== "free"
               );
 
@@ -201,7 +202,7 @@ export default function StudentList({
     if (students.length > 0) {
       fetchPaymentHistory();
     }
-    
+
     // Initialize with default payment status if no API call
     setStudentsWithPaymentStatus(
       students.map((student) => ({
@@ -280,7 +281,7 @@ export default function StudentList({
 
       const paymentStatus = student.paymentStatus;
       let matchesPaymentStatus = true;
-      if (paymentStatusFilter === "paid") {
+      if (paymentStatusFilter === "Paid") {
         matchesPaymentStatus = paymentStatus?.currentMonthPaid || false;
       } else if (paymentStatusFilter === "unpaid") {
         matchesPaymentStatus = !paymentStatus?.currentMonthPaid;
@@ -463,7 +464,7 @@ export default function StudentList({
                 className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
               >
                 <option value="all">All Payment Status</option>
-                <option value="paid">Paid This Month</option>
+                <option value="Paid">Paid This Month</option>
                 <option value="unpaid">Unpaid This Month</option>
                 <option value="overdue">Overdue</option>
               </select>

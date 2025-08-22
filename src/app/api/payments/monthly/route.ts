@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate payment status
-    if (!["pending", "paid", "rejected"].includes(paymentStatus)) {
+    if (!["pending", "Paid", "rejected"].includes(paymentStatus)) {
       return NextResponse.json(
         {
           error:
@@ -320,7 +320,11 @@ export async function POST(request: NextRequest) {
           (Number(student.classfee) * daysInClass) / daysInMonth;
 
         // If this is a prize payment or partial payment, skip the unpaid check
-        if (payment_type === "prizepartial" || payment_type === "free" || payment_type === "partial")
+        if (
+          payment_type === "prizepartial" ||
+          payment_type === "free" ||
+          payment_type === "partial"
+        )
           continue;
 
         // Check if the month is fully paid
@@ -472,7 +476,7 @@ export async function POST(request: NextRequest) {
 
       if (
         controllerEarningTableExists &&
-        paymentStatus === "paid" &&
+        paymentStatus === "Paid" &&
         student.u_control &&
         Number(finalPaidAmount) > 0 &&
         ["full", "partial", "prizepartial"].includes(payment_type)

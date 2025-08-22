@@ -102,6 +102,7 @@ export default function AttendanceList() {
   const [allTeachers, setAllTeachers] = useState<string[]>([]);
   const [showEmergency, setShowEmergency] = useState(false);
   const [allData, setAllData] = useState<IntegratedRecord[]>([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     // Save notified student-date keys to localStorage whenever they change
@@ -200,7 +201,27 @@ export default function AttendanceList() {
 
   useEffect(() => {
     fetchData();
+    fetchAllDataForEmergencyAsync();
   }, [date, startDate, endDate, ustaz, attendanceStatus, sentStatus, clickedStatus, page, limit]);
+
+  // Auto-refresh every minute for emergency detection
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+      fetchAllDataForEmergencyAsync();
+    }, 60000); // 1 minute
+
+    return () => clearInterval(interval);
+  }, [date, ustaz]);
+
+  // Update current time every second for accurate display
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
 
 
@@ -447,16 +468,36 @@ export default function AttendanceList() {
     return true;
   });
 
-  // Get emergency students from current data only (simplified)
-  const emergencyStudents = data.filter(record => {
+  // Get emergency students - all overdue students without links (no time limit)
+  const emergencyStudents = allData.filter(record => {
     if (!record.scheduledDateObj) return false;
     
-    const now = new Date();
-    const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60); // minutes
+    const timeDiff = (currentTime.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60); // minutes
     const hasNoLink = !record.links || record.links.length === 0 || !record.links.some(l => l.sent_time);
     
-    // Emergency: 3+ minutes overdue but within 15 minutes range
-    return timeDiff >= 3 && timeDiff <= 15 && hasNoLink;
+    // Emergency: 3+ minutes overdue with no link sent
+    return timeDiff >= 3 && hasNoLink;
+  });
+
+  // Categorize by severity
+  const criticalStudents = emergencyStudents.filter(s => {
+    const timeDiff = (currentTime.getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
+    return timeDiff >= 15;
+  });
+
+  const severeStudents = emergencyStudents.filter(s => {
+    const timeDiff = (currentTime.getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
+    return timeDiff >= 10 && timeDiff < 15;
+  });
+
+  const warningStudents = emergencyStudents.filter(s => {
+    const timeDiff = (currentTime.getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
+    return timeDiff >= 5 && timeDiff < 10;
+  });
+
+  const alertStudents = emergencyStudents.filter(s => {
+    const timeDiff = (currentTime.getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
+    return timeDiff >= 3 && timeDiff < 5;
   });
 
   // Attendance statistics calculation based on all data (not just current page)
@@ -765,13 +806,22 @@ export default function AttendanceList() {
         </div>
       )}
 
-      {/* Emergency Section */}
-      <div className="mb-6 p-4 bg-red-50 rounded-lg border-2 border-red-200">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-red-800 flex items-center">
-            <FiBell className="mr-2 text-red-600" />
-            🚨 EMERGENCY: Links Not Sent ({emergencyStudents.length})
-          </h3>
+      {/* Professional Lateness Management System */}
+      <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border-2 border-red-200 shadow-lg">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-100 rounded-full">
+              <FiBell className="text-red-600 text-xl" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-red-800">
+                🚨 Lateness Management System
+              </h3>
+              <p className="text-sm text-red-600">
+                Real-time monitoring • Auto-refresh every minute • Current time: {format(currentTime, 'HH:mm:ss')}
+              </p>
+            </div>
+          </div>
           <div className="flex gap-2">
             <button
               onClick={() => {
@@ -780,92 +830,188 @@ export default function AttendanceList() {
                 });
               }}
               disabled={emergencyStudents.length === 0}
-              className="px-3 py-1 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm disabled:bg-gray-400"
+              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm font-medium disabled:bg-gray-400 transition-all"
             >
-              Notify All
+              Notify All ({emergencyStudents.length})
             </button>
             <button
               onClick={() => setShowEmergency(!showEmergency)}
-              className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm font-medium transition-all"
             >
               {showEmergency ? 'Hide' : 'Show'} Details
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-          <div className="bg-white rounded-lg p-3 border border-red-200">
-            <div className="text-sm font-medium text-red-700">Critical (10+ min)</div>
-            <div className="text-lg font-bold text-red-800">
-              {emergencyStudents.filter(s => {
-                const timePassed = (new Date().getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
-                return timePassed >= 10;
-              }).length}
-            </div>
+        
+        {/* Severity Dashboard */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div className="bg-white rounded-lg p-4 border-l-4 border-red-500 shadow-sm">
+            <div className="text-xs font-semibold text-red-700 uppercase tracking-wide">CRITICAL</div>
+            <div className="text-2xl font-bold text-red-800">{criticalStudents.length}</div>
+            <div className="text-xs text-red-600">15+ minutes late</div>
           </div>
-          <div className="bg-white rounded-lg p-3 border border-orange-200">
-            <div className="text-sm font-medium text-orange-700">Warning (5-10 min)</div>
-            <div className="text-lg font-bold text-orange-800">
-              {emergencyStudents.filter(s => {
-                const timePassed = (new Date().getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
-                return timePassed >= 5 && timePassed < 10;
-              }).length}
-            </div>
+          <div className="bg-white rounded-lg p-4 border-l-4 border-orange-500 shadow-sm">
+            <div className="text-xs font-semibold text-orange-700 uppercase tracking-wide">SEVERE</div>
+            <div className="text-2xl font-bold text-orange-800">{severeStudents.length}</div>
+            <div className="text-xs text-orange-600">10-15 minutes late</div>
           </div>
-          <div className="bg-white rounded-lg p-3 border border-yellow-200">
-            <div className="text-sm font-medium text-yellow-700">Alert (3-5 min)</div>
-            <div className="text-lg font-bold text-yellow-800">
-              {emergencyStudents.filter(s => {
-                const timePassed = (new Date().getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
-                return timePassed >= 3 && timePassed < 5;
-              }).length}
-            </div>
+          <div className="bg-white rounded-lg p-4 border-l-4 border-yellow-500 shadow-sm">
+            <div className="text-xs font-semibold text-yellow-700 uppercase tracking-wide">WARNING</div>
+            <div className="text-2xl font-bold text-yellow-800">{warningStudents.length}</div>
+            <div className="text-xs text-yellow-600">5-10 minutes late</div>
+          </div>
+          <div className="bg-white rounded-lg p-4 border-l-4 border-blue-500 shadow-sm">
+            <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide">ALERT</div>
+            <div className="text-2xl font-bold text-blue-800">{alertStudents.length}</div>
+            <div className="text-xs text-blue-600">3-5 minutes late</div>
           </div>
         </div>
-        <p className="text-sm text-red-700 mb-2">
-          Students whose scheduled time has passed by 3+ minutes without zoom links being sent (within 15min range).
-        </p>
+        
+        <div className="bg-white rounded-lg p-3 border border-gray-200">
+          <p className="text-sm text-gray-700 font-medium">
+            📊 <strong>Total Overdue:</strong> {emergencyStudents.length} students • 
+            <strong>Monitoring:</strong> All students 3+ minutes past scheduled time without zoom links
+          </p>
+        </div>
         
         {showEmergency && (
-          <div className="bg-white rounded-lg p-3 border border-red-200 max-h-96 overflow-y-auto">
+          <div className="mt-4 bg-white rounded-lg border border-gray-200 shadow-sm">
             {emergencyStudents.length > 0 ? (
-              <div className="grid gap-2">
-                {emergencyStudents
-                  .sort((a, b) => {
-                    const timeA = (new Date().getTime() - (a.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
-                    const timeB = (new Date().getTime() - (b.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
-                    return timeB - timeA; // Most overdue first
-                  })
-                  .map(student => {
-                    const timePassed = Math.floor((new Date().getTime() - (student.scheduledDateObj?.getTime() || 0)) / (1000 * 60));
-                    const urgencyColor = timePassed >= 10 ? 'bg-red-100 border-red-300' : 
-                                       timePassed >= 5 ? 'bg-orange-100 border-orange-300' : 
-                                       'bg-yellow-100 border-yellow-300';
-                    return (
-                      <div key={student.student_id} className={`flex justify-between items-center p-2 rounded border ${urgencyColor}`}>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-800">{student.studentName}</span>
-                            <span className="text-sm text-gray-600">({student.ustazName})</span>
-                            {timePassed >= 10 && <span className="text-xs bg-red-500 text-white px-2 py-1 rounded">CRITICAL</span>}
-                            {timePassed >= 5 && timePassed < 10 && <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded">WARNING</span>}
+              <div className="max-h-96 overflow-y-auto">
+                {/* Critical Students */}
+                {criticalStudents.length > 0 && (
+                  <div className="border-b border-gray-200">
+                    <div className="bg-red-50 px-4 py-2 border-l-4 border-red-500">
+                      <h4 className="font-bold text-red-800 text-sm">🔴 CRITICAL - Immediate Action Required ({criticalStudents.length})</h4>
+                    </div>
+                    {criticalStudents.map(student => {
+                      const timePassed = Math.floor((currentTime.getTime() - (student.scheduledDateObj?.getTime() || 0)) / (1000 * 60));
+                      return (
+                        <div key={student.student_id} className="flex justify-between items-center p-3 border-b border-red-100 bg-red-25">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-red-900">{student.studentName}</span>
+                              <span className="text-sm text-red-700">({student.ustazName})</span>
+                              <span className="text-xs bg-red-600 text-white px-2 py-1 rounded font-bold">CRITICAL</span>
+                            </div>
+                            <div className="text-xs text-red-600 mt-1 font-medium">
+                              Scheduled: {formatTimeOnly(student.scheduledAt)} | <strong>{timePassed} minutes overdue</strong>
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            Scheduled: {formatTimeOnly(student.scheduledAt)} | {timePassed} min overdue
-                          </div>
+                          <button
+                            onClick={() => handleNotifyClick(student.student_id, student.scheduledAt?.substring(0, 10) || '')}
+                            className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 flex items-center font-medium transition-all"
+                          >
+                            <FiBell className="mr-1" /> URGENT NOTIFY
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleNotifyClick(student.student_id, student.scheduledAt?.substring(0, 10) || '')}
-                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 flex items-center ml-2"
-                          title="Notify teacher about missing link"
-                        >
-                          <FiBell className="mr-1" /> Notify
-                        </button>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {/* Severe Students */}
+                {severeStudents.length > 0 && (
+                  <div className="border-b border-gray-200">
+                    <div className="bg-orange-50 px-4 py-2 border-l-4 border-orange-500">
+                      <h4 className="font-bold text-orange-800 text-sm">🟠 SEVERE - High Priority ({severeStudents.length})</h4>
+                    </div>
+                    {severeStudents.map(student => {
+                      const timePassed = Math.floor((currentTime.getTime() - (student.scheduledDateObj?.getTime() || 0)) / (1000 * 60));
+                      return (
+                        <div key={student.student_id} className="flex justify-between items-center p-3 border-b border-orange-100">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-orange-900">{student.studentName}</span>
+                              <span className="text-sm text-orange-700">({student.ustazName})</span>
+                              <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded">SEVERE</span>
+                            </div>
+                            <div className="text-xs text-orange-600 mt-1">
+                              Scheduled: {formatTimeOnly(student.scheduledAt)} | {timePassed} min overdue
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleNotifyClick(student.student_id, student.scheduledAt?.substring(0, 10) || '')}
+                            className="px-3 py-1 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 flex items-center transition-all"
+                          >
+                            <FiBell className="mr-1" /> Notify
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {/* Warning Students */}
+                {warningStudents.length > 0 && (
+                  <div className="border-b border-gray-200">
+                    <div className="bg-yellow-50 px-4 py-2 border-l-4 border-yellow-500">
+                      <h4 className="font-bold text-yellow-800 text-sm">🟡 WARNING - Monitor Closely ({warningStudents.length})</h4>
+                    </div>
+                    {warningStudents.map(student => {
+                      const timePassed = Math.floor((currentTime.getTime() - (student.scheduledDateObj?.getTime() || 0)) / (1000 * 60));
+                      return (
+                        <div key={student.student_id} className="flex justify-between items-center p-3 border-b border-yellow-100">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-yellow-900">{student.studentName}</span>
+                              <span className="text-sm text-yellow-700">({student.ustazName})</span>
+                              <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded">WARNING</span>
+                            </div>
+                            <div className="text-xs text-yellow-600 mt-1">
+                              Scheduled: {formatTimeOnly(student.scheduledAt)} | {timePassed} min overdue
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleNotifyClick(student.student_id, student.scheduledAt?.substring(0, 10) || '')}
+                            className="px-3 py-1 bg-yellow-500 text-white rounded text-xs hover:bg-yellow-600 flex items-center transition-all"
+                          >
+                            <FiBell className="mr-1" /> Notify
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {/* Alert Students */}
+                {alertStudents.length > 0 && (
+                  <div>
+                    <div className="bg-blue-50 px-4 py-2 border-l-4 border-blue-500">
+                      <h4 className="font-bold text-blue-800 text-sm">🔵 ALERT - Early Intervention ({alertStudents.length})</h4>
+                    </div>
+                    {alertStudents.map(student => {
+                      const timePassed = Math.floor((currentTime.getTime() - (student.scheduledDateObj?.getTime() || 0)) / (1000 * 60));
+                      return (
+                        <div key={student.student_id} className="flex justify-between items-center p-3 border-b border-blue-100 last:border-b-0">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-blue-900">{student.studentName}</span>
+                              <span className="text-sm text-blue-700">({student.ustazName})</span>
+                              <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded">ALERT</span>
+                            </div>
+                            <div className="text-xs text-blue-600 mt-1">
+                              Scheduled: {formatTimeOnly(student.scheduledAt)} | {timePassed} min overdue
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleNotifyClick(student.student_id, student.scheduledAt?.substring(0, 10) || '')}
+                            className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 flex items-center transition-all"
+                          >
+                            <FiBell className="mr-1" /> Notify
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ) : (
-              <p className="text-gray-600 text-center py-4">No emergency students found</p>
+              <div className="text-center py-8">
+                <div className="text-green-600 text-4xl mb-2">✅</div>
+                <p className="text-green-700 font-medium">All students are on time!</p>
+                <p className="text-green-600 text-sm">No overdue zoom links detected</p>
+              </div>
             )}
           </div>
         )}
