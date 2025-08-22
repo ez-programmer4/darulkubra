@@ -176,9 +176,9 @@ export class EarningsCalculator {
           const leaveStudentsArr = actualStudents.filter(
             (s) =>
               s.status === "Leave" &&
-              s.startdate &&
-              s.startdate >= this.startDate &&
-              s.startdate <= this.endDate
+              s.exitdate &&
+              s.exitdate >= this.startDate &&
+              s.exitdate <= this.endDate
           );
 
           // Debug logging for leave students
@@ -406,9 +406,9 @@ export class EarningsCalculator {
       const leaveStudents = students.filter(
         (s) =>
           s.status === "Leave" &&
-          s.startdate &&
-          s.startdate >= startDate &&
-          s.startdate <= endDate
+          s.exitdate &&
+          s.exitdate >= startDate &&
+          s.exitdate <= endDate
       ).length;
 
       const monthPayments = await prisma.months_table.findMany({
@@ -476,9 +476,9 @@ export class EarningsCalculator {
       const leaveStudents = students.filter(
         (s) =>
           s.status === "Leave" &&
-          s.startdate &&
-          s.startdate >= startDate &&
-          s.startdate <= endDate
+          s.exitdate &&
+          s.exitdate >= startDate &&
+          s.exitdate <= endDate
       ).length;
 
       const monthPayments = await prisma.months_table.findMany({
