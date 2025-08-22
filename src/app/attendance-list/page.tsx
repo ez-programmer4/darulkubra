@@ -453,16 +453,20 @@ export default function AttendanceList() {
   });
 
   // Get emergency students from all data (not just current page)
-  const emergencyStudents = allData.filter(record => {
-    if (!record.scheduledDateObj) return false;
+  const emergencyStudents = React.useMemo(() => {
+    if (!allData || allData.length === 0) return [];
     
-    const now = new Date();
-    const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60); // minutes
-    const hasNoLink = !record.links || record.links.length === 0 || !record.links.some(l => l.sent_time);
-    
-    // Emergency: 3+ minutes overdue but within 15 minutes range
-    return timeDiff >= 3 && timeDiff <= 15 && hasNoLink;
-  });
+    return allData.filter(record => {
+      if (!record.scheduledDateObj) return false;
+      
+      const now = new Date();
+      const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60); // minutes
+      const hasNoLink = !record.links || record.links.length === 0 || !record.links.some(l => l.sent_time);
+      
+      // Emergency: 3+ minutes overdue but within 15 minutes range
+      return timeDiff >= 3 && timeDiff <= 15 && hasNoLink;
+    });
+  }, [allData]);
 
   // Attendance statistics calculation based on all data (not just current page)
   
