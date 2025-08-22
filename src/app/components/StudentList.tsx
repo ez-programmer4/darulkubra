@@ -132,7 +132,6 @@ export default function StudentList({
                 end_date: null
               }] : [];
 
-
               const latestPayment =
                 paymentHistory.length > 0
                   ? paymentHistory.sort((a, b) => {
@@ -144,8 +143,6 @@ export default function StudentList({
                       return dateB.getTime() - dateA.getTime();
                     })[0]
                   : undefined;
-
-              const currentMonth = format(new Date(), "yyyy-MM");
               const hasOverdue = paymentHistory.some(
                 (p) =>
                   p.payment_status === "rejected" ||
