@@ -872,6 +872,10 @@ export default function AttendanceList() {
             📊 <strong>Total Overdue:</strong> {emergencyStudents.length} students • 
             <strong>Monitoring:</strong> All students 3+ minutes past scheduled time without zoom links
           </p>
+          <div className="text-xs text-gray-500 mt-2">
+            Debug: All data count: {allData.length} | Current time: {format(currentTime, 'HH:mm:ss')} | 
+            Students with scheduled time: {allData.filter(r => r.scheduledDateObj).length}
+          </div>
         </div>
         
         {showEmergency && (
