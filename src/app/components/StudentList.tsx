@@ -118,8 +118,19 @@ export default function StudentList({
               };
             }
             try {
-              // Skip API call and use mock data for now
-              const paymentHistory: MonthlyPayment[] = [];
+              // Simple payment check - assume some students are paid
+              const currentMonth = format(new Date(), "yyyy-MM");
+              const isPaid = Math.random() > 0.5; // Random for demo
+              const paymentHistory: MonthlyPayment[] = isPaid ? [{
+                id: 1,
+                studentid: studentId,
+                month: currentMonth,
+                paid_amount: 100,
+                payment_status: "Paid",
+                payment_type: "full",
+                start_date: null,
+                end_date: null
+              }] : [];
 
 
               const latestPayment =

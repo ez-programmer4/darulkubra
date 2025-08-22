@@ -479,12 +479,7 @@ export default function AttendanceList() {
     return timeDiff >= 3 && hasNoLink;
   });
 
-  // Categorize by severity
-  const criticalStudents = emergencyStudents.filter(s => {
-    const timeDiff = (currentTime.getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
-    return timeDiff >= 15;
-  });
-
+  // Categorize by severity (exclude 15+ minutes as not useful for notification)
   const severeStudents = emergencyStudents.filter(s => {
     const timeDiff = (currentTime.getTime() - (s.scheduledDateObj?.getTime() || 0)) / (1000 * 60);
     return timeDiff >= 10 && timeDiff < 15;
@@ -844,12 +839,7 @@ export default function AttendanceList() {
         </div>
         
         {/* Severity Dashboard */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div className="bg-white rounded-lg p-4 border-l-4 border-red-500 shadow-sm">
-            <div className="text-xs font-semibold text-red-700 uppercase tracking-wide">CRITICAL</div>
-            <div className="text-2xl font-bold text-red-800">{criticalStudents.length}</div>
-            <div className="text-xs text-red-600">15+ minutes late</div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div className="bg-white rounded-lg p-4 border-l-4 border-orange-500 shadow-sm">
             <div className="text-xs font-semibold text-orange-700 uppercase tracking-wide">SEVERE</div>
             <div className="text-2xl font-bold text-orange-800">{severeStudents.length}</div>
@@ -882,38 +872,7 @@ export default function AttendanceList() {
           <div className="mt-4 bg-white rounded-lg border border-gray-200 shadow-sm">
             {emergencyStudents.length > 0 ? (
               <div className="max-h-96 overflow-y-auto">
-                {/* Critical Students */}
-                {criticalStudents.length > 0 && (
-                  <div className="border-b border-gray-200">
-                    <div className="bg-red-50 px-4 py-2 border-l-4 border-red-500">
-                      <h4 className="font-bold text-red-800 text-sm">🔴 CRITICAL - Immediate Action Required ({criticalStudents.length})</h4>
-                    </div>
-                    {criticalStudents.map(student => {
-                      const timePassed = Math.floor((currentTime.getTime() - (student.scheduledDateObj?.getTime() || 0)) / (1000 * 60));
-                      return (
-                        <div key={student.student_id} className="flex justify-between items-center p-3 border-b border-red-100 bg-red-25">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-red-900">{student.studentName}</span>
-                              <span className="text-sm text-red-700">({student.ustazName})</span>
-                              <span className="text-xs bg-red-600 text-white px-2 py-1 rounded font-bold">CRITICAL</span>
-                            </div>
-                            <div className="text-xs text-red-600 mt-1 font-medium">
-                              Scheduled: {formatTimeOnly(student.scheduledAt)} | <strong>{timePassed} minutes overdue</strong>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleNotifyClick(student.student_id, student.scheduledAt?.substring(0, 10) || '')}
-                            className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 flex items-center font-medium transition-all"
-                          >
-                            <FiBell className="mr-1" /> URGENT NOTIFY
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                
+
                 {/* Severe Students */}
                 {severeStudents.length > 0 && (
                   <div className="border-b border-gray-200">
