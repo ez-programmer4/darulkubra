@@ -187,7 +187,7 @@ export default function AttendanceList() {
           setAllTeachers(result.allTeachers);
         }
         
-        // Emergency data will be fetched in useEffect
+        // Emergency data now uses current page data
       }
     } catch (err) {
       setError(
@@ -202,12 +202,7 @@ export default function AttendanceList() {
     fetchData();
   }, [date, startDate, endDate, ustaz, attendanceStatus, sentStatus, clickedStatus, page, limit]);
 
-  // Fetch all data for emergency detection
-  useEffect(() => {
-    if (page === 1) {
-      fetchAllDataForEmergencyAsync();
-    }
-  }, [date, ustaz, attendanceStatus, sentStatus, clickedStatus, startDate, endDate]);
+
 
   // Early returns after all hooks
   if (status === "loading") return <div>Loading...</div>;
@@ -452,21 +447,17 @@ export default function AttendanceList() {
     return true;
   });
 
-  // Get emergency students from all data (not just current page)
-  const emergencyStudents = React.useMemo(() => {
-    if (!allData || allData.length === 0) return [];
+  // Get emergency students from current data only (simplified)
+  const emergencyStudents = data.filter(record => {
+    if (!record.scheduledDateObj) return false;
     
-    return allData.filter(record => {
-      if (!record.scheduledDateObj) return false;
-      
-      const now = new Date();
-      const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60); // minutes
-      const hasNoLink = !record.links || record.links.length === 0 || !record.links.some(l => l.sent_time);
-      
-      // Emergency: 3+ minutes overdue but within 15 minutes range
-      return timeDiff >= 3 && timeDiff <= 15 && hasNoLink;
-    });
-  }, [allData]);
+    const now = new Date();
+    const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60); // minutes
+    const hasNoLink = !record.links || record.links.length === 0 || !record.links.some(l => l.sent_time);
+    
+    // Emergency: 3+ minutes overdue but within 15 minutes range
+    return timeDiff >= 3 && timeDiff <= 15 && hasNoLink;
+  });
 
   // Attendance statistics calculation based on all data (not just current page)
   
