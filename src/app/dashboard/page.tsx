@@ -460,7 +460,7 @@ export default function Dashboard() {
         active: 0,
         leave: 0,
         "remadan leave": 0,
-        notyet: 0,
+        "Not yet": 0,
         fresh: 0,
       } as Record<string, number>
     );
@@ -1008,7 +1008,7 @@ export default function Dashboard() {
                       <option value="active">Active</option>
                       <option value="leave">Leave</option>
                       <option value="remadan leave">Remadan Leave</option>
-                      <option value="notyet">Not Yet</option>
+                      <option value="Not yet">Not Yet</option>
                       <option value="fresh">Fresh</option>
                     </select>
                   </div>
@@ -1144,7 +1144,7 @@ export default function Dashboard() {
                     <option value="active">Active</option>
                     <option value="leave">Leave</option>
                     <option value="remadan leave">Remadan Leave</option>
-                    <option value="notyet">Not Yet</option>
+                    <option value="Not yet">Not Yet</option>
                     <option value="fresh">Fresh</option>
                   </select>
                   <FiChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-600 pointer-events-none" />
@@ -1330,7 +1330,7 @@ export default function Dashboard() {
                                   : (reg.status || "").toLowerCase() === "fresh"
                                   ? "bg-blue-100 text-blue-800"
                                   : (reg.status || "").toLowerCase() ===
-                                    "notyet"
+                                    "Not yet"
                                   ? "bg-gray-100 text-gray-800"
                                   : (reg.status || "").toLowerCase() ===
                                       "leave" ||

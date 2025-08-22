@@ -1636,10 +1636,10 @@ function RegistrationContent() {
                               "active",
                               "leave",
                               "remadan leave",
-                              "notyet",
+                              "Not yet",
                               "fresh",
                             ].includes(value?.toLowerCase() || "") ||
-                            "Status must be Active, Leave, Remadan leave, Notyet, or Fresh",
+                            "Status must be Active, Leave, Remadan leave, Not yet, or Fresh",
                         })}
                         className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
                           errors.status
@@ -1651,7 +1651,7 @@ function RegistrationContent() {
                         <option value="active">Active</option>
                         <option value="leave">Leave</option>
                         <option value="remadan leave">Remadan leave</option>
-                        <option value="notyet">Notyet</option>
+                        <option value="Not yet">Not yet</option>
                         <option value="fresh">Fresh</option>
                       </select>
                       {errors.status && (
