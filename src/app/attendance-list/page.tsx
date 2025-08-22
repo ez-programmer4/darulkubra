@@ -1195,7 +1195,10 @@ export default function AttendanceList() {
                                 )} mt-1`}
                               >
                                 Scheduled: {formatTimeOnly(student.scheduledAt)}{" "}
-                                | {timePassed} min overdue
+                                | {Math.round(timePassed)} min overdue
+                                <div className="text-xs text-gray-400">
+                                  Debug: {student.scheduledAt} vs {currentTime.toISOString()}
+                                </div>
                               </div>
                             </div>
                             <button
