@@ -409,8 +409,8 @@ export class EarningsCalculator {
           s.status === "Leave" &&
           s.startdate &&
           isValid(s.startdate) &&
-          s.startdate >= startDate &&
-          s.startdate <= endDate
+          s.startdate >= this.startDate &&
+          s.startdate <= this.endDate
       ).length;
 
       const monthPayments = await prisma.months_table.findMany({
@@ -480,8 +480,8 @@ export class EarningsCalculator {
           s.status === "Leave" &&
           s.startdate &&
           isValid(s.startdate) &&
-          s.startdate >= startDate &&
-          s.startdate <= endDate
+          s.startdate >= this.startDate &&
+          s.startdate <= this.endDate
       ).length;
 
       const monthPayments = await prisma.months_table.findMany({
