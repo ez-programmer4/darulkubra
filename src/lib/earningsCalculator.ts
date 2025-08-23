@@ -233,7 +233,7 @@ export class EarningsCalculator {
               ],
             },
             select: { studentid: true },
-            distinct: ["studentid"],
+            // distinct: ["studentid"],
           });
 
           const paidStudentIds = monthPayments.map((p) => p.studentid);
