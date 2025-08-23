@@ -224,7 +224,7 @@ export class EarningsCalculator {
               studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
               month: this.yearMonth,
               OR: [
-                { payment_status: "paid" },
+                { payment_status: { in: ["paid", "Paid", "PAID"] } },
                 { is_free_month: true },
               ],
             },
@@ -240,15 +240,31 @@ export class EarningsCalculator {
             (s) => !paidStudentIds.has(s.wdt_ID)
           );
 
-          // Log unpaid students
+          // Enhanced payment debugging
+          console.log(`\n=== PAYMENT DETAILS FOR CONTROLLER ${controllerId} ===`);
+          console.log(`Total active students (excluding 0 fee): ${activeStudentsArr.length}`);
+          console.log(`Payment records found: ${monthPayments.length}`);
+          console.log(`Paid students this month: ${paidThisMonthArr.length}`);
+          console.log(`Unpaid active students: ${unpaidActiveArr.length}`);
+          
+          if (paidThisMonthArr.length > 0) {
+            console.log(`Paid students details:`);
+            paidThisMonthArr.forEach((s) => {
+              console.log(
+                `  Paid Student: ${s.name}, ID: ${s.wdt_ID}, Package: ${s.package}`
+              );
+            });
+          }
+          
           if (unpaidActiveArr.length > 0) {
-            console.log(`Unpaid active students: ${unpaidActiveArr.length}`);
+            console.log(`Unpaid students details:`);
             unpaidActiveArr.forEach((s) => {
               console.log(
                 `  Unpaid Student: ${s.name}, ID: ${s.wdt_ID}, Package: ${s.package}`
               );
             });
           }
+          console.log(`===============================\n`);
 
           const referencedStudents = await prisma.wpos_wpdatatable_23.findMany({
             where: {
@@ -388,9 +404,10 @@ export class EarningsCalculator {
         },
       });
 
-      const activeStudents = students.filter(
+      const activeStudentsArr = students.filter(
         (s) => s.status === "Active" && s.package !== "0 fee"
-      ).length;
+      );
+      const activeStudents = activeStudentsArr.length;
       const leaveStudents = students.filter(
         (s) =>
           s.status === "Leave" &&
@@ -401,7 +418,7 @@ export class EarningsCalculator {
 
       const monthPayments = await prisma.months_table.findMany({
         where: {
-          studentid: { in: students.map((s) => s.wdt_ID) },
+          studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
           month,
           OR: [
             { payment_status: { in: ["paid", "Paid", "PAID"] } },
@@ -413,11 +430,8 @@ export class EarningsCalculator {
       });
 
       const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
-      const unpaidStudents = students.filter(
-        (s) =>
-          s.status === "Active" &&
-          !paidStudentIds.has(s.wdt_ID) &&
-          s.package !== "0 fee"
+      const unpaidStudents = activeStudentsArr.filter(
+        (s) => !paidStudentIds.has(s.wdt_ID)
       ).length;
 
       return (
@@ -446,19 +460,20 @@ export class EarningsCalculator {
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: {
           u_control: controllerId,
-          registrationdate: { gte: startDate, lt: endDate },
         },
         select: {
           wdt_ID: true,
           status: true,
           exitdate: true,
-          package: true, // Added package field
+          package: true,
+          registrationdate: true,
         },
       });
 
-      const activeStudents = students.filter(
+      const activeStudentsArr = students.filter(
         (s) => s.status === "Active" && s.package !== "0 fee"
-      ).length;
+      );
+      const activeStudents = activeStudentsArr.length;
       const leaveStudents = students.filter(
         (s) =>
           s.status === "Leave" &&
@@ -467,25 +482,23 @@ export class EarningsCalculator {
           s.exitdate <= endDate
       ).length;
 
+      // Get all payments for the year for active students only
       const monthPayments = await prisma.months_table.findMany({
         where: {
-          studentid: { in: students.map((s) => s.wdt_ID) },
+          studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
           month: { startsWith: `${currentYear}-` },
           OR: [
             { payment_status: { in: ["paid", "Paid", "PAID"] } },
             { is_free_month: true },
           ],
         },
-        select: { studentid: true },
-        distinct: ["studentid"],
+        select: { studentid: true, month: true },
       });
 
+      // Calculate unique paid students across all months
       const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
-      const unpaidStudents = students.filter(
-        (s) =>
-          s.status === "Active" &&
-          !paidStudentIds.has(s.wdt_ID) &&
-          s.package !== "0 fee"
+      const unpaidStudents = activeStudentsArr.filter(
+        (s) => !paidStudentIds.has(s.wdt_ID)
       ).length;
 
       return (
