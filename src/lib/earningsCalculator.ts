@@ -184,19 +184,7 @@ export class EarningsCalculator {
             ? ((totalEarnings - previousEarnings) / previousEarnings) * 100 
             : 0;
 
-          // Debug logging
-          console.log(`\n=== CONTROLLER ${controllerId} (${row.U_Control_Name}) ===`);
-          console.log(`Active Students: ${activeStudents}`);
-          console.log(`Paid This Month: ${paidThisMonth}`);
-          console.log(`Unpaid Active: ${unpaidActive}`);
-          console.log(`Leave Students: ${leaveStudents}`);
-          console.log(`Referenced Active: ${referencedActive}`);
-          console.log(`Base Earnings: ${baseEarnings}`);
-          console.log(`Leave Penalty: ${leavePenalty}`);
-          console.log(`Unpaid Penalty: ${unpaidPenalty}`);
-          console.log(`Referenced Bonus: ${referencedBonus}`);
-          console.log(`Total Earnings: ${totalEarnings}`);
-          console.log(`===============================\n`);
+  
 
           return {
             controllerId,
