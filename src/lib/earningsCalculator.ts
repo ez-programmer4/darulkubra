@@ -158,7 +158,7 @@ export class EarningsCalculator {
               refer: true,
               name: true,
               u_control: true,
-              exitdate: true,
+              // exitdate field removed from schema
               package: true, // Added package field
             },
           });
@@ -221,26 +221,28 @@ export class EarningsCalculator {
           // Payment calculations using only months_table
           const monthPayments = await prisma.months_table.findMany({
             where: {
-              studentid: { in: actualStudents.map((s) => s.wdt_ID) },
+              studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
+              month: this.yearMonth,
               OR: [
-                {
-                  month: this.yearMonth,
-                  payment_status: { in: ["paid", "Paid", "PAID"] },
-                },
-                { month: this.yearMonth, is_free_month: true },
+                { payment_status: "paid" },
+                { is_free_month: true },
               ],
             },
             select: { studentid: true },
-            // distinct: ["studentid"],
+            distinct: ["studentid"],
           });
 
-          const paidStudentIds = monthPayments.map((p) => p.studentid);
+          const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
           const paidThisMonthArr = activeStudentsArr.filter((s) =>
-            paidStudentIds.includes(s.wdt_ID)
+            paidStudentIds.has(s.wdt_ID)
           );
           const unpaidActiveArr = activeStudentsArr.filter(
-            (s) => !paidStudentIds.includes(s.wdt_ID)
+            (s) => !paidStudentIds.has(s.wdt_ID)
           );
+
+          console.log(`Paid students this month: ${paidThisMonthArr.length}`);
+          console.log(`Paid student IDs:`, Array.from(paidStudentIds));
+          console.log(`Active students total: ${activeStudentsArr.length}`);
 
           // Log unpaid students
           if (unpaidActiveArr.length > 0) {
