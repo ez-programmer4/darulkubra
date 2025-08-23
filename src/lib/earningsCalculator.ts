@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { startOfMonth, endOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth, isValid, subDays, addDays } from "date-fns";
 
 export interface ControllerEarnings {
   controllerId: string;
@@ -159,7 +159,7 @@ export class EarningsCalculator {
               name: true,
               u_control: true,
               exitdate: true,
-              package: true,
+              package: true, // Added package field
             },
           });
 
@@ -168,7 +168,9 @@ export class EarningsCalculator {
             (s) => s.u_control === controllerId
           );
           const activeStudentsArr = actualStudents.filter(
-            (s) => s.status === "Active" && s.package !== "0 fee"
+            (s) =>
+              (s.status === "Active" || s.status === "Not yet") &&
+              s.package !== "0 fee"
           );
           const notYetStudentsArr = actualStudents.filter(
             (s) => s.status === "Not Yet"
@@ -211,16 +213,24 @@ export class EarningsCalculator {
           );
           const linkedStudentsArr = actualStudents.filter(
             (s) =>
-              (s.status === "Active" || s.status === "Not Yet") &&
+              (s.status === "Active" ||
+                s.status === "Not yet" ||
+                s.status === "Not Yet") &&
               s.chatId &&
               s.chatId !== ""
           );
 
-          // Payment calculations using only months_table with NOT EXISTS logic
+          // Payment calculations using only months_table
           const monthPayments = await prisma.months_table.findMany({
             where: {
               studentid: { in: actualStudents.map((s) => s.wdt_ID) },
-              month: this.yearMonth,
+              OR: [
+                {
+                  month: this.yearMonth,
+                  payment_status: { in: ["paid", "Paid", "PAID"] },
+                },
+                { month: this.yearMonth, is_free_month: true },
+              ],
             },
             select: { studentid: true },
             distinct: ["studentid"],
@@ -250,13 +260,15 @@ export class EarningsCalculator {
               status: "Active",
               startdate: { gte: this.startDate, lte: this.endDate },
               registrationdate: { gte: this.startDate, lte: this.endDate },
-              package: { not: "0 fee" },
             },
             include: {
               months_table: {
                 where: {
                   month: this.yearMonth,
-                  payment_status: "paid", // Match PHP's exact case
+                  OR: [
+                    { payment_status: { in: ["paid", "Paid", "PAID"] } },
+                    { is_free_month: true },
+                  ],
                 },
               },
             },
@@ -376,12 +388,14 @@ export class EarningsCalculator {
           wdt_ID: true,
           status: true,
           exitdate: true,
-          package: true,
+          package: true, // Added package field
         },
       });
 
       const activeStudents = students.filter(
-        (s) => s.status === "Active" && s.package !== "0 fee"
+        (s) =>
+          (s.status === "Active" || s.status === "Not yet") &&
+          s.package !== "0 fee"
       ).length;
       const leaveStudents = students.filter(
         (s) =>
@@ -395,6 +409,10 @@ export class EarningsCalculator {
         where: {
           studentid: { in: students.map((s) => s.wdt_ID) },
           month,
+          OR: [
+            { payment_status: { in: ["paid", "Paid", "PAID"] } },
+            { is_free_month: true },
+          ],
         },
         select: { studentid: true },
         distinct: ["studentid"],
@@ -403,7 +421,7 @@ export class EarningsCalculator {
       const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
       const unpaidStudents = students.filter(
         (s) =>
-          s.status === "Active" &&
+          (s.status === "Active" || s.status === "Not yet") &&
           !paidStudentIds.has(s.wdt_ID) &&
           s.package !== "0 fee"
       ).length;
@@ -440,12 +458,14 @@ export class EarningsCalculator {
           wdt_ID: true,
           status: true,
           exitdate: true,
-          package: true,
+          package: true, // Added package field
         },
       });
 
       const activeStudents = students.filter(
-        (s) => s.status === "Active" && s.package !== "0 fee"
+        (s) =>
+          (s.status === "Active" || s.status === "Not yet") &&
+          s.package !== "0 fee"
       ).length;
       const leaveStudents = students.filter(
         (s) =>
@@ -459,6 +479,10 @@ export class EarningsCalculator {
         where: {
           studentid: { in: students.map((s) => s.wdt_ID) },
           month: { startsWith: `${currentYear}-` },
+          OR: [
+            { payment_status: { in: ["paid", "Paid", "PAID"] } },
+            { is_free_month: true },
+          ],
         },
         select: { studentid: true },
         distinct: ["studentid"],
@@ -467,7 +491,7 @@ export class EarningsCalculator {
       const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
       const unpaidStudents = students.filter(
         (s) =>
-          s.status === "Active" &&
+          (s.status === "Active" || s.status === "Not yet") &&
           !paidStudentIds.has(s.wdt_ID) &&
           s.package !== "0 fee"
       ).length;
