@@ -280,15 +280,15 @@ export default function StudentList({
       
       if (paymentStatusFilter === "Paid") {
         // Student has paid for current month
-        matchesPaymentStatus = paymentStatus?.currentMonthPaid === true;
+        matchesPaymentStatus = Boolean(paymentStatus?.currentMonthPaid === true);
       } else if (paymentStatusFilter === "unpaid") {
         // Student has NOT paid for current month (but exclude students with no payment history if they're inactive)
-        matchesPaymentStatus = paymentStatus?.currentMonthPaid === false && 
+        matchesPaymentStatus = Boolean(paymentStatus?.currentMonthPaid === false && 
                               (student.status === "Active" || student.status === "Not yet" || 
-                               (paymentStatus?.paymentHistory && paymentStatus.paymentHistory.length > 0));
+                               (paymentStatus?.paymentHistory && paymentStatus.paymentHistory.length > 0)));
       } else if (paymentStatusFilter === "overdue") {
         // Student has overdue payments
-        matchesPaymentStatus = paymentStatus?.hasOverdue === true;
+        matchesPaymentStatus = Boolean(paymentStatus?.hasOverdue === true);
       }
       // For "all", matchesPaymentStatus remains true
 
