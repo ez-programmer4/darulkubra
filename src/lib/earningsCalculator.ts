@@ -174,13 +174,9 @@ export class EarningsCalculator {
             (s) => s.status === "Not Yet"
           );
 
-          // Filter leave students for the selected month using exitdate
+          // Filter leave students for the selected month (exitdate not available)
           const leaveStudentsArr = actualStudents.filter(
-            (s) =>
-              s.status === "Leave" &&
-              s.exitdate &&
-              s.exitdate >= this.startDate &&
-              s.exitdate <= this.endDate
+            (s) => s.status === "Leave"
           );
 
           // Debug logging for leave students
@@ -223,10 +219,7 @@ export class EarningsCalculator {
             where: {
               studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
               month: this.yearMonth,
-              OR: [
-                { payment_status: "paid" },
-                { is_free_month: true },
-              ],
+              payment_status: "paid",
             },
             select: { studentid: true },
             distinct: ["studentid"],
@@ -265,10 +258,7 @@ export class EarningsCalculator {
               months_table: {
                 where: {
                   month: this.yearMonth,
-                  OR: [
-                    { payment_status: { in: ["paid", "Paid", "PAID"] } },
-                    { is_free_month: true },
-                  ],
+                  payment_status: "paid",
                 },
               },
             },
@@ -387,8 +377,7 @@ export class EarningsCalculator {
         select: {
           wdt_ID: true,
           status: true,
-          exitdate: true,
-          package: true, // Added package field
+          package: true,
         },
       });
 
@@ -396,21 +385,14 @@ export class EarningsCalculator {
         (s) => s.status === "Active" && s.package !== "0 fee"
       ).length;
       const leaveStudents = students.filter(
-        (s) =>
-          s.status === "Leave" &&
-          s.exitdate &&
-          s.exitdate >= startDate &&
-          s.exitdate <= endDate
+        (s) => s.status === "Leave"
       ).length;
 
       const monthPayments = await prisma.months_table.findMany({
         where: {
           studentid: { in: students.map((s) => s.wdt_ID) },
           month,
-          OR: [
-            { payment_status: { in: ["paid", "Paid", "PAID"] } },
-            { is_free_month: true },
-          ],
+          payment_status: "paid",
         },
         select: { studentid: true },
         distinct: ["studentid"],
@@ -455,8 +437,7 @@ export class EarningsCalculator {
         select: {
           wdt_ID: true,
           status: true,
-          exitdate: true,
-          package: true, // Added package field
+          package: true,
         },
       });
 
@@ -464,21 +445,14 @@ export class EarningsCalculator {
         (s) => s.status === "Active" && s.package !== "0 fee"
       ).length;
       const leaveStudents = students.filter(
-        (s) =>
-          s.status === "Leave" &&
-          s.exitdate &&
-          s.exitdate >= startDate &&
-          s.exitdate <= endDate
+        (s) => s.status === "Leave"
       ).length;
 
       const monthPayments = await prisma.months_table.findMany({
         where: {
           studentid: { in: students.map((s) => s.wdt_ID) },
           month: { startsWith: `${currentYear}-` },
-          OR: [
-            { payment_status: { in: ["paid", "Paid", "PAID"] } },
-            { is_free_month: true },
-          ],
+          payment_status: "paid",
         },
         select: { studentid: true },
         distinct: ["studentid"],
