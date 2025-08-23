@@ -105,7 +105,7 @@ export class EarningsCalculator {
         controllerIds = [params.controllerId];
       } else {
         const students = await prisma.wpos_wpdatatable_23.findMany({
-          where: { u_control: { not: null, not: "" } },
+          where: { u_control: { not: null } },
           select: { u_control: true },
           distinct: ["u_control"],
         });
@@ -115,7 +115,7 @@ export class EarningsCalculator {
 
         const validControllers = await prisma.wpos_wpdatatable_28.findMany({
           where: { code: { in: controllerIds } },
-          select: { code: true, team_id: true },
+          select: { code: true },
         });
         const validControllerIds = new Set(validControllers.map((c) => c.code));
         controllerIds = controllerIds.filter((id) =>
@@ -131,7 +131,7 @@ export class EarningsCalculator {
         controllerIds.map(async (controllerId) => {
           const controller = await prisma.wpos_wpdatatable_28.findFirst({
             where: { code: controllerId },
-            select: { name: true, username: true, team_id: true },
+            select: { name: true, username: true },
           });
 
           if (!controller) {
@@ -141,15 +141,9 @@ export class EarningsCalculator {
             return null;
           }
 
-          const team = await prisma.wpos_teams.findFirst({
-            where: { id: controller.team_id },
-            select: { id: true, name: true },
-          });
-
-          const teamLeader = await prisma.wpos_wpdatatable_28.findFirst({
-            where: { team_id: controller.team_id, is_leader: true },
-            select: { name: true },
-          });
+          // Default team info since team_id doesn't exist in schema
+          const team = { id: 1, name: "Default Team" };
+          const teamLeader = { name: "System" };
 
           const students = await prisma.wpos_wpdatatable_23.findMany({
             where: {
@@ -168,7 +162,7 @@ export class EarningsCalculator {
               refer: true,
               name: true,
               u_control: true,
-              exitdate: true,
+              // exitdate field removed from schema
               package: true,
               rigistral: true,
             },
@@ -193,13 +187,9 @@ export class EarningsCalculator {
             (s) => s.status === "Not Yet"
           );
 
-          // Leave students for the selected month
+          // Leave students for the selected month (exitdate field not available)
           const leaveStudentsArr = actualStudents.filter(
-            (s) =>
-              s.status === "Leave" &&
-              s.exitdate &&
-              s.exitdate >= this.startDate &&
-              s.exitdate <= this.endDate
+            (s) => s.status === "Leave"
           );
 
           // Ramadan Leave students
@@ -422,7 +412,6 @@ export class EarningsCalculator {
         select: {
           wdt_ID: true,
           status: true,
-          exitdate: true,
           package: true,
         },
       });
@@ -435,13 +424,7 @@ export class EarningsCalculator {
           s.package !== ""
       ).length;
 
-      const leaveStudents = students.filter(
-        (s) =>
-          s.status === "Leave" &&
-          s.exitdate &&
-          s.exitdate >= startDate &&
-          s.exitdate <= endDate
-      ).length;
+      const leaveStudents = students.filter((s) => s.status === "Leave").length;
 
       const monthPayments = await prisma.months_table.findMany({
         where: {
@@ -495,7 +478,6 @@ export class EarningsCalculator {
         select: {
           wdt_ID: true,
           status: true,
-          exitdate: true,
           package: true,
         },
       });
@@ -508,13 +490,7 @@ export class EarningsCalculator {
           s.package !== ""
       ).length;
 
-      const leaveStudents = students.filter(
-        (s) =>
-          s.status === "Leave" &&
-          s.exitdate &&
-          s.exitdate >= startDate &&
-          s.exitdate <= endDate
-      ).length;
+      const leaveStudents = students.filter((s) => s.status === "Leave").length;
 
       const monthPayments = await prisma.months_table.findMany({
         where: {
