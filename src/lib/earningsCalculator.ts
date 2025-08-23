@@ -158,7 +158,7 @@ export class EarningsCalculator {
               refer: true,
               name: true,
               u_control: true,
-              // exitdate field removed from schema
+              exitdate: true,
               package: true, // Added package field
             },
           });
@@ -174,9 +174,13 @@ export class EarningsCalculator {
             (s) => s.status === "Not Yet"
           );
 
-          // Filter leave students for the selected month (exitdate not available)
+          // Filter leave students for the selected month using exitdate
           const leaveStudentsArr = actualStudents.filter(
-            (s) => s.status === "Leave"
+            (s) =>
+              s.status === "Leave" &&
+              s.exitdate &&
+              s.exitdate >= this.startDate &&
+              s.exitdate <= this.endDate
           );
 
           // Debug logging for leave students
@@ -233,12 +237,8 @@ export class EarningsCalculator {
             paidStudentIds.has(s.wdt_ID)
           );
           const unpaidActiveArr = activeStudentsArr.filter(
-            (s) => !paidStudentIds.has(s.wdt_ID)
+            (s) => !paidStudentIds.includes(s.wdt_ID)
           );
-
-          console.log(`Paid students this month: ${paidThisMonthArr.length}`);
-          console.log(`Paid student IDs:`, Array.from(paidStudentIds));
-          console.log(`Active students total: ${activeStudentsArr.length}`);
 
           // Log unpaid students
           if (unpaidActiveArr.length > 0) {
@@ -383,7 +383,8 @@ export class EarningsCalculator {
         select: {
           wdt_ID: true,
           status: true,
-          package: true,
+          exitdate: true,
+          package: true, // Added package field
         },
       });
 
@@ -391,7 +392,11 @@ export class EarningsCalculator {
         (s) => s.status === "Active" && s.package !== "0 fee"
       ).length;
       const leaveStudents = students.filter(
-        (s) => s.status === "Leave"
+        (s) =>
+          s.status === "Leave" &&
+          s.exitdate &&
+          s.exitdate >= startDate &&
+          s.exitdate <= endDate
       ).length;
 
       const monthPayments = await prisma.months_table.findMany({
@@ -446,7 +451,8 @@ export class EarningsCalculator {
         select: {
           wdt_ID: true,
           status: true,
-          package: true,
+          exitdate: true,
+          package: true, // Added package field
         },
       });
 
@@ -454,7 +460,11 @@ export class EarningsCalculator {
         (s) => s.status === "Active" && s.package !== "0 fee"
       ).length;
       const leaveStudents = students.filter(
-        (s) => s.status === "Leave"
+        (s) =>
+          s.status === "Leave" &&
+          s.exitdate &&
+          s.exitdate >= startDate &&
+          s.exitdate <= endDate
       ).length;
 
       const monthPayments = await prisma.months_table.findMany({
