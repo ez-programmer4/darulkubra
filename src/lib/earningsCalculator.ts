@@ -224,11 +224,15 @@ export class EarningsCalculator {
               studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
               month: this.yearMonth,
               OR: [
-                { payment_status: { in: ["paid", "Paid", "PAID"] } },
+                { 
+                  payment_status: { 
+                    in: ["paid", "Paid", "PAID", "complete", "Complete", "COMPLETE", "success", "Success", "SUCCESS"] 
+                  } 
+                },
                 { is_free_month: true },
               ],
             },
-            select: { studentid: true },
+            select: { studentid: true, payment_status: true, is_free_month: true },
             distinct: ["studentid"],
           });
 
@@ -246,6 +250,16 @@ export class EarningsCalculator {
           console.log(`Payment records found: ${monthPayments.length}`);
           console.log(`Paid students this month: ${paidThisMonthArr.length}`);
           console.log(`Unpaid active students: ${unpaidActiveArr.length}`);
+          
+          // Debug payment records
+          if (monthPayments.length > 0) {
+            console.log(`Payment records details:`);
+            monthPayments.forEach((p) => {
+              console.log(
+                `  Payment: Student ID ${p.studentid}, Status: "${p.payment_status}", Free Month: ${p.is_free_month}`
+              );
+            });
+          }
           
           if (paidThisMonthArr.length > 0) {
             console.log(`Paid students details:`);
@@ -278,7 +292,11 @@ export class EarningsCalculator {
                 where: {
                   month: this.yearMonth,
                   OR: [
-                    { payment_status: { in: ["paid", "Paid", "PAID"] } },
+                    { 
+                      payment_status: { 
+                        in: ["paid", "Paid", "PAID", "complete", "Complete", "COMPLETE", "success", "Success", "SUCCESS"] 
+                      } 
+                    },
                     { is_free_month: true },
                   ],
                 },
@@ -421,7 +439,11 @@ export class EarningsCalculator {
           studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
           month,
           OR: [
-            { payment_status: { in: ["paid", "Paid", "PAID"] } },
+            { 
+              payment_status: { 
+                in: ["paid", "Paid", "PAID", "complete", "Complete", "COMPLETE", "success", "Success", "SUCCESS"] 
+              } 
+            },
             { is_free_month: true },
           ],
         },
@@ -488,7 +510,11 @@ export class EarningsCalculator {
           studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
           month: { startsWith: `${currentYear}-` },
           OR: [
-            { payment_status: { in: ["paid", "Paid", "PAID"] } },
+            { 
+              payment_status: { 
+                in: ["paid", "Paid", "PAID", "complete", "Complete", "COMPLETE", "success", "Success", "SUCCESS"] 
+              } 
+            },
             { is_free_month: true },
           ],
         },
