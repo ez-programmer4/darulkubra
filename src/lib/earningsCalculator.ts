@@ -236,12 +236,12 @@ export class EarningsCalculator {
             distinct: ["studentid"],
           });
 
-          const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
+          const paidStudentIds = monthPayments.map((p) => p.studentid);
           const paidThisMonthArr = activeStudentsArr.filter((s) =>
-            paidStudentIds.has(s.wdt_ID)
+            paidStudentIds.includes(s.wdt_ID)
           );
           const unpaidActiveArr = activeStudentsArr.filter(
-            (s) => !paidStudentIds.has(s.wdt_ID)
+            (s) => !paidStudentIds.includes(s.wdt_ID)
           );
 
           // Log unpaid students
