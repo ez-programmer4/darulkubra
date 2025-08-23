@@ -261,7 +261,7 @@ export default function StudentList({
 
       const matchesStatus =
         statusFilter === "all" ||
-        student.status === statusFilter ||
+        student.status.toLowerCase() === statusFilter.toLowerCase() ||
         (statusFilter === "active-Not yet" &&
           (student.status.toLowerCase() === "active" ||
             student.status.toLowerCase() === "not yet"));
@@ -283,8 +283,8 @@ export default function StudentList({
         matchesPaymentStatus = Boolean(paymentStatus?.currentMonthPaid === true);
       } else if (paymentStatusFilter === "unpaid") {
         // Student has NOT paid for current month (but exclude students with no payment history if they're inactive)
-        matchesPaymentStatus = Boolean(paymentStatus?.currentMonthPaid === false && 
-                              (student.status === "Active" || student.status === "Not yet" || 
+        matchesPaymentStatus = Boolean(paymentStatus && paymentStatus.currentMonthPaid === false && 
+                              (student.status.toLowerCase() === "active" || student.status.toLowerCase() === "not yet" || 
                                (paymentStatus?.paymentHistory && paymentStatus.paymentHistory.length > 0)));
       } else if (paymentStatusFilter === "overdue") {
         // Student has overdue payments

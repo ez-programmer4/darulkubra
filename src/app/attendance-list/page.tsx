@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import ConfirmModal from "../components/ConfirmModal";
@@ -639,21 +639,29 @@ export default function AttendanceList() {
     }
   };
 
-  // Get emergency students from current data only (simplified)
-  const emergencyStudents = data.filter((record) => {
-    if (!record.scheduledDateObj) return false;
+  // Get emergency students from all data (not just current page)
+  const emergencyStudents = useMemo(() => {
+    const dataToCheck = allData.length > 0 ? allData : data;
+    return dataToCheck.filter((record) => {
+      if (!record.scheduledDateObj) return false;
 
-    const now = new Date();
-    const timeDiff =
-      (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60); // minutes
-    const hasNoLink =
-      !record.links ||
-      record.links.length === 0 ||
-      !record.links.some((l) => l.sent_time);
+      const now = new Date();
+      const timeDiff =
+        (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60); // minutes
+      
+      // Check if student has no link sent
+      const hasNoLink =
+        !record.links ||
+        record.links.length === 0 ||
+        !record.links.some((l) => l.sent_time);
 
-    // Emergency: 3+ minutes overdue but within 15 minutes range
-    return timeDiff >= 3 && timeDiff <= 15 && hasNoLink;
-  });
+      // Emergency: 3+ minutes overdue but within 15 minutes range
+      // Also ensure the scheduled time is today
+      const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
+      
+      return timeDiff >= 3 && timeDiff <= 15 && hasNoLink && isToday;
+    });
+  }, [allData, data]);
 
   // Attendance statistics calculation based on all data (not just current page)
 
