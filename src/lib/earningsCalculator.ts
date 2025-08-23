@@ -92,297 +92,134 @@ export class EarningsCalculator {
   ): Promise<ControllerEarnings[]> {
     try {
       const config = await this.getEarningsConfig();
-      let controllerIds: string[] = [];
+      
+      // Use raw SQL query similar to PHP implementation
+      const rawQuery = `
+        SELECT
+          'Default Team' AS Team_Name,
+          1 AS Team_ID,
+          'System' AS Team_Leader,
+          uc_names.name AS U_Control_Name,
+          a.u_control,
+          COUNT(DISTINCT IF(a.status='Active' AND a.package != '0 fee', a.wdt_ID, NULL)) AS Active_Students,
+          COUNT(DISTINCT IF(a.status='Not Yet', a.wdt_ID, NULL)) AS Not_Yet_Students,
+          COUNT(DISTINCT IF(a.status='Leave' AND a.exitdate BETWEEN ? AND ?, a.wdt_ID, NULL)) AS Leave_Students_This_Month,
+          COUNT(DISTINCT IF(a.status='Ramadan Leave', a.wdt_ID, NULL)) AS Ramadan_Leave,
+          COUNT(DISTINCT IF(m.payment_status='paid' AND m.month=?, m.studentid, NULL)) AS Paid_This_Month,
+          COUNT(DISTINCT IF(
+            a.status='Active'
+            AND NOT EXISTS(
+              SELECT 1 FROM months_table sm
+              WHERE sm.studentid=a.wdt_ID AND sm.month=? AND sm.payment_status='paid'
+            )
+            AND a.package <> '0 fee',
+            a.wdt_ID,
+            NULL
+          )) AS Unpaid_Active_This_Month,
+          (
+            SELECT COUNT(DISTINCT b.wdt_ID)
+            FROM wpos_wpdatatable_23 b
+            JOIN months_table pm ON pm.studentid = b.wdt_ID AND pm.month = ? AND pm.payment_status = 'paid'
+            WHERE b.status = 'Active'
+              AND b.refer = a.u_control
+              AND b.startdate BETWEEN ? AND ?
+              AND DATE_FORMAT(b.registrationdate,'%Y-%m') = ?
+              AND b.rigistral IS NULL
+          ) AS Referenced_Active_Students,
+          COUNT(DISTINCT IF(
+            a.status IN('Active','Not Yet')
+            AND a.chatId IS NOT NULL
+            AND a.chatId!='', a.wdt_ID, NULL
+          )) AS Linked_Students
+        FROM wpos_wpdatatable_23 a
+        LEFT JOIN months_table m ON a.wdt_ID = m.studentid
+        LEFT JOIN wpos_wpdatatable_28 uc_names ON a.u_control = uc_names.code
+        WHERE a.u_control != '' AND a.u_control IS NOT NULL
+        ${params.controllerId ? 'AND a.u_control = ?' : ''}
+        GROUP BY a.u_control, uc_names.name
+      `;
+
+      const queryParams = [
+        this.startDate.toISOString().split('T')[0], // start date for leave students
+        this.endDate.toISOString().split('T')[0],   // end date for leave students  
+        this.yearMonth,                             // month for paid students
+        this.yearMonth,                             // month for unpaid check
+        this.yearMonth,                             // month for referenced students
+        this.startDate.toISOString().split('T')[0], // start date for referenced students
+        this.endDate.toISOString().split('T')[0],   // end date for referenced students
+        this.yearMonth,                             // registration month for referenced students
+      ];
 
       if (params.controllerId) {
-        const controllerExists = await prisma.wpos_wpdatatable_28.findFirst({
-          where: { code: params.controllerId },
-        });
-        if (!controllerExists) {
-          console.warn(`Controller ${params.controllerId} not found`);
-          return [];
-        }
-        controllerIds = [params.controllerId];
-      } else {
-        const students = await prisma.wpos_wpdatatable_23.findMany({
-          where: { u_control: { not: null } },
-          select: { u_control: true },
-          distinct: ["u_control"],
-        });
-        controllerIds = students
-          .map((s) => s.u_control)
-          .filter(Boolean) as string[];
-
-        const validControllers = await prisma.wpos_wpdatatable_28.findMany({
-          where: { code: { in: controllerIds } },
-          select: { code: true },
-        });
-        const validControllerIds = new Set(validControllers.map((c) => c.code));
-        controllerIds = controllerIds.filter((id) =>
-          validControllerIds.has(id)
-        );
-        if (controllerIds.length === 0) {
-          console.warn("No valid controllers found");
-          return [];
-        }
+        queryParams.push(params.controllerId);
       }
 
+      const results = await prisma.$queryRawUnsafe(rawQuery, ...queryParams) as any[];
+
       const earnings = await Promise.all(
-        controllerIds.map(async (controllerId) => {
-          const controller = await prisma.wpos_wpdatatable_28.findFirst({
-            where: { code: controllerId },
-            select: { name: true, username: true },
-          });
+        results.map(async (row: any) => {
+          const controllerId = row.u_control;
+          const activeStudents = Number(row.Active_Students);
+          const leaveStudents = Number(row.Leave_Students_This_Month);
+          const unpaidActive = Number(row.Unpaid_Active_This_Month);
+          const referencedActive = Number(row.Referenced_Active_Students);
+          const paidThisMonth = Number(row.Paid_This_Month);
 
-          if (!controller) {
-            console.warn(
-              `Controller ${controllerId} not found in wpos_wpdatatable_28`
-            );
-            return null;
-          }
+          // Calculate earnings using the exact PHP formula
+          const baseEarnings = activeStudents * config.mainBaseRate;
+          const leavePenalty = Math.max(leaveStudents - config.leaveThreshold, 0) * 
+                              config.leavePenaltyMultiplier * config.mainBaseRate;
+          const unpaidPenalty = unpaidActive * config.unpaidPenaltyMultiplier * config.mainBaseRate;
+          const referencedBonus = referencedActive * config.referralBonusMultiplier * config.referralBaseRate;
+          const totalEarnings = baseEarnings - leavePenalty - unpaidPenalty + referencedBonus;
 
-          const students = await prisma.wpos_wpdatatable_23.findMany({
-            where: {
-              AND: [
-                { u_control: controllerId },
-                { u_control: { not: null } },
-                { u_control: { not: "" } },
-              ],
-            },
-            select: {
-              wdt_ID: true,
-              status: true,
-              startdate: true,
-              registrationdate: true,
-              chatId: true,
-              refer: true,
-              name: true,
-              u_control: true,
-              exitdate: true,
-              package: true, // Added package field
-            },
-          });
-
-          // Filter students for this controller
-          const actualStudents = students.filter(
-            (s) => s.u_control === controllerId
-          );
-          const activeStudentsArr = actualStudents.filter(
-            (s) => s.status === "Active" && s.package !== "0 fee"
-          );
-          const notYetStudentsArr = actualStudents.filter(
-            (s) => s.status === "Not Yet"
-          );
-
-          // Filter leave students for the selected month using exitdate
-          const leaveStudentsArr = actualStudents.filter(
-            (s) =>
-              s.status === "Leave" &&
-              s.exitdate &&
-              s.exitdate >= this.startDate &&
-              s.exitdate <= this.endDate
-          );
-
-          // Debug logging for leave students
-          console.log(`\n=== DEBUGGING CONTROLLER ${controllerId} ===`);
-          console.log(`Month: ${this.yearMonth}`);
-          console.log(`Total students queried: ${students.length}`);
-          console.log(`Students matching controller: ${actualStudents.length}`);
-          console.log(
-            `Active students (package != '0 fee'): ${activeStudentsArr.length}`
-          );
-          console.log(`Not Yet students: ${notYetStudentsArr.length}`);
-          console.log(
-            `Leave students in ${this.yearMonth}: ${leaveStudentsArr.length}`
-          );
-          if (leaveStudentsArr.length > 0) {
-            console.log(`Leave students details:`);
-            leaveStudentsArr.forEach((s) => {
-              console.log(
-                `  Student: ${s.name}, ID: ${s.wdt_ID}, Status: ${
-                  s.status
-                }, Start Date: ${s.startdate?.toISOString() || "N/A"}`
-              );
-            });
-          }
-
-          const ramadanLeaveStudentsArr = actualStudents.filter(
-            (s) => s.status === "Ramadan Leave"
-          );
-          const linkedStudentsArr = actualStudents.filter(
-            (s) =>
-              (s.status === "Active" ||
-                s.status === "Not yet" ||
-                s.status === "Not Yet") &&
-              s.chatId &&
-              s.chatId !== ""
-          );
-
-          // Payment calculations using only months_table
-          const monthPayments = await prisma.months_table.findMany({
-            where: {
-              studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
-              month: this.yearMonth,
-              OR: [
-                { 
-                  payment_status: { 
-                    in: ["paid", "Paid", "PAID", "complete", "Complete", "COMPLETE", "success", "Success", "SUCCESS"] 
-                  } 
-                },
-                { is_free_month: true },
-              ],
-            },
-            select: { studentid: true, payment_status: true, is_free_month: true },
-            distinct: ["studentid"],
-          });
-
-          const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
-          const paidThisMonthArr = activeStudentsArr.filter((s) =>
-            paidStudentIds.has(s.wdt_ID)
-          );
-          const unpaidActiveArr = activeStudentsArr.filter(
-            (s) => !paidStudentIds.has(s.wdt_ID)
-          );
-
-          // Enhanced payment debugging
-          console.log(`\n=== PAYMENT DETAILS FOR CONTROLLER ${controllerId} ===`);
-          console.log(`Total active students (excluding 0 fee): ${activeStudentsArr.length}`);
-          console.log(`Payment records found: ${monthPayments.length}`);
-          console.log(`Paid students this month: ${paidThisMonthArr.length}`);
-          console.log(`Unpaid active students: ${unpaidActiveArr.length}`);
-          
-          // Debug payment records
-          if (monthPayments.length > 0) {
-            console.log(`Payment records details:`);
-            monthPayments.forEach((p) => {
-              console.log(
-                `  Payment: Student ID ${p.studentid}, Status: "${p.payment_status}", Free Month: ${p.is_free_month}`
-              );
-            });
-          }
-          
-          if (paidThisMonthArr.length > 0) {
-            console.log(`Paid students details:`);
-            paidThisMonthArr.forEach((s) => {
-              console.log(
-                `  Paid Student: ${s.name}, ID: ${s.wdt_ID}, Package: ${s.package}`
-              );
-            });
-          }
-          
-          if (unpaidActiveArr.length > 0) {
-            console.log(`Unpaid students details:`);
-            unpaidActiveArr.forEach((s) => {
-              console.log(
-                `  Unpaid Student: ${s.name}, ID: ${s.wdt_ID}, Package: ${s.package}`
-              );
-            });
-          }
-          console.log(`===============================\n`);
-
-          const referencedStudents = await prisma.wpos_wpdatatable_23.findMany({
-            where: {
-              refer: controllerId,
-              status: "Active",
-              startdate: { gte: this.startDate, lte: this.endDate },
-              registrationdate: { gte: this.startDate, lte: this.endDate },
-            },
-            include: {
-              months_table: {
-                where: {
-                  month: this.yearMonth,
-                  OR: [
-                    { 
-                      payment_status: { 
-                        in: ["paid", "Paid", "PAID", "complete", "Complete", "COMPLETE", "success", "Success", "SUCCESS"] 
-                      } 
-                    },
-                    { is_free_month: true },
-                  ],
-                },
-              },
-            },
-          });
-
-          const referencedActiveArr = referencedStudents.filter(
-            (s) => s.months_table.length > 0 && !s.rigistral
-          );
-
-          const baseEarnings = activeStudentsArr.length * config.mainBaseRate;
-          const leavePenalty =
-            Math.max(leaveStudentsArr.length - config.leaveThreshold, 0) *
-            config.leavePenaltyMultiplier *
-            config.mainBaseRate;
-          const unpaidPenalty =
-            unpaidActiveArr.length *
-            config.unpaidPenaltyMultiplier *
-            config.mainBaseRate;
-          const referencedBonus =
-            referencedActiveArr.length *
-            config.referralBonusMultiplier *
-            config.referralBaseRate;
-          const totalEarnings =
-            baseEarnings - leavePenalty - unpaidPenalty + referencedBonus;
-
-          // Detailed earnings debug
-          console.log(`\n=== EARNINGS FOR CONTROLLER ${controllerId} ===`);
-          console.log(
-            `Base Earnings: ${activeStudentsArr.length} * ${config.mainBaseRate} = ${baseEarnings}`
-          );
-          console.log(
-            `Leave Penalty: max(${leaveStudentsArr.length} - ${config.leaveThreshold}, 0) * ${config.leavePenaltyMultiplier} * ${config.mainBaseRate} = ${leavePenalty}`
-          );
-          console.log(
-            `Unpaid Penalty: ${unpaidActiveArr.length} * ${config.unpaidPenaltyMultiplier} * ${config.mainBaseRate} = ${unpaidPenalty}`
-          );
-          console.log(
-            `Referenced Bonus: ${referencedActiveArr.length} * ${config.referralBonusMultiplier} * ${config.referralBaseRate} = ${referencedBonus}`
-          );
-          console.log(
-            `Total Earnings: ${baseEarnings} - ${leavePenalty} - ${unpaidPenalty} + ${referencedBonus} = ${totalEarnings}`
-          );
-          console.log(`===============================\n`);
-
+          // Get previous month earnings for growth calculation
           const previousMonth = new Date(this.startDate);
           previousMonth.setMonth(previousMonth.getMonth() - 1);
           const previousMonthStr = previousMonth.toISOString().slice(0, 7);
+          const previousEarnings = await this.getPreviousMonthEarnings(controllerId, previousMonthStr);
+          const yearToDateEarnings = await this.getYearToDateEarnings(controllerId);
 
-          const previousEarnings = await this.getPreviousMonthEarnings(
-            controllerId,
-            previousMonthStr
-          );
-          const yearToDateEarnings = await this.getYearToDateEarnings(
-            controllerId
-          );
+          const growthRate = previousEarnings > 0 
+            ? ((totalEarnings - previousEarnings) / previousEarnings) * 100 
+            : 0;
 
-          const growthRate =
-            previousEarnings > 0
-              ? ((totalEarnings - previousEarnings) / previousEarnings) * 100
-              : 0;
+          // Debug logging
+          console.log(`\n=== CONTROLLER ${controllerId} (${row.U_Control_Name}) ===`);
+          console.log(`Active Students: ${activeStudents}`);
+          console.log(`Paid This Month: ${paidThisMonth}`);
+          console.log(`Unpaid Active: ${unpaidActive}`);
+          console.log(`Leave Students: ${leaveStudents}`);
+          console.log(`Referenced Active: ${referencedActive}`);
+          console.log(`Base Earnings: ${baseEarnings}`);
+          console.log(`Leave Penalty: ${leavePenalty}`);
+          console.log(`Unpaid Penalty: ${unpaidPenalty}`);
+          console.log(`Referenced Bonus: ${referencedBonus}`);
+          console.log(`Total Earnings: ${totalEarnings}`);
+          console.log(`===============================\n`);
 
           return {
             controllerId,
-            controllerName: controller.name || controllerId,
-            teamId: 1,
-            teamName: "Default Team",
-            teamLeader: "System",
+            controllerName: row.U_Control_Name || controllerId,
+            teamId: Number(row.Team_ID),
+            teamName: row.Team_Name,
+            teamLeader: row.Team_Leader,
             month: this.yearMonth,
-            activeStudents: activeStudentsArr.length,
-            notYetStudents: notYetStudentsArr.length,
-            leaveStudentsThisMonth: leaveStudentsArr.length,
-            ramadanLeaveStudents: ramadanLeaveStudentsArr.length,
-            paidThisMonth: paidThisMonthArr.length,
-            unpaidActiveThisMonth: unpaidActiveArr.length,
-            referencedActiveStudents: referencedActiveArr.length,
-            linkedStudents: linkedStudentsArr.length,
+            activeStudents,
+            notYetStudents: Number(row.Not_Yet_Students),
+            leaveStudentsThisMonth: leaveStudents,
+            ramadanLeaveStudents: Number(row.Ramadan_Leave),
+            paidThisMonth,
+            unpaidActiveThisMonth: unpaidActive,
+            referencedActiveStudents: referencedActive,
+            linkedStudents: Number(row.Linked_Students),
             baseEarnings,
             leavePenalty,
             unpaidPenalty,
             referencedBonus,
             totalEarnings,
             targetEarnings: config.targetEarnings,
-            achievementPercentage:
-              (totalEarnings / config.targetEarnings) * 100,
+            achievementPercentage: (totalEarnings / config.targetEarnings) * 100,
             growthRate,
             previousMonthEarnings: previousEarnings,
             yearToDateEarnings,
@@ -390,7 +227,7 @@ export class EarningsCalculator {
         })
       );
 
-      return earnings.filter((e): e is ControllerEarnings => e !== null);
+      return earnings;
     } catch (error: any) {
       console.error(
         "Failed to calculate controller earnings:",
