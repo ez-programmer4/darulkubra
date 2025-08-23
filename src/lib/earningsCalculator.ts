@@ -101,21 +101,20 @@ export class EarningsCalculator {
           'System' AS Team_Leader,
           uc_names.name AS U_Control_Name,
           a.u_control,
-          COUNT(DISTINCT IF(a.status='Active' AND a.package != '0 fee', a.wdt_ID, NULL)) AS Active_Students,
-          COUNT(DISTINCT IF(a.status='Not Yet', a.wdt_ID, NULL)) AS Not_Yet_Students,
-          COUNT(DISTINCT IF(a.status='Leave' AND a.exitdate BETWEEN ? AND ?, a.wdt_ID, NULL)) AS Leave_Students_This_Month,
-          COUNT(DISTINCT IF(a.status='Ramadan Leave', a.wdt_ID, NULL)) AS Ramadan_Leave,
-          COUNT(DISTINCT IF(m.payment_status='paid' AND m.month=?, m.studentid, NULL)) AS Paid_This_Month,
-          COUNT(DISTINCT IF(
-            a.status='Active'
+          COUNT(DISTINCT CASE WHEN a.status='Active' AND a.package != '0 fee' THEN a.wdt_ID END) AS Active_Students,
+          COUNT(DISTINCT CASE WHEN a.status='Not Yet' THEN a.wdt_ID END) AS Not_Yet_Students,
+          COUNT(DISTINCT CASE WHEN a.status='Leave' AND a.exitdate BETWEEN ? AND ? THEN a.wdt_ID END) AS Leave_Students_This_Month,
+          COUNT(DISTINCT CASE WHEN a.status='Ramadan Leave' THEN a.wdt_ID END) AS Ramadan_Leave,
+          COUNT(DISTINCT CASE WHEN m.payment_status='paid' AND m.month=? THEN m.studentid END) AS Paid_This_Month,
+          COUNT(DISTINCT CASE 
+            WHEN a.status='Active'
             AND NOT EXISTS(
               SELECT 1 FROM months_table sm
               WHERE sm.studentid=a.wdt_ID AND sm.month=? AND sm.payment_status='paid'
             )
-            AND a.package <> '0 fee',
-            a.wdt_ID,
-            NULL
-          )) AS Unpaid_Active_This_Month,
+            AND a.package <> '0 fee'
+            THEN a.wdt_ID 
+          END) AS Unpaid_Active_This_Month,
           (
             SELECT COUNT(DISTINCT b.wdt_ID)
             FROM wpos_wpdatatable_23 b
@@ -126,11 +125,12 @@ export class EarningsCalculator {
               AND DATE_FORMAT(b.registrationdate,'%Y-%m') = ?
               AND b.rigistral IS NULL
           ) AS Referenced_Active_Students,
-          COUNT(DISTINCT IF(
-            a.status IN('Active','Not Yet')
-            AND a.chatId IS NOT NULL
-            AND a.chatId!='', a.wdt_ID, NULL
-          )) AS Linked_Students
+          COUNT(DISTINCT CASE 
+            WHEN a.status IN('Active','Not Yet')
+            AND a.chat_id IS NOT NULL
+            AND a.chat_id!=''
+            THEN a.wdt_ID 
+          END) AS Linked_Students
         FROM wpos_wpdatatable_23 a
         LEFT JOIN months_table m ON a.wdt_ID = m.studentid
         LEFT JOIN wpos_wpdatatable_28 uc_names ON a.u_control = uc_names.code
