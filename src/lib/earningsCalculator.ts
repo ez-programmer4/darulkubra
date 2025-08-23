@@ -237,7 +237,7 @@ export class EarningsCalculator {
             paidStudentIds.has(s.wdt_ID)
           );
           const unpaidActiveArr = activeStudentsArr.filter(
-            (s) => !paidStudentIds.includes(s.wdt_ID)
+            (s) => !paidStudentIds.has(s.wdt_ID)
           );
 
           // Log unpaid students
