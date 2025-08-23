@@ -219,7 +219,10 @@ export class EarningsCalculator {
             where: {
               studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
               month: this.yearMonth,
-              payment_status: "paid",
+              OR: [
+                { payment_status: "paid" },
+                { is_free_month: true },
+              ],
             },
             select: { studentid: true },
             distinct: ["studentid"],
@@ -258,7 +261,10 @@ export class EarningsCalculator {
               months_table: {
                 where: {
                   month: this.yearMonth,
-                  payment_status: "paid",
+                  OR: [
+                    { payment_status: { in: ["paid", "Paid", "PAID"] } },
+                    { is_free_month: true },
+                  ],
                 },
               },
             },
@@ -392,7 +398,10 @@ export class EarningsCalculator {
         where: {
           studentid: { in: students.map((s) => s.wdt_ID) },
           month,
-          payment_status: "paid",
+          OR: [
+            { payment_status: { in: ["paid", "Paid", "PAID"] } },
+            { is_free_month: true },
+          ],
         },
         select: { studentid: true },
         distinct: ["studentid"],
@@ -452,7 +461,10 @@ export class EarningsCalculator {
         where: {
           studentid: { in: students.map((s) => s.wdt_ID) },
           month: { startsWith: `${currentYear}-` },
-          payment_status: "paid",
+          OR: [
+            { payment_status: { in: ["paid", "Paid", "PAID"] } },
+            { is_free_month: true },
+          ],
         },
         select: { studentid: true },
         distinct: ["studentid"],
