@@ -168,9 +168,7 @@ export class EarningsCalculator {
             (s) => s.u_control === controllerId
           );
           const activeStudentsArr = actualStudents.filter(
-            (s) =>
-              (s.status === "Active" || s.status === "Not yet") &&
-              s.package !== "0 fee"
+            (s) => s.status === "Active" && s.package !== "0 fee"
           );
           const notYetStudentsArr = actualStudents.filter(
             (s) => s.status === "Not Yet"
@@ -393,9 +391,7 @@ export class EarningsCalculator {
       });
 
       const activeStudents = students.filter(
-        (s) =>
-          (s.status === "Active" || s.status === "Not yet") &&
-          s.package !== "0 fee"
+        (s) => s.status === "Active" && s.package !== "0 fee"
       ).length;
       const leaveStudents = students.filter(
         (s) =>
@@ -421,7 +417,7 @@ export class EarningsCalculator {
       const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
       const unpaidStudents = students.filter(
         (s) =>
-          (s.status === "Active" || s.status === "Not yet") &&
+          s.status === "Active" &&
           !paidStudentIds.has(s.wdt_ID) &&
           s.package !== "0 fee"
       ).length;
@@ -463,9 +459,7 @@ export class EarningsCalculator {
       });
 
       const activeStudents = students.filter(
-        (s) =>
-          (s.status === "Active" || s.status === "Not yet") &&
-          s.package !== "0 fee"
+        (s) => s.status === "Active" && s.package !== "0 fee"
       ).length;
       const leaveStudents = students.filter(
         (s) =>
@@ -491,7 +485,7 @@ export class EarningsCalculator {
       const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
       const unpaidStudents = students.filter(
         (s) =>
-          (s.status === "Active" || s.status === "Not yet") &&
+          s.status === "Active" &&
           !paidStudentIds.has(s.wdt_ID) &&
           s.package !== "0 fee"
       ).length;
