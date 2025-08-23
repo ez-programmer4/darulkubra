@@ -16,10 +16,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get controller's code from the session
-    if (!session.code) {
+    // Get controller's code from the session (try different possible field names)
+    const controllerCode = session.code || session.username || session.name;
+    if (!controllerCode) {
       return NextResponse.json(
-        { error: "Controller code not found" },
+        { error: "Controller code not found in session" },
         { status: 404 }
       );
     }
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
     // Get active students for this controller
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
-        u_control: session.code,
+        u_control: controllerCode,
       },
       include: {
         teacher: {
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
         },
       },
     });
+    
     // Return all student data
     return NextResponse.json(
       students.map((student) => ({
@@ -45,8 +47,9 @@ export async function GET(request: NextRequest) {
       }))
     );
   } catch (error) {
+    console.error("Controller students API error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Internal Server Error", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }
