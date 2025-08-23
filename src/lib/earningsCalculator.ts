@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { startOfMonth, endOfMonth, isValid, subDays, addDays } from "date-fns";
+import { startOfMonth, endOfMonth } from "date-fns";
 
 export interface ControllerEarnings {
   controllerId: string;
@@ -159,7 +159,7 @@ export class EarningsCalculator {
               name: true,
               u_control: true,
               exitdate: true,
-              package: true, // Added package field
+              package: true,
             },
           });
 
@@ -216,17 +216,11 @@ export class EarningsCalculator {
               s.chatId !== ""
           );
 
-          // Payment calculations using only months_table
+          // Payment calculations using only months_table with NOT EXISTS logic
           const monthPayments = await prisma.months_table.findMany({
             where: {
               studentid: { in: actualStudents.map((s) => s.wdt_ID) },
-              OR: [
-                {
-                  month: this.yearMonth,
-                  payment_status: { in: ["paid", "Paid", "PAID"] },
-                },
-                { month: this.yearMonth, is_free_month: true },
-              ],
+              month: this.yearMonth,
             },
             select: { studentid: true },
             distinct: ["studentid"],
@@ -256,15 +250,13 @@ export class EarningsCalculator {
               status: "Active",
               startdate: { gte: this.startDate, lte: this.endDate },
               registrationdate: { gte: this.startDate, lte: this.endDate },
+              package: { not: "0 fee" },
             },
             include: {
               months_table: {
                 where: {
                   month: this.yearMonth,
-                  OR: [
-                    { payment_status: { in: ["paid", "Paid", "PAID"] } },
-                    { is_free_month: true },
-                  ],
+                  payment_status: "paid", // Match PHP's exact case
                 },
               },
             },
@@ -384,7 +376,7 @@ export class EarningsCalculator {
           wdt_ID: true,
           status: true,
           exitdate: true,
-          package: true, // Added package field
+          package: true,
         },
       });
 
@@ -403,10 +395,6 @@ export class EarningsCalculator {
         where: {
           studentid: { in: students.map((s) => s.wdt_ID) },
           month,
-          OR: [
-            { payment_status: { in: ["paid", "Paid", "PAID"] } },
-            { is_free_month: true },
-          ],
         },
         select: { studentid: true },
         distinct: ["studentid"],
@@ -452,7 +440,7 @@ export class EarningsCalculator {
           wdt_ID: true,
           status: true,
           exitdate: true,
-          package: true, // Added package field
+          package: true,
         },
       });
 
@@ -471,10 +459,6 @@ export class EarningsCalculator {
         where: {
           studentid: { in: students.map((s) => s.wdt_ID) },
           month: { startsWith: `${currentYear}-` },
-          OR: [
-            { payment_status: { in: ["paid", "Paid", "PAID"] } },
-            { is_free_month: true },
-          ],
         },
         select: { studentid: true },
         distinct: ["studentid"],
