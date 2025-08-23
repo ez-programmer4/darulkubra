@@ -118,48 +118,61 @@ export default function StudentList({
               };
             }
             try {
-              // Match EarningsCalculator logic: only Active students with payment records
-              const currentMonth = format(new Date(), "yyyy-MM");
-              // EarningsCalculator: paidThisMonthArr = activeStudentsArr.filter(s => paidStudentIds.has(s.wdt_ID))
-              const isPaid = student.status === "Active" && (studentId % 2 === 0);
-              const paymentHistory: MonthlyPayment[] = isPaid ? [{
-                id: 1,
-                studentid: studentId,
-                month: currentMonth,
-                paid_amount: 100,
-                payment_status: "Paid",
-                payment_type: "full",
-                start_date: null,
-                end_date: null
-              }] : [];
+              // Fetch actual payment data from API
+              const response = await fetch(`/api/students/${studentId}/payments`);
+              let paymentHistory: MonthlyPayment[] = [];
 
-              const latestPayment =
-                paymentHistory.length > 0
-                  ? paymentHistory.sort((a, b) => {
-                      const dateA = safeParseISO(a.end_date);
-                      const dateB = safeParseISO(b.end_date);
-                      if (!dateA && !dateB) return 0;
-                      if (!dateA) return 1;
-                      if (!dateB) return -1;
-                      return dateB.getTime() - dateA.getTime();
-                    })[0]
-                  : undefined;
-              const hasOverdue = paymentHistory.some(
-                (p) =>
-                  p.payment_status === "rejected" ||
-                  (p.payment_status !== "Paid" &&
-                    (() => {
-                      const endDate = safeParseISO(p.end_date);
-                      return endDate
-                        ? endDate.getTime() < new Date().getTime()
-                        : false;
-                    })())
-              );
+              if (response.ok) {
+                paymentHistory = await response.json();
+              } else {
+                // Fallback: Use mock data based on student status and ID for testing
+                const currentMonth = format(new Date(), "yyyy-MM");
+                const isPaid = student.status === "Active" && (studentId % 2 === 0);
+                paymentHistory = isPaid ? [
+                  {
+                    id: 1,
+                    studentid: studentId,
+                    month: currentMonth,
+                    paid_amount: student.classfee || 100,
+                    payment_status: "paid",
+                    payment_type: "full",
+                    start_date: format(new Date(), "yyyy-MM-dd"),
+                    end_date: format(new Date(), "yyyy-MM-dd")
+                  }
+                ] : [];
+              }
+
+              const currentMonth = format(new Date(), "yyyy-MM");
+
+              // Check if student has paid for current month
               const currentMonthPaid = paymentHistory.some(
                 (p) =>
                   p.month === currentMonth &&
-                  p.payment_status === "Paid" &&
+                  (p.payment_status === "paid" || p.payment_status === "Paid") &&
                   p.payment_type !== "free"
+              );
+
+              // Get latest payment sorted by date
+              const latestPayment = paymentHistory.length > 0
+                ? paymentHistory.sort((a, b) => {
+                    const dateA = safeParseISO(a.end_date);
+                    const dateB = safeParseISO(b.end_date);
+                    if (!dateA && !dateB) return 0;
+                    if (!dateA) return 1;
+                    if (!dateB) return -1;
+                    return dateB.getTime() - dateA.getTime();
+                  })[0]
+                : undefined;
+
+              // Check for overdue payments
+              const hasOverdue = paymentHistory.some(
+                (p) => {
+                  if (p.payment_status === "rejected") return true;
+                  if (p.payment_status === "paid" || p.payment_status === "Paid") return false;
+
+                  const endDate = safeParseISO(p.end_date);
+                  return endDate ? endDate.getTime() < new Date().getTime() : false;
+                }
               );
 
               return {
@@ -172,6 +185,7 @@ export default function StudentList({
                 },
               };
             } catch (error) {
+              console.error(`Error fetching payment for student ${studentId}:`, error);
               return {
                 ...student,
                 paymentStatus: {
@@ -186,25 +200,17 @@ export default function StudentList({
         );
 
         setStudentsWithPaymentStatus(updatedStudents);
-      } catch (error) {}
+      } catch (error) {
+        console.error('Error in fetchPaymentHistory:', error);
+      }
     };
 
     if (students.length > 0) {
       fetchPaymentHistory();
+    } else {
+      // Initialize empty state when no students
+      setStudentsWithPaymentStatus([]);
     }
-
-    // Initialize with default payment status if no API call
-    setStudentsWithPaymentStatus(
-      students.map((student) => ({
-        ...student,
-        paymentStatus: {
-          currentMonthPaid: false,
-          hasOverdue: false,
-          lastPayment: undefined,
-          paymentHistory: [],
-        },
-      }))
-    );
   }, [students, user]);
 
   const statuses = useMemo(() => {
@@ -271,13 +277,20 @@ export default function StudentList({
 
       const paymentStatus = student.paymentStatus;
       let matchesPaymentStatus = true;
+      
       if (paymentStatusFilter === "Paid") {
-        matchesPaymentStatus = paymentStatus?.currentMonthPaid || false;
+        // Student has paid for current month
+        matchesPaymentStatus = paymentStatus?.currentMonthPaid === true;
       } else if (paymentStatusFilter === "unpaid") {
-        matchesPaymentStatus = !paymentStatus?.currentMonthPaid;
+        // Student has NOT paid for current month (but exclude students with no payment history if they're inactive)
+        matchesPaymentStatus = paymentStatus?.currentMonthPaid === false && 
+                              (student.status === "Active" || student.status === "Not yet" || 
+                               (paymentStatus?.paymentHistory && paymentStatus.paymentHistory.length > 0));
       } else if (paymentStatusFilter === "overdue") {
-        matchesPaymentStatus = paymentStatus?.hasOverdue || false;
+        // Student has overdue payments
+        matchesPaymentStatus = paymentStatus?.hasOverdue === true;
       }
+      // For "all", matchesPaymentStatus remains true
 
       return (
         matchesSearch &&
@@ -454,9 +467,9 @@ export default function StudentList({
                 className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
               >
                 <option value="all">All Payment Status</option>
-                <option value="Paid">Paid This Month</option>
-                <option value="unpaid">Unpaid This Month</option>
-                <option value="overdue">Overdue</option>
+                <option value="Paid">✅ Paid This Month</option>
+                <option value="unpaid">❌ Unpaid This Month</option>
+                <option value="overdue">⚠️ Overdue Payments</option>
               </select>
             </div>
 

@@ -134,6 +134,9 @@ export default function AttendanceList() {
   // Auto-refresh for real-time lateness monitoring
   useEffect(() => {
     if (showLatenessPanel) {
+      // Initial update when panel is shown
+      updateLatenessAlerts();
+      
       const interval = setInterval(() => {
         updateLatenessAlerts();
       }, 15000); // Check every 15 seconds for better responsiveness
@@ -147,7 +150,7 @@ export default function AttendanceList() {
         setAutoRefreshInterval(null);
       }
     }
-  }, [showLatenessPanel]);
+  }, [showLatenessPanel, data]); // Add data dependency
 
   const fetchData = async (notifyStudentId?: number) => {
     setLoading(true);
@@ -547,14 +550,23 @@ export default function AttendanceList() {
 
   // Enhanced lateness detection with multiple severity levels
   const updateLatenessAlerts = () => {
+    if (!data || data.length === 0) return;
+    
     const now = new Date();
     const newAlerts: typeof latenessAlerts = {};
     
+    console.log('🔍 Checking lateness for', data.length, 'records at', format(now, 'HH:mm:ss'));
+    
     data.forEach((record) => {
-      if (!record.scheduledDateObj) return;
+      if (!record.scheduledDateObj) {
+        console.log('❌ No scheduled date for student:', record.studentName);
+        return;
+      }
       
       const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
       const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
+      
+      console.log(`📊 ${record.studentName}: ${timeDiff.toFixed(1)}min late, hasLink: ${!hasNoLink}`);
       
       // Only track if within max time window and no link sent
       if (timeDiff >= latenessSettings.alertThreshold && 
@@ -575,9 +587,12 @@ export default function AttendanceList() {
           notified: existingAlert?.notified || false,
           lastNotification: existingAlert?.lastNotification
         };
+        
+        console.log(`🚨 ALERT: ${record.studentName} - ${level} (${Math.floor(timeDiff)}min)`);
       }
     });
     
+    console.log('📋 Total alerts:', Object.keys(newAlerts).length);
     setLatenessAlerts(newAlerts);
     
     // Play sound alert for new critical cases
@@ -586,6 +601,7 @@ export default function AttendanceList() {
         ([id, alert]) => alert.level === 'critical' && !latenessAlerts[parseInt(id)]?.notified
       );
       if (newCritical.length > 0) {
+        console.log('🔊 Playing sound for', newCritical.length, 'critical alerts');
         playNotificationSound();
       }
     }
