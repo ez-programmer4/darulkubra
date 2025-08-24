@@ -143,14 +143,34 @@ export default function StudentList({
               }
 
               const currentMonth = format(new Date(), "yyyy-MM");
+              const today = new Date();
+
+              // Helper to check if today's date is within payment coverage
+              const coversToday = (p: MonthlyPayment): boolean => {
+                const start = safeParseISO(p.start_date);
+                const end = safeParseISO(p.end_date);
+                if (!start && !end) return false;
+                const startEff = start ?? new Date(today.getFullYear(), today.getMonth(), 1);
+                const endEff = end ?? new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                return startEff.getTime() <= today.getTime() && today.getTime() <= endEff.getTime();
+              };
+
+              // Normalize and check month string match if provided
+              const monthMatches = (p: MonthlyPayment): boolean => {
+                if (!p.month) return false;
+                // accept e.g. "2025-08" or "2025-08-01"
+                const m = p.month.slice(0, 7);
+                return m === currentMonth;
+              };
+
+              // Paid statuses and payment types considered as paid for the month
+              const isPaidStatus = (s: string) => ["paid", "approved"].includes(s?.toLowerCase());
+              const isPaidType = (t: string) => ["full", "partial", "prizepartial", "free"].includes(t?.toLowerCase());
 
               // Check if student has paid for current month
-              const currentMonthPaid = paymentHistory.some(
-                (p) =>
-                  p.month === currentMonth &&
-                  (p.payment_status === "paid" || p.payment_status === "Paid") &&
-                  p.payment_type !== "free"
-              );
+              const currentMonthPaid = paymentHistory.some((p) => {
+                return isPaidStatus(p.payment_status) && isPaidType(p.payment_type) && (monthMatches(p) || coversToday(p));
+              });
 
               // Get latest payment sorted by date
               const latestPayment = paymentHistory.length > 0

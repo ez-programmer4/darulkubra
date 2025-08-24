@@ -251,34 +251,6 @@ export default function AttendanceList() {
     limit,
   ]);
 
-  // Early returns after all hooks
-  if (status === "loading") return <div>Loading...</div>;
-  if (status === "unauthenticated") return <div>Unauthorized</div>;
-
-  const user = session?.user;
-
-  // Quick-select for days
-  const daysOfWeek = [
-    { label: "Today", getDate: () => format(new Date(), "yyyy-MM-dd") },
-    ...[
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-      "Sunday",
-    ].map((day, idx) => ({
-      label: day,
-      getDate: () => {
-        const now = new Date();
-        // startOfWeek with { weekStartsOn: 1 } for Monday
-        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-        return format(addDays(weekStart, idx), "yyyy-MM-dd");
-      },
-    })),
-  ];
-
   const fetchAllDataForEmergencyAsync = async () => {
     try {
       const params = new URLSearchParams({
@@ -549,7 +521,7 @@ export default function AttendanceList() {
   });
 
   // Enhanced lateness detection with multiple severity levels
-  const updateLatenessAlerts = () => {
+  function updateLatenessAlerts() {
     if (!data || data.length === 0) return;
     
     const now = new Date();
@@ -605,7 +577,7 @@ export default function AttendanceList() {
         playNotificationSound();
       }
     }
-  };
+  }
   
   // Get expired students (past 15 minutes) for reference
   const expiredStudents = data.filter((record) => {
@@ -632,12 +604,12 @@ export default function AttendanceList() {
     return { total, critical, warning, alert, notified, unnotified };
   };
   
-  const playNotificationSound = () => {
+  function playNotificationSound() {
     if (typeof window !== 'undefined') {
       const audio = new Audio('/notification.mp3');
       audio.play().catch(() => console.log('Could not play notification sound'));
     }
-  };
+  }
 
   // Get emergency students from all data (not just current page)
   const emergencyStudents = useMemo(() => {
@@ -699,6 +671,28 @@ export default function AttendanceList() {
       ? ((attendanceStats.Present / attendanceStats.total) * 100).toFixed(1) +
         "%"
       : "N/A";
+
+  // Quick-select for days
+  const daysOfWeek: { label: string; getDate: () => string }[] = [
+    { label: "Today", getDate: () => format(new Date(), "yyyy-MM-dd") },
+    ...[
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ].map((day, idx) => ({
+      label: day,
+      getDate: () => {
+        const now = new Date();
+        // startOfWeek with { weekStartsOn: 1 } for Monday
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+        return format(addDays(weekStart, idx), "yyyy-MM-dd");
+      },
+    })),
+  ];
 
   if (loading) {
     // Table skeleton loader

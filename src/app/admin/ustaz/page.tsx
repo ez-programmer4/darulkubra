@@ -192,32 +192,32 @@ export default function UstazRatingsPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto w-full">
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiUsers className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Teachers</span>
+                  <span className="text-xs font-semibold text-gray-600">Teachers</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{totalTeachers}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiCheckCircle className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Passed</span>
+                  <span className="text-xs font-semibold text-gray-600">Passed</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{totalPassed}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiXCircle className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Failed</span>
+                  <span className="text-xs font-semibold text-gray-600">Failed</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{totalFailed}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiTarget className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Pass Rate</span>
+                  <span className="text-xs font-semibold text-gray-600">Pass Rate</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{averagePassRate}%</div>
               </div>

@@ -154,12 +154,12 @@ const ScheduleGenerator = ({
               (slot) => slot.prayer === prayer
             );
             const prayerColors = {
-              Midnight: "border-indigo-200 bg-indigo-50",
-              Subhi: "border-blue-200 bg-blue-50",
-              Dhuhr: "border-green-200 bg-green-50",
-              Asr: "border-yellow-200 bg-yellow-50",
-              Maghrib: "border-orange-200 bg-orange-50",
-              Isha: "border-purple-200 bg-purple-50",
+              Midnight: "border-gray-200 bg-gray-50",
+              Subhi: "border-gray-200 bg-gray-50",
+              Dhuhr: "border-gray-200 bg-gray-50",
+              Asr: "border-gray-200 bg-gray-50",
+              Maghrib: "border-gray-200 bg-gray-50",
+              Isha: "border-gray-200 bg-gray-50",
             };
 
             const prayerPeriods = {
@@ -210,8 +210,8 @@ const ScheduleGenerator = ({
         )}
       </div>
 
-      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-        <p className="text-sm text-blue-700 font-medium">
+      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+        <p className="text-sm text-gray-700 font-medium">
           💡 Select from prayer-based time slots with 30-minute intervals. Times
           shown in both 12-hour and 24-hour formats.
         </p>
@@ -736,14 +736,14 @@ export default function UserManagementPage() {
                                   <div className="flex items-center justify-end gap-2">
                                     <button
                                       onClick={() => openEditModal(user)}
-                                      className="p-2 bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200 transition-all hover:scale-105"
+                                      className="p-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all hover:scale-105"
                                       title="Edit user"
                                     >
                                       <FiEdit className="h-4 w-4" />
                                     </button>
                                     <button
                                       onClick={() => openDeleteModal(user)}
-                                      className="p-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-all hover:scale-105"
+                                      className="p-2 border border-gray-300 text-red-600 rounded-xl hover:bg-red-50 hover:border-red-300 transition-all hover:scale-105"
                                       title="Delete user"
                                     >
                                       <FiTrash2 className="h-4 w-4" />

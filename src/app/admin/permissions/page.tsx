@@ -276,32 +276,32 @@ export default function AdminPermissionsPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto w-full">
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiBell className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Total</span>
+                  <span className="text-xs font-semibold text-gray-600">Total</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{stats.total}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiClock className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Pending</span>
+                  <span className="text-xs font-semibold text-gray-600">Pending</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{stats.pending}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiCheck className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Approved</span>
+                  <span className="text-xs font-semibold text-gray-600">Approved</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{stats.approved}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiX className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Declined</span>
+                  <span className="text-xs font-semibold text-gray-600">Declined</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{stats.declined}</div>
               </div>

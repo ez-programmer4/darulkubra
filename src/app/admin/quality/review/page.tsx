@@ -169,7 +169,7 @@ export default function AdminQualityReviewPage() {
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
         {/* Header + Stats */}
         <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-8 mb-8">
+          <div className="flex flex-col items-start gap-8 mb-8">
             <div className="flex items-center gap-6">
               <div className="p-4 bg-black rounded-2xl shadow-lg">
                 <FiTarget className="h-8 w-8 text-white" />
@@ -185,32 +185,32 @@ export default function AdminQualityReviewPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
+            <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full mt-2">
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiUsers className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Teachers</span>
+                  <span className="text-xs font-semibold text-gray-600">Teachers</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{teachers.length}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiAward className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Exceptional</span>
+                  <span className="text-xs font-semibold text-gray-600">Exceptional</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{teachers.filter(t => t.overallQuality === 'Exceptional').length}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiGift className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Bonuses</span>
+                  <span className="text-xs font-semibold text-gray-600">Bonuses</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{teachers.filter(t => t.bonusAwarded > 0).length}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiAlertTriangle className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Need Review</span>
+                  <span className="text-xs font-semibold text-gray-600">Need Review</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{badTeachers.length}</div>
               </div>

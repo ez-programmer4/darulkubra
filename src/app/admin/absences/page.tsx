@@ -186,25 +186,25 @@ export default function AbsenceManagement() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
+            <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiUsers className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Records</span>
+                  <span className="text-xs font-semibold text-gray-600">Records</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{absences.length}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiDollarSign className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Deductions</span>
+                  <span className="text-xs font-semibold text-gray-600">Deductions</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{totalDeductions} ETB</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiClock className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Rate</span>
+                  <span className="text-xs font-semibold text-gray-600">Rate</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{deductionAmount} ETB</div>
               </div>
@@ -215,7 +215,7 @@ export default function AbsenceManagement() {
                   ) : (
                     <FiXCircle className="h-5 w-5 text-gray-600" />
                   )}
-                  <span className="text-sm font-semibold text-gray-600">Status</span>
+                  <span className="text-xs font-semibold text-gray-600">Status</span>
                 </div>
                 <div className="text-2xl font-bold text-black">
                   {isCurrentMonthEffective ? "Active" : "Inactive"}

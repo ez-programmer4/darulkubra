@@ -42,6 +42,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 
+// Currency formatters
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 2,
+});
+
+const compactCurrencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
 interface Payment {
   id: number;
   studentid: number;
@@ -217,34 +231,40 @@ export default function PaymentManagementPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto w-full">
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiUsers className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Total</span>
+                  <span className="text-xs font-semibold text-gray-600">Total</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{payments.length}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiCheckCircle className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Approved</span>
+                  <span className="text-xs font-semibold text-gray-600">Approved</span>
                 </div>
-                <div className="text-2xl font-bold text-black">${statusAmounts[0].value}</div>
+                <div className="text-2xl font-bold text-black truncate" title={currencyFormatter.format(statusAmounts[0].value)}>
+                  {compactCurrencyFormatter.format(statusAmounts[0].value)}
+                </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiClock className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Pending</span>
+                  <span className="text-xs font-semibold text-gray-600">Pending</span>
                 </div>
-                <div className="text-2xl font-bold text-black">${statusAmounts[1].value}</div>
+                <div className="text-2xl font-bold text-black truncate" title={currencyFormatter.format(statusAmounts[1].value)}>
+                  {compactCurrencyFormatter.format(statusAmounts[1].value)}
+                </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiXCircle className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Rejected</span>
+                  <span className="text-xs font-semibold text-gray-600">Rejected</span>
                 </div>
-                <div className="text-2xl font-bold text-black">${statusAmounts[2].value}</div>
+                <div className="text-2xl font-bold text-black truncate" title={currencyFormatter.format(statusAmounts[2].value)}>
+                  {compactCurrencyFormatter.format(statusAmounts[2].value)}
+                </div>
               </div>
             </div>
           </div>
@@ -377,7 +397,6 @@ export default function PaymentManagementPage() {
                     cy="50%"
                     outerRadius={80}
                     fill="#000000"
-                    label
                   >
                     {statusAmounts.map((entry, index) => (
                       <Cell
@@ -386,7 +405,7 @@ export default function PaymentManagementPage() {
                       />
                     ))}
                   </Pie>
-                  <RechartsTooltip />
+                  <RechartsTooltip formatter={(value) => currencyFormatter.format(Number(value as number))} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -469,7 +488,7 @@ export default function PaymentManagementPage() {
                             {payment.studentname}
                           </td>
                           <td className="px-6 py-4 text-gray-700">
-                            ${payment.paidamount.toString()}
+                            {currencyFormatter.format(Number(payment.paidamount))}
                           </td>
                           <td className="px-6 py-4 text-gray-700">
                             {new Date(payment.paymentdate).toLocaleDateString()}
@@ -477,7 +496,7 @@ export default function PaymentManagementPage() {
                           <td className="px-6 py-4">
                             <StatusBadge status={payment.status} />
                           </td>
-                          <td className="px-6 py-4 text-gray-700 font-mono text-xs">
+                          <td className="px-6 py-4 text-gray-700 font-mono text-xs break-all whitespace-pre-wrap max-w-xs">
                             {payment.transactionid}
                           </td>
                           <td className="px-6 py-4 text-right">
@@ -568,7 +587,7 @@ export default function PaymentManagementPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-600 mb-1">Amount</label>
-                    <p className="text-lg font-bold text-black">${selectedPayment.paidamount.toString()}</p>
+                    <p className="text-lg font-bold text-black">{currencyFormatter.format(Number(selectedPayment.paidamount))}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-600 mb-1">Date</label>
@@ -580,7 +599,7 @@ export default function PaymentManagementPage() {
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-gray-600 mb-1">Transaction ID</label>
-                    <p className="text-lg font-mono text-gray-700 bg-gray-50 p-3 rounded-xl">{selectedPayment.transactionid}</p>
+                    <p className="text-lg font-mono text-gray-700 bg-gray-50 p-3 rounded-xl break-all whitespace-pre-wrap">{selectedPayment.transactionid}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-600 mb-1">Sender</label>

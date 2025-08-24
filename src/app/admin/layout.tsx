@@ -52,9 +52,9 @@ const SidebarContent = () => {
   const pathname = usePathname();
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center justify-center h-20 border-b border-blue-700 bg-blue-900 flex-shrink-0">
+      <div className="flex items-center justify-center h-20 border-b border-indigo-700 bg-indigo-900 flex-shrink-0">
         <Link href="/admin" className="flex items-center gap-3 text-white">
-          <Shield className="h-8 w-8 text-blue-400" />
+          <Shield className="h-8 w-8 text-indigo-300" />
           <span className="text-2xl font-semibold">Admin Panel</span>
         </Link>
       </div>
@@ -71,8 +71,8 @@ const SidebarContent = () => {
               className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors
                 ${
                   isActive
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-gray-300 hover:bg-blue-700 hover:text-white"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-gray-300 hover:bg-indigo-700 hover:text-white"
                 }`}
             >
               <item.icon className="h-5 w-5" />
@@ -81,10 +81,10 @@ const SidebarContent = () => {
           );
         })}
       </nav>
-      <div className="px-4 py-4 border-t border-blue-700 bg-blue-900 flex-shrink-0">
+      <div className="px-4 py-4 border-t border-indigo-700 bg-indigo-900 flex-shrink-0">
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="w-full flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-gray-300 hover:bg-blue-700 hover:text-white transition-colors"
+          className="w-full flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-gray-300 hover:bg-indigo-700 hover:text-white transition-colors"
         >
           <LogOut className="h-5 w-5" />
           <span>Logout</span>
@@ -110,10 +110,10 @@ export default function AdminLayout({
   const pageTitle = currentNavItem ? currentNavItem.label : "Dashboard";
 
   return (
-    <div className="flex min-h-screen bg-gray-100 text-gray-900">
+    <div className="flex min-h-screen bg-slate-50 text-gray-900">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 flex z-50 md:hidden"
+          className="fixed inset-0 flex z-50 lg:hidden"
           role="dialog"
           aria-modal="true"
         >
@@ -122,7 +122,7 @@ export default function AdminLayout({
             aria-hidden="true"
             onClick={() => setSidebarOpen(false)}
           ></div>
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-gray-900 text-white shadow-xl overflow-y-auto">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-indigo-900 text-white shadow-xl overflow-y-auto">
             <div className="absolute top-0 right-0 -mr-12 pt-3">
               <button
                 type="button"
@@ -139,9 +139,9 @@ export default function AdminLayout({
         </div>
       )}
 
-      {/* Static sidebar for desktop */}
-      <aside className="hidden md:flex md:flex-shrink-0 h-screen sticky top-0">
-        <div className="w-72 bg-gray-900 text-white h-screen sticky top-0 overflow-y-auto">
+      {/* Static sidebar for large screens */}
+      <aside className="hidden lg:flex lg:flex-shrink-0 h-screen sticky top-0">
+        <div className="w-72 bg-indigo-900 text-white h-screen sticky top-0 overflow-y-auto">
           <SidebarContent />
         </div>
       </aside>
@@ -152,7 +152,7 @@ export default function AdminLayout({
           userName={session?.user?.name || "Admin"}
           onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6 sm:p-8">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-6 sm:p-8">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>

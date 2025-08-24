@@ -1859,7 +1859,7 @@ export default function PaymentManagement({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-3xl p-2 sm:p-8 max-w-full sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl border border-gray-200 overflow-y-auto max-h-[90vh]"
+                className="bg-white rounded-3xl p-2 sm:p-8 max-w-full sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl border border-gray-200 overflow-y-auto overflow-x-hidden max-h-[90vh]"
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 gap-4 sm:gap-0">
                   <div className="flex items-center gap-4">
@@ -2012,13 +2012,13 @@ export default function PaymentManagement({
                     <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
                       <h4 className="text-sm font-medium text-gray-700 mb-4">Deposit Summary</h4>
                       <div className="space-y-4">
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center gap-2 min-w-0">
                           <span className="text-sm text-gray-600">Student Name</span>
-                          <span className="font-medium text-gray-900">{student?.name || "N/A"}</span>
+                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right">{student?.name || "N/A"}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center gap-2 min-w-0">
                           <span className="text-sm text-gray-600">Current Balance</span>
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">
                             $
                             {(
                               deposits.reduce((sum, deposit) => {
@@ -2040,9 +2040,9 @@ export default function PaymentManagement({
                             ).toFixed(2)}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center gap-2 min-w-0">
                           <span className="text-sm text-gray-600">New Balance</span>
-                          <span className="font-medium text-blue-600">
+                          <span className="font-medium text-blue-600 truncate max-w-[60%] text-right tabular-nums">
                             $
                             {(
                               deposits.reduce((sum, deposit) => {
@@ -2058,9 +2058,9 @@ export default function PaymentManagement({
                             ).toFixed(2)}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center gap-2 min-w-0">
                           <span className="text-sm text-gray-600">Total Deposits</span>
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">
                             $
                             {(
                               deposits.reduce((sum, deposit) => {
@@ -2149,7 +2149,7 @@ export default function PaymentManagement({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-3xl p-2 sm:p-8 max-w-full sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl border border-gray-200 overflow-y-auto max-h-[90vh]"
+                className="bg-white rounded-3xl p-2 sm:p-8 max-w-full sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl border border-gray-200 overflow-y-auto overflow-x-hidden max-h-[90vh]"
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 gap-4 sm:gap-0">
                   <div className="flex items-center gap-4">
@@ -2179,7 +2179,7 @@ export default function PaymentManagement({
                 </div>
 
                 {monthlyError && (
-                  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm whitespace-pre-line">{monthlyError}</div>
+                  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm whitespace-pre-line break-words">{monthlyError}</div>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
@@ -2316,9 +2316,9 @@ export default function PaymentManagement({
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Total Calculated Amount</label>
                       <div className="relative overflow-hidden rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-white">
-                        <div className="flex items-center justify-between px-4 py-3">
+                        <div className="flex items-center justify-between px-4 py-3 min-w-0">
                           <div className="text-sm text-gray-600">Total to pay</div>
-                          <div className="text-lg font-semibold text-gray-900">${newMonthlyPayment.calculatedAmount?.toFixed(2) || "0.00"}</div>
+                          <div className="text-lg font-semibold text-gray-900 ml-3 truncate max-w-[55%] text-right tabular-nums">${newMonthlyPayment.calculatedAmount?.toFixed(2) || "0.00"}</div>
                         </div>
                         <div className="px-4 pb-3 text-xs text-gray-500 flex items-center gap-2">
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200">Months: {newMonthlyPayment.months?.length || 0}</span>
@@ -2345,17 +2345,17 @@ export default function PaymentManagement({
                     <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
                       <h4 className="text-sm font-medium text-gray-700 mb-4">Payment Summary</h4>
                       <div className="space-y-4">
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center gap-2 min-w-0">
                           <span className="text-sm text-gray-600">Student Name</span>
-                          <span className="font-medium text-gray-900">{student?.name || "N/A"}</span>
+                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right">{student?.name || "N/A"}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center gap-2 min-w-0">
                           <span className="text-sm text-gray-600">Monthly Fee</span>
-                          <span className="font-medium text-gray-900">${student?.classfee ? student.classfee.toFixed(2) : "0.00"}</span>
+                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">${student?.classfee ? student.classfee.toFixed(2) : "0.00"}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center gap-2 min-w-0">
                           <span className="text-sm text-gray-600">Current Balance</span>
-                          <span className="font-medium text-gray-900">$
+                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">$
                             {(
                               deposits.reduce((sum, deposit) => {
                                 if ((deposit as any).status === "approved") {
@@ -2373,9 +2373,9 @@ export default function PaymentManagement({
                             ).toFixed(2)}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center gap-2 min-w-0">
                           <span className="text-sm text-gray-600">Balance After Payment</span>
-                          <span className="font-medium text-green-600">${(
+                          <span className="font-medium text-green-600 truncate max-w-[60%] text-right tabular-nums">${(
                             deposits.reduce((sum, deposit) => {
                               if ((deposit as any).status === "approved") {
                                 const amount = typeof (deposit as any).paidamount === "number" ? (deposit as any).paidamount : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");

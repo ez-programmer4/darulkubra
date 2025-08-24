@@ -413,25 +413,25 @@ export default function AdminDashboardPage() {
     {
       label: "Active Users",
       value: totalUsers,
-      icon: <FiUsers className="text-indigo-500 w-6 h-6" />,
+      icon: <FiUsers className="text-color-500 w-6 h-6" />,
       color: "from-indigo-500 to-indigo-600",
     },
     {
       label: "Pending Permissions",
       value: pendingPermissions,
-      icon: <FiClipboard className="text-indigo-500 w-6 h-6" />,
+      icon: <FiClipboard className="text-white-500 w-6 h-6" />,
       color: "from-indigo-500 to-purple-600",
     },
     {
       label: "Pending Payments",
       value: `${stats.pendingPaymentCount}`,
-      icon: <FiDollarSign className="text-teal-500 w-6 h-6" />,
+      icon: <FiDollarSign className="text-white-500 w-6 h-6" />,
       color: "from-teal-500 to-emerald-600",
     },
     {
       label: "Students",
       value: stats.students,
-      icon: <FiBookOpen className="text-indigo-500 w-6 h-6" />,
+      icon: <FiBookOpen className="text-white-500 w-6 h-6" />,
       color: "from-indigo-500 to-blue-600",
     },
   ];
@@ -449,17 +449,30 @@ export default function AdminDashboardPage() {
     Registrations: count,
   }));
   const PIE_COLORS = ["#4F46E5", "#10B981", "#F59E0B", "#EF4444"];
+  // Chart datasets and totals
+  const paymentBreakdown = analytics.paymentStatusBreakdown || [];
+  const paymentTotal = paymentBreakdown.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+
+  const qualityData = (() => {
+    const totalTeachers = stats.teachers;
+    const badCount = badQualityTeachers.length;
+    const goodCount = Math.floor(totalTeachers * 0.7);
+    const excellentCount = totalTeachers - badCount - goodCount;
+    return [
+      { name: "Good", value: goodCount },
+      { name: "Bad", value: badCount },
+      { name: "Excellent", value: excellentCount > 0 ? excellentCount : 0 },
+    ];
+  })();
+  const qualityTotal = qualityData.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-teal-400/20 to-blue-600/20 rounded-full blur-3xl"></div>
-      </div>
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Background Elements hidden for neutral theme */}
+      <div className="hidden absolute inset-0 overflow-hidden pointer-events-none"></div>
 
-      {/* Enhanced Navigation Bar */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-2xl border-b border-gray-200/50 shadow-2xl">
+      {/* Page-level nav hidden (layout header is used) */}
+      <nav className="hidden sticky top-0 z-50 bg-white/90 backdrop-blur-2xl border-b border-gray-200/50 shadow-2xl">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16 md:h-18">
             <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
@@ -500,9 +513,9 @@ export default function AdminDashboardPage() {
 
       <main className="relative z-10 w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 space-y-4 sm:space-y-6 md:space-y-8">
         {/* Enhanced Hero Overview */}
-        <section className="bg-white/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/30 px-4 sm:px-6 md:px-8 lg:px-10 py-6 sm:py-8 md:py-10 animate-slide-in relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/60 via-purple-50/40 to-indigo-50/60 rounded-2xl sm:rounded-3xl"></div>
-          <div className="absolute top-0 right-0 w-32 h-32 sm:w-48 sm:h-48 bg-gradient-to-bl from-blue-400/20 to-transparent rounded-full blur-2xl"></div>
+        <section className="bg-white rounded-2xl sm:rounded-3xl shadow border border-gray-200 px-4 sm:px-6 md:px-8 lg:px-10 py-6 sm:py-8 md:py-10 animate-slide-in relative overflow-hidden">
+          <div className="absolute inset-0 rounded-2xl sm:rounded-3xl hidden"></div>
+          <div className="absolute top-0 right-0 w-32 h-32 sm:w-48 sm:h-48 rounded-full blur-2xl hidden"></div>
           <div className="relative z-10">
             <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 sm:gap-8 md:gap-10">
               <div className="flex-1">
@@ -520,17 +533,17 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-900 via-purple-900 to-indigo-900 bg-clip-text text-transparent mb-4 sm:mb-6 flex items-center gap-4">
-                  <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-lg">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 sm:mb-6 flex items-center gap-4">
+                  <div className="p-3 bg-black rounded-2xl shadow-lg">
                     <FiUsers className="text-white h-8 sm:h-10 w-8 sm:w-10" />
                   </div>
                   Welcome Back, Admin
                 </h1>
 
-                <p className="text-gray-700 text-base sm:text-lg md:text-xl mb-8 sm:mb-10 max-w-3xl leading-relaxed">
+                <p className="text-gray-800 text-base sm:text-lg md:text-xl mb-8 sm:mb-10 max-w-3xl leading-relaxed">
                   Monitor your system's health, user activity, and key metrics
                   in real time with our comprehensive dashboard.
-                  <span className="text-blue-600 font-semibold">
+                  <span className="text-black font-semibold">
                     Everything is running smoothly.
                   </span>
                 </p>
@@ -544,20 +557,20 @@ export default function AdminDashboardPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: idx * 0.1 }}
                       whileHover={{ scale: 1.02, y: -2 }}
-                      className="group relative bg-white/90 backdrop-blur-xl p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl shadow-lg hover:shadow-2xl border border-white/40 transition-all duration-500 overflow-hidden hover:scale-105 hover:-translate-y-1 cursor-pointer"
+                      className="group relative bg-white p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl shadow border border-gray-200 transition-all duration-300 overflow-hidden hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${stat.color}"></div>
+                      <div className={`absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${stat.color}`}></div>
                       <div className="relative z-10">
                         <div className="flex items-center justify-center mb-4">
-                          <div className="p-3 bg-gradient-to-r ${stat.color} rounded-xl text-white shadow-lg">
+                          <div className={`p-3 bg-gradient-to-r ${stat.color} rounded-xl text-white shadow-lg`}>
                             {stat.icon}
                           </div>
                         </div>
                         <div className="text-center">
-                          <div className="text-2xl sm:text-3xl font-extrabold text-indigo-900 mb-2">
+                          <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">
                             {stat.value}
                           </div>
-                          <div className="text-indigo-700 text-sm font-semibold">
+                          <div className="text-gray-700 text-sm font-semibold">
                             {stat.label}
                           </div>
                         </div>
@@ -571,25 +584,25 @@ export default function AdminDashboardPage() {
               <div className="flex flex-col gap-3 sm:gap-4 items-stretch xl:items-end w-full xl:w-auto">
                 {/* Quick Stats Mini Cards */}
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
-                  <div className="bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 p-3 sm:p-4 rounded-xl text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                  <div className="bg-white border border-gray-200 p-3 sm:p-4 rounded-xl text-gray-900 shadow hover:shadow-md transition-all duration-200">
                     <div className="flex items-center gap-1 sm:gap-2">
-                      <FiTrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
-                      <span className="text-xs sm:text-sm font-semibold">
+                      <FiTrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-black" />
+                      <span className="text-xs sm:text-sm font-semibold text-gray-800">
                         Revenue
                       </span>
                     </div>
-                    <div className="text-lg sm:text-xl font-bold mt-1">
+                    <div className="text-lg sm:text-xl font-bold mt-1 text-gray-900">
                       ${(stats?.totalRevenue?.approved || 0).toLocaleString()}
                     </div>
                   </div>
-                  <div className="bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 p-3 sm:p-4 rounded-xl text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                  <div className="bg-white border border-gray-200 p-3 sm:p-4 rounded-xl text-gray-900 shadow hover:shadow-md transition-all duration-200">
                     <div className="flex items-center gap-1 sm:gap-2">
-                      <FiClock className="h-4 w-4 sm:h-5 sm:w-5" />
-                      <span className="text-xs sm:text-sm font-semibold">
+                      <FiClock className="h-4 w-4 sm:h-5 sm:w-5 text-black" />
+                      <span className="text-xs sm:text-sm font-semibold text-gray-800">
                         Today
                       </span>
                     </div>
-                    <div className="text-lg sm:text-xl font-bold mt-1">
+                    <div className="text-lg sm:text-xl font-bold mt-1 text-gray-900">
                       {attendanceToday.present + attendanceToday.absent}
                     </div>
                   </div>
@@ -640,7 +653,7 @@ export default function AdminDashboardPage() {
                       shortText: "Add User",
                       icon: <FiUserPlus className="w-4 h-4 sm:w-5 sm:h-5" />,
                       action: () => {},
-                      color: "from-blue-600 via-blue-700 to-indigo-600",
+                      color: "",
                       badge: null,
                     },
                     {
@@ -648,7 +661,7 @@ export default function AdminDashboardPage() {
                       shortText: "Permissions",
                       icon: <FiClipboard className="w-4 h-4 sm:w-5 sm:h-5" />,
                       action: () => {},
-                      color: "from-orange-500 via-red-500 to-red-600",
+                      color: "",
                       badge: pendingPermissions > 0 ? pendingPermissions : null,
                     },
                     {
@@ -656,13 +669,13 @@ export default function AdminDashboardPage() {
                       shortText: "Payments",
                       icon: <FiDollarSign className="w-4 h-4 sm:w-5 sm:h-5" />,
                       action: () => {},
-                      color: "from-emerald-500 via-teal-500 to-teal-600",
+                      color: "",
                       badge: stats?.pendingPaymentCount || null,
                     },
                   ].map((btn, idx) => (
                     <Button
                       key={idx}
-                      className={`relative w-full xl:w-72 bg-gradient-to-r ${btn.color} text-white hover:shadow-2xl flex items-center justify-center gap-2 sm:gap-3 rounded-xl shadow-lg hover:scale-105 transition-all duration-300 text-xs sm:text-sm md:text-base font-semibold py-2.5 sm:py-3 hover:brightness-110`}
+                      className={`relative w-full xl:w-72 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 flex items-center justify-center gap-2 sm:gap-3 rounded-xl shadow-sm hover:shadow transition-all duration-200 text-xs sm:text-sm md:text-base font-semibold py-2.5 sm:py-3`}
                       onClick={btn.action}
                       aria-label={btn.text}
                     >
@@ -672,7 +685,7 @@ export default function AdminDashboardPage() {
                       </span>
                       <span className="sm:hidden">{btn.shortText}</span>
                       {btn.badge && (
-                        <span className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white text-red-600 text-xs font-bold rounded-full h-5 w-5 sm:h-6 sm:w-6 flex items-center justify-center shadow-lg animate-bounce">
+                        <span className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-black text-white text-xs font-bold rounded-full h-5 w-5 sm:h-6 sm:w-6 flex items-center justify-center shadow-lg">
                           {btn.badge}
                         </span>
                       )}
@@ -897,7 +910,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Payment Status */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-6 sm:p-8 animate-slide-in">
+          <div className="bg-white rounded-2xl shadow border border-gray-200 p-6 sm:p-8 animate-slide-in relative">
             <div className="flex items-center gap-2 mb-4">
               <FiDollarSign className="text-teal-500 h-6 w-6" />
               <h3 className="text-xl sm:text-2xl font-semibold text-indigo-900">
@@ -907,38 +920,46 @@ export default function AdminDashboardPage() {
                 Last updated: {format(new Date(), "PPpp")}
               </span>
             </div>
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie
-                  data={analytics.paymentStatusBreakdown}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  fill="#4F46E5"
-                  label
-                >
-                  {PIE_COLORS.map((color, index) => (
-                    <Cell key={`cell-${index}`} fill={color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#FFF",
-                    borderColor: "#E0E7FF",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="relative">
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie
+                    data={paymentBreakdown}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    fill="#4F46E5"
+                    label={(props: any) => `${props.name}: ${Math.round((props.percent || 0) * 100)}%`}
+                  >
+                    {PIE_COLORS.map((color, index) => (
+                      <Cell key={`cell-${index}`} fill={color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#FFF",
+                      borderColor: "#E5E7EB",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-2xl font-extrabold text-gray-900">{paymentTotal}</div>
+                  <div className="text-xs text-gray-500">Total payments</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Quality Breakdown */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-6 sm:p-8 animate-slide-in">
+          <div className="bg-white rounded-2xl shadow border border-gray-200 p-6 sm:p-8 animate-slide-in relative">
             <div className="flex items-center gap-2 mb-4">
               <FiPieChart className="text-indigo-500 h-6 w-6" />
               <h3 className="text-xl sm:text-2xl font-semibold text-indigo-900">
@@ -948,49 +969,46 @@ export default function AdminDashboardPage() {
                 Last updated: {format(new Date(), "PPpp")}
               </span>
             </div>
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie
-                  data={(() => {
-                    // Get all teachers count for realistic data
-                    const totalTeachers = stats.teachers;
-                    const badCount = badQualityTeachers.length;
-                    const goodCount = Math.floor(totalTeachers * 0.7);
-                    const excellentCount = totalTeachers - badCount - goodCount;
-
-                    return [
-                      { name: "Good", value: goodCount },
-                      { name: "Bad", value: badCount },
-                      {
-                        name: "Excellent",
-                        value: excellentCount > 0 ? excellentCount : 0,
-                      },
-                    ];
-                  })()}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={90}
-                  innerRadius={40}
-                  fill="#4F46E5"
-                  label
-                >
-                  {PIE_COLORS.map((color, index) => (
-                    <Cell key={`cell-${index}`} fill={color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#FFF",
-                    borderColor: "#E0E7FF",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="relative">
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie
+                    data={qualityData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={90}
+                    innerRadius={40}
+                    fill="#4F46E5"
+                    label={(props: any) => `${props.name}: ${Math.round((props.percent || 0) * 100)}%`}
+                  >
+                    {[
+                      "#10B981", // Good
+                      "#EF4444", // Bad
+                      "#4F46E5", // Excellent
+                    ].map((color, index) => (
+                      <Cell key={`q-cell-${index}`} fill={color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#FFF",
+                      borderColor: "#E5E7EB",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-2xl font-extrabold text-gray-900">{qualityTotal}</div>
+                  <div className="text-xs text-gray-500">Total teachers</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Top Teachers */}

@@ -91,24 +91,24 @@ export default function Header({
   };
 
   return (
-    <header className="flex-shrink-0 bg-white border-b">
-      <div className="flex items-center justify-between p-4">
+    <header className="flex-shrink-0 bg-white/90 backdrop-blur border-b border-indigo-100 sticky top-0 z-30">
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6">
         <div className="flex items-center">
           <button
             onClick={onMenuClick}
-            className="md:hidden mr-4 text-gray-600"
+            className="lg:hidden mr-4 text-indigo-700 hover:text-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
           >
             <FiMenu size={24} />
           </button>
-          <h1 className="text-xl font-semibold text-gray-800">{pageTitle}</h1>
+          <h1 className="text-lg sm:text-xl font-semibold text-indigo-900">{pageTitle}</h1>
         </div>
         <div className="flex items-center gap-6">
-          <span className="text-sm font-medium text-gray-600">
+          <span className="text-sm font-medium text-gray-700">
             Welcome, {session?.user?.name || userName}
           </span>
           <div className="relative" ref={notifRef}>
             <button
-              className="relative text-gray-600 hover:text-blue-700 focus:outline-none"
+              className="relative text-indigo-700 hover:text-indigo-900 focus:outline-none"
               onClick={() => setNotifOpen((o) => !o)}
               aria-label="Notifications"
             >
@@ -120,22 +120,22 @@ export default function Header({
               )}
             </button>
             {notifOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
-                <div className="flex items-center justify-between px-4 py-2 border-b">
-                  <span className="font-semibold text-blue-900">
+              <div className="absolute right-0 mt-2 w-80 bg-white border border-indigo-100 rounded-xl shadow-lg z-50">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-indigo-100">
+                  <span className="font-semibold text-indigo-900">
                     Notifications
                   </span>
                   <button
-                    className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+                    className="text-xs text-indigo-700 hover:text-indigo-900 hover:underline disabled:opacity-50"
                     onClick={markAllAsRead}
                     disabled={unreadCount === 0}
                   >
                     Mark all as read
                   </button>
                 </div>
-                <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                <div className="max-h-80 overflow-y-auto divide-y divide-indigo-50">
                   {notifLoading ? (
-                    <div className="p-4 text-center text-blue-600">
+                    <div className="p-4 text-center text-indigo-700">
                       Loading...
                     </div>
                   ) : notifications.length === 0 ? (
@@ -146,14 +146,14 @@ export default function Header({
                     notifications.map((n) => (
                       <button
                         key={n.id}
-                        className={`w-full text-left px-4 py-3 hover:bg-blue-50 transition flex flex-col gap-1 ${
-                          n.read ? "" : "bg-blue-50"
+                        className={`w-full text-left px-4 py-3 hover:bg-indigo-50 transition flex flex-col gap-1 ${
+                          n.read ? "" : "bg-indigo-50"
                         }`}
                         onClick={() => markAsRead(n.id)}
                       >
                         <span
                           className={`font-medium ${
-                            n.read ? "text-gray-700" : "text-blue-900"
+                            n.read ? "text-gray-700" : "text-indigo-900"
                           }`}
                         >
                           {n.title || n.message || "Notification"}

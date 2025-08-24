@@ -25,6 +25,19 @@ import { toast } from "@/components/ui/use-toast";
 import Tooltip from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
 
+// Currency formatters for ETB display
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "ETB",
+  maximumFractionDigits: 2,
+});
+const compactCurrencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "ETB",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
 export type TeacherPayment = {
   id: string;
   name: string;
@@ -421,34 +434,36 @@ export default function TeacherPaymentsPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto w-full">
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiUsers className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Teachers</span>
+                  <span className="text-xs font-semibold text-gray-600">Teachers</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{monthSummary.totalTeachers}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiCheckCircle className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Paid</span>
+                  <span className="text-xs font-semibold text-gray-600">Paid</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{monthSummary.totalPaid}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiXCircle className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Unpaid</span>
+                  <span className="text-xs font-semibold text-gray-600">Unpaid</span>
                 </div>
                 <div className="text-2xl font-bold text-black">{monthSummary.totalUnpaid}</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiDollarSign className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">Total</span>
+                  <span className="text-xs font-semibold text-gray-600">Total</span>
                 </div>
-                <div className="text-2xl font-bold text-black">{monthSummary.totalSalary.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-black truncate" title={currencyFormatter.format(monthSummary.totalSalary)}>
+                  {compactCurrencyFormatter.format(monthSummary.totalSalary)}
+                </div>
               </div>
             </div>
           </div>
@@ -550,19 +565,19 @@ export default function TeacherPaymentsPage() {
                 <p className="text-gray-600">Configure the base salary calculation</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col md:flex-row flex-wrap md:flex-nowrap items-stretch md:items-center gap-3 w-full">
               <input
                 type="number"
                 min={1}
                 value={baseSalaryInput}
                 onChange={(e) => setBaseSalaryInput(e.target.value)}
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                className="w-full md:flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                 disabled={baseSalaryLoading}
               />
-              <span className="text-black font-semibold">ETB</span>
+              <span className="text-black font-semibold md:w-auto">ETB</span>
               <button
                 onClick={handleUpdateBaseSalary}
-                className={`bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 ${
+                className={`w-full md:w-auto bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 ${
                   baseSalaryLoading ? "opacity-75" : ""
                 }`}
                 disabled={baseSalaryLoading}
@@ -586,8 +601,8 @@ export default function TeacherPaymentsPage() {
                 <p className="text-gray-600">Control teacher access to salary information</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer flex-1">
+            <div className="flex flex-col md:flex-row flex-wrap md:flex-nowrap items-stretch md:items-center gap-3 w-full">
+              <label className="flex items-center gap-2 cursor-pointer w-full md:flex-1">
                 <input
                   type="checkbox"
                   checked={teacherSalaryVisible}
@@ -618,7 +633,7 @@ export default function TeacherPaymentsPage() {
                     setSalaryVisibilityLoading(false);
                   }
                 }}
-                className={`bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 ${
+                className={`w-full md:w-auto bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 ${
                   salaryVisibilityLoading ? "opacity-75" : ""
                 }`}
                 disabled={salaryVisibilityLoading}
