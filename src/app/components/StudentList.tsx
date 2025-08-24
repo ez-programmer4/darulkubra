@@ -122,7 +122,7 @@ export default function StudentList({
             }
             try {
               // Fetch actual payment data from API
-              const response = await fetch(`/api/students/${studentId}/payments`);
+              const response = await fetch(`/api/payments/monthly?studentId=${studentId}`);
               let paymentHistory: MonthlyPayment[] = [];
 
               if (response.ok) {
