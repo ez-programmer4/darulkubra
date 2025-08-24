@@ -1021,6 +1021,13 @@ export default function AttendanceList() {
                   </>
                 )}
                 <button
+                  onClick={fetchAllDataForEmergencyAsync}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-lg transition-all duration-300"
+                  title="Scan all records for emergency detection"
+                >
+                  Scan All Students
+                </button>
+                <button
                   onClick={() => setShowLatenessPanel(false)}
                   className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium shadow-lg transition-all duration-300"
                 >
@@ -1081,6 +1088,29 @@ export default function AttendanceList() {
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
                     <label className="ml-2 text-gray-700">Enable</label>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-gray-700 font-medium">⏱️ Max Window (min)</label>
+                  <input
+                    type="number"
+                    value={latenessSettings.maxTimeWindow}
+                    onChange={(e) => setLatenessSettings(prev => ({ ...prev, maxTimeWindow: parseInt(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-blue-50"
+                    min="5"
+                    max="60"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-gray-700 font-medium">👁️ Show Expired</label>
+                  <div className="flex items-center h-10">
+                    <input
+                      type="checkbox"
+                      checked={latenessSettings.showExpired}
+                      onChange={(e) => setLatenessSettings(prev => ({ ...prev, showExpired: e.target.checked }))}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label className="ml-2 text-gray-700">Include past window</label>
                   </div>
                 </div>
               </div>

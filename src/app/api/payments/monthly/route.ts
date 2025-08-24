@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
       ? normalizedLegacyPaidThrough
       : earliestRecordedMonth ?? null;
 
-    // Check for any unpaid months before the current month
+    // Enhanced validation logic for unpaid months
     const currentMonthDate = new Date(
       parseInt(year),
       parseInt(monthNum) - 1,
@@ -260,7 +260,56 @@ export async function POST(request: NextRequest) {
     );
     const studentStartDate = new Date(student.startdate);
 
-    // Get all months up to the current month
+    // Helper function to calculate expected amount for a month
+    const calculateExpectedAmount = (monthStr: string): number => {
+      const [checkYear, checkMonth] = monthStr.split("-").map(Number);
+      const monthStart = new Date(checkYear, checkMonth - 1, 1);
+      const monthEnd = new Date(checkYear, checkMonth, 0);
+      
+      // If month is before student start date, return 0
+      if (monthStart < new Date(studentStartDate.getFullYear(), studentStartDate.getMonth(), 1)) {
+        return 0;
+      }
+      
+      const daysInMonth = monthEnd.getDate();
+      let daysInClass = daysInMonth;
+      
+      // Handle prorated first month
+      if (checkYear === studentStartDate.getFullYear() && 
+          checkMonth - 1 === studentStartDate.getMonth()) {
+        const startDate = new Date(studentStartDate);
+        startDate.setHours(0, 0, 0, 0);
+        monthEnd.setHours(23, 59, 59, 999);
+        daysInClass = Math.min(
+          differenceInDays(monthEnd, startDate) + 1,
+          daysInMonth
+        );
+      }
+      
+      return Number(((Number(student.classfee) * daysInClass) / daysInMonth).toFixed(2));
+    };
+
+    // Helper function to check if a month is fully covered
+    const isMonthFullyCovered = (monthStr: string, payments: any[]): boolean => {
+      const monthPayments = payments.filter(p => p.month === monthStr);
+      
+      // Check for full prize (free month)
+      const hasFullPrize = monthPayments.some(p => p.payment_type === "free");
+      if (hasFullPrize) return true;
+      
+      // Check if partial prize + remaining payment covers the month
+      const hasPartialPrize = monthPayments.some(p => p.payment_type === "prizepartial");
+      const hasRemainingPayment = monthPayments.some(p => p.payment_type === "partial" || p.payment_type === "full");
+      if (hasPartialPrize && hasRemainingPayment) return true;
+      
+      // Check if total payments meet expected amount
+      const totalPaid = monthPayments.reduce((sum, p) => sum + Number(p.paid_amount), 0);
+      const expectedAmount = calculateExpectedAmount(monthStr);
+      
+      return totalPaid >= expectedAmount - 0.01; // Small tolerance for floating point
+    };
+
+    // Get all months that need to be checked
     const monthsToCheck = [] as string[];
     let checkDate = baselineStartMonth
       ? new Date(
@@ -268,74 +317,53 @@ export async function POST(request: NextRequest) {
           parseInt(baselineStartMonth.split("-")[1]) - 1,
           1
         )
-      : new Date(studentStartDate);
+      : new Date(studentStartDate.getFullYear(), studentStartDate.getMonth(), 1);
+    
     while (checkDate < currentMonthDate) {
-      monthsToCheck.push(
-        `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(
-          2,
-          "0"
-        )}`
-      );
+      const monthStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}`;
+      monthsToCheck.push(monthStr);
       checkDate.setMonth(checkDate.getMonth() + 1);
     }
 
-    // Check each month in sequence
+    // Enhanced validation with better error messages
     if (!(canOverrideChecks && ignoreHistoricalUnpaid === true)) {
+      const unpaidMonths = [];
+      
       for (const monthToCheck of monthsToCheck) {
-        const monthPayments = allPayments.filter(
-          (p) => p.month === monthToCheck
-        );
-        const totalPaid = monthPayments.reduce(
-          (sum, p) => sum + Number(p.paid_amount),
-          0
-        );
-        const hasFullPrize = monthPayments.some(
-          (p) => p.payment_type === "free"
-        );
-        const hasPartialPrize = monthPayments.some(
-          (p) => p.payment_type === "prizepartial"
-        );
-        const hasRemainingPayment = monthPayments.some(
-          (p) => p.payment_type === "partial"
-        );
-
-        // Skip if month is covered by a full prize
-        if (hasFullPrize) continue;
-
-        // Skip if month has both partial prize and remaining payment
-        if (hasPartialPrize && hasRemainingPayment) continue;
-
-        // Calculate expected amount for this month
-        const [checkYear, checkMonth] = monthToCheck.split("-").map(Number);
-        const monthStart = new Date(checkYear, checkMonth - 1, 1);
-        const monthEnd = new Date(checkYear, checkMonth, 0);
-
-        // Calculate prorated amount for this month
-        const daysInMonth = monthEnd.getDate();
-        const daysInClass = Math.min(
-          differenceInDays(monthEnd, monthStart) + 1,
-          differenceInDays(monthEnd, studentStartDate) + 1
-        );
-        const expectedAmount =
-          (Number(student.classfee) * daysInClass) / daysInMonth;
-
-        // If this is a prize payment or partial payment, skip the unpaid check
-        if (
-          payment_type === "prizepartial" ||
-          payment_type === "free" ||
-          payment_type === "partial"
-        )
+        const expectedAmount = calculateExpectedAmount(monthToCheck);
+        
+        // Skip months with no expected payment
+        if (expectedAmount === 0) continue;
+        
+        // Allow prize and partial payments to bypass sequential checks
+        if (["prizepartial", "free", "partial"].includes(payment_type) && 
+            monthToCheck === normalizedMonth) {
           continue;
-
-        // Check if the month is fully paid
-        if (totalPaid < expectedAmount) {
-          return NextResponse.json(
-            {
-              error: `Month ${monthToCheck} is not fully paid. Please complete previous months first.`,
-            },
-            { status: 400 }
-          );
         }
+        
+        if (!isMonthFullyCovered(monthToCheck, allPayments)) {
+          unpaidMonths.push({
+            month: monthToCheck,
+            expected: expectedAmount,
+            paid: allPayments
+              .filter(p => p.month === monthToCheck)
+              .reduce((sum, p) => sum + Number(p.paid_amount), 0)
+          });
+        }
+      }
+      
+      if (unpaidMonths.length > 0 && !["prizepartial", "free"].includes(payment_type)) {
+        const firstUnpaid = unpaidMonths[0];
+        return NextResponse.json(
+          {
+            error: `Previous month ${firstUnpaid.month} is not fully paid (${firstUnpaid.paid.toFixed(2)}/${firstUnpaid.expected.toFixed(2)}). Please complete previous months first or add a prize/partial payment.`,
+            unpaidMonths: unpaidMonths.map(m => ({
+              month: m.month,
+              shortfall: (m.expected - m.paid).toFixed(2)
+            }))
+          },
+          { status: 400 }
+        );
       }
     }
 

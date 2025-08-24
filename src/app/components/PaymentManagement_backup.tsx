@@ -55,22 +55,6 @@ interface Payment {
   month?: string;
   payment_type?: "full" | "partial" | "free";
   payment_status?: "pending" | "Paid" | "rejected";
-  paymentmethod?: string;
-}
-
-// Local form state types
-interface DepositForm {
-  amount: string;
-  paymentMethod: "cash" | "card" | "check" | "bank_transfer";
-  notes: string;
-  transactionId: string;
-  reason: string;
-  senderName: string;
-}
-
-interface DepositErrors {
-  amount?: string;
-  transactionId?: string;
 }
 
 interface MonthlyPayment {
@@ -178,46 +162,46 @@ export default function PaymentManagement({
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [student, setStudent] = useState<Student | null>(null);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [monthlyPayments, setMonthlyPayments] = useState<MonthlyPayment[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deposits, setDeposits] = useState<any[]>([]);
+  const [monthlyPayments, setMonthlyPayments] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"deposits" | "monthly">(
+    "deposits"
+  );
   const [showDepositModal, setShowDepositModal] = useState(false);
-  const [showPrizeModal, setShowPrizeModal] = useState(false);
   const [showMonthlyModal, setShowMonthlyModal] = useState(false);
-  const [depositError, setDepositError] = useState<string | null>(null);
-  const [prizeError, setPrizeError] = useState<string | null>(null);
-  const [monthlyError, setMonthlyError] = useState<string | null>(null);
-  const [selectedDeposit, setSelectedDeposit] = useState<Payment | null>(null);
-  const [showDepositDetails, setShowDepositDetails] = useState(false);
-  const [depositErrors, setDepositErrors] = useState<DepositErrors>({});
-
-  const [newDeposit, setNewDeposit] = useState<DepositForm>({
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newDeposit, setNewDeposit] = useState({
     amount: "",
-    paymentMethod: "cash",
-    notes: "",
-    transactionId: "",
     reason: "",
+    transactionId: "",
     senderName: "",
   });
-
+  const [depositErrors, setDepositErrors] = useState<{
+    [key: string]: string | undefined;
+  }>({});
+  const [newMonthlyPayment, setNewMonthlyPayment] =
+    useState<MonthlyPaymentForm>({
+      months: [format(new Date(), "yyyy-MM")],
+      amount: 0,
+      calculatedAmount: 0,
+      paymentType: "full" as "full" | "partial",
+    });
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  const [monthlyError, setMonthlyError] = useState<string | null>(null);
+  const [selectedDeposit, setSelectedDeposit] = useState<
+    Payment | MonthlyPayment | null
+  >(null);
+  const [showPrizeModal, setShowPrizeModal] = useState(false);
   const [newPrize, setNewPrize] = useState({
     month: "",
     percentage: 0,
     reason: "",
   });
-
-  const [newMonthlyPayment, setNewMonthlyPayment] = useState({
-    months: [] as string[],
-    paymentType: "full" as "full" | "partial",
-    amount: "",
-    calculatedAmount: 0,
-  });
-
-  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
-  const [deposits, setDeposits] = useState<Payment[]>([]);
-  const [activeTab, setActiveTab] = useState<'deposits' | 'monthly' | 'history'>('deposits');
+  const [prizeErrors, setPrizeErrors] = useState<{
+    [key: string]: string | undefined;
+  }>({});
 
   // Single source of truth for data fetching
   useEffect(() => {
@@ -477,7 +461,7 @@ export default function PaymentManagement({
       );
       setNewMonthlyPayment({
         months: [currentMonth],
-        amount: student.classfee.toString(),
+        amount: 0,
         calculatedAmount,
         paymentType: calculatedAmount === student.classfee ? "full" : "partial",
       });
@@ -532,19 +516,19 @@ export default function PaymentManagement({
 
       const updatedDeposits = await updatedDepositsResponse.json();
       setDeposits(updatedDeposits);
-      toast.success("Deposit submitted successfully");
-      setShowDepositModal(false);
+
+      // Reset form and close modal
       setNewDeposit({
         amount: "",
-        paymentMethod: "cash",
-        notes: "",
-        transactionId: "",
         reason: "",
+        transactionId: "",
         senderName: "",
       });
+      setShowDepositModal(false);
       setDepositErrors({});
 
-      fetchPayments();
+      // Show success message
+      toast.success("Deposit added successfully!");
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Failed to submit deposit"
@@ -666,7 +650,7 @@ export default function PaymentManagement({
         setShowMonthlyModal(false);
         setNewMonthlyPayment({
           months: [format(new Date(), "yyyy-MM")],
-          amount: "",
+          amount: 0,
           calculatedAmount: 0,
           paymentType: "full",
         });
@@ -707,7 +691,7 @@ export default function PaymentManagement({
       percentage: 0,
       reason: "",
     });
-    setPrizeError(null);
+    setPrizeErrors({});
   };
 
   const calculatePrizeAmount = (percentage: number) => {
@@ -905,7 +889,9 @@ export default function PaymentManagement({
       if (
         payment.payment_status === "Paid" &&
         payment.payment_type !== "free" &&
-        (payment.payment_type === "full" || payment.payment_type === "partial")
+        (payment.payment_type === "full" ||
+          (payment.payment_type === "partial" &&
+            !payment.reason?.includes("prize")))
       ) {
         const amount =
           typeof payment.paid_amount === "number"
@@ -951,6 +937,16 @@ export default function PaymentManagement({
     return undefined;
   };
 
+  const getPaymentMonth = (
+    payment: Payment | MonthlyPayment
+  ): string | undefined => {
+    if (!payment) return undefined;
+    if ("month" in payment) {
+      return payment.month;
+    }
+    return undefined;
+  };
+
   const formatDate = (date: string | undefined | null): string => {
     if (!date) return "N/A";
     try {
@@ -981,17 +977,17 @@ export default function PaymentManagement({
     if (!student) return;
     setIsLoading(true);
     try {
-      const sid = (student as any).wdt_ID || student.id;
+      const studentId = student.wdt_ID || student.id;
       const [monthlyResponse, depositsResponse] = await Promise.all([
-        fetch(`/api/payments/monthly?studentId=${sid}`),
-        fetch(`/api/payments/deposit?studentId=${sid}`),
+        fetch(`/api/payments/monthly?studentId=${studentId}`),
+        fetch(`/api/payments/deposit?studentId=${studentId}`),
       ]);
 
       if (!monthlyResponse.ok || !depositsResponse.ok) {
         throw new Error("Failed to fetch payments");
       }
 
-      const [monthlyData, depositsData] = await Promise.all([
+      const [monthlyData, depositsData] = await Promise.all<[any[], any[]]>([
         monthlyResponse.json(),
         depositsResponse.json(),
       ]);
@@ -999,32 +995,42 @@ export default function PaymentManagement({
       setMonthlyPayments(monthlyData);
       setDeposits(depositsData);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to fetch payments");
+      setError(
+        error instanceof Error ? error.message : "Failed to fetch payments"
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getPaymentMonth = (
-    payment: Payment | MonthlyPayment
-  ): string | undefined => {
-    if (!payment) return undefined;
-    if ("month" in payment && (payment as any).month) {
-      return (payment as any).month as string;
-    }
-    if ("start_date" in payment && payment.start_date) {
-      try {
-        return format(new Date(payment.start_date as string), "yyyy-MM");
-      } catch {
-        return undefined;
-      }
-    }
-    return undefined;
-  };
-
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto p-4 sm:p-6">
+      <div className="max-w-4xl mx-auto p-6">
+        <PaymentSkeleton />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+          <h2 className="text-xl font-semibold text-red-700 mb-2">Error</h2>
+          <p className="text-red-600">{error}</p>
+          <button
+            onClick={() => router.push("/controller")}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Back to Students
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!student) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
           <h2 className="text-xl font-semibold text-yellow-700 mb-2">
             Student Not Found
@@ -1138,7 +1144,8 @@ export default function PaymentManagement({
                             payment.payment_status === "Paid" &&
                             payment.payment_type !== "free" &&
                             (payment.payment_type === "full" ||
-                              payment.payment_type === "partial")
+                              (payment.payment_type === "partial" &&
+                                !payment.reason?.includes("prize")))
                         )
                         .reduce(
                           (sum, payment) => sum + getPaymentAmount(payment),
@@ -1184,7 +1191,8 @@ export default function PaymentManagement({
                               payment.payment_status === "Paid" &&
                               payment.payment_type !== "free" &&
                               (payment.payment_type === "full" ||
-                                payment.payment_type === "partial")
+                                (payment.payment_type === "partial" &&
+                                  !payment.reason?.includes("prize")))
                           )
                           .reduce(
                             (sum, payment) => sum + getPaymentAmount(payment),
@@ -1262,10 +1270,8 @@ export default function PaymentManagement({
                     setShowDepositModal(true);
                     setNewDeposit({
                       amount: "",
-                      paymentMethod: "cash",
-                      notes: "",
-                      transactionId: "",
                       reason: "",
+                      transactionId: "",
                       senderName: "",
                     });
                     setDepositErrors({});
@@ -1284,7 +1290,7 @@ export default function PaymentManagement({
                     setShowMonthlyModal(true);
                     setNewMonthlyPayment({
                       months: [format(new Date(), "yyyy-MM")],
-                      amount: "",
+                      amount: 0,
                       calculatedAmount: 0,
                       paymentType: "full",
                     });
@@ -1311,7 +1317,7 @@ export default function PaymentManagement({
             </div>
           </div>
 
-          
+          </div>
           
           <div className="lg:col-span-1 space-y-6 sm:space-y-8">
             <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200">
@@ -1401,7 +1407,7 @@ export default function PaymentManagement({
                           onClick={() => {
                             setNewMonthlyPayment({
                               months: [currentMonth],
-                              amount: "",
+                              amount: 0,
                               calculatedAmount: currentMonthStatus.expectedAmount,
                               paymentType: 'full'
                             });
@@ -1419,7 +1425,7 @@ export default function PaymentManagement({
                           onClick={() => {
                             setNewMonthlyPayment({
                               months: unpaidMonths.slice(0, 3), // Limit to first 3 unpaid months
-                              amount: "",
+                              amount: 0,
                               calculatedAmount: unpaidMonths.slice(0, 3).reduce((sum, month) => {
                                 const status = getMonthPaymentStatus(month);
                                 return sum + status.expectedAmount;
@@ -1608,13 +1614,7 @@ export default function PaymentManagement({
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {monthlyPayments.map((payment) => {
-                        const expectedAmount = student
-                          ? calculateMonthlyAmount(
-                              payment.month,
-                              student.startdate,
-                              student.classfee
-                            )
-                          : 0;
+                        const expectedAmount = getExpectedAmountForMonth(payment.month);
                         const monthPayments = monthlyPayments.filter(p => p.month === payment.month);
                         const totalPaid = monthPayments.reduce((sum, p) => sum + Number(p.paid_amount), 0);
                         const isCurrentMonth = payment.month === format(new Date(), 'yyyy-MM');
@@ -1670,7 +1670,7 @@ export default function PaymentManagement({
                               </span>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatDate(getPaymentDate(payment))}
+                              {formatDate(payment.payment_date)}
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                               {totalPaid < expectedAmount && (
@@ -1844,729 +1844,6 @@ export default function PaymentManagement({
                   >
                     <FiDownload size={18} />
                     Export Details
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-        {/* Create Deposit Modal */}
-        <AnimatePresence>
-          {showDepositModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-2 sm:p-0">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="bg-white rounded-3xl p-2 sm:p-8 max-w-full sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl border border-gray-200 overflow-y-auto max-h-[90vh]"
-              >
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 gap-4 sm:gap-0">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl">
-                      <FiDollarSign className="text-blue-600" size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-gray-900">Add Deposit</h3>
-                      <p className="text-sm text-gray-500 mt-1">Add a new deposit for the student</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowDepositModal(false);
-                      setNewDeposit({
-                        amount: "",
-                        paymentMethod: "cash",
-                        notes: "",
-                        transactionId: "",
-                        reason: "",
-                        senderName: "",
-                      });
-                      setDepositErrors({});
-                    }}
-                    className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-                  >
-                    <FiX size={24} className="text-gray-500" />
-                  </button>
-                </div>
-
-                {depositError && (
-                  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm">{depositError}</div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Amount <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                        <input
-                          type="number"
-                          name="amount"
-                          value={newDeposit.amount}
-                          onChange={(e) => {
-                            const updatedValue = e.target.value.replace("$", "").trim();
-                            setNewDeposit((prev) => ({ ...prev, amount: updatedValue }));
-                            if (depositErrors[e.target.name as keyof typeof depositErrors]) {
-                              setDepositErrors((prev) => ({ ...prev, [e.target.name]: undefined }));
-                            }
-                          }}
-                          placeholder="0.00"
-                          step="0.01"
-                          min="0"
-                          required
-                          className={`w-full pl-8 pr-4 py-3 rounded-xl border ${
-                            depositErrors.amount
-                              ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                              : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                          } transition-all`}
-                        />
-                      </div>
-                      {depositErrors.amount && (
-                        <p className="mt-2 text-sm text-red-600">{depositErrors.amount}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Reason <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="reason"
-                        value={newDeposit.reason}
-                        onChange={(e) => {
-                          const updatedValue = e.target.value;
-                          setNewDeposit((prev) => ({ ...prev, reason: updatedValue }));
-                          if (depositErrors[e.target.name as keyof typeof depositErrors]) {
-                            setDepositErrors((prev) => ({ ...prev, [e.target.name]: undefined }));
-                          }
-                        }}
-                        placeholder="Enter deposit reason"
-                        required
-                        className={`w-full px-4 py-3 rounded-xl border ${
-                          (depositErrors as any).reason
-                            ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                            : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                        } transition-all`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Transaction ID <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="transactionId"
-                        value={newDeposit.transactionId}
-                        onChange={(e) => {
-                          const updatedValue = e.target.value;
-                          setNewDeposit((prev) => ({ ...prev, transactionId: updatedValue }));
-                          if (depositErrors[e.target.name as keyof typeof depositErrors]) {
-                            setDepositErrors((prev) => ({ ...prev, [e.target.name]: undefined }));
-                          }
-                        }}
-                        placeholder="Enter transaction ID"
-                        required
-                        className={`w-full px-4 py-3 rounded-xl border ${
-                          depositErrors.transactionId
-                            ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                            : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                        } transition-all`}
-                      />
-                      {depositErrors.transactionId && (
-                        <p className="mt-2 text-sm text-red-600">{depositErrors.transactionId}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
-                      <select
-                        value={newDeposit.paymentMethod}
-                        onChange={(e) => setNewDeposit((p) => ({ ...p, paymentMethod: e.target.value as any }))}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="cash">Cash</option>
-                        <option value="card">Card</option>
-                        <option value="check">Check</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                      <textarea
-                        value={newDeposit.notes}
-                        onChange={(e) => setNewDeposit((p) => ({ ...p, notes: e.target.value }))}
-                        placeholder="Optional notes"
-                        rows={3}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-                      <h4 className="text-sm font-medium text-gray-700 mb-4">Deposit Summary</h4>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Student Name</span>
-                          <span className="font-medium text-gray-900">{student?.name || "N/A"}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Current Balance</span>
-                          <span className="font-medium text-gray-900">
-                            $
-                            {(
-                              deposits.reduce((sum, deposit) => {
-                                if ((deposit as any).status === "approved") {
-                                  const amount =
-                                    typeof (deposit as any).paidamount === "number"
-                                      ? (deposit as any).paidamount
-                                      : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
-                                  return sum + amount;
-                                }
-                                return sum;
-                              }, 0) -
-                              monthlyPayments.reduce((sum, payment) => {
-                                if (payment.payment_status === "Paid") {
-                                  return sum + (parseFloat(payment.paid_amount?.toString() || "0") || 0);
-                                }
-                                return sum;
-                              }, 0)
-                            ).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">New Balance</span>
-                          <span className="font-medium text-blue-600">
-                            $
-                            {(
-                              deposits.reduce((sum, deposit) => {
-                                if ((deposit as any).status === "approved") {
-                                  const amount =
-                                    typeof (deposit as any).paidamount === "number"
-                                      ? (deposit as any).paidamount
-                                      : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
-                                  return sum + amount;
-                                }
-                                return sum;
-                              }, 0) + parseFloat(newDeposit.amount || "0")
-                            ).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Total Deposits</span>
-                          <span className="font-medium text-gray-900">
-                            $
-                            {(
-                              deposits.reduce((sum, deposit) => {
-                                if ((deposit as any).status === "approved") {
-                                  const amount =
-                                    typeof (deposit as any).paidamount === "number"
-                                      ? (deposit as any).paidamount
-                                      : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
-                                  return sum + amount;
-                                }
-                                return sum;
-                              }, 0) + parseFloat(newDeposit.amount || "0")
-                            ).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-blue-50 rounded-2xl p-6 border border-blue-200">
-                      <h4 className="text-sm font-medium text-blue-700 mb-4 flex items-center gap-2">
-                        <FiInfo size={16} /> Deposit Information
-                      </h4>
-                      <ul className="space-y-3 text-sm text-blue-600">
-                        <li className="flex items-start gap-2">
-                          <span className="mt-1">•</span>
-                          <span>Deposits are added to the student's balance</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="mt-1">•</span>
-                          <span>Transaction ID must be unique</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="mt-1">•</span>
-                          <span>Balance can be used for monthly payments</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 w-full">
-                  <button
-                    onClick={() => {
-                      setShowDepositModal(false);
-                      setNewDeposit({
-                        amount: "",
-                        paymentMethod: "cash",
-                        notes: "",
-                        transactionId: "",
-                        reason: "",
-                        senderName: "",
-                      });
-                      setDepositErrors({});
-                    }}
-                    className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDepositSubmit as any}
-                    disabled={isSubmitting}
-                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-800 text-white hover:from-blue-700 hover:to-blue-900 transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-blue-500/20"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <FiRefreshCw className="animate-spin" size={18} /> Adding...
-                      </>
-                    ) : (
-                      <>
-                        <FiDollarSign size={18} /> Add Deposit
-                      </>
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
-        {/* Monthly Payment Modal */}
-        <AnimatePresence>
-          {showMonthlyModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-2 sm:p-0">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="bg-white rounded-3xl p-2 sm:p-8 max-w-full sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl border border-gray-200 overflow-y-auto max-h-[90vh]"
-              >
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 gap-4 sm:gap-0">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl">
-                      <FiCalendar className="text-green-600" size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-gray-900">Add Monthly Payment</h3>
-                      <p className="text-sm text-gray-500 mt-1">Process monthly payments for multiple months</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowMonthlyModal(false);
-                      setNewMonthlyPayment({
-                        months: [format(new Date(), "yyyy-MM")],
-                        amount: "",
-                        calculatedAmount: 0,
-                        paymentType: "full",
-                      } as any);
-                      setMonthlyError(null);
-                    }}
-                    className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-                  >
-                    <FiX size={24} className="text-gray-500" />
-                  </button>
-                </div>
-
-                {monthlyError && (
-                  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm whitespace-pre-line">{monthlyError}</div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
-                  <div className="space-y-6">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Select Months ({newMonthlyPayment.months?.length || 0} selected)
-                        </label>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <button
-                            type="button"
-                            className="text-xs px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 text-gray-700"
-                            onClick={() => {
-                              const selectable = availableMonths.filter((month) => {
-                                const selectedDate = new Date(month + "-01");
-                                if (!student) return false;
-                                const startDate = new Date(student.startdate);
-                                const minMonth = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}`;
-                                const minDate = new Date(minMonth + "-01");
-                                const disabled = selectedDate < minDate || isMonthFullyCoveredByPrizes(month) || isMonthPaid(month);
-                                return !disabled;
-                              });
-                              setNewMonthlyPayment((prev: any) => ({ ...prev, months: selectable.sort() }));
-                            }}
-                          >
-                            Select all eligible
-                          </button>
-                          <button
-                            type="button"
-                            className="text-xs px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 text-gray-700"
-                            onClick={() => setNewMonthlyPayment((prev: any) => ({ ...prev, months: [] }))}
-                          >
-                            Clear
-                          </button>
-                          <button
-                            type="button"
-                            className="text-xs px-2 py-1 rounded-lg border border-green-300 text-green-700 hover:bg-green-50"
-                            onClick={() => {
-                              if (!student) return;
-                              // First eligible month from start date that is not paid or prize-covered
-                              const eligible = availableMonths.filter((m) => {
-                                const startDate = new Date(student.startdate);
-                                const minMonth = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}`;
-                                const selectedDate = new Date(m + "-01");
-                                const minDate = new Date(minMonth + "-01");
-                                return selectedDate >= minDate && !isMonthPaid(m) && !isMonthFullyCoveredByPrizes(m);
-                              });
-                              const next3 = eligible.slice(0, 3);
-                              setNewMonthlyPayment((prev: any) => ({ ...prev, months: next3 }));
-                            }}
-                          >
-                            Next 3 months
-                          </button>
-                          <button
-                            type="button"
-                            className="text-xs px-2 py-1 rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50"
-                            onClick={() => {
-                              const thisMonth = format(new Date(), "yyyy-MM");
-                              if (isMonthPaid(thisMonth) || isMonthFullyCoveredByPrizes(thisMonth)) return;
-                              setNewMonthlyPayment((prev: any) => ({ ...prev, months: [thisMonth] }));
-                            }}
-                          >
-                            This month
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 p-3 border border-gray-300 rounded-xl bg-gray-50 max-h-56 overflow-y-auto">
-                        {availableMonths.map((month) => {
-                          const monthDate = new Date(month + "-01");
-                          const monthName = monthDate.toLocaleDateString("en-US", { year: "numeric", month: "short" });
-                          const isSelected = newMonthlyPayment.months?.includes(month) || false;
-                          const paid = isMonthPaid(month);
-                          const prize = isMonthFullyCoveredByPrizes(month);
-                          const isDisabled = student
-                            ? (() => {
-                                const startDate = new Date(student.startdate);
-                                const minMonth = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}`;
-                                const selectedDate = new Date(month + "-01");
-                                const minDate = new Date(minMonth + "-01");
-                                return selectedDate < minDate || prize || paid;
-                              })()
-                            : true;
-
-                          return (
-                            <button
-                              key={month}
-                              type="button"
-                              disabled={isDisabled}
-                              onClick={() => {
-                                setNewMonthlyPayment((prev: any) => {
-                                  const set = new Set(prev.months || []);
-                                  if (set.has(month)) set.delete(month); else set.add(month);
-                                  return { ...prev, months: Array.from(set).sort() };
-                                });
-                              }}
-                              className={`text-left group w-full p-2.5 rounded-xl border transition-all ${
-                                isDisabled
-                                  ? "bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed"
-                                  : isSelected
-                                  ? "bg-green-50 border-green-300 ring-1 ring-green-300"
-                                  : "bg-white border-gray-200 hover:bg-gray-100"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">{monthName}</span>
-                                {isSelected && !isDisabled && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 border border-green-200">Selected</span>
-                                )}
-                              </div>
-                              {(paid || prize) && (
-                                <div className="mt-1 flex items-center gap-1">
-                                  {paid && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">Paid</span>}
-                                  {!paid && prize && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200">Prize</span>}
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-300 inline-block"></span> Selected</span>
-                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-purple-300 inline-block"></span> Prize Covered</span>
-                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-gray-300 inline-block"></span> Paid/Disabled</span>
-                      </div>
-
-                      {newMonthlyPayment.months?.length === 0 && (
-                        <p className="text-sm text-red-600 mt-2">Please select at least one month</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Total Calculated Amount</label>
-                      <div className="relative overflow-hidden rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-white">
-                        <div className="flex items-center justify-between px-4 py-3">
-                          <div className="text-sm text-gray-600">Total to pay</div>
-                          <div className="text-lg font-semibold text-gray-900">${newMonthlyPayment.calculatedAmount?.toFixed(2) || "0.00"}</div>
-                        </div>
-                        <div className="px-4 pb-3 text-xs text-gray-500 flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200">Months: {newMonthlyPayment.months?.length || 0}</span>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200">Monthly fee: ${student?.classfee?.toFixed(2) || "0.00"}</span>
-                        </div>
-                      </div>
-                      {newMonthlyPayment.months && newMonthlyPayment.months.length > 0 && (
-                        <div className="mt-3 space-y-1">
-                          {newMonthlyPayment.months.map((month) => {
-                            const amount = student ? calculateMonthlyAmount(month, student.startdate, student.classfee) : 0;
-                            return (
-                              <div key={month} className="flex justify-between text-xs text-gray-600">
-                                <span>{formatPaymentMonth(month)}:</span>
-                                <span className="font-medium text-gray-800">${amount.toFixed(2)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-                      <h4 className="text-sm font-medium text-gray-700 mb-4">Payment Summary</h4>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Student Name</span>
-                          <span className="font-medium text-gray-900">{student?.name || "N/A"}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Monthly Fee</span>
-                          <span className="font-medium text-gray-900">${student?.classfee ? student.classfee.toFixed(2) : "0.00"}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Current Balance</span>
-                          <span className="font-medium text-gray-900">$
-                            {(
-                              deposits.reduce((sum, deposit) => {
-                                if ((deposit as any).status === "approved") {
-                                  const amount = typeof (deposit as any).paidamount === "number" ? (deposit as any).paidamount : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
-                                  return sum + amount;
-                                }
-                                return sum;
-                              }, 0) -
-                              monthlyPayments.reduce((sum, payment) => {
-                                if (payment.payment_status === "Paid") {
-                                  return sum + (parseFloat(payment.paid_amount?.toString() || "0") || 0);
-                                }
-                                return sum;
-                              }, 0)
-                            ).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Balance After Payment</span>
-                          <span className="font-medium text-green-600">${(
-                            deposits.reduce((sum, deposit) => {
-                              if ((deposit as any).status === "approved") {
-                                const amount = typeof (deposit as any).paidamount === "number" ? (deposit as any).paidamount : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
-                                return sum + amount;
-                              }
-                              return sum;
-                            }, 0) - newMonthlyPayment.calculatedAmount
-                          ).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-green-50 rounded-2xl p-6 border border-green-200">
-                      <h4 className="text-sm font-medium text-green-700 mb-4 flex items-center gap-2">
-                        <FiInfo size={16} /> Payment Information
-                      </h4>
-                      <ul className="space-y-3 text-sm text-green-600">
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Payment will be deducted from student's balance</span></li>
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Amount is prorated for partial months</span></li>
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Previous months must be paid first</span></li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 w-full">
-                  <button
-                    onClick={() => {
-                      setShowMonthlyModal(false);
-                      setNewMonthlyPayment({
-                        months: [format(new Date(), "yyyy-MM")],
-                        amount: 0 as any,
-                        calculatedAmount: 0,
-                        paymentType: "full",
-                      } as any);
-                      setMonthlyError(null);
-                    }}
-                    className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleMonthlySubmit}
-                    disabled={isSubmitting}
-                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-green-600 to-green-800 text-white hover:from-green-700 hover:to-green-900 transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-green-500/20"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <FiRefreshCw className="animate-spin" size={18} /> Processing...
-                      </>
-                    ) : (
-                      <>
-                        <FiCalendar size={18} /> Add Payment
-                      </>
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
-        {/* Prize Modal */}
-        <AnimatePresence>
-          {showPrizeModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-2 sm:p-0">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="bg-white rounded-3xl p-2 sm:p-8 max-w-full sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl border border-gray-200 overflow-y-auto max-h-[90vh]"
-              >
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 gap-4 sm:gap-0">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl">
-                      <FiGift className="text-purple-600" size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-gray-900">Add Prize</h3>
-                      <p className="text-sm text-gray-500 mt-1">Add a prize for the student</p>
-                    </div>
-                  </div>
-                  <button onClick={handleClosePrize} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                    <FiX size={24} className="text-gray-500" />
-                  </button>
-                </div>
-
-                {prizeError && (
-                  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm">{prizeError}</div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Month <span className="text-red-500">*</span></label>
-                      <input
-                        type="month"
-                        value={newPrize.month || ""}
-                        onChange={(e) => {
-                          const selectedMonth = e.target.value;
-                          if (student) {
-                            const startDate = new Date(student.startdate);
-                            const minMonth = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}`;
-                            const selectedDate = new Date(selectedMonth + "-01");
-                            const minDate = new Date(minMonth + "-01");
-                            if (selectedDate >= minDate) {
-                              if (isMonthPaid(selectedMonth)) {
-                                toast.error("Cannot add a prize for a paid month.");
-                                return;
-                              }
-                              setNewPrize((prev) => ({ ...prev, month: selectedMonth }));
-                            } else {
-                              toast.error(`Please select a month starting from ${format(new Date(minMonth + "-01"), "MMMM yyyy")}`);
-                            }
-                          }
-                        }}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        min={student ? `${new Date(student.startdate).getFullYear()}-${String(new Date(student.startdate).getMonth() + 1).padStart(2, "0")}` : undefined}
-                        disabled={isMonthPaid(newPrize.month)}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Percentage <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={newPrize.percentage || 0}
-                          onChange={(e) => setNewPrize((prev) => ({ ...prev, percentage: parseInt(e.target.value) }))}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                        />
-                        <div className="flex justify-between mt-2">
-                          <span className="text-sm text-gray-500">0%</span>
-                          <span className="text-sm font-medium text-purple-600">{newPrize.percentage || 0}%</span>
-                          <span className="text-sm text-gray-500">100%</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
-                      <textarea
-                        value={newPrize.reason || ""}
-                        onChange={(e) => setNewPrize((prev) => ({ ...prev, reason: e.target.value }))}
-                        placeholder="Enter reason for the prize (e.g., free month)"
-                        rows={3}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-                      <h4 className="text-sm font-medium text-gray-700 mb-4">Prize Summary</h4>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Student Name</span><span className="font-medium text-gray-900">{student?.name || "N/A"}</span></div>
-                        <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Monthly Fee</span><span className="font-medium text-gray-900">${student?.classfee ? student.classfee.toFixed(2) : "0.00"}</span></div>
-                        <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Prize Amount</span><span className="font-medium text-purple-600">${student?.classfee ? ((student.classfee * (newPrize.percentage || 0)) / 100).toFixed(2) : "0.00"}</span></div>
-                      </div>
-                    </div>
-
-                    <div className="bg-purple-50 rounded-2xl p-6 border border-purple-200">
-                      <h4 className="text-sm font-medium text-purple-700 mb-4 flex items-center gap-2"><FiInfo size={16} /> Prize Information</h4>
-                      <ul className="space-y-3 text-sm text-purple-600">
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Prize is calculated as a percentage of monthly fee</span></li>
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Prize will be applied to the selected month</span></li>
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Reason is optional for 100% prize (free month)</span></li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 w-full">
-                  <button onClick={handleClosePrize} className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all">Cancel</button>
-                  <button
-                    onClick={handlePrizeSubmit}
-                    disabled={isSubmitting}
-                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-purple-800 text-white hover:from-purple-700 hover:to-purple-900 transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-purple-500/20"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <FiRefreshCw className="animate-spin" size={18} /> Adding...
-                      </>
-                    ) : (
-                      <>
-                        <FiGift size={18} /> Add Prize
-                      </>
-                    )}
                   </button>
                 </div>
               </motion.div>

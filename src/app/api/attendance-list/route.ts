@@ -39,8 +39,16 @@ export async function GET(req: NextRequest) {
     const attendanceStatus = searchParams.get("attendanceStatus") || "";
     const sentStatus = searchParams.get("sentStatus") || "";
     const clickedStatus = searchParams.get("clickedStatus") || "";
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "10", 10);
+    // Robust pagination parsing with support for limit=all
+    const pageParam = searchParams.get("page") || "1";
+    const limitParam = searchParams.get("limit") || "10";
+    const isAll = typeof limitParam === "string" && limitParam.toLowerCase() === "all";
+    const page = Number.isNaN(parseInt(pageParam, 10)) ? 1 : parseInt(pageParam, 10);
+    const limit = isAll
+      ? undefined
+      : Number.isNaN(parseInt(limitParam, 10))
+      ? 10
+      : parseInt(limitParam, 10);
     const notify = searchParams.get("notify")
       ? parseInt(searchParams.get("notify") || "0", 10)
       : 0;
@@ -236,8 +244,10 @@ export async function GET(req: NextRequest) {
         controller: { select: { name: true } },
         occupiedTimes: { select: { time_slot: true } },
       },
-      skip: (page - 1) * limit,
-      take: limit,
+      ...(limit !== undefined && {
+        skip: (page - 1) * (limit as number),
+        take: limit as number,
+      }),
     });
 
     const integratedData = await Promise.all(records.map(async (record: any) => {
