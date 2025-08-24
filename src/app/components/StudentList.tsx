@@ -90,6 +90,9 @@ export default function StudentList({
     }))
   );
 
+  // Toggle payment debug logs
+  const DEBUG_PAYMENTS = true;
+
   const safeParseISO = (dateStr: string | null | undefined): Date | null => {
     if (!dateStr || dateStr === "") return null;
     try {
@@ -123,7 +126,46 @@ export default function StudentList({
               let paymentHistory: MonthlyPayment[] = [];
 
               if (response.ok) {
-                paymentHistory = await response.json();
+                const raw = await response.json();
+                // Extract array from common wrappers
+                const arr = Array.isArray(raw)
+                  ? raw
+                  : Array.isArray(raw?.payments)
+                  ? raw.payments
+                  : Array.isArray(raw?.data)
+                  ? raw.data
+                  : Array.isArray(raw?.results)
+                  ? raw.results
+                  : [];
+                // Normalize varying backend field names into MonthlyPayment shape
+                paymentHistory = arr
+                  ? arr.map((r: any): MonthlyPayment => {
+                      const monthVal: string | undefined = r.month || r.Month || r.month_table || r.billing_month || undefined;
+                      const startDateVal: string | null = r.start_date || r.startdate || r.StartDate || null;
+                      const endDateVal: string | null = r.end_date || r.enddate || r.EndDate || null;
+                      const statusVal: string = r.payment_status || r.Payment_status || r.status || r.Status || r.PaymentStatus || "";
+                      const typeVal: string = r.payment_type || r.type || r.PaymentType || "";
+                      const paidAmt: number = r.paid_amount ?? r.paidamount ?? r.amount_paid ?? r.amount ?? 0;
+                      return {
+                        id: r.id ?? r.paymentid ?? 0,
+                        studentid: r.studentid ?? r.student_id ?? r.StudentId ?? studentId,
+                        month: monthVal ?? (startDateVal ? String(startDateVal) : ""),
+                        paid_amount: Number(paidAmt) || 0,
+                        payment_status: String(statusVal),
+                        payment_type: String(typeVal),
+                        start_date: startDateVal ?? null,
+                        end_date: endDateVal ?? null,
+                      } as MonthlyPayment;
+                    })
+                  : [];
+                if (DEBUG_PAYMENTS) {
+                  console.debug("[PAYMENTS] API OK", {
+                    studentId,
+                    studentName: student.name,
+                    rawCount: Array.isArray(raw) ? raw.length : undefined,
+                    arrCount: Array.isArray(arr) ? arr.length : undefined,
+                  });
+                }
               } else {
                 // Fallback: Use mock data based on student status and ID for testing
                 const currentMonth = format(new Date(), "yyyy-MM");
@@ -140,37 +182,42 @@ export default function StudentList({
                     end_date: format(new Date(), "yyyy-MM-dd")
                   }
                 ] : [];
+                if (DEBUG_PAYMENTS) {
+                  console.warn("[PAYMENTS] API not OK, using fallback", {
+                    studentId,
+                    status: response.status,
+                  });
+                }
               }
 
               const currentMonth = format(new Date(), "yyyy-MM");
-              const today = new Date();
-
-              // Helper to check if today's date is within payment coverage
-              const coversToday = (p: MonthlyPayment): boolean => {
-                const start = safeParseISO(p.start_date);
-                const end = safeParseISO(p.end_date);
-                if (!start && !end) return false;
-                const startEff = start ?? new Date(today.getFullYear(), today.getMonth(), 1);
-                const endEff = end ?? new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                return startEff.getTime() <= today.getTime() && today.getTime() <= endEff.getTime();
-              };
-
-              // Normalize and check month string match if provided
+              // Per requirement: paid if month matches currentMonth and payment_status is 'Paid'
               const monthMatches = (p: MonthlyPayment): boolean => {
                 if (!p.month) return false;
-                // accept e.g. "2025-08" or "2025-08-01"
-                const m = p.month.slice(0, 7);
-                return m === currentMonth;
+                return String(p.month).slice(0, 7) === currentMonth;
               };
 
-              // Paid statuses and payment types considered as paid for the month
-              const isPaidStatus = (s: string) => ["paid", "approved"].includes(s?.toLowerCase());
-              const isPaidType = (t: string) => ["full", "partial", "prizepartial", "free"].includes(t?.toLowerCase());
-
-              // Check if student has paid for current month
               const currentMonthPaid = paymentHistory.some((p) => {
-                return isPaidStatus(p.payment_status) && isPaidType(p.payment_type) && (monthMatches(p) || coversToday(p));
+                return monthMatches(p) && String(p.payment_status).toLowerCase() === "paid";
               });
+
+              if (DEBUG_PAYMENTS) {
+                const sample = paymentHistory
+                  .filter((p) => monthMatches(p))
+                  .map((p) => ({
+                    month: p.month,
+                    payment_status: p.payment_status,
+                    paid_amount: p.paid_amount,
+                  }));
+                console.debug("[PAYMENTS] classification", {
+                  studentId,
+                  studentName: student.name,
+                  currentMonth,
+                  currentMonthPaid,
+                  monthMatchesCount: sample.length,
+                  sample,
+                });
+              }
 
               // Get latest payment sorted by date
               const latestPayment = paymentHistory.length > 0
