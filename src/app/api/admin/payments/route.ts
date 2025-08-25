@@ -15,6 +15,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || "";
     const searchQuery = searchParams.get("search") || "";
+    const startDateStr = searchParams.get("startDate");
+    const endDateStr = searchParams.get("endDate");
 
     const whereClause: any = {};
     if (status) {
@@ -24,18 +26,44 @@ export async function GET(req: NextRequest) {
       whereClause.OR = [
         { studentname: { contains: searchQuery } },
         { transactionid: { contains: searchQuery } },
-        { sendername: { contains: searchQuery } },
       ];
+    }
+    // Date range filter
+    if (startDateStr || endDateStr) {
+      whereClause.paymentdate = {};
+      if (startDateStr) {
+        const sd = new Date(startDateStr);
+        if (!isNaN(sd.getTime())) (whereClause.paymentdate as any).gte = sd;
+      }
+      if (endDateStr) {
+        const ed = new Date(endDateStr);
+        if (!isNaN(ed.getTime())) (whereClause.paymentdate as any).lte = ed;
+      }
     }
 
     const payments = await prisma.payment.findMany({
       where: whereClause,
+      include: {
+        wpos_wpdatatable_23: {
+          select: { name: true, controller: { select: { name: true } } },
+        },
+      },
       orderBy: {
         paymentdate: "desc",
       },
     });
+    // Map DB records to include derived sendername for frontend compatibility
+    const mapped = payments.map((p) => {
+      const studentName = p.wpos_wpdatatable_23?.name ?? p.studentname ?? "";
+      const controllerName = p.wpos_wpdatatable_23?.controller?.name ?? "";
+      const sendername = controllerName
+        ? `${studentName} - ${controllerName}`
+        : `${studentName}`;
+      const { wpos_wpdatatable_23, ...rest } = p as any;
+      return { ...rest, sendername };
+    });
 
-    return NextResponse.json(payments);
+    return NextResponse.json(mapped);
   } catch (error) {
     return NextResponse.json(
       { error: "Internal Server Error" },

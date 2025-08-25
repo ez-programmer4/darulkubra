@@ -38,12 +38,24 @@ export async function GET(
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    // Check if the student belongs to this controller
-    if (student.u_control !== session.code) {
-      return NextResponse.json(
-        { error: "Unauthorized access" },
-        { status: 403 }
-      );
+    // Ownership check: only enforce for controllers. Admin/registral can access any student.
+    if (session.role === "controller") {
+      // Resolve controller code: prefer token, fallback to lookup by username
+      let controllerCode: string | null | undefined = (session as any).code;
+      if (!controllerCode && (session as any).username) {
+        const controller = await prisma.wpos_wpdatatable_28.findUnique({
+          where: { username: (session as any).username as string },
+          select: { code: true },
+        });
+        controllerCode = controller?.code;
+      }
+
+      if (!controllerCode || student.u_control !== controllerCode) {
+        return NextResponse.json(
+          { error: "Unauthorized access" },
+          { status: 403 }
+        );
+      }
     }
 
     return NextResponse.json(student);
