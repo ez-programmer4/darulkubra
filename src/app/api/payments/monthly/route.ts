@@ -286,7 +286,10 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      return Number(((Number(student.classfee) * daysInClass) / daysInMonth).toFixed(2));
+      // Expected can have cents, but months_table.paid_amount is integer.
+      // Round to nearest integer so comparisons are consistent.
+      const expected = (Number(student.classfee) * daysInClass) / daysInMonth;
+      return Math.round(expected);
     };
 
     // Helper function to check if a month is fully covered
@@ -304,9 +307,9 @@ export async function POST(request: NextRequest) {
       
       // Check if total payments meet expected amount
       const totalPaid = monthPayments.reduce((sum, p) => sum + Number(p.paid_amount), 0);
-      const expectedAmount = calculateExpectedAmount(monthStr);
+      const expectedAmountInt = calculateExpectedAmount(monthStr);
       
-      return totalPaid >= expectedAmount - 0.01; // Small tolerance for floating point
+      return totalPaid >= expectedAmountInt;
     };
 
     // Get all months that need to be checked
@@ -396,8 +399,8 @@ export async function POST(request: NextRequest) {
       return sum + Number(payment.paid_amount);
     }, 0);
 
-    // Calculate expected amount for this month
-    let expectedAmount = student.classfee || 0;
+    // Calculate expected amount for this month (rounded to integer to match storage)
+    let expectedAmount = Math.round(Number(student.classfee || 0));
 
     // If this is a prorated month (student's start month)
     if (
@@ -423,8 +426,8 @@ export async function POST(request: NextRequest) {
         daysInMonth
       );
 
-      expectedAmount = (student.classfee || 0) * (daysFromStart / daysInMonth);
-      expectedAmount = Number(expectedAmount.toFixed(2)); // Round to 2 decimal places
+      const expectedProrated = (Number(student.classfee || 0) * daysFromStart) / daysInMonth;
+      expectedAmount = Math.round(expectedProrated);
     }
 
     // Add the new payment amount
@@ -437,7 +440,7 @@ export async function POST(request: NextRequest) {
     const newTotal = totalPaid + finalPaidAmount;
 
     // Skip exceeding check for free payments, allow paidAmount: 0
-    if (payment_type !== "free" && newTotal > expectedAmount + 0.01) {
+    if (payment_type !== "free" && newTotal > expectedAmount) {
       // Add small tolerance for floating point arithmetic, only for non-free payments
       return NextResponse.json(
         {
