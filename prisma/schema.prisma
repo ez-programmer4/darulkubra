@@ -401,7 +401,7 @@ model payment {
 
   @@index([paymentdate], map: "Payment_paymentdate_idx")
   @@index([studentid], map: "Payment_studentid_idx")
-  @@map("Payment")
+  @@map("wpos_wpdatatable_29")
 }
 
 model permissionreason {
