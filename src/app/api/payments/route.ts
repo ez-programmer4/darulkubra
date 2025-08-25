@@ -122,7 +122,6 @@ export async function POST(request: NextRequest) {
         paidamount: parseFloat(amount),
         reason: type,
         status: "completed",
-        sendername: session.user.name,
         studentname: "", // This will be updated by a trigger
         paymentdate: new Date(),
         transactionid: Math.random().toString(36).substring(7),
@@ -169,7 +168,6 @@ export async function PUT(request: NextRequest) {
       data: {
         status,
         reason: notes,
-        sendername: session.user.name,
       },
     });
 
