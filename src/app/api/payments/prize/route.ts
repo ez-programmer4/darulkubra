@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate status
-    if (!["pending", "approved", "rejected"].includes(status)) {
+    if (!["pending", "Approved", "rejected"].includes(status)) {
       return NextResponse.json(
         {
           error: "Invalid status. Must be 'pending', 'approved', or 'rejected'",

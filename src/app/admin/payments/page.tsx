@@ -152,7 +152,7 @@ export default function PaymentManagementPage() {
   const statusCounts = [
     {
       name: "Approved",
-      value: payments.filter((p) => p.status === "approved").length,
+      value: payments.filter((p) => p.status === "Approved").length,
     },
     {
       name: "Pending",
@@ -167,7 +167,7 @@ export default function PaymentManagementPage() {
     {
       name: "Approved",
       value: payments
-        .filter((p) => p.status === "approved")
+        .filter((p) => p.status === "Approved")
         .reduce((sum, p) => sum + Number(p.paidamount), 0),
     },
     {
@@ -187,7 +187,7 @@ export default function PaymentManagementPage() {
 
   const updatePaymentStatus = async (
     id: number,
-    status: "approved" | "rejected"
+    status: "Approved" | "rejected"
   ) => {
     try {
       const res = await fetch("/api/admin/payments", {
@@ -297,7 +297,7 @@ export default function PaymentManagementPage() {
                 >
                   <option value="">All Statuses</option>
                   <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
+                  <option value="Approved">Approved</option>
                   <option value="rejected">Rejected</option>
                 </select>
               </div>
@@ -505,7 +505,7 @@ export default function PaymentManagementPage() {
                                 <>
                                   <button
                                     onClick={() =>
-                                      updatePaymentStatus(payment.id, "approved")
+                                      updatePaymentStatus(payment.id, "Approved")
                                     }
                                     className="p-2 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-all hover:scale-105"
                                     title="Approve"

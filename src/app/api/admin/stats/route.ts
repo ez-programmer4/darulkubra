@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     const revenueByStatus = payments.reduce(
       (acc, p) => {
         const amount = p.paidamount?.toNumber?.() ?? 0;
-        if (p.status === "approved") acc.approved += amount;
+        if (p.status === "Approved") acc.approved += amount;
         else if (p.status === "pending") acc.pending += amount;
         else if (p.status === "rejected") acc.rejected += amount;
         return acc;

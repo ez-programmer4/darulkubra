@@ -1221,7 +1221,7 @@ export default function AdminDashboardPage() {
                   >
                     <span
                       className={`inline-block px-3 py-1 rounded-full text-xs sm:text-sm font-semibold ${
-                        p.status.toLowerCase() === "approved"
+                        p.status.toLowerCase() === "Approved"
                           ? "bg-teal-100 text-teal-800"
                           : p.status.toLowerCase() === "pending"
                           ? "bg-yellow-100 text-yellow-800"

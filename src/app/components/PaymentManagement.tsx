@@ -890,7 +890,7 @@ export default function PaymentManagement({
 
     // Calculate total from approved deposits only
     const totalApprovedDeposits = deposits.reduce((sum, deposit) => {
-      if (deposit.status === "approved") {
+      if (deposit.status === "Approved") {
         const amount =
           typeof deposit.paidamount === "number"
             ? deposit.paidamount
@@ -1102,7 +1102,7 @@ export default function PaymentManagement({
                     $
                     {formatAmount(
                       deposits
-                        .filter((deposit) => deposit.status === "approved")
+                        .filter((deposit) => deposit.status === "Approved")
                         .reduce(
                           (sum, deposit) =>
                             sum +
@@ -1116,11 +1116,11 @@ export default function PaymentManagement({
                   <p className="text-xs text-gray-500 mt-1">
                     {
                       deposits.filter(
-                        (deposit) => deposit.status === "approved"
+                        (deposit) => deposit.status === "Approved"
                       ).length
                     }{" "}
                     deposit
-                    {deposits.filter((deposit) => deposit.status === "approved")
+                    {deposits.filter((deposit) => deposit.status === "Approved")
                       .length !== 1
                       ? "s"
                       : ""}
@@ -1169,7 +1169,7 @@ export default function PaymentManagement({
                     $
                     {formatAmount(
                       deposits
-                        .filter((deposit) => deposit.status === "approved")
+                        .filter((deposit) => deposit.status === "Approved")
                         .reduce(
                           (sum, deposit) =>
                             sum +
@@ -1560,7 +1560,7 @@ export default function PaymentManagement({
                       <div className="flex items-center">
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            deposit.status === "approved"
+                            deposit.status === "Approved"
                               ? "bg-green-100 text-green-800"
                               : deposit.status === "pending"
                               ? "bg-yellow-100 text-yellow-800"
@@ -1745,7 +1745,7 @@ export default function PaymentManagement({
                         <div className="mt-1">
                           <span
                             className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
-                              selectedDeposit.status === "approved"
+                              selectedDeposit.status === "Approved"
                                 ? "bg-green-100 text-green-800"
                                 : selectedDeposit.status === "pending"
                                 ? "bg-yellow-100 text-yellow-800"
@@ -2022,7 +2022,7 @@ export default function PaymentManagement({
                             $
                             {(
                               deposits.reduce((sum, deposit) => {
-                                if ((deposit as any).status === "approved") {
+                                if ((deposit as any).status === "Approved") {
                                   const amount =
                                     typeof (deposit as any).paidamount === "number"
                                       ? (deposit as any).paidamount
@@ -2046,7 +2046,7 @@ export default function PaymentManagement({
                             $
                             {(
                               deposits.reduce((sum, deposit) => {
-                                if ((deposit as any).status === "approved") {
+                                if ((deposit as any).status === "Approved") {
                                   const amount =
                                     typeof (deposit as any).paidamount === "number"
                                       ? (deposit as any).paidamount
@@ -2064,7 +2064,7 @@ export default function PaymentManagement({
                             $
                             {(
                               deposits.reduce((sum, deposit) => {
-                                if ((deposit as any).status === "approved") {
+                                if ((deposit as any).status === "Approved") {
                                   const amount =
                                     typeof (deposit as any).paidamount === "number"
                                       ? (deposit as any).paidamount
@@ -2358,7 +2358,7 @@ export default function PaymentManagement({
                           <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">$
                             {(
                               deposits.reduce((sum, deposit) => {
-                                if ((deposit as any).status === "approved") {
+                                if ((deposit as any).status === "Approved") {
                                   const amount = typeof (deposit as any).paidamount === "number" ? (deposit as any).paidamount : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
                                   return sum + amount;
                                 }
@@ -2377,7 +2377,7 @@ export default function PaymentManagement({
                           <span className="text-sm text-gray-600">Balance After Payment</span>
                           <span className="font-medium text-green-600 truncate max-w-[60%] text-right tabular-nums">${(
                             deposits.reduce((sum, deposit) => {
-                              if ((deposit as any).status === "approved") {
+                              if ((deposit as any).status === "Approved") {
                                 const amount = typeof (deposit as any).paidamount === "number" ? (deposit as any).paidamount : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
                                 return sum + amount;
                               }

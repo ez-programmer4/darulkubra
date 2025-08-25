@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
       const directDeposits = await prisma.payment.findMany({
         where: {
           studentid: parsedStudentId,
-          status: "approved", // Only get approved deposits
+          status: "Approved", // Only get approved deposits
         },
         select: {
           id: true,
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!["pending", "approved"].includes(status)) {
+    if (!["pending", "Approved"].includes(status)) {
       return NextResponse.json(
         { error: "Invalid status. Must be 'pending' or 'approved'" },
         { status: 400 }
@@ -299,7 +299,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (!["approved", "rejected"].includes(status)) {
+    if (!["Approved", "rejected"].includes(status)) {
       return NextResponse.json(
         { error: "Invalid status. Must be 'approved' or 'rejected'" },
         { status: 400 }

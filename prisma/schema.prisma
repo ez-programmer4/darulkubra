@@ -387,7 +387,7 @@ model notification {
 }
 
 model payment {
-  id            Int      @id @default(autoincrement()) @@map("wdt_ID")  
+  id            Int       @map("wdt_ID") @id @default(autoincrement())   
   studentid     Int
   studentname   String   @db.VarChar(255)
   paymentdate   DateTime @db.DateTime(0)
