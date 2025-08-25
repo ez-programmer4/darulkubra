@@ -67,7 +67,7 @@ export default function StudentList({
   user,
 }: StudentListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("active-Not yet");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [ustazFilter, setUstazFilter] = useState("all");
   const [packageFilter, setPackageFilter] = useState("all");
@@ -101,6 +101,15 @@ export default function StudentList({
     } catch {
       return null;
     }
+  };
+
+  // Normalize status values coming from backend to consistent buckets
+  const normalizeStatus = (s: string | null | undefined): string => {
+    const val = (s || "").toLowerCase().trim();
+    if (!val) return "";
+    if (val === "active") return "active";
+    if (["notyet", "not-yet", "not_yet", "not yet"].includes(val)) return "not yet";
+    return val; // return other custom statuses as-is (lowercased, trimmed)
   };
 
   useEffect(() => {
@@ -326,9 +335,13 @@ export default function StudentList({
 
   const statuses = useMemo(() => {
     const uniqueStatuses = [
-      ...new Set(students.map((student) => student.status).filter(Boolean)),
+      ...new Set(
+        students
+          .map((student) => normalizeStatus(student.status))
+          .filter((s) => s && s.length > 0)
+      ),
     ];
-    return ["active-Not yet", "all", ...uniqueStatuses];
+    return ["all", "active-Not yet", ...uniqueStatuses];
   }, [students]);
 
   const subjects = useMemo(() => {
@@ -366,16 +379,16 @@ export default function StudentList({
       const matchesSearch =
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         student.phoneno.includes(searchQuery) ||
-        (student.teacher?.ustazname || student.ustaz)
+        ((student.teacher?.ustazname || student.ustaz || "")
           .toLowerCase()
-          .includes(searchQuery.toLowerCase());
+          .includes(searchQuery.toLowerCase()));
 
+      const studentStatus = normalizeStatus(student.status);
       const matchesStatus =
         statusFilter === "all" ||
-        student.status.toLowerCase() === statusFilter.toLowerCase() ||
+        studentStatus === statusFilter.toLowerCase() ||
         (statusFilter === "active-Not yet" &&
-          (student.status.toLowerCase() === "active" ||
-            student.status.toLowerCase() === "not yet"));
+          (studentStatus === "active" || studentStatus === "not yet"));
       const matchesSubject =
         subjectFilter === "all" || student.subject === subjectFilter;
       const matchesUstaz =
@@ -444,7 +457,7 @@ export default function StudentList({
 
   const clearAllFilters = () => {
     setSearchQuery("");
-    setStatusFilter("active-Not yet");
+    setStatusFilter("all");
     setSubjectFilter("all");
     setUstazFilter("all");
     setPackageFilter("all");
@@ -456,7 +469,7 @@ export default function StudentList({
   const getActiveFiltersCount = () => {
     let count = 0;
     if (searchQuery) count++;
-    if (statusFilter !== "active-Not yet") count++;
+    if (statusFilter !== "all") count++;
     if (subjectFilter !== "all") count++;
     if (ustazFilter !== "all") count++;
     if (packageFilter !== "all") count++;
