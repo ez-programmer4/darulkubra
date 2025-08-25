@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
     });
+
     if (
       !session ||
       (session.role !== "controller" &&
@@ -82,16 +83,16 @@ export async function GET(request: NextRequest) {
     const deposits = await prisma.payment.findMany({
       where: {
         studentid: parsedStudentId,
-        OR: [
-          { reason: "deposit" },
-          { reason: "Deposit" },
-          { reason: "DEPOSIT" },
-          { reason: { contains: "deposit" } },
-          { reason: { contains: "Deposit" } },
-          { reason: { contains: "DEPOSIT" } },
-          { reason: { contains: "dep" } },
-          { reason: { contains: "Dep" } },
-        ],
+        // OR: [
+        //   { reason: "deposit" },
+        //   { reason: "Deposit" },
+        //   { reason: "DEPOSIT" },
+        //   { reason: { contains: "deposit" } },
+        //   { reason: { contains: "Deposit" } },
+        //   { reason: { contains: "DEPOSIT" } },
+        //   { reason: { contains: "dep" } },
+        //   { reason: { contains: "Dep" } },
+        // ],
       },
       select: {
         id: true,
