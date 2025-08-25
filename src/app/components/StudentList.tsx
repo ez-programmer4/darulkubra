@@ -191,17 +191,66 @@ export default function StudentList({
               }
 
               const currentMonth = format(new Date(), "yyyy-MM");
-              // Per requirement: paid if month matches currentMonth and payment_status is 'Paid'
-              const monthMatches = (p: MonthlyPayment): boolean => {
-                if (!p.month) return false;
-                return String(p.month).slice(0, 7) === currentMonth;
+              // Helpers mirroring backend logic
+              const calculateExpectedAmount = (monthStr: string): number => {
+                const [y, m] = monthStr.split("-").map(Number);
+                const monthStart = new Date(y, (m || 1) - 1, 1);
+                const monthEnd = new Date(y, (m || 1), 0);
+                const studentStart = safeParseISO(student.startdate) || new Date();
+                const studentStartMonthStart = new Date(
+                  studentStart.getFullYear(),
+                  studentStart.getMonth(),
+                  1
+                );
+                if (monthStart < studentStartMonthStart) return 0;
+                const daysInMonth = monthEnd.getDate();
+                let daysInClass = daysInMonth;
+                if (
+                  y === studentStart.getFullYear() &&
+                  (m || 1) - 1 === studentStart.getMonth()
+                ) {
+                  const startDate = new Date(studentStart);
+                  startDate.setHours(0, 0, 0, 0);
+                  monthEnd.setHours(23, 59, 59, 999);
+                  // differenceInDays imported above
+                  // We cannot import here, so approximate using direct diff in ms
+                  const diffDays = Math.min(
+                    Math.ceil((monthEnd.getTime() - startDate.getTime() + 1) / (1000 * 60 * 60 * 24)),
+                    daysInMonth
+                  );
+                  daysInClass = diffDays;
+                }
+                const expected = (Number(student.classfee || 0) * daysInClass) / daysInMonth;
+                return Math.round(expected);
               };
 
-              const currentMonthPaid = paymentHistory.some((p) => {
-                return monthMatches(p) && String(p.payment_status).toLowerCase() === "paid";
-              });
+              const isMonthFullyCovered = (monthStr: string): boolean => {
+                const monthKey = monthStr.slice(0, 7);
+                const monthPayments = paymentHistory.filter(
+                  (p) => String(p.month).slice(0, 7) === monthKey
+                );
+                if (monthPayments.length === 0) return false;
+                // Free month
+                if (monthPayments.some((p) => p.payment_type === "free")) return true;
+                // prizepartial + any payment
+                const hasPrizePartial = monthPayments.some((p) => p.payment_type === "prizepartial");
+                const hasPaid = monthPayments.some(
+                  (p) => p.payment_type === "partial" || p.payment_type === "full"
+                );
+                if (hasPrizePartial && hasPaid) return true;
+                // Sum of paid amounts
+                const totalPaid = monthPayments.reduce((sum, p) => sum + Number(p.paid_amount || 0), 0);
+                const expected = calculateExpectedAmount(monthKey);
+                return totalPaid >= expected;
+              };
+
+              const currentMonthPaid = isMonthFullyCovered(currentMonth);
 
               if (DEBUG_PAYMENTS) {
+                const monthMatches = (p: MonthlyPayment): boolean => {
+                  if (!p.month) return false;
+                  return String(p.month).slice(0, 7) === currentMonth;
+                };
                 const sample = paymentHistory
                   .filter((p) => monthMatches(p))
                   .map((p) => ({
@@ -231,16 +280,11 @@ export default function StudentList({
                   })[0]
                 : undefined;
 
-              // Check for overdue payments
-              const hasOverdue = paymentHistory.some(
-                (p) => {
-                  if (p.payment_status === "rejected") return true;
-                  if (p.payment_status === "paid" || p.payment_status === "Paid") return false;
-
-                  const endDate = safeParseISO(p.end_date);
-                  return endDate ? endDate.getTime() < new Date().getTime() : false;
-                }
-              );
+              // Check for overdue payments: any month before current that is not fully covered
+              const uniqueMonths = Array.from(
+                new Set(paymentHistory.map((p) => String(p.month).slice(0, 7)).filter(Boolean))
+              ).sort();
+              const hasOverdue = uniqueMonths.some((m) => m < currentMonth && !isMonthFullyCovered(m));
 
               return {
                 ...student,
