@@ -387,20 +387,16 @@ model notification {
 }
 
 model payment {
-  id            Int      @id @default(autoincrement())
+  id            Int      @id @default(autoincrement()) @@map("wdt_ID")  
   studentid     Int
   studentname   String   @db.VarChar(255)
   paymentdate   DateTime @db.DateTime(0)
-  transactionid String   @unique(map: "Payment_transactionid_key")
-  paidamount    Decimal  @db.Decimal(12, 2)
-  reason        String   @db.Text
-
+  transactionid String    @db.VarChar(255)
+  paidamount    Decimal  @db.Decimal(10, 0)
+  reason        String   @db.VarChar(2000)
   status              String              @default("pending") @db.VarChar(20)
-
   wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentid], references: [wdt_ID], map: "Payment_studentid_fkey")
-
-  @@index([paymentdate], map: "Payment_paymentdate_idx")
-  @@index([studentid], map: "Payment_studentid_idx")
+  
   @@map("wpos_wpdatatable_29")
 }
 

@@ -131,18 +131,21 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      // Use the direct query results as deposits with consistent keys
-      const formattedDeposits = directDeposits.map((deposit) => ({
-        id: deposit.id,
-        studentid: deposit.studentid,
-        studentname: deposit.studentname,
-        paidamount: Number(deposit.paidamount),
-        reason: deposit.reason,
-        transactionid: deposit.transactionid,
-        sendername: derivedSenderName,
-        paymentdate: deposit.paymentdate,
-        status: deposit.status || "pending",
-      }));
+      // Use the direct query results as deposits
+      const formattedDeposits = directDeposits.map((deposit) => {
+        const formatted = {
+          id: deposit.id,
+          studentid: deposit.studentid,
+          studentname: deposit.studentname,
+          amount: Number(deposit.paidamount),
+          reason: deposit.reason,
+          transaction_id: deposit.transactionid,
+          sender_name: derivedSenderName,
+          payment_date: deposit.paymentdate,
+          status: deposit.status || "pending",
+        };
+        return formatted;
+      });
 
       return NextResponse.json(formattedDeposits);
     }
