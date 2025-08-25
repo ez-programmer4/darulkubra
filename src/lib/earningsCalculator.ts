@@ -101,24 +101,37 @@ export class EarningsCalculator {
           'System' AS Team_Leader,
           uc_names.name AS U_Control_Name,
           a.u_control,
-          COUNT(DISTINCT CASE WHEN a.status='Active' AND a.package != '0 fee' THEN a.wdt_ID END) AS Active_Students,
+          COUNT(DISTINCT CASE 
+            WHEN a.status='Active'
+              AND (a.exitdate IS NULL OR a.exitdate >= ?)
+              AND (a.registrationdate IS NULL OR a.registrationdate <= ?)
+            THEN a.wdt_ID 
+          END) AS Active_Students,
           COUNT(DISTINCT CASE WHEN a.status='Not Yet' THEN a.wdt_ID END) AS Not_Yet_Students,
           COUNT(DISTINCT CASE WHEN a.status='Leave' AND a.exitdate BETWEEN ? AND ? THEN a.wdt_ID END) AS Leave_Students_This_Month,
           COUNT(DISTINCT CASE WHEN a.status='Ramadan Leave' THEN a.wdt_ID END) AS Ramadan_Leave,
-          COUNT(DISTINCT CASE WHEN m.payment_status='paid' AND m.month=? THEN m.studentid END) AS Paid_This_Month,
+          COUNT(DISTINCT CASE 
+            WHEN m.month = ? AND (
+              UPPER(m.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR m.is_free_month = 1
+            )
+            THEN m.studentid 
+          END) AS Paid_This_Month,
           COUNT(DISTINCT CASE 
             WHEN a.status='Active'
             AND NOT EXISTS(
               SELECT 1 FROM months_table sm
-              WHERE sm.studentid=a.wdt_ID AND sm.month=? AND sm.payment_status='paid'
+              WHERE sm.studentid=a.wdt_ID 
+                AND sm.month=? 
+                AND (UPPER(sm.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR sm.is_free_month = 1)
             )
-            AND a.package <> '0 fee'
             THEN a.wdt_ID 
           END) AS Unpaid_Active_This_Month,
           (
             SELECT COUNT(DISTINCT b.wdt_ID)
             FROM wpos_wpdatatable_23 b
-            JOIN months_table pm ON pm.studentid = b.wdt_ID AND pm.month = ? AND pm.payment_status = 'paid'
+            JOIN months_table pm ON pm.studentid = b.wdt_ID 
+              AND pm.month = ? 
+              AND (UPPER(pm.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR pm.is_free_month = 1)
             WHERE b.status = 'Active'
               AND b.refer = a.u_control
               AND b.startdate BETWEEN ? AND ?
@@ -135,16 +148,23 @@ export class EarningsCalculator {
         LEFT JOIN months_table m ON a.wdt_ID = m.studentid
         LEFT JOIN wpos_wpdatatable_28 uc_names ON a.u_control = uc_names.code
         WHERE a.u_control != '' AND a.u_control IS NOT NULL
-        ${params.controllerId ? 'AND a.u_control = ?' : ''}
+        ${params.controllerId ? 'AND TRIM(LOWER(a.u_control)) = TRIM(LOWER(?))' : ''}
         GROUP BY a.u_control, uc_names.name
       `;
 
       const queryParams = [
+        // Active window bounds
+        this.startDate.toISOString().split('T')[0], // Active: exitdate >= start of month
+        this.endDate.toISOString().split('T')[0],   // Active: registrationdate <= end of month
+        // Leave students window
         this.startDate.toISOString().split('T')[0], // start date for leave students
         this.endDate.toISOString().split('T')[0],   // end date for leave students  
+        // Paid this month
         this.yearMonth,                             // month for paid students
+        // Unpaid check month
         this.yearMonth,                             // month for unpaid check
-        this.yearMonth,                             // month for referenced students
+        // Referenced students month and window
+        this.yearMonth,                             // month for referenced students (paid)
         this.startDate.toISOString().split('T')[0], // start date for referenced students
         this.endDate.toISOString().split('T')[0],   // end date for referenced students
         this.yearMonth,                             // registration month for referenced students
