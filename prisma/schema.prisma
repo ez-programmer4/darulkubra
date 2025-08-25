@@ -87,7 +87,7 @@ model wpos_wpdatatable_28 {
   deductionbonusconfig     deductionbonusconfig[]
   latenessdeductionconfig  latenessdeductionconfig[]
   latenessrecord           latenessrecord[]
-  payment                  payment[]
+  
   permissionrequest        permissionrequest[]
   qualityassessment        qualityassessment[]
   qualitydescription       qualitydescription[]
@@ -388,7 +388,6 @@ model notification {
 
 model payment {
   id            Int      @id @default(autoincrement())
-  sendername    String   @db.VarChar(120)
   studentid     Int
   studentname   String   @db.VarChar(255)
   paymentdate   DateTime @db.DateTime(0)
@@ -397,11 +396,10 @@ model payment {
   reason        String   @db.Text
 
   status              String              @default("pending") @db.VarChar(20)
-  wpos_wpdatatable_28 wpos_wpdatatable_28 @relation(fields: [sendername], references: [username], map: "Payment_sendername_fkey")
+
   wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentid], references: [wdt_ID], map: "Payment_studentid_fkey")
 
   @@index([paymentdate], map: "Payment_paymentdate_idx")
-  @@index([sendername], map: "Payment_sendername_idx")
   @@index([studentid], map: "Payment_studentid_idx")
   @@map("Payment")
 }

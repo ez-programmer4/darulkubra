@@ -77,7 +77,6 @@ export async function POST(request: NextRequest) {
       paidamount,
       reason,
       transactionid,
-      sendername,
       paymentdate,
       status,
     } = body;
@@ -88,7 +87,6 @@ export async function POST(request: NextRequest) {
       !paidamount ||
       !reason ||
       !transactionid ||
-      !sendername ||
       !paymentdate ||
       !status
     ) {
@@ -138,7 +136,6 @@ export async function POST(request: NextRequest) {
         paidamount,
         reason,
         transactionid,
-        sendername,
         paymentdate: new Date(paymentdate),
         status,
       },

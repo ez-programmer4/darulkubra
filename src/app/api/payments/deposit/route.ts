@@ -12,7 +12,7 @@ interface Payment {
   paidamount: Decimal;
   reason: string;
   transactionid: string;
-  sendername: string;
+  // sendername is derived: `${studentname} - ${controllerName}`
   paymentdate: Date;
   status: string;
 }
@@ -49,6 +49,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Load student and controller to derive sender name
+    const studentInfo = await prisma.wpos_wpdatatable_23.findUnique({
+      where: { wdt_ID: parsedStudentId },
+      select: { name: true, controller: { select: { name: true } } },
+    });
+    if (!studentInfo) {
+      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+    }
+    const derivedSenderName = `${studentInfo.name ?? ""}${studentInfo.controller?.name ? " - " + studentInfo.controller.name : ""}`;
+
     // First, let's check if we can find any payments for this student
     const allPayments = await prisma.payment.findMany({
       where: {
@@ -61,7 +71,6 @@ export async function GET(request: NextRequest) {
         paidamount: true,
         reason: true,
         transactionid: true,
-        sendername: true,
         paymentdate: true,
         status: true,
       },
@@ -91,7 +100,6 @@ export async function GET(request: NextRequest) {
         paidamount: true,
         reason: true,
         transactionid: true,
-        sendername: true,
         paymentdate: true,
         status: true,
       },
@@ -114,7 +122,6 @@ export async function GET(request: NextRequest) {
           paidamount: true,
           reason: true,
           transactionid: true,
-          sendername: true,
           paymentdate: true,
           status: true,
         },
@@ -132,7 +139,7 @@ export async function GET(request: NextRequest) {
           amount: Number(deposit.paidamount),
           reason: deposit.reason,
           transaction_id: deposit.transactionid,
-          sender_name: deposit.sendername,
+          sender_name: derivedSenderName,
           payment_date: deposit.paymentdate,
           status: deposit.status || "pending",
         };
@@ -150,7 +157,7 @@ export async function GET(request: NextRequest) {
       paidamount: Number(deposit.paidamount),
       reason: deposit.reason,
       transactionid: deposit.transactionid,
-      sendername: deposit.sendername,
+      sendername: derivedSenderName,
       paymentdate: deposit.paymentdate,
       status: deposit.status || "pending",
     }));
@@ -203,10 +210,14 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Get the student to verify ownership
+      // Get the student to verify ownership and fetch controller name for sendername
       const student = await prisma.wpos_wpdatatable_23.findUnique({
         where: { wdt_ID: parseInt(studentId) },
-        select: { u_control: true, name: true },
+        select: {
+          u_control: true,
+          name: true,
+          controller: { select: { name: true } },
+        },
       });
 
       if (!student) {
@@ -224,7 +235,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Create the deposit payment
+      // Derive sender name `${studentname} - ${controllerName}` if available
+      const derivedSenderName = `${student.name ?? ""}${student.controller?.name ? " - " + student.controller.name : ""}`;
+
+      // Create the deposit payment (do not store sendername in DB)
       const deposit = await prisma.payment.create({
         data: {
           studentid: parseInt(studentId),
@@ -234,7 +248,6 @@ export async function POST(request: NextRequest) {
           paymentdate: new Date(),
           transactionid: transactionId || `DEP-${Date.now()}`,
           status: status || "pending",
-          sendername: session.username,
         },
       });
 
