@@ -51,6 +51,7 @@ model wpos_wpdatatable_23 {
   subject             String?                       @db.VarChar(255)
   country             String?                       @db.VarChar(255)
   rigistral           String?                       @db.VarChar(255)
+  
   daypackages         String?                       @db.VarChar(255)
   refer               String?                       @db.VarChar(255)
   registrationdate    DateTime?                     @default(now()) @db.DateTime(0)

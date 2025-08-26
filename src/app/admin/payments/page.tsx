@@ -187,7 +187,7 @@ export default function PaymentManagementPage() {
 
   const updatePaymentStatus = async (
     id: number,
-    status: "Approved" | "rejected"
+    status: "Approved" | "rejected" | "pending"
   ) => {
     try {
       const res = await fetch("/api/admin/payments", {
@@ -501,27 +501,38 @@ export default function PaymentManagementPage() {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              {payment.status === "pending" && (
-                                <>
-                                  <button
-                                    onClick={() =>
-                                      updatePaymentStatus(payment.id, "Approved")
-                                    }
-                                    className="p-2 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-all hover:scale-105"
-                                    title="Approve"
-                                  >
-                                    <FiCheckCircle className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      updatePaymentStatus(payment.id, "rejected")
-                                    }
-                                    className="p-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-all hover:scale-105"
-                                    title="Reject"
-                                  >
-                                    <FiXCircle className="h-4 w-4" />
-                                  </button>
-                                </>
+                              {payment.status !== "Approved" && (
+                                <button
+                                  onClick={() =>
+                                    updatePaymentStatus(payment.id, "Approved")
+                                  }
+                                  className="p-2 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-all hover:scale-105"
+                                  title="Approve"
+                                >
+                                  <FiCheckCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                              {payment.status !== "rejected" && (
+                                <button
+                                  onClick={() =>
+                                    updatePaymentStatus(payment.id, "rejected")
+                                  }
+                                  className="p-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-all hover:scale-105"
+                                  title="Reject"
+                                >
+                                  <FiXCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                              {payment.status !== "pending" && (
+                                <button
+                                  onClick={() =>
+                                    updatePaymentStatus(payment.id, "pending" as any)
+                                  }
+                                  className="p-2 bg-yellow-100 text-yellow-700 rounded-xl hover:bg-yellow-200 transition-all hover:scale-105"
+                                  title="Set to Pending"
+                                >
+                                  <FiClock className="h-4 w-4" />
+                                </button>
                               )}
                               <button
                                 onClick={() => openDetailsModal(payment)}

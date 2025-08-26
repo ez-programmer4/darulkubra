@@ -43,30 +43,21 @@ export async function GET(req: NextRequest) {
 
     const payments = await prisma.payment.findMany({
       where: whereClause,
-      include: {
-        wpos_wpdatatable_23: {
-          select: { name: true, controller: { select: { name: true } } },
-        },
-      },
       orderBy: {
         paymentdate: "desc",
       },
     });
     // Map DB records to include derived sendername for frontend compatibility
-    const mapped = payments.map((p) => {
-      const studentName = p.wpos_wpdatatable_23?.name ?? p.studentname ?? "";
-      const controllerName = p.wpos_wpdatatable_23?.controller?.name ?? "";
-      const sendername = controllerName
-        ? `${studentName} - ${controllerName}`
-        : `${studentName}`;
-      const { wpos_wpdatatable_23, ...rest } = p as any;
-      return { ...rest, sendername };
-    });
+    const mapped = payments.map((p) => ({
+      ...p,
+      sendername: p.studentname || "Unknown",
+    }));
 
     return NextResponse.json(mapped);
   } catch (error) {
+    console.error("Payment fetch error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Internal Server Error", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -96,8 +87,9 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json(updatedPayment);
   } catch (error) {
+    console.error("Payment update error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Internal Server Error", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

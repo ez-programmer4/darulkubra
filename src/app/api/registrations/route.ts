@@ -292,7 +292,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!u_control) {
+    // Allow null u_control for registral role when refer is optional
+    if (!u_control && session.role !== "registral") {
       return NextResponse.json(
         {
           message:
@@ -316,7 +317,7 @@ export async function POST(request: NextRequest) {
           startdate: startdate ? new Date(startdate) : null,
           u_control,
           status: status
-            ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+            ? status.toLowerCase() === "not yet" ? "Not yet" : status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
             : "Not yet",
           ustaz,
           package: regionPackage || null,

@@ -1636,7 +1636,7 @@ function RegistrationContent() {
                               "active",
                               "leave",
                               "remadan leave",
-                              "Not yet",
+                              "not yet",
                               "fresh",
                             ].includes(value?.toLowerCase() || "") ||
                             "Status must be Active, Leave, Remadan leave, Not yet, or Fresh",
@@ -1720,7 +1720,7 @@ function RegistrationContent() {
                       <div className="space-y-2">
                         <label className="block text-sm font-semibold text-gray-800 flex items-center">
                           <FiStar className="mr-2 text-teal-600" />
-                          Refer (Controller)
+                          Refer (Controller) - Optional
                         </label>
                         {loadingControllers ? (
                           <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 text-sm">
@@ -1732,19 +1732,12 @@ function RegistrationContent() {
                           </div>
                         ) : controllers.length > 0 ? (
                           <select
-                            {...register("refer", {
-                              required:
-                                "Please select a controller for referral",
-                            })}
-                            className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
-                              errors.refer
-                                ? "border-red-500"
-                                : "border-gray-200 hover:border-teal-300"
-                            }`}
+                            {...register("refer")}
+                            className="w-full px-5 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm hover:border-teal-300"
                             defaultValue=""
                           >
-                            <option value="" disabled>
-                              Select controller
+                            <option value="">
+                              Select controller (optional)
                             </option>
                             {controllers.map((ctrl) => (
                               <option key={ctrl.code} value={ctrl.code}>
@@ -1756,11 +1749,6 @@ function RegistrationContent() {
                           <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 text-sm">
                             No controllers available
                           </div>
-                        )}
-                        {errors.refer && (
-                          <p className="mt-1 text-xs text-red-600 font-medium">
-                            {errors.refer.message}
-                          </p>
                         )}
                       </div>
                     )}
