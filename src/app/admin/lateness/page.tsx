@@ -531,6 +531,18 @@ export default function AdminLatenessAnalyticsPage() {
                   <p>Total Deduction: {totalDeduction}</p>
                   <p>Avg Lateness: {avgLateness}</p>
                 </div>
+                
+                {/* Daily Records Debug */}
+                <div className="mt-2">
+                  <p className="font-semibold">Daily Records Sample ({dailyRecords.length} total):</p>
+                  {dailyRecords.length > 0 ? (
+                    <pre className="text-xs bg-white p-2 rounded overflow-x-auto max-h-32">
+                      {JSON.stringify(dailyRecords.slice(0, 2), null, 2)}
+                    </pre>
+                  ) : (
+                    <p className="text-red-600">No daily records found for {format(dailyDate, "yyyy-MM-dd")}</p>
+                  )}
+                </div>
               </div>
             </div>
             {analytics.dailyTrend && analytics.dailyTrend.length > 0 && (

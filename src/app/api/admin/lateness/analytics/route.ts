@@ -139,6 +139,17 @@ export async function GET(req: NextRequest) {
           (actualStartTime.getTime() - scheduledTime.getTime()) / 60000
         )
       );
+      
+      // Debug: Log first few lateness calculations
+      if (totalEvents < 3) {
+        console.log(`Debug lateness for ${student.name} on ${dateStr}:`, {
+          scheduledTime: scheduledTime.toISOString(),
+          actualStartTime: actualStartTime.toISOString(),
+          latenessMinutes,
+          timeSlot,
+          time24
+        });
+      }
       // Deduction logic
       let deductionApplied = 0;
       let deductionTier = "Excused";
