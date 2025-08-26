@@ -240,15 +240,18 @@ export default function AdminLatenessAnalyticsPage() {
       (sum: number, d: any) => sum + (Number(d["Total Deduction"]) || 0),
       0
     ) || 0;
-  const avgLateness =
-    analytics && analytics.dailyTrend.length > 0
-      ? (
-          analytics.dailyTrend.reduce(
-            (sum: number, d: any) => sum + (Number(d["Average Lateness"]) || 0),
-            0
-          ) / analytics.dailyTrend.length
-        ).toFixed(2)
-      : 0;
+  const avgLateness = (() => {
+    const arr = Array.isArray(analytics?.dailyTrend)
+      ? analytics.dailyTrend
+      : [];
+    if (arr.length === 0) return "0.00";
+    const total = arr.reduce(
+      (sum: number, d: any) => sum + (Number(d["Average Lateness"]) || 0),
+      0
+    );
+    const avg = total / arr.length;
+    return Number.isFinite(avg) ? avg.toFixed(2) : "0.00";
+  })();
 
   // Open teacher modal and fetch breakdown
   const openTeacherModal = async (teacherName: string, teacherId: string) => {
@@ -293,13 +296,16 @@ export default function AdminLatenessAnalyticsPage() {
         to: date?.to ? format(date.to, "yyyy-MM-dd") : "",
         teacherId: teacherId,
       });
-      const res = await fetch(`/api/admin/lateness?${params.toString()}`);
+      const res = await fetch(
+        `/api/admin/teacher-payments?${params.toString()}`
+      );
       if (!res.ok) throw new Error("Failed to fetch deduction detail");
       const data = await res.json();
-      if (data && data.latenessData) {
-        setDeductionDetail(data.latenessData);
+      const records = data?.latenessRecords || [];
+      if (Array.isArray(records)) {
+        setDeductionDetail(records);
         setDeductionDetailTotal(
-          data.latenessData.reduce(
+          records.reduce(
             (sum: number, r: any) => sum + (Number(r.deductionApplied) || 0),
             0
           )
