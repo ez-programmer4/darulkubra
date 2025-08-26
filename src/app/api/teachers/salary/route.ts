@@ -196,17 +196,20 @@ export async function GET(request: NextRequest) {
     // Calculate absence deduction using same logic as admin
     const absenceConfig = await getAbsenceDeductionConfig();
     let absenceDeduction = 0;
-    for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
-      const monthNumber = String(d.getMonth() + 1);
-      if (
-        absenceConfig.effectiveMonths.length > 0 &&
-        !absenceConfig.effectiveMonths.includes(monthNumber)
-      ) {
-        continue;
-      }
-      const absenceResult = await isTeacherAbsent(teacherId, new Date(d));
-      if (absenceResult.isAbsent) {
-        absenceDeduction += absenceConfig.deductionAmount;
+    // Skip absence calculation if teacher has no students
+    if (activeStudents > 0) {
+      for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
+        const monthNumber = String(d.getMonth() + 1);
+        if (
+          absenceConfig.effectiveMonths.length > 0 &&
+          !absenceConfig.effectiveMonths.includes(monthNumber)
+        ) {
+          continue;
+        }
+        const absenceResult = await isTeacherAbsent(teacherId, new Date(d));
+        if (absenceResult.isAbsent) {
+          absenceDeduction += absenceConfig.deductionAmount;
+        }
       }
     }
 
