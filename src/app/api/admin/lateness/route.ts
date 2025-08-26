@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
             return { h, m, s };
           }
 
-          // 24-hour: "HH:mm[:ss]"
+          // 24-hour: "HH:mm[:ss]" - handle existing database format
           const hmsMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
           if (hmsMatch) {
             const h = parseInt(hmsMatch[1], 10);
