@@ -197,10 +197,10 @@ export async function GET(req: NextRequest) {
         teacherMap[tid].totalMinutes += latenessMinutes;
       }
     }
+    const avgLatenessValue = totalEvents > 0 ? totalLateness / totalEvents : 0;
     dailyTrend.push({
       date: dateStr,
-      "Average Lateness":
-        totalEvents > 0 ? (totalLateness / totalEvents).toFixed(2) : 0,
+      "Average Lateness": Number.isFinite(avgLatenessValue) ? Number(avgLatenessValue.toFixed(2)) : 0,
       "Total Deduction": totalDeduction,
       Present: presentCount,
       Absent: absentCount,
@@ -209,23 +209,27 @@ export async function GET(req: NextRequest) {
   }
 
   // Per-controller summary
-  const controllerData = Object.values(controllerMap).map((c: any) => ({
-    name: c.name,
-    "Average Lateness":
-      c.totalEvents > 0 ? (c.totalLateness / c.totalEvents).toFixed(2) : 0,
-    "Total Deduction": c.totalDeduction,
-    "Total Events": c.totalEvents,
-  }));
+  const controllerData = Object.values(controllerMap).map((c: any) => {
+    const avgLateness = c.totalEvents > 0 ? c.totalLateness / c.totalEvents : 0;
+    return {
+      name: c.name,
+      "Average Lateness": Number.isFinite(avgLateness) ? Number(avgLateness.toFixed(2)) : 0,
+      "Total Deduction": c.totalDeduction,
+      "Total Events": c.totalEvents,
+    };
+  });
 
   // Per-teacher summary
-  const teacherData = Object.values(teacherMap).map((t: any) => ({
-    id: t.id,
-    name: t.name,
-    "Average Lateness":
-      t.totalEvents > 0 ? (t.totalLateness / t.totalEvents).toFixed(2) : 0,
-    "Total Deduction": t.totalDeduction,
-    "Total Events": t.totalEvents,
-  }));
+  const teacherData = Object.values(teacherMap).map((t: any) => {
+    const avgLateness = t.totalEvents > 0 ? t.totalLateness / t.totalEvents : 0;
+    return {
+      id: t.id,
+      name: t.name,
+      "Average Lateness": Number.isFinite(avgLateness) ? Number(avgLateness.toFixed(2)) : 0,
+      "Total Deduction": t.totalDeduction,
+      "Total Events": t.totalEvents,
+    };
+  });
 
   return NextResponse.json({ dailyTrend, controllerData, teacherData });
 }
