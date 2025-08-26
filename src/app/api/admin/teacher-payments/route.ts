@@ -5,6 +5,7 @@ import {
   isTeacherAbsent,
   getAbsenceDeductionConfig,
 } from "@/lib/absence-utils";
+import { format } from "date-fns";
 
 export async function GET(req: NextRequest) {
   try {
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
         d <= toDate;
         d.setDate(d.getDate() + 1)
       ) {
-        const dateStr = d.toISOString().split("T")[0];
+        const dateStr = format(d, "yyyy-MM-dd");
         for (const student of students) {
           const timeSlot = student.occupiedTimes?.[0]?.time_slot;
           if (!timeSlot) continue;
@@ -93,7 +94,7 @@ export async function GET(req: NextRequest) {
             .filter(
               (zl) =>
                 zl.sent_time &&
-                zl.sent_time.toISOString().split("T")[0] === dateStr
+                format(zl.sent_time as Date, "yyyy-MM-dd") === dateStr
             )
             .map((zl) => zl.sent_time)
             .sort((a, b) => {
@@ -303,7 +304,7 @@ export async function GET(req: NextRequest) {
         const numStudents = studentCountMap[t.ustazid] || 0;
         const baseSalary = numStudents * BASE_SALARY_PER_STUDENT;
         for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-          const dateStr = d.toISOString().split("T")[0];
+          const dateStr = format(d, "yyyy-MM-dd");
           for (const student of students) {
             const timeSlot = student.occupiedTimes?.[0]?.time_slot;
             if (!timeSlot) continue;
@@ -329,7 +330,7 @@ export async function GET(req: NextRequest) {
               .filter(
                 (zl) =>
                   zl.sent_time &&
-                  zl.sent_time.toISOString().split("T")[0] === dateStr
+                  format(zl.sent_time as Date, "yyyy-MM-dd") === dateStr
               )
               .map((zl) => zl.sent_time)
               .sort((a, b) => {

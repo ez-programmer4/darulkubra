@@ -9,7 +9,8 @@ function getDayName(date: Date) {
 
 function isValidAttendanceDay(dayPackage: string, date: Date): boolean {
   const day = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  if (!dayPackage) return false;
+  // If no dayPackage recorded, allow counting by default so analytics aren't empty
+  if (!dayPackage) return true;
   if (dayPackage.toLowerCase().includes("all")) return true;
   if (dayPackage.includes("Monday") && day === 1) return true;
   if (dayPackage.includes("Tuesday") && day === 2) return true;
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
   const from = searchParams.get("from") || format(new Date(), "yyyy-MM-dd");
   const to = searchParams.get("to") || format(new Date(), "yyyy-MM-dd");
   const controllerId = searchParams.get("controllerId") || "";
+  const teacherId = searchParams.get("teacherId") || "";
 
   const startDate = new Date(from);
   const endDate = new Date(to);
@@ -95,6 +97,7 @@ export async function GET(req: NextRequest) {
     for (const student of students) {
       const timeSlot = student.occupiedTimes?.[0]?.time_slot;
       if (!timeSlot || !student.ustaz) continue;
+      if (teacherId && String(student.teacher?.ustazid) !== String(teacherId)) continue;
       if (!isValidAttendanceDay(student.daypackages ?? "", d)) continue;
       if (controllerId && String(student.controller?.wdt_ID) !== controllerId)
         continue;
