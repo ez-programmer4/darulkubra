@@ -174,6 +174,11 @@ export async function GET(req: NextRequest) {
       totalDeduction += deductionApplied;
       totalEvents++;
       totalMinutes += latenessMinutes;
+      
+      // Debug: Log accumulation for first day
+      if (dateStr === format(startDate, "yyyy-MM-dd") && totalEvents <= 3) {
+        console.log(`Accumulating for ${student.name}: lateness=${latenessMinutes}, deduction=${deductionApplied}, totalEvents=${totalEvents}`);
+      }
       // Per-controller
       if (student.controller) {
         const cid = String(student.controller.wdt_ID);
@@ -190,6 +195,11 @@ export async function GET(req: NextRequest) {
         controllerMap[cid].totalDeduction += deductionApplied;
         controllerMap[cid].totalEvents++;
         controllerMap[cid].totalMinutes += latenessMinutes;
+        
+        // Debug: Log controller accumulation
+        if (dateStr === format(startDate, "yyyy-MM-dd") && controllerMap[cid].totalEvents <= 2) {
+          console.log(`Controller ${student.controller.name}: events=${controllerMap[cid].totalEvents}, lateness=${controllerMap[cid].totalLateness}, deduction=${controllerMap[cid].totalDeduction}`);
+        }
       }
       // Per-teacher
       if (student.teacher) {
@@ -208,6 +218,11 @@ export async function GET(req: NextRequest) {
         teacherMap[tid].totalDeduction += deductionApplied;
         teacherMap[tid].totalEvents++;
         teacherMap[tid].totalMinutes += latenessMinutes;
+        
+        // Debug: Log teacher accumulation
+        if (dateStr === format(startDate, "yyyy-MM-dd") && teacherMap[tid].totalEvents <= 2) {
+          console.log(`Teacher ${student.teacher.ustazname}: events=${teacherMap[tid].totalEvents}, lateness=${teacherMap[tid].totalLateness}, deduction=${teacherMap[tid].totalDeduction}`);
+        }
       }
     }
     const avgLatenessValue = totalEvents > 0 ? totalLateness / totalEvents : 0;
