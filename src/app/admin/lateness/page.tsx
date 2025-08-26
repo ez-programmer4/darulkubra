@@ -299,23 +299,7 @@ export default function AdminLatenessAnalyticsPage() {
       const res = await fetch(
         `/api/admin/teacher-payments?${params.toString()}`
       );
-      if (!res.ok) {
-        // If teacher-payments API fails, return mock data
-        const mockRecords = [
-          {
-            studentId: 1,
-            studentName: "Sample Student",
-            scheduledTime: new Date(),
-            actualStartTime: new Date(Date.now() + 300000), // 5 min late
-            latenessMinutes: 5,
-            deductionApplied: 3,
-            deductionTier: "Tier 1"
-          }
-        ];
-        setDeductionDetail(mockRecords);
-        setDeductionDetailTotal(3);
-        return;
-      }
+      if (!res.ok) throw new Error("Failed to fetch deduction detail");
       const data = await res.json();
       const records = data?.latenessRecords || [];
       if (Array.isArray(records)) {
@@ -328,20 +312,8 @@ export default function AdminLatenessAnalyticsPage() {
         );
       }
     } catch (err) {
-      // Fallback to mock data on error
-      const mockRecords = [
-        {
-          studentId: 1,
-          studentName: "Sample Student",
-          scheduledTime: new Date(),
-          actualStartTime: new Date(Date.now() + 300000),
-          latenessMinutes: 5,
-          deductionApplied: 3,
-          deductionTier: "Tier 1"
-        }
-      ];
-      setDeductionDetail(mockRecords);
-      setDeductionDetailTotal(3);
+      setDeductionDetail([]);
+      setDeductionDetailTotal(0);
     } finally {
       setDeductionDetailLoading(false);
     }
@@ -513,6 +485,16 @@ export default function AdminLatenessAnalyticsPage() {
           </div>
         ) : analytics ? (
           <div className="space-y-8">
+            {/* Debug Info */}
+            <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
+              <h3 className="text-sm font-bold text-blue-900 mb-2">Debug Info</h3>
+              <div className="text-xs text-blue-700">
+                <p>Daily Trend Records: {analytics.dailyTrend?.length || 0}</p>
+                <p>Controller Records: {analytics.controllerData?.length || 0}</p>
+                <p>Teacher Records: {analytics.teacherData?.length || 0}</p>
+                <p>Date Range: {date?.from ? format(date.from, "yyyy-MM-dd") : "N/A"} to {date?.to ? format(date.to, "yyyy-MM-dd") : "N/A"}</p>
+              </div>
+            </div>
             {analytics.dailyTrend && analytics.dailyTrend.length > 0 && (
               <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
                 <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">

@@ -83,9 +83,6 @@ export default function TeacherPaymentsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [sortKey, setSortKey] = useState<keyof TeacherPayment | "status">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [absenceDeduction, setAbsenceDeduction] = useState<number>(50);
-  const [absenceDeductionInput, setAbsenceDeductionInput] = useState<string>("50");
-  const [absenceDeductionLoading, setAbsenceDeductionLoading] = useState(false);
 
   const months = [
     { value: "1", label: "January" },
@@ -191,23 +188,8 @@ export default function TeacherPaymentsPage() {
       }
     }
 
-    async function fetchAbsenceConfig() {
-      try {
-        const res = await fetch("/api/admin/absence-config");
-        if (res.ok) {
-          const data = await res.json();
-          const amount = Number(data.deductionAmount) || 50;
-          setAbsenceDeduction(amount);
-          setAbsenceDeductionInput(String(amount));
-        }
-      } catch (error) {
-        console.error("Failed to fetch absence config:", error);
-      }
-    }
-
     fetchBaseSalary();
     fetchSalaryVisibility();
-    fetchAbsenceConfig();
   }, []);
 
   const handleUpdateBaseSalary = async () => {
@@ -571,7 +553,7 @@ export default function TeacherPaymentsPage() {
         </div>
 
         {/* Configuration Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Base Salary Config */}
           <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8">
             <div className="flex items-center gap-4 mb-6">
@@ -606,87 +588,6 @@ export default function TeacherPaymentsPage() {
             </div>
             {baseSalaryError && <p className="text-sm text-red-600 mt-2">{baseSalaryError}</p>}
             {baseSalarySuccess && <p className="text-sm text-green-600 mt-2">{baseSalarySuccess}</p>}
-          </div>
-
-          {/* Absence Deduction Config */}
-          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-red-600 rounded-xl">
-                <FiAlertTriangle className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-black">Absence Deduction</h2>
-                <p className="text-gray-600">Configure absence penalty amount</p>
-              </div>
-            </div>
-            <div className="flex flex-col md:flex-row flex-wrap md:flex-nowrap items-stretch md:items-center gap-3 w-full">
-              <input
-                type="number"
-                min={0}
-                value={absenceDeductionInput}
-                onChange={(e) => setAbsenceDeductionInput(e.target.value)}
-                className="w-full md:flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
-                disabled={absenceDeductionLoading}
-              />
-              <span className="text-black font-semibold md:w-auto">ETB</span>
-              <button
-                onClick={async () => {
-                  setAbsenceDeductionLoading(true);
-                  try {
-                    const value = Number(absenceDeductionInput);
-                    if (isNaN(value) || value < 0) {
-                      toast({
-                        title: "Error",
-                        description: "Please enter a valid number.",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    const res = await fetch("/api/admin/absence-config", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        deductionAmount: String(value),
-                        effectiveMonths: [],
-                      }),
-                    });
-                    if (!res.ok) throw new Error("Failed to update absence deduction");
-                    setAbsenceDeduction(value);
-                    // Refresh teacher payments
-                    const { from, to } = getMonthRange(selectedYear, selectedMonth);
-                    const paymentsRes = await fetch(`/api/admin/teacher-payments?startDate=${from.toISOString()}&endDate=${to.toISOString()}`);
-                    if (paymentsRes.ok) {
-                      const data = await paymentsRes.json();
-                      setTeachers(data);
-                      const statusMap: Record<string, "Paid" | "Unpaid"> = {};
-                      for (const t of data) {
-                        statusMap[t.id] = t.status || "Unpaid";
-                      }
-                      setSalaryStatus(statusMap);
-                    }
-                    toast({
-                      title: "Success",
-                      description: "Absence deduction updated and payments refreshed!",
-                    });
-                  } catch (err: any) {
-                    toast({
-                      title: "Error",
-                      description: "Failed to update absence deduction",
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setAbsenceDeductionLoading(false);
-                  }
-                }}
-                className={`w-full md:w-auto bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 ${
-                  absenceDeductionLoading ? "opacity-75" : ""
-                }`}
-                disabled={absenceDeductionLoading}
-              >
-                {absenceDeductionLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
-                Update
-              </button>
-            </div>
           </div>
 
           {/* Salary Visibility Config */}

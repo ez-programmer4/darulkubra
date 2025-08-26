@@ -183,6 +183,7 @@ export async function GET(req: NextRequest) {
         const tid = student.teacher.ustazid;
         if (!teacherMap[tid]) {
           teacherMap[tid] = {
+            id: tid,
             name: student.teacher.ustazname,
             totalLateness: 0,
             totalDeduction: 0,
@@ -218,6 +219,7 @@ export async function GET(req: NextRequest) {
 
   // Per-teacher summary
   const teacherData = Object.values(teacherMap).map((t: any) => ({
+    id: t.id,
     name: t.name,
     "Average Lateness":
       t.totalEvents > 0 ? (t.totalLateness / t.totalEvents).toFixed(2) : 0,
