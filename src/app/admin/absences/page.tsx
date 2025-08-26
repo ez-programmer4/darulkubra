@@ -30,6 +30,7 @@ interface AbsenceRecord {
 interface ConfigResponse {
   deductionAmount: string;
   effectiveMonths: string[];
+  excludeSundays?: boolean;
 }
 
 const MONTHS = [
@@ -52,6 +53,7 @@ export default function AbsenceManagement() {
   const [loading, setLoading] = useState(true);
   const [deductionAmount, setDeductionAmount] = useState("50");
   const [effectiveMonths, setEffectiveMonths] = useState<string[]>([]);
+  const [excludeSundays, setExcludeSundays] = useState(true);
 
   const loadConfig = useCallback(async () => {
     setLoading(true);
@@ -61,6 +63,7 @@ export default function AbsenceManagement() {
       const data: ConfigResponse = await res.json();
       setDeductionAmount(data.deductionAmount || "50");
       setEffectiveMonths(data.effectiveMonths || []);
+      setExcludeSundays(data.excludeSundays ?? true);
       toast({
         title: "Success",
         description: "Configuration loaded successfully",
@@ -86,7 +89,7 @@ export default function AbsenceManagement() {
       const res = await fetch("/api/admin/absence-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deductionAmount, effectiveMonths }),
+        body: JSON.stringify({ deductionAmount, effectiveMonths, excludeSundays }),
       });
 
       if (!res.ok) {
@@ -321,6 +324,33 @@ export default function AbsenceManagement() {
               <p className="text-sm text-gray-500 mt-3">
                 Select months when deductions should be applied. No selection means deductions are inactive.
               </p>
+            </div>
+
+            {/* Sunday Exclusion */}
+            <div>
+              <label className="block text-sm font-bold text-black mb-4">
+                <FiClock className="inline h-4 w-4 mr-2" />
+                Sunday Exclusion
+              </label>
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={excludeSundays}
+                    onChange={(e) => setExcludeSundays(e.target.checked)}
+                    disabled={loading}
+                    className="w-5 h-5 text-black border-gray-300 rounded focus:ring-black focus:ring-2"
+                  />
+                  <div>
+                    <span className="text-sm font-semibold text-black">
+                      Exclude Sundays from absence deductions
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      When enabled, no deductions will be applied for Sunday absences as there are no scheduled classes
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
 
             {/* Actions */}

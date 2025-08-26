@@ -22,13 +22,20 @@ export async function GET(req: NextRequest) {
         key: "absence_deduction_effective_months",
       },
     });
+    const sundayConfig = await prisma.deductionbonusconfig.findFirst({
+      where: {
+        configType: "absence",
+        key: "exclude_sundays",
+      },
+    });
 
     const deductionAmount = deductionConfig?.value ?? "50";
     const effectiveMonths = monthsConfig?.effectiveMonths
       ? monthsConfig.effectiveMonths.split(",")
       : [];
+    const excludeSundays = sundayConfig?.value === "true";
 
-    return NextResponse.json({ deductionAmount, effectiveMonths });
+    return NextResponse.json({ deductionAmount, effectiveMonths, excludeSundays });
   } catch (error) {
     return NextResponse.json(
       { error: "Internal Server Error" },
@@ -52,6 +59,7 @@ export async function POST(req: NextRequest) {
     const effectiveMonths: string[] = Array.isArray(body.effectiveMonths)
       ? body.effectiveMonths
       : [];
+    const excludeSundays: boolean = body.excludeSundays ?? true;
 
     const existingDeductionConfig = await prisma.deductionbonusconfig.findFirst(
       {
@@ -97,6 +105,32 @@ export async function POST(req: NextRequest) {
           key: "absence_deduction_effective_months",
           value: "effective_months",
           effectiveMonths: monthsValue,
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    // Handle Sunday exclusion config
+    const existingSundayConfig = await prisma.deductionbonusconfig.findFirst({
+      where: {
+        configType: "absence",
+        key: "exclude_sundays",
+      },
+    });
+    if (existingSundayConfig) {
+      await prisma.deductionbonusconfig.update({
+        where: { id: existingSundayConfig.id },
+        data: { 
+          value: excludeSundays.toString(), 
+          updatedAt: new Date() 
+        },
+      });
+    } else {
+      await prisma.deductionbonusconfig.create({
+        data: {
+          configType: "absence",
+          key: "exclude_sundays",
+          value: excludeSundays.toString(),
           updatedAt: new Date(),
         },
       });
