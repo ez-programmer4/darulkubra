@@ -124,18 +124,25 @@ export async function GET(request: NextRequest) {
         
         function to24Hour(time12h: string) {
           if (!time12h) return "00:00";
-          if (
-            time12h.includes(":") &&
-            (time12h.includes("AM") || time12h.includes("PM"))
-          ) {
+          
+          // Handle AM/PM format
+          if (time12h.includes("AM") || time12h.includes("PM")) {
             const [time, modifier] = time12h.split(" ");
             let [hours, minutes] = time.split(":");
             if (hours === "12") hours = modifier === "AM" ? "00" : "12";
-            else if (modifier === "PM")
-              hours = String(parseInt(hours, 10) + 12);
+            else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
             return `${hours.padStart(2, "0")}:${minutes}`;
           }
-          return time12h;
+          
+          // Handle existing 24-hour format (HH:MM:SS or HH:MM)
+          if (time12h.includes(":")) {
+            const parts = time12h.split(":");
+            const hours = parts[0].padStart(2, "0");
+            const minutes = (parts[1] || "00").padStart(2, "0");
+            return `${hours}:${minutes}`;
+          }
+          
+          return "00:00"; // fallback
         }
         
         const time24 = to24Hour(timeSlot);
