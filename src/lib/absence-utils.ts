@@ -25,6 +25,19 @@ export async function isTeacherAbsent(
     return { isAbsent: false, reason: "Future date" };
   }
 
+  // Check Sunday exclusion setting
+  const sundayConfig = await prisma.deductionbonusconfig.findFirst({
+    where: {
+      configType: "absence",
+      key: "exclude_sundays",
+    },
+  });
+  const excludeSundays = sundayConfig?.value === "true";
+  
+  if (excludeSundays && dayName === "Sunday") {
+    return { isAbsent: false, reason: "Sunday excluded from deductions" };
+  }
+
   // Get teacher with students
   const teacher = await prisma.wpos_wpdatatable_24.findUnique({
     where: { ustazid: teacherId },
@@ -114,10 +127,19 @@ export async function getAbsenceDeductionConfig() {
     },
   });
 
+  const sundayConfig = await prisma.deductionbonusconfig.findFirst({
+    where: {
+      configType: "absence",
+      key: "exclude_sundays",
+    },
+  });
+
   const effectiveMonths = effectiveMonthsConfig?.effectiveMonths?.split(",") || [];
+  const excludeSundays = sundayConfig?.value === "true";
 
   return {
     deductionAmount: deductionConfig ? Number(deductionConfig.value) : 50,
     effectiveMonths: effectiveMonths,
+    excludeSundays: excludeSundays,
   };
 }

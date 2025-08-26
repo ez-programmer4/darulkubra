@@ -20,6 +20,7 @@ import {
   FiUsers,
   FiChevronLeft,
   FiChevronRight,
+  FiSettings,
 } from "react-icons/fi";
 import { toast } from "@/components/ui/use-toast";
 import Tooltip from "@/components/Tooltip";
@@ -75,6 +76,9 @@ export default function TeacherPaymentsPage() {
   const [baseSalarySuccess, setBaseSalarySuccess] = useState<string | null>(null);
   const [teacherSalaryVisible, setTeacherSalaryVisible] = useState(true);
   const [salaryVisibilityLoading, setSalaryVisibilityLoading] = useState(false);
+  const [absenceDeduction, setAbsenceDeduction] = useState<number>(50);
+  const [absenceDeductionInput, setAbsenceDeductionInput] = useState<string>("50");
+  const [absenceDeductionLoading, setAbsenceDeductionLoading] = useState(false);
   const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<"mark-paid" | "mark-unpaid" | "">("");
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -188,8 +192,23 @@ export default function TeacherPaymentsPage() {
       }
     }
 
+    async function fetchAbsenceConfig() {
+      try {
+        const res = await fetch("/api/admin/absence-config");
+        if (res.ok) {
+          const data = await res.json();
+          const amount = Number(data.deductionAmount) || 50;
+          setAbsenceDeduction(amount);
+          setAbsenceDeductionInput(String(amount));
+        }
+      } catch (error) {
+        console.error("Failed to fetch absence config:", error);
+      }
+    }
+
     fetchBaseSalary();
     fetchSalaryVisibility();
+    fetchAbsenceConfig();
   }, []);
 
   const handleUpdateBaseSalary = async () => {
@@ -231,6 +250,51 @@ export default function TeacherPaymentsPage() {
     }
   };
 
+  const handleUpdateAbsenceDeduction = async () => {
+    setAbsenceDeductionLoading(true);
+    try {
+      const value = Number(absenceDeductionInput);
+      if (isNaN(value) || value < 0) {
+        toast({
+          title: "Error",
+          description: "Please enter a valid number.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const res = await fetch("/api/admin/absence-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deductionAmount: String(value),
+          effectiveMonths: [],
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update absence deduction");
+      setAbsenceDeduction(value);
+      toast({
+        title: "Success",
+        description: "Absence deduction updated successfully!",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update absence deduction",
+        variant: "destructive",
+      });
+    } finally {
+      setAbsenceDeductionLoading(false);
+    }
+  };
+
+  const handleUpdateLatenessDeduction = () => {
+    window.open('/admin/lateness', '_blank');
+    toast({
+      title: "Info",
+      description: "Opening lateness configuration in new tab",
+    });
+  };
+
   useEffect(() => {
     async function fetchPayments() {
       setLoading(true);
@@ -248,6 +312,81 @@ export default function TeacherPaymentsPage() {
         setSalaryStatus(statusMap);
       } catch (e: any) {
         setError(e.message || "Failed to fetch teacher payments");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPayments();
+  }, [selectedMonth, selectedYear]);
+
+  return (
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+        {/* Configuration Section */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6">
+          <h3 className="text-lg font-bold text-black mb-4 flex items-center">
+            <FiSettings className="mr-2" />
+            Salary Configuration
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Base Salary per Student (ETB)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={baseSalaryInput}
+                  onChange={(e) => setBaseSalaryInput(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                  disabled={baseSalaryLoading}
+                />
+                <Button
+                  onClick={handleUpdateBaseSalary}
+                  disabled={baseSalaryLoading}
+                  size="sm"
+                  className="bg-black hover:bg-gray-800"
+                >
+                  {baseSalaryLoading ? <FiLoader className="animate-spin" /> : "Update"}
+                </Button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Absence Deduction (ETB)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={absenceDeductionInput}
+                  onChange={(e) => setAbsenceDeductionInput(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                  disabled={absenceDeductionLoading}
+                />
+                <Button
+                  onClick={handleUpdateAbsenceDeduction}
+                  disabled={absenceDeductionLoading}
+                  size="sm"
+                  className="bg-black hover:bg-gray-800"
+                >
+                  {absenceDeductionLoading ? <FiLoader className="animate-spin" /> : "Update"}
+                </Button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Lateness Deduction
+              </label>
+              <Button
+                onClick={handleUpdateLatenessDeduction}
+                size="sm"
+                className="w-full bg-gray-600 hover:bg-gray-700"
+              >
+                Configure Lateness
+              </Button>
+            </div>
+          </div>
+        </div>ror(e.message || "Failed to fetch teacher payments");
         toast({
           title: "Error",
           description: "Failed to load teacher payments",
