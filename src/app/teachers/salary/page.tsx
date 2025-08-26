@@ -74,6 +74,13 @@ export default function TeacherSalaryPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salaryVisible, setSalaryVisible] = useState(true);
   const [checkingVisibility, setCheckingVisibility] = useState(true);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [breakdown, setBreakdown] = useState<{
+    latenessRecords: any[];
+    absenceRecords: any[];
+    bonusRecords: any[];
+  }>({ latenessRecords: [], absenceRecords: [], bonusRecords: [] });
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -153,6 +160,32 @@ export default function TeacherSalaryPage() {
       setError("Failed to load salary information. Please try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchBreakdown() {
+    if (!user?.id) return;
+    
+    setBreakdownLoading(true);
+    try {
+      const [year, month] = selectedMonth.split("-");
+      const selectedYear = parseInt(year);
+      const monthNumber = parseInt(month);
+      const from = new Date(selectedYear, monthNumber - 1, 1);
+      const to = new Date(selectedYear, monthNumber, 0);
+
+      const res = await fetch(
+        `/api/admin/teacher-payments?teacherId=${user.id}&from=${from.toISOString()}&to=${to.toISOString()}`
+      );
+      
+      if (!res.ok) throw new Error("Failed to fetch breakdown");
+      const data = await res.json();
+      setBreakdown(data);
+      setShowBreakdown(true);
+    } catch (error) {
+      setError("Failed to load detailed breakdown.");
+    } finally {
+      setBreakdownLoading(false);
     }
   }
 
@@ -472,7 +505,7 @@ Additional Information:
                 </Card>
 
                 {/* Lateness Deduction */}
-                <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in">
+                <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in cursor-pointer" onClick={fetchBreakdown}>
                   <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -485,6 +518,9 @@ Additional Information:
                         <p className="text-xl sm:text-2xl font-bold text-red-600">
                           -{salaryData.latenessDeduction} ETB
                         </p>
+                        <p className="text-xs text-blue-600 font-medium mt-1">
+                          Click for details
+                        </p>
                       </div>
                       <div className="p-3 bg-gray-100 rounded-xl">
                         <FiMinus className="h-6 w-6 text-black" />
@@ -494,7 +530,7 @@ Additional Information:
                 </Card>
 
                 {/* Absence Deduction */}
-                <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in">
+                <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in cursor-pointer" onClick={fetchBreakdown}>
                   <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -506,6 +542,9 @@ Additional Information:
                         </div>
                         <p className="text-xl sm:text-2xl font-bold text-red-600">
                           -{salaryData.absenceDeduction} ETB
+                        </p>
+                        <p className="text-xs text-blue-600 font-medium mt-1">
+                          Click for details
                         </p>
                       </div>
                       <div className="p-3 bg-gray-100 rounded-xl">
@@ -631,6 +670,184 @@ Additional Information:
           </Link>
         </nav>
       </div>
+
+      {/* Breakdown Modal */}
+      {showBreakdown && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl mx-4 my-8 p-6 relative border border-gray-200 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowBreakdown(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 rounded-full p-2 bg-gray-100 hover:bg-gray-200 transition-all hover:scale-110"
+            >
+              <FiX size={20} />
+            </button>
+            
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-black rounded-xl">
+                <FiBarChart className="h-6 w-6 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-black">Salary Breakdown Details</h2>
+            </div>
+            
+            {breakdownLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
+                <p className="text-black font-medium text-lg">Loading breakdown...</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Lateness Records */}
+                <div className="bg-red-50 rounded-2xl p-6 border border-red-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FiClock className="text-red-500 h-5 w-5" />
+                    <h3 className="text-lg font-bold text-red-900">Lateness Records</h3>
+                    <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-sm font-semibold">
+                      {breakdown.latenessRecords?.length || 0} incidents
+                    </span>
+                  </div>
+                  {breakdown.latenessRecords?.length === 0 ? (
+                    <p className="text-red-600 text-center py-4">No lateness records for this period.</p>
+                  ) : (
+                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                      {breakdown.latenessRecords?.map((record: any, index: number) => (
+                        <div key={index} className="bg-white rounded-xl p-4 border border-red-200 shadow-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-3">
+                              <div className="text-sm font-mono text-gray-600">
+                                {new Date(record.classDate).toLocaleDateString()}
+                              </div>
+                              <div className="text-sm text-gray-700">
+                                {record.studentName}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                {record.latenessMinutes} min late
+                              </span>
+                              <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                -{record.deductionApplied} ETB
+                              </span>
+                              <span className="text-xs text-gray-500">({record.deductionTier})</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-4 pt-4 border-t border-red-200">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-red-900">Total Lateness Deduction:</span>
+                      <span className="text-xl font-bold text-red-600">
+                        -{breakdown.latenessRecords?.reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0) || 0} ETB
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Absence Records */}
+                <div className="bg-yellow-50 rounded-2xl p-6 border border-yellow-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FiAlertTriangle className="text-yellow-500 h-5 w-5" />
+                    <h3 className="text-lg font-bold text-yellow-900">Absence Records</h3>
+                    <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-sm font-semibold">
+                      {breakdown.absenceRecords?.length || 0} days
+                    </span>
+                  </div>
+                  {breakdown.absenceRecords?.length === 0 ? (
+                    <p className="text-yellow-600 text-center py-4">No absence records for this period.</p>
+                  ) : (
+                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                      {breakdown.absenceRecords?.map((record: any, index: number) => (
+                        <div key={index} className="bg-white rounded-xl p-4 border border-yellow-200 shadow-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-3">
+                              <div className="text-sm font-mono text-gray-600">
+                                {new Date(record.classDate).toLocaleDateString()}
+                              </div>
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                record.permitted ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                              }`}>
+                                {record.permitted ? "Permitted" : "Unpermitted"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                -{record.deductionApplied} ETB
+                              </span>
+                              {record.reviewNotes && (
+                                <span className="text-xs text-gray-500">({record.reviewNotes})</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-4 pt-4 border-t border-yellow-200">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-yellow-900">Total Absence Deduction:</span>
+                      <span className="text-xl font-bold text-yellow-600">
+                        -{breakdown.absenceRecords?.reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0) || 0} ETB
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bonus Records */}
+                <div className="bg-green-50 rounded-2xl p-6 border border-green-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FiAward className="text-green-500 h-5 w-5" />
+                    <h3 className="text-lg font-bold text-green-900">Bonus Records</h3>
+                    <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-sm font-semibold">
+                      {breakdown.bonusRecords?.length || 0} bonuses
+                    </span>
+                  </div>
+                  {breakdown.bonusRecords?.length === 0 ? (
+                    <p className="text-green-600 text-center py-4">No bonus records for this period.</p>
+                  ) : (
+                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                      {breakdown.bonusRecords?.map((record: any, index: number) => (
+                        <div key={index} className="bg-white rounded-xl p-4 border border-green-200 shadow-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-3">
+                              <div className="text-sm font-mono text-gray-600">
+                                {new Date(record.createdAt).toLocaleDateString()}
+                              </div>
+                              <div className="text-sm text-gray-700">
+                                {record.reason}
+                              </div>
+                            </div>
+                            <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
+                              +{record.amount} ETB
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-4 pt-4 border-t border-green-200">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-green-900">Total Bonuses:</span>
+                      <span className="text-xl font-bold text-green-600">
+                        +{breakdown.bonusRecords?.reduce((sum: number, r: any) => sum + (r.amount || 0), 0) || 0} ETB
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <button
+                className="w-full bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
+                onClick={() => setShowBreakdown(false)}
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Enhanced Animations */}
       <style jsx>{`
