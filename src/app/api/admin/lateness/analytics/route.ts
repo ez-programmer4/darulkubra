@@ -143,11 +143,13 @@ export async function GET(req: NextRequest) {
       // Debug: Log first few lateness calculations
       if (totalEvents < 3) {
         console.log(`Debug lateness for ${student.name} on ${dateStr}:`, {
-          scheduledTime: scheduledTime.toISOString(),
-          actualStartTime: actualStartTime.toISOString(),
+          scheduledTime: isNaN(scheduledTime.getTime()) ? 'Invalid Date' : scheduledTime.toISOString(),
+          actualStartTime: isNaN(actualStartTime.getTime()) ? 'Invalid Date' : actualStartTime.toISOString(),
           latenessMinutes,
           timeSlot,
-          time24
+          time24,
+          scheduledTimeRaw: scheduledTime.toString(),
+          actualStartTimeRaw: actualStartTime.toString()
         });
       }
       // Deduction logic

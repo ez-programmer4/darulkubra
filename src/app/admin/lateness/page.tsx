@@ -65,9 +65,13 @@ function getInitials(name: string | null | undefined) {
 
 export default function AdminLatenessAnalyticsPage() {
   const { data: session } = useSession();
-  const [date, setDate] = useState<DateRange | undefined>({
-    from: new Date(),
-    to: new Date(),
+  const [date, setDate] = useState<DateRange | undefined>(() => {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    return {
+      from: startOfMonth,
+      to: today,
+    };
   });
   const [controllerId, setControllerId] = useState("");
   const [controllers, setControllers] = useState<any[]>([]);
