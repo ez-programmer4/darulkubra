@@ -239,6 +239,7 @@ export async function GET(req: NextRequest) {
   // Per-controller summary
   const controllerData = Object.values(controllerMap).map((c: any) => {
     const avgLateness = c.totalEvents > 0 ? c.totalLateness / c.totalEvents : 0;
+    console.log(`Final controller ${c.name}: events=${c.totalEvents}, lateness=${c.totalLateness}, deduction=${c.totalDeduction}`);
     return {
       name: c.name,
       "Average Lateness": Number.isFinite(avgLateness) ? Number(avgLateness.toFixed(2)) : 0,
@@ -250,6 +251,9 @@ export async function GET(req: NextRequest) {
   // Per-teacher summary
   const teacherData = Object.values(teacherMap).map((t: any) => {
     const avgLateness = t.totalEvents > 0 ? t.totalLateness / t.totalEvents : 0;
+    if (t.totalDeduction > 0 || t.totalLateness > 0) {
+      console.log(`Final teacher ${t.name}: events=${t.totalEvents}, lateness=${t.totalLateness}, deduction=${t.totalDeduction}`);
+    }
     return {
       id: t.id,
       name: t.name,
