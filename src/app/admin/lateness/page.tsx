@@ -289,7 +289,7 @@ export default function AdminLatenessAnalyticsPage() {
     setDeductionDetailTotal(0);
     try {
       const params = new URLSearchParams({
-        date: date?.from ? format(date.from, "yyyy-MM-dd") : "",
+        from: date?.from ? format(date.from, "yyyy-MM-dd") : "",
         to: date?.to ? format(date.to, "yyyy-MM-dd") : "",
         teacherId: teacherId,
       });
@@ -1339,7 +1339,7 @@ export default function AdminLatenessAnalyticsPage() {
               >
                 <option value="">All Teachers</option>
                 {filteredTeacherData.map((t: any) => (
-                  <option key={t.name} value={t.name}>
+                  <option key={t.id ?? t.name} value={t.id ?? t.name}>
                     {t.name}
                   </option>
                 ))}
@@ -1414,7 +1414,7 @@ export default function AdminLatenessAnalyticsPage() {
                     ) : (
                       dailyRecords.map((r: any, i: number) => (
                         <tr
-                          key={r.studentId + "-" + r.classDate}
+                          key={r.studentId + "-" + r.scheduledTime}
                           className={`hover:bg-gray-50 transition-all duration-200 ${
                             i % 2 === 0 ? "bg-white" : "bg-gray-50"
                           }`}
