@@ -551,8 +551,8 @@ export default function AdminLatenessAnalyticsPage() {
                   {dailyRecords.length > 0 && (
                     <div className="mt-2 text-xs">
                       <p className="font-semibold">Lateness Summary:</p>
-                      <p>Records with lateness > 0: {dailyRecords.filter(r => r.latenessMinutes > 0).length}</p>
-                      <p>Records with deduction > 0: {dailyRecords.filter(r => r.deductionApplied > 0).length}</p>
+                      <p>Records with lateness &gt; 0: {dailyRecords.filter(r => r.latenessMinutes > 0).length}</p>
+                      <p>Records with deduction &gt; 0: {dailyRecords.filter(r => r.deductionApplied > 0).length}</p>
                       <p>Max lateness: {Math.max(...dailyRecords.map(r => r.latenessMinutes))} min</p>
                       <p>Total deductions: {dailyRecords.reduce((sum, r) => sum + r.deductionApplied, 0)} ETB</p>
                     </div>
