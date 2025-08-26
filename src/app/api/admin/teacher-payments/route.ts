@@ -384,17 +384,20 @@ export async function GET(req: NextRequest) {
         }
         // Absence deduction: calculate automatically using centralized logic
         let absenceDeduction = 0;
-        for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-          const monthNumber = String(d.getMonth() + 1);
-          if (
-            absenceConfig.effectiveMonths.length > 0 &&
-            !absenceConfig.effectiveMonths.includes(monthNumber)
-          ) {
-            continue;
-          }
-          const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
-          if (absenceResult.isAbsent) {
-            absenceDeduction += absenceConfig.deductionAmount;
+        // Skip absence calculation if teacher has no students
+        if (numStudents > 0) {
+          for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+            const monthNumber = String(d.getMonth() + 1);
+            if (
+              absenceConfig.effectiveMonths.length > 0 &&
+              !absenceConfig.effectiveMonths.includes(monthNumber)
+            ) {
+              continue;
+            }
+            const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
+            if (absenceResult.isAbsent) {
+              absenceDeduction += absenceConfig.deductionAmount;
+            }
           }
         }
         // Bonuses: aggregate from QualityAssessment, not BonusRecord
