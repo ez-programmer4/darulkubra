@@ -488,11 +488,49 @@ export default function AdminLatenessAnalyticsPage() {
             {/* Debug Info */}
             <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
               <h3 className="text-sm font-bold text-blue-900 mb-2">Debug Info</h3>
-              <div className="text-xs text-blue-700">
+              <div className="text-xs text-blue-700 space-y-2">
                 <p>Daily Trend Records: {analytics.dailyTrend?.length || 0}</p>
                 <p>Controller Records: {analytics.controllerData?.length || 0}</p>
                 <p>Teacher Records: {analytics.teacherData?.length || 0}</p>
                 <p>Date Range: {date?.from ? format(date.from, "yyyy-MM-dd") : "N/A"} to {date?.to ? format(date.to, "yyyy-MM-dd") : "N/A"}</p>
+                
+                {/* Sample Daily Trend Data */}
+                {analytics.dailyTrend?.length > 0 && (
+                  <div className="mt-2">
+                    <p className="font-semibold">Sample Daily Trend:</p>
+                    <pre className="text-xs bg-white p-2 rounded overflow-x-auto">
+                      {JSON.stringify(analytics.dailyTrend[0], null, 2)}
+                    </pre>
+                  </div>
+                )}
+                
+                {/* Sample Controller Data */}
+                {analytics.controllerData?.length > 0 && (
+                  <div className="mt-2">
+                    <p className="font-semibold">Sample Controller:</p>
+                    <pre className="text-xs bg-white p-2 rounded overflow-x-auto">
+                      {JSON.stringify(analytics.controllerData[0], null, 2)}
+                    </pre>
+                  </div>
+                )}
+                
+                {/* Sample Teacher Data */}
+                {analytics.teacherData?.length > 0 && (
+                  <div className="mt-2">
+                    <p className="font-semibold">Sample Teacher:</p>
+                    <pre className="text-xs bg-white p-2 rounded overflow-x-auto">
+                      {JSON.stringify(analytics.teacherData[0], null, 2)}
+                    </pre>
+                  </div>
+                )}
+                
+                {/* Summary Stats Debug */}
+                <div className="mt-2">
+                  <p className="font-semibold">Calculated Stats:</p>
+                  <p>Total Events: {totalEvents}</p>
+                  <p>Total Deduction: {totalDeduction}</p>
+                  <p>Avg Lateness: {avgLateness}</p>
+                </div>
               </div>
             </div>
             {analytics.dailyTrend && analytics.dailyTrend.length > 0 && (
