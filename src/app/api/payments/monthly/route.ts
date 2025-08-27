@@ -334,7 +334,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Enhanced validation with better error messages
-    if (!(canOverrideChecks && ignoreHistoricalUnpaid === true)) {
+    // Skip validation entirely if payment status is "Paid" (for legacy data)
+    if (paymentStatus !== "Paid" && !(canOverrideChecks && ignoreHistoricalUnpaid === true)) {
       const unpaidMonths = [];
       
       for (const monthToCheck of monthsToCheck) {
