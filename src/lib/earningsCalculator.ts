@@ -114,17 +114,20 @@ export class EarningsCalculator {
           COUNT(DISTINCT CASE WHEN a.status='Ramadan Leave' THEN a.wdt_ID END) AS Ramadan_Leave,
           COUNT(DISTINCT CASE 
             WHEN a.status='Active' AND a.package != '0 Fee'
-            AND m.month = ? AND (
-              UPPER(m.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR m.is_free_month = 1
+            AND EXISTS(
+              SELECT 1 FROM months_table pm
+              WHERE pm.studentid = a.wdt_ID 
+                AND pm.month = ? 
+                AND (UPPER(pm.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR pm.is_free_month = 1)
             )
-            THEN m.studentid 
+            THEN a.wdt_ID 
           END) AS Paid_This_Month,
           COUNT(DISTINCT CASE 
             WHEN a.status='Active' AND a.package != '0 Fee'
             AND NOT EXISTS(
               SELECT 1 FROM months_table sm
-              WHERE sm.studentid=a.wdt_ID 
-                AND sm.month=? 
+              WHERE sm.studentid = a.wdt_ID 
+                AND sm.month = ? 
                 AND (UPPER(sm.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR sm.is_free_month = 1)
             )
             THEN a.wdt_ID 
