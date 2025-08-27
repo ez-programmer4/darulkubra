@@ -123,8 +123,8 @@ export class EarningsCalculator {
           const totalEarnings = baseEarnings; // Simplified for now
 
           return {
-            controllerId: controller.code,
-            controllerName: controller.name,
+            controllerId: controller.code || '',
+            controllerName: controller.name || 'Unknown Controller',
             teamId: 1,
             teamName: "Default Team",
             teamLeader: "System",
