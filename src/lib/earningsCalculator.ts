@@ -106,21 +106,21 @@ export class EarningsCalculator {
             THEN a.wdt_ID 
           END) AS Active_Students,
           COUNT(DISTINCT CASE 
-            WHEN a.status='Active' AND a.package != '0 fee'
+            WHEN a.status='Active' AND a.package != '0 Fee'
             THEN a.wdt_ID 
           END) AS Active_Paying_Students,
           COUNT(DISTINCT CASE WHEN a.status='Not Yet' THEN a.wdt_ID END) AS Not_Yet_Students,
           COUNT(DISTINCT CASE WHEN a.status='Leave' AND a.exitdate BETWEEN ? AND ? THEN a.wdt_ID END) AS Leave_Students_This_Month,
           COUNT(DISTINCT CASE WHEN a.status='Ramadan Leave' THEN a.wdt_ID END) AS Ramadan_Leave,
           COUNT(DISTINCT CASE 
-            WHEN a.status='Active' AND a.package != '0 fee'
+            WHEN a.status='Active' AND a.package != '0 Fee'
             AND m.month = ? AND (
               UPPER(m.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR m.is_free_month = 1
             )
             THEN m.studentid 
           END) AS Paid_This_Month,
           COUNT(DISTINCT CASE 
-            WHEN a.status='Active' AND a.package != '0 fee'
+            WHEN a.status='Active' AND a.package != '0 Fee'
             AND NOT EXISTS(
               SELECT 1 FROM months_table sm
               WHERE sm.studentid=a.wdt_ID 
@@ -288,7 +288,7 @@ export class EarningsCalculator {
       });
 
       const activeStudentsArr = students.filter(
-        (s) => s.status === "Active" && s.package !== "0 fee"
+        (s) => s.status === "Active" && s.package !== "0 Fee"
       );
       const activeStudents = activeStudentsArr.length;
       const leaveStudents = students.filter(
@@ -368,7 +368,7 @@ export class EarningsCalculator {
       });
 
       const activeStudentsArr = students.filter(
-        (s) => s.status === "Active" && s.package !== "0 fee"
+        (s) => s.status === "Active" && s.package !== "0 Fee"
       );
       const activeStudents = activeStudentsArr.length;
       const leaveStudents = students.filter(
