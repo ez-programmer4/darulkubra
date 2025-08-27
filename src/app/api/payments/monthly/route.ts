@@ -296,6 +296,11 @@ export async function POST(request: NextRequest) {
     const isMonthFullyCovered = (monthStr: string, payments: any[]): boolean => {
       const monthPayments = payments.filter(p => p.month === monthStr);
       
+      // If any payment for this month is marked as "Paid", consider it covered
+      // This handles cases where class fee changed after payment was made
+      const hasAnyPaidPayment = monthPayments.some(p => p.payment_status === "Paid");
+      if (hasAnyPaidPayment) return true;
+      
       // Check for full prize (free month)
       const hasFullPrize = monthPayments.some(p => p.payment_type === "free");
       if (hasFullPrize) return true;
