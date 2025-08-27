@@ -451,6 +451,18 @@ export default function PaymentManagement({
     
     while (checkDate < targetDate) {
       const monthStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Check if month is already marked as paid in months_table
+      const isAlreadyPaid = monthlyPayments.some(
+        payment => payment.month === monthStr && payment.payment_status === 'Paid'
+      );
+      
+      // If already paid, skip validation - don't check amount mismatch
+      if (isAlreadyPaid) {
+        checkDate.setMonth(checkDate.getMonth() + 1);
+        continue;
+      }
+      
       const status = getMonthPaymentStatus(monthStr);
       
       if (status.expectedAmount > 0 && !status.isPaid) {
