@@ -103,15 +103,10 @@ export class EarningsCalculator {
           a.u_control,
           COUNT(DISTINCT CASE 
             WHEN a.status='Active'
-              AND (a.exitdate IS NULL OR a.exitdate >= ?)
-              AND (a.registrationdate IS NULL OR a.registrationdate <= ?)
             THEN a.wdt_ID 
           END) AS Active_Students,
           COUNT(DISTINCT CASE 
-            WHEN a.status='Active'
-              AND (a.exitdate IS NULL OR a.exitdate >= ?)
-              AND (a.registrationdate IS NULL OR a.registrationdate <= ?)
-              AND a.package != '0 fee'
+            WHEN a.status='Active' AND a.package != '0 fee'
             THEN a.wdt_ID 
           END) AS Active_Paying_Students,
           COUNT(DISTINCT CASE WHEN a.status='Not Yet' THEN a.wdt_ID END) AS Not_Yet_Students,
@@ -165,12 +160,6 @@ export class EarningsCalculator {
       `;
 
       const queryParams = [
-        // Active window bounds (total active)
-        this.startDate.toISOString().split("T")[0], // Active: exitdate >= start of month
-        this.endDate.toISOString().split("T")[0], // Active: registrationdate <= end of month
-        // Active paying students window bounds
-        this.startDate.toISOString().split("T")[0], // Active paying: exitdate >= start of month
-        this.endDate.toISOString().split("T")[0], // Active paying: registrationdate <= end of month
         // Leave students window
         this.startDate.toISOString().split("T")[0], // start date for leave students
         this.endDate.toISOString().split("T")[0], // end date for leave students
