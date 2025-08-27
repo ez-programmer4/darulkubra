@@ -93,7 +93,7 @@ export class EarningsCalculator {
     try {
       const config = await this.getEarningsConfig();
 
-      // Use raw SQL query similar to PHP implementation
+      // Use raw SQL query with 0 fee exclusion
       const rawQuery = `
         SELECT
           'Default Team' AS Team_Name,
@@ -107,17 +107,25 @@ export class EarningsCalculator {
               AND (a.registrationdate IS NULL OR a.registrationdate <= ?)
             THEN a.wdt_ID 
           END) AS Active_Students,
+          COUNT(DISTINCT CASE 
+            WHEN a.status='Active'
+              AND (a.exitdate IS NULL OR a.exitdate >= ?)
+              AND (a.registrationdate IS NULL OR a.registrationdate <= ?)
+              AND a.package != '0 fee'
+            THEN a.wdt_ID 
+          END) AS Active_Paying_Students,
           COUNT(DISTINCT CASE WHEN a.status='Not Yet' THEN a.wdt_ID END) AS Not_Yet_Students,
           COUNT(DISTINCT CASE WHEN a.status='Leave' AND a.exitdate BETWEEN ? AND ? THEN a.wdt_ID END) AS Leave_Students_This_Month,
           COUNT(DISTINCT CASE WHEN a.status='Ramadan Leave' THEN a.wdt_ID END) AS Ramadan_Leave,
           COUNT(DISTINCT CASE 
-            WHEN m.month = ? AND (
+            WHEN a.status='Active' AND a.package != '0 fee'
+            AND m.month = ? AND (
               UPPER(m.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR m.is_free_month = 1
             )
             THEN m.studentid 
           END) AS Paid_This_Month,
           COUNT(DISTINCT CASE 
-            WHEN a.status='Active'
+            WHEN a.status='Active' AND a.package != '0 fee'
             AND NOT EXISTS(
               SELECT 1 FROM months_table sm
               WHERE sm.studentid=a.wdt_ID 
@@ -157,9 +165,12 @@ export class EarningsCalculator {
       `;
 
       const queryParams = [
-        // Active window bounds
+        // Active window bounds (total active)
         this.startDate.toISOString().split("T")[0], // Active: exitdate >= start of month
         this.endDate.toISOString().split("T")[0], // Active: registrationdate <= end of month
+        // Active paying students window bounds
+        this.startDate.toISOString().split("T")[0], // Active paying: exitdate >= start of month
+        this.endDate.toISOString().split("T")[0], // Active paying: registrationdate <= end of month
         // Leave students window
         this.startDate.toISOString().split("T")[0], // start date for leave students
         this.endDate.toISOString().split("T")[0], // end date for leave students
@@ -187,13 +198,14 @@ export class EarningsCalculator {
         results.map(async (row: any) => {
           const controllerId = row.u_control;
           const activeStudents = Number(row.Active_Students);
+          const activePayingStudents = Number(row.Active_Paying_Students);
           const leaveStudents = Number(row.Leave_Students_This_Month);
           const unpaidActive = Number(row.Unpaid_Active_This_Month);
           const referencedActive = Number(row.Referenced_Active_Students);
           const paidThisMonth = Number(row.Paid_This_Month);
 
-          // Calculate earnings using the exact PHP formula
-          const baseEarnings = activeStudents * config.mainBaseRate;
+          // Calculate earnings using paying students only (exclude 0 fee)
+          const baseEarnings = activePayingStudents * config.mainBaseRate;
           const leavePenalty =
             Math.max(leaveStudents - config.leaveThreshold, 0) *
             config.leavePenaltyMultiplier *
