@@ -11,6 +11,7 @@ import {
   FiCheck,
   FiLogOut,
   FiUsers,
+  FiBook,
 } from "react-icons/fi";
 
 const navSections = [
@@ -19,6 +20,7 @@ const navSections = [
     items: [
       { href: "/controller", label: "Dashboard", icon: FiBarChart },
       { href: "/attendance-list", label: "Attendance List", icon: FiCalendar },
+      { href: "/controller/student-analytics", label: "Terbiya", icon: FiBook },
       { href: "/analytics", label: "Analytics", icon: FiBarChart },
       { href: "/controller/ratings", label: "Ustaz Rating", icon: FiBarChart },
     ],
