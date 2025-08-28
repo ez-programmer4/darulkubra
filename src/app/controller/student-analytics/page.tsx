@@ -45,15 +45,14 @@ export default function StudentAnalytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [progressFilter, setProgressFilter] = useState<"all" | "notstarted" | "inprogress" | "completed">("all");
+  const [progressFilter, setProgressFilter] = useState<
+    "all" | "notstarted" | "inprogress" | "completed"
+  >("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (status === "loading") return;
-    if (!session || session.role !== "controller") {
-      router.push("/login");
-      return;
-    }
+
     fetchStudents();
   }, [session, status, router, searchTerm, progressFilter, currentPage]);
 
@@ -68,7 +67,9 @@ export default function StudentAnalytics() {
         limit: "10",
       });
 
-      const response = await fetch(`/api/controller/student-analytics?${params}`);
+      const response = await fetch(
+        `/api/controller/student-analytics?${params}`
+      );
       const result = await response.json();
 
       if (!response.ok) {
@@ -85,8 +86,10 @@ export default function StudentAnalytics() {
   };
 
   const getProgressColor = (progress: string) => {
-    if (progress === "completed") return "bg-green-100 text-green-800 border-green-200";
-    if (progress === "notstarted") return "bg-gray-100 text-gray-800 border-gray-200";
+    if (progress === "completed")
+      return "bg-green-100 text-green-800 border-green-200";
+    if (progress === "notstarted")
+      return "bg-gray-100 text-gray-800 border-gray-200";
     return "bg-blue-100 text-blue-800 border-blue-200";
   };
 
@@ -101,8 +104,12 @@ export default function StudentAnalytics() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
         <div className="text-center bg-white rounded-2xl shadow-2xl p-12">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto"></div>
-          <p className="mt-6 text-gray-700 text-lg font-medium">Loading student analytics...</p>
-          <p className="mt-2 text-gray-500">Please wait while we fetch your data</p>
+          <p className="mt-6 text-gray-700 text-lg font-medium">
+            Loading student analytics...
+          </p>
+          <p className="mt-2 text-gray-500">
+            Please wait while we fetch your data
+          </p>
         </div>
       </div>
     );
@@ -136,13 +143,14 @@ export default function StudentAnalytics() {
               className="flex items-center gap-2 px-6 py-3 bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-gray-100"
             >
               <FiArrowLeft className="h-5 w-5 text-blue-600" />
-              <span className="font-medium text-gray-700">Back to Dashboard</span>
+              <span className="font-medium text-gray-700">
+                Back to Dashboard
+              </span>
             </button>
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Student Analytics
               </h1>
-              <p className="text-gray-600 mt-1">Controller: {session?.name}</p>
             </div>
           </div>
         </div>
@@ -151,7 +159,9 @@ export default function StudentAnalytics() {
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex-1">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Search Students</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Search Students
+              </label>
               <div className="relative">
                 <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
@@ -167,7 +177,9 @@ export default function StudentAnalytics() {
               </div>
             </div>
             <div className="md:w-64">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Progress Filter</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Progress Filter
+              </label>
               <select
                 value={progressFilter}
                 onChange={(e) => {
@@ -194,8 +206,12 @@ export default function StudentAnalytics() {
                   <FiUsers className="h-8 w-8 text-blue-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Total Students</p>
-                  <p className="text-3xl font-bold text-gray-900">{pagination.totalRecords}</p>
+                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                    Total Students
+                  </p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {pagination.totalRecords}
+                  </p>
                 </div>
               </div>
             </div>
@@ -205,9 +221,11 @@ export default function StudentAnalytics() {
                   <FiBook className="h-8 w-8 text-green-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Active Packages</p>
+                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                    Active Packages
+                  </p>
                   <p className="text-3xl font-bold text-gray-900">
-                    {new Set(students.map(s => s.activePackage)).size}
+                    {new Set(students.map((s) => s.activePackage)).size}
                   </p>
                 </div>
               </div>
@@ -218,9 +236,17 @@ export default function StudentAnalytics() {
                   <FiTrendingUp className="h-8 w-8 text-purple-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">In Progress</p>
+                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                    In Progress
+                  </p>
                   <p className="text-3xl font-bold text-gray-900">
-                    {students.filter(s => s.studentProgress !== "completed" && s.studentProgress !== "notstarted").length}
+                    {
+                      students.filter(
+                        (s) =>
+                          s.studentProgress !== "completed" &&
+                          s.studentProgress !== "notstarted"
+                      ).length
+                    }
                   </p>
                 </div>
               </div>
@@ -231,9 +257,11 @@ export default function StudentAnalytics() {
                   <FiMessageCircle className="h-8 w-8 text-orange-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Connected</p>
+                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                    Connected
+                  </p>
                   <p className="text-3xl font-bold text-gray-900">
-                    {students.filter(s => s.chatid).length}
+                    {students.filter((s) => s.chatid).length}
                   </p>
                 </div>
               </div>
@@ -266,7 +294,10 @@ export default function StudentAnalytics() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {students.map((student, index) => (
-                  <tr key={student.id} className="hover:bg-gray-50 transition-colors duration-200">
+                  <tr
+                    key={student.id}
+                    className="hover:bg-gray-50 transition-colors duration-200"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-12 w-12">
@@ -277,16 +308,24 @@ export default function StudentAnalytics() {
                           </div>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-bold text-gray-900">{student.name}</div>
-                          <div className="text-sm text-gray-500">ID: {student.id}</div>
+                          <div className="text-sm font-bold text-gray-900">
+                            {student.name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ID: {student.id}
+                          </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{student.ustazname || "Not assigned"}</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {student.ustazname || "Not assigned"}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{student.activePackage}</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {student.activePackage}
+                      </div>
                       {student.isKid && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200 mt-1">
                           Kid Package
@@ -294,8 +333,13 @@ export default function StudentAnalytics() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getProgressColor(student.studentProgress)}`}>
-                        {getProgressIcon(student.studentProgress)} {student.studentProgress}
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getProgressColor(
+                          student.studentProgress
+                        )}`}
+                      >
+                        {getProgressIcon(student.studentProgress)}{" "}
+                        {student.studentProgress}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -343,7 +387,11 @@ export default function StudentAnalytics() {
                   Previous
                 </button>
                 <button
-                  onClick={() => setCurrentPage(Math.min(pagination.totalPages, currentPage + 1))}
+                  onClick={() =>
+                    setCurrentPage(
+                      Math.min(pagination.totalPages, currentPage + 1)
+                    )
+                  }
                   disabled={!pagination.hasNextPage}
                   className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 transition-all duration-200"
                 >
@@ -355,7 +403,8 @@ export default function StudentAnalytics() {
                   <p className="text-sm text-gray-700 font-medium">
                     Showing{" "}
                     <span className="font-bold text-gray-900">
-                      {(pagination.currentPage - 1) * pagination.itemsPerPage + 1}
+                      {(pagination.currentPage - 1) * pagination.itemsPerPage +
+                        1}
                     </span>{" "}
                     to{" "}
                     <span className="font-bold text-gray-900">
@@ -364,13 +413,19 @@ export default function StudentAnalytics() {
                         pagination.totalRecords
                       )}
                     </span>{" "}
-                    of <span className="font-bold text-gray-900">{pagination.totalRecords}</span> results
+                    of{" "}
+                    <span className="font-bold text-gray-900">
+                      {pagination.totalRecords}
+                    </span>{" "}
+                    results
                   </p>
                 </div>
                 <div>
                   <nav className="relative z-0 inline-flex rounded-xl shadow-sm -space-x-px">
                     <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      onClick={() =>
+                        setCurrentPage(Math.max(1, currentPage - 1))
+                      }
                       disabled={!pagination.hasPreviousPage}
                       className="relative inline-flex items-center px-3 py-2 rounded-l-xl border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-all duration-200"
                     >
@@ -380,7 +435,11 @@ export default function StudentAnalytics() {
                       {pagination.currentPage} of {pagination.totalPages}
                     </span>
                     <button
-                      onClick={() => setCurrentPage(Math.min(pagination.totalPages, currentPage + 1))}
+                      onClick={() =>
+                        setCurrentPage(
+                          Math.min(pagination.totalPages, currentPage + 1)
+                        )
+                      }
                       disabled={!pagination.hasNextPage}
                       className="relative inline-flex items-center px-3 py-2 rounded-r-xl border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-all duration-200"
                     >
@@ -398,7 +457,9 @@ export default function StudentAnalytics() {
             <div className="p-6 bg-gray-100 rounded-full w-fit mx-auto mb-6">
               <FiUsers className="mx-auto h-16 w-16 text-gray-400" />
             </div>
-            <h3 className="mt-2 text-xl font-bold text-gray-900">No students found</h3>
+            <h3 className="mt-2 text-xl font-bold text-gray-900">
+              No students found
+            </h3>
             <p className="mt-2 text-gray-500 text-lg">
               {searchTerm || progressFilter !== "all"
                 ? "Try adjusting your search or filter criteria."

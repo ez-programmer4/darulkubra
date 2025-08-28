@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 
-async function getStudentProgressStatus(student: any) {
+function getStudentProgressStatus(student: any) {
   // Simple progress logic based on student status
   if (student.status === "Active") {
     return "inprogress";
@@ -28,21 +28,32 @@ export async function GET(request: NextRequest) {
     const searchTerm = searchParams.get("search") || "";
     const currentPage = parseInt(searchParams.get("page") || "1");
     const itemsPerPage = parseInt(searchParams.get("limit") || "10");
-    const progressFilter = searchParams.get("progress") as "notstarted" | "inprogress" | "completed" | "all" || "all";
+    const progressFilter =
+      (searchParams.get("progress") as
+        | "notstarted"
+        | "inprogress"
+        | "completed"
+        | "all") || "all";
     const controllerId = session.id?.toString();
 
     if (!controllerId) {
-      return NextResponse.json({ error: "Controller ID not found" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Controller ID not found" },
+        { status: 400 }
+      );
     }
 
     // Get controller code
-    const controller = await prisma.controller.findFirst({
+    const controller = await prisma.wpos_wpdatatable_28.findFirst({
       where: { wdt_ID: Number(controllerId) },
       select: { code: true },
     });
 
     if (!controller) {
-      return NextResponse.json({ error: "Controller not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Controller not found" },
+        { status: 404 }
+      );
     }
 
     const page = currentPage > 0 ? currentPage : 1;
@@ -78,8 +89,8 @@ export async function GET(request: NextRequest) {
         subject: true,
         package: true,
         status: true,
-        chat_id: true,
-        ustazdata: {
+        chatId: true,
+        teacher: {
           select: { ustazname: true },
         },
       },
@@ -124,7 +135,8 @@ export async function GET(request: NextRequest) {
           mongolia: "+976",
         };
 
-        countryCode = countryMap[(student.country || "").toLowerCase()] || "+251";
+        countryCode =
+          countryMap[(student.country || "").toLowerCase()] || "+251";
         phoneNo = `${countryCode}${phoneNo}`;
       }
 
@@ -132,11 +144,11 @@ export async function GET(request: NextRequest) {
         id: student.wdt_ID,
         name: student.name || "Unknown",
         phoneNo: phoneNo || "",
-        ustazname: student.ustazdata?.ustazname || "Not assigned",
+        ustazname: student.teacher || "Not assigned",
         tglink: `https://t.me/${phoneNo}`,
         whatsapplink: `https://wa.me/${phoneNo}`,
         isKid: student.isKid || false,
-        chatid: student.chat_id,
+        chatid: student.chatId,
         activePackage: student.package || "No Package",
         studentProgress: progress,
       };
@@ -172,7 +184,6 @@ export async function GET(request: NextRequest) {
         hasPreviousPage: page > 1,
       },
     });
-
   } catch (error) {
     console.error("Error fetching student analytics:", error);
     return NextResponse.json(
