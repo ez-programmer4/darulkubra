@@ -30,26 +30,47 @@ export async function GET(request: NextRequest) {
       where: {
         u_control: controllerCode,
       },
-      include: {
-        teacher: {
-          select: {
-            ustazname: true,
-          },
-        },
+      select: {
+        wdt_ID: true,
+        name: true,
+        phoneno: true,
+        classfee: true,
+        startdate: true,
+        status: true,
+        ustaz: true,
+        package: true,
+        subject: true,
+        country: true,
+        rigistral: true,
+        daypackages: true,
+        isTrained: true,
+        refer: true,
+        registrationdate: true,
+        chatId: true,
+        u_control: true,
       },
     });
-    
+
     // Return all student data
     return NextResponse.json(
       students.map((student) => ({
         ...student,
         id: student.wdt_ID,
+        teacher: {
+          ustazname: student.ustaz || "N/A",
+        },
+        selectedTime: "",
+        chatId: student.chatId,
+        progress: "",
       }))
     );
   } catch (error) {
     console.error("Controller students API error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error", details: error instanceof Error ? error.message : "Unknown error" },
+      {
+        error: "Internal Server Error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
