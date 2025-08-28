@@ -52,7 +52,10 @@ export default function StudentAnalytics() {
 
   useEffect(() => {
     if (status === "loading") return;
-
+    if (!session || !session.user || session.user.role !== "controller") {
+      router.push("/login");
+      return;
+    }
     fetchStudents();
   }, [session, status, router, searchTerm, progressFilter, currentPage]);
 
@@ -151,6 +154,7 @@ export default function StudentAnalytics() {
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Student Analytics
               </h1>
+              <p className="text-gray-600 mt-1">Controller: {session?.user?.name}</p>
             </div>
           </div>
         </div>
