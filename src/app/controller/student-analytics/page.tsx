@@ -154,7 +154,7 @@ export default function StudentAnalytics() {
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Student Analytics
               </h1>
-              <p className="text-gray-600 mt-1">Controller: {session?.user?.name}</p>
+              <p className="text-gray-600 mt-1">Controller: {typeof session?.user?.name === 'string' ? session.user.name : 'Unknown'}</p>
             </div>
           </div>
         </div>
