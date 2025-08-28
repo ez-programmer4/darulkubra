@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
 
-    if (!session || !session.user || session.user.role !== "controller") {
+    if (!session || session.role !== "controller") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         | "inprogress"
         | "completed"
         | "all") || "all";
-    const controllerId = session.user.id?.toString();
+    const controllerId = session.id?.toString();
 
     if (!controllerId) {
       return NextResponse.json(
