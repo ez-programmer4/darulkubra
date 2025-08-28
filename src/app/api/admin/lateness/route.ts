@@ -25,6 +25,12 @@ export async function GET(req: NextRequest) {
   const controllerFilter = searchParams.get("controllerId") || "";
   const teacherFilter = searchParams.get("teacherId") || ""; // may be id or name
 
+  // Get base deduction amount from settings
+  const baseDeductionSetting = await prisma.setting.findUnique({
+    where: { key: "lateness_base_deduction" },
+  });
+  const baseDeductionAmount = baseDeductionSetting?.value ? parseFloat(baseDeductionSetting.value) : 30;
+
   // Fetch lateness deduction config from DB
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
@@ -127,21 +133,21 @@ export async function GET(req: NextRequest) {
         );
         const latenessMinutes = Math.max(0, Number.isFinite(minutesDiff) ? minutesDiff : 0);
 
-        // Deduction logic (now from DB config)
+        // Deduction logic (configurable base amount)
         let deductionApplied = 0;
         let deductionTier = "Excused";
         if (latenessMinutes > excusedThreshold) {
           let foundTier = false;
           for (const [i, tier] of tiers.entries()) {
             if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {
-              deductionApplied = 30 * (tier.percent / 100);
+              deductionApplied = baseDeductionAmount * (tier.percent / 100);
               deductionTier = `Tier ${i + 1}`;
               foundTier = true;
               break;
             }
           }
           if (!foundTier && latenessMinutes > maxTierEnd) {
-            deductionApplied = 30;
+            deductionApplied = baseDeductionAmount;
             deductionTier = "> Max Tier";
           }
         }

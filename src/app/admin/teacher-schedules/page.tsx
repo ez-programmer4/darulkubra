@@ -91,7 +91,6 @@ export default function AdminAttendanceList() {
   // Fetch teachers when controller changes
   useEffect(() => {
     if (selectedController) {
-      console.log("Fetching teachers for controller:", selectedController);
       fetchTeachers(selectedController);
       setSelectedTeacher(""); // Reset teacher selection when controller changes
     } else {
@@ -114,13 +113,12 @@ export default function AdminAttendanceList() {
 
   const fetchTeachers = async (controllerId: string) => {
     try {
-      console.log("Fetching teachers from API for controlId:", controllerId);
       const response = await fetch(
         `/api/admin/teachers?controlId=${controllerId}`
       );
       if (response.ok) {
         const data = await response.json();
-        console.log("Teachers received:", data.teachers);
+
         setTeachers(data.teachers || []);
       } else {
         console.error("Failed to fetch teachers, status:", response.status);
@@ -144,8 +142,6 @@ export default function AdminAttendanceList() {
         ...(attendanceFilter && { attendanceStatus: attendanceFilter }),
         ...(studentStatusFilter && { studentStatus: studentStatusFilter }),
       });
-
-      console.log("API Parameters:", Object.fromEntries(params));
 
       const response = await fetch(
         `/api/admin/daily-attendance?${params.toString()}`,
@@ -348,10 +344,6 @@ export default function AdminAttendanceList() {
                 <select
                   value={attendanceFilter}
                   onChange={(e) => {
-                    console.log(
-                      "Attendance filter changed to:",
-                      e.target.value
-                    );
                     setAttendanceFilter(e.target.value);
                   }}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm"
@@ -372,10 +364,6 @@ export default function AdminAttendanceList() {
                 <select
                   value={studentStatusFilter}
                   onChange={(e) => {
-                    console.log(
-                      "Student status filter changed to:",
-                      e.target.value
-                    );
                     setStudentStatusFilter(e.target.value);
                   }}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm"

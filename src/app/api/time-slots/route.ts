@@ -7,6 +7,9 @@ import {
   sortTimeSlots,
   TimeSlot,
   DEFAULT_PRAYER_TIMES,
+  categorizeTime,
+  getPrayerCategories,
+  getPrayerRanges,
 } from "@/utils/timeUtils";
 
 // Force dynamic rendering
@@ -87,37 +90,47 @@ export async function GET(request: NextRequest) {
     // Extract and process time slots using new utilities
     const allTimeSlots: TimeSlot[] = [];
 
+    // Use a Set to track unique time slots
+    const uniqueTimeSlots = new Set<string>();
+    
     (ustazs || []).forEach((ustaz) => {
       if (ustaz.schedule) {
-        const slots = generateTimeSlots(ustaz.schedule, DEFAULT_PRAYER_TIMES);
-        allTimeSlots.push(...slots);
+        // Parse schedule and create time slots with new categorization
+        const times = ustaz.schedule.split(',').map(t => t.trim()).filter(Boolean);
+        times.forEach((time) => {
+          const category = categorizeTime(time);
+          if (category !== "General" && !uniqueTimeSlots.has(time)) {
+            uniqueTimeSlots.add(time);
+            allTimeSlots.push({
+              id: `slot-${time.replace(/[^\w]/g, '')}-${category}`,
+              time: time,
+              category: category,
+            });
+          }
+        });
       }
     });
 
-    // Remove duplicates and sort by time
-    const uniqueTimeSlots = sortTimeSlots(
-      allTimeSlots.filter(
-        (slot, index, self) =>
-          index === self.findIndex((s) => s.time === slot.time)
-      )
-    );
+    // Sort time slots by time (duplicates already removed)
+    const sortedTimeSlots = sortTimeSlots(allTimeSlots);
 
     // Group by prayer categories
-    const groupedSlots = groupSlotsByCategory(uniqueTimeSlots);
+    const groupedSlots = groupSlotsByCategory(sortedTimeSlots);
 
-    // Calculate analytics
+    // Calculate analytics with new prayer ranges
     const analytics = {
-      totalSlots: uniqueTimeSlots.length,
+      totalSlots: sortedTimeSlots.length,
       byCategory: Object.keys(groupedSlots).map((category) => ({
         category,
         count: groupedSlots[category].length,
       })),
       prayerTimes: DEFAULT_PRAYER_TIMES,
+      prayerRanges: getPrayerRanges(),
     };
 
     return NextResponse.json(
       {
-        timeSlots: uniqueTimeSlots,
+        timeSlots: sortedTimeSlots,
         groupedSlots,
         analytics,
       },

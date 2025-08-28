@@ -20,6 +20,10 @@ import {
   FiShield,
   FiSettings,
   FiAward,
+  FiX,
+  FiUser,
+  FiCheck,
+  FiInfo,
 } from "react-icons/fi";
 import Modal from "@/app/components/Modal";
 import ConfirmModal from "@/app/components/ConfirmModal";
@@ -56,14 +60,14 @@ const ScheduleGenerator = ({
   const generateTimeSlots = () => {
     const slots = [];
 
-    // Updated prayer times with midnight section
+    // New prayer time ranges
     const prayerTimes = {
       Midnight: { start: 0, end: 5 * 60 + 30 }, // 12:00 AM to 5:30 AM
-      Subhi: { start: 5 * 60 + 30, end: 12 * 60 + 30 }, // 5:30 AM to 12:30 PM
-      Dhuhr: { start: 12 * 60 + 30, end: 15 * 60 + 30 }, // 12:30 PM to 3:30 PM
-      Asr: { start: 15 * 60 + 30, end: 18 * 60 + 30 }, // 3:30 PM to 6:30 PM
-      Maghrib: { start: 18 * 60 + 30, end: 20 * 60 }, // 6:30 PM to 8:00 PM
-      Isha: { start: 20 * 60, end: 24 * 60 }, // 8:00 PM to 12:00 AM
+      Fajr: { start: 6 * 60, end: 12 * 60 + 30 }, // 6:00 AM to 12:30 PM
+      Zuhur: { start: 13 * 60, end: 15 * 60 + 30 }, // 1:00 PM to 3:30 PM
+      Asr: { start: 16 * 60, end: 18 * 60 + 30 }, // 4:00 PM to 6:30 PM
+      Maghrib: { start: 19 * 60, end: 20 * 60 }, // 7:00 PM to 8:00 PM
+      Isha: { start: 20 * 60 + 30, end: 23 * 60 + 30 }, // 8:30 PM to 11:30 PM
     };
 
     // Generate all 30-minute intervals for full 24 hours
@@ -80,32 +84,32 @@ const ScheduleGenerator = ({
 
         if (
           currentTime >= prayerTimes.Midnight.start &&
-          currentTime < prayerTimes.Midnight.end
+          currentTime <= prayerTimes.Midnight.end
         ) {
           category = "Midnight";
         } else if (
-          currentTime >= prayerTimes.Subhi.start &&
-          currentTime < prayerTimes.Subhi.end
+          currentTime >= prayerTimes.Fajr.start &&
+          currentTime <= prayerTimes.Fajr.end
         ) {
-          category = "Subhi";
+          category = "Fajr";
         } else if (
-          currentTime >= prayerTimes.Dhuhr.start &&
-          currentTime < prayerTimes.Dhuhr.end
+          currentTime >= prayerTimes.Zuhur.start &&
+          currentTime <= prayerTimes.Zuhur.end
         ) {
-          category = "Dhuhr";
+          category = "Zuhur";
         } else if (
           currentTime >= prayerTimes.Asr.start &&
-          currentTime < prayerTimes.Asr.end
+          currentTime <= prayerTimes.Asr.end
         ) {
           category = "Asr";
         } else if (
           currentTime >= prayerTimes.Maghrib.start &&
-          currentTime < prayerTimes.Maghrib.end
+          currentTime <= prayerTimes.Maghrib.end
         ) {
           category = "Maghrib";
         } else if (
           currentTime >= prayerTimes.Isha.start &&
-          currentTime < prayerTimes.Isha.end
+          currentTime <= prayerTimes.Isha.end
         ) {
           category = "Isha";
         }
@@ -148,7 +152,7 @@ const ScheduleGenerator = ({
       </div>
 
       <div className="space-y-4">
-        {["Midnight", "Subhi", "Dhuhr", "Asr", "Maghrib", "Isha"].map(
+        {["Midnight", "Fajr", "Zuhur", "Asr", "Maghrib", "Isha"].map(
           (prayer) => {
             const prayerSlots = timeSlots.filter(
               (slot) => slot.prayer === prayer
@@ -163,12 +167,12 @@ const ScheduleGenerator = ({
             };
 
             const prayerPeriods = {
-              Midnight: "Midnight to Subhi (12:00 AM - 5:30 AM)",
-              Subhi: "Subhi to Dhuhr (5:30 AM - 12:30 PM)",
-              Dhuhr: "Dhuhr to Asr (12:30 PM - 3:30 PM)",
-              Asr: "Asr to Maghrib (3:30 PM - 6:30 PM)",
-              Maghrib: "Maghrib to Isha (6:30 PM - 8:00 PM)",
-              Isha: "Isha to Midnight (8:00 PM - 12:00 AM)",
+              Midnight: "Midnight (12:00 AM - 5:30 AM)",
+              Fajr: "Fajr (6:00 AM - 12:30 PM)",
+              Zuhur: "Zuhur (1:00 PM - 3:30 PM)",
+              Asr: "Asr (4:00 PM - 6:30 PM)",
+              Maghrib: "Maghrib (7:00 PM - 8:00 PM)",
+              Isha: "Isha (8:30 PM - 11:30 PM)",
             };
 
             return (
@@ -240,9 +244,9 @@ const RoleBadge = ({ role }: { role: UserRole }) => {
     teacher: "bg-green-100 text-green-800",
     registral: "bg-orange-100 text-orange-800",
   };
-  
+
   if (!role) return null;
-  
+
   return (
     <span
       className={`px-3 py-1 text-sm font-semibold rounded-full ${roleStyles[role]}`}
@@ -294,6 +298,7 @@ export default function UserManagementPage() {
   const [teacherSchedule, setTeacherSchedule] = useState("");
   const [teacherControlId, setTeacherControlId] = useState("");
   const [teacherPhone, setTeacherPhone] = useState("");
+  const [generatedPassword, setGeneratedPassword] = useState("");
   const [totalCounts, setTotalCounts] = useState<Record<UserRole, number>>({
     admin: 0,
     controller: 0,
@@ -301,6 +306,25 @@ export default function UserManagementPage() {
     registral: 0,
   });
   const [totalUsers, setTotalUsers] = useState(0);
+
+  // Generate password for teacher
+  const generateTeacherPassword = (name: string) => {
+    const cleanName = name.replace(/\s+/g, "").toUpperCase();
+    const randomId = Math.floor(Math.random() * 900) + 100; // 3-digit number
+    return `U${randomId}${cleanName}`;
+  };
+
+  // Generate password when teacher name changes
+  useEffect(() => {
+    if ((editingUser ? editingUser.role : newUserRole) === "teacher") {
+      const nameInput = document.querySelector(
+        'input[name="name"]'
+      ) as HTMLInputElement;
+      if (nameInput && nameInput.value) {
+        setGeneratedPassword(generateTeacherPassword(nameInput.value));
+      }
+    }
+  }, [newUserRole, editingUser]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -381,9 +405,16 @@ export default function UserManagementPage() {
         return;
       }
 
+      // Generate only password for teacher (username is manual)
+      const cleanName = (data.name as string).replace(/\s+/g, "").toUpperCase();
+      const randomId = Math.floor(Math.random() * 900) + 100;
+      const generatedPassword = `U${randomId}${cleanName}`;
+
       data.controlId = teacherControlId;
       data.schedule = teacherSchedule.trim();
       data.phone = teacherPhone.trim();
+      data.password = generatedPassword;
+      data.plainPassword = generatedPassword;
     }
 
     const payload = {
@@ -661,7 +692,9 @@ export default function UserManagementPage() {
                                   <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center">
                                       <span className="text-white font-bold">
-                                        {user.name ? user.name.charAt(0).toUpperCase() : "?"}
+                                        {user.name
+                                          ? user.name.charAt(0).toUpperCase()
+                                          : "?"}
                                       </span>
                                     </div>
                                     <div>
@@ -717,7 +750,8 @@ export default function UserManagementPage() {
                                       <div className="text-gray-700">
                                         {user.controlId
                                           ? controllers.find(
-                                              (c) => c && c.id === user.controlId
+                                              (c) =>
+                                                c && c.id === user.controlId
                                             )?.name || "Unknown"
                                           : "Not assigned"}
                                       </div>
@@ -792,150 +826,327 @@ export default function UserManagementPage() {
           </div>
         )}
 
-        {/* Enhanced Modal */}
+        {/* Sidebar Modal Layout */}
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-          <div className="w-full max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8 max-h-[95vh] overflow-y-auto">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="p-3 bg-black rounded-xl">
-                <FiUserPlus className="h-6 w-6 text-white" />
+          <div className="flex h-full max-h-[95vh] bg-white rounded-3xl overflow-hidden w-full max-w-[98vw]">
+            {/* Left Sidebar */}
+            <div className="w-80 bg-gradient-to-b from-slate-900 to-gray-900 p-6 flex flex-col">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/10 rounded-lg">
+                    <FiUserPlus className="h-5 w-5 text-white" />
+                  </div>
+                  <h2 className="text-lg font-bold text-white">
+                    {editingUser ? "Edit User" : "New User"}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <FiX className="h-4 w-4 text-white" />
+                </button>
               </div>
-              <h2 className="text-3xl font-bold text-black">
-                {editingUser ? "Edit User" : "Add New User"}
-              </h2>
+
+              {/* Role Selection Sidebar */}
+              {!editingUser && (
+                <div className="mb-6">
+                  <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                    <FiShield className="h-4 w-4" />
+                    Select Role
+                  </h3>
+                  <div className="space-y-2">
+                    {roleOrder.map((role) => {
+                      const RoleIcon = roleIcons[role];
+                      return (
+                        <label
+                          key={role}
+                          className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                            newUserRole === role
+                              ? "bg-white text-gray-900"
+                              : "bg-white/10 text-white hover:bg-white/20"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value={role}
+                            checked={newUserRole === role}
+                            onChange={(e) =>
+                              setNewUserRole(e.target.value as UserRole)
+                            }
+                            className="sr-only"
+                          />
+                          <RoleIcon className="h-4 w-4" />
+                          <span className="font-medium">
+                            {roleLabels[role]}
+                          </span>
+                          {newUserRole === role && (
+                            <FiCheck className="h-4 w-4 ml-auto" />
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <form onSubmit={handleFormSubmit} className="space-y-6">
-              {!editingUser && (
-                <div>
-                  <label className="block text-lg text-black font-bold mb-3">
-                    Role
-                  </label>
-                  <select
-                    name="role"
-                    value={newUserRole}
-                    onChange={(e) => setNewUserRole(e.target.value as UserRole)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
-                    required
-                  >
-                    {roleOrder.map((role) => (
-                      <option key={role} value={role}>
-                        {roleLabels[role]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-lg text-black font-bold mb-3">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  defaultValue={editingUser?.name}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
-                  required
-                />
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col">
+              {/* Header */}
+              <div className="p-6 border-b border-gray-200">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {editingUser
+                    ? "Update User Information"
+                    : "Create New User Account"}
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  {editingUser
+                    ? "Modify user details and permissions"
+                    : "Fill in the details to create a new user"}
+                </p>
               </div>
 
-              {(editingUser ? editingUser.role : newUserRole) !== "teacher" && (
-                <div>
-                  <label className="block text-lg text-black font-bold mb-3">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    name="username"
-                    defaultValue={editingUser?.username}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
-                    required
-                  />
-                </div>
-              )}
+              {/* Form Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <form
+                  id="user-form"
+                  onSubmit={handleFormSubmit}
+                  className="space-y-6"
+                >
+                  {/* Basic Information */}
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <FiUser className="h-5 w-5" />
+                      Basic Information
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Full Name *
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          defaultValue={editingUser?.name}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter full name"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Username *
+                        </label>
+                        <input
+                          type="text"
+                          name="username"
+                          defaultValue={editingUser?.username}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter username"
+                          required
+                        />
+                      </div>
 
-              {(editingUser ? editingUser.role : newUserRole) === "teacher" && (
-                <>
-                  <div>
-                    <label className="block text-lg text-black font-bold mb-3">
-                      Controller
-                    </label>
-                    <select
-                      name="controlId"
-                      value={teacherControlId}
-                      onChange={(e) => setTeacherControlId(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
-                      required
-                    >
-                      <option value="">Select Controller</option>
-                      {controllers.filter(ctrl => ctrl && ctrl.code && ctrl.code !== "0").map((ctrl) => (
-                        <option key={ctrl.id} value={ctrl.code}>
-                          {ctrl.name} ({ctrl.code})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
 
-                  <div>
-                    <label className="block text-lg text-black font-bold mb-3">
-                      <FiCalendar className="inline h-5 w-5 mr-2" />
-                      Teaching Schedule
-                    </label>
-                    <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-                      <ScheduleGenerator
-                        value={teacherSchedule}
-                        onChange={setTeacherSchedule}
-                      />
+                      {(editingUser ? editingUser.role : newUserRole) !==
+                        "teacher" && (
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Password {editingUser ? "(Optional)" : "*"}
+                          </label>
+                          <input
+                            type="password"
+                            name="password"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder={
+                              editingUser
+                                ? "Leave blank to keep current"
+                                : "Enter password"
+                            }
+                            required={!editingUser}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-lg text-black font-bold mb-3">
-                      <FiPhone className="inline h-5 w-5 mr-2" />
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={teacherPhone}
-                      onChange={(e) => setTeacherPhone(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
-                      required
-                      placeholder="e.g. +251912345678"
-                    />
+                  {/* Teacher Specific Fields */}
+                  {(editingUser ? editingUser.role : newUserRole) ===
+                    "teacher" && (
+                    <>
+                      {/* Controller Assignment */}
+                      <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                          <FiUsers className="h-5 w-5 text-gray-600" />
+                          <h3 className="text-xl font-bold text-gray-900">
+                            Controller Assignment
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Assigned Controller *
+                            </label>
+                            <select
+                              name="controlId"
+                              value={teacherControlId}
+                              onChange={(e) =>
+                                setTeacherControlId(e.target.value)
+                              }
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 transition-all"
+                              required
+                            >
+                              <option value="">Select Controller</option>
+                              {controllers
+                                .filter(
+                                  (ctrl) =>
+                                    ctrl && ctrl.code && ctrl.code !== "0"
+                                )
+                                .map((ctrl) => (
+                                  <option key={ctrl.id} value={ctrl.code}>
+                                    {ctrl.name} ({ctrl.code})
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Phone Number *
+                            </label>
+                            <input
+                              type="tel"
+                              name="phone"
+                              value={teacherPhone}
+                              onChange={(e) => setTeacherPhone(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 transition-all"
+                              placeholder="e.g. +251912345678"
+                              required
+                            />
+                          </div>
+
+                        </div>
+
+                        {/* Generated Password for Teachers */}
+                        <div className="mt-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border-2 border-green-200 shadow-lg">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
+                              <FiSettings className="h-5 w-5 text-white" />
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-bold text-green-900">
+                                Auto-Generated Password
+                              </h4>
+                              <p className="text-green-700 text-sm">
+                                Secure password automatically created
+                              </p>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-bold text-green-700 mb-2">
+                              Generated Password
+                            </label>
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="text"
+                                name="password"
+                                value={
+                                  generatedPassword ||
+                                  `U${Math.floor(Math.random() * 900) + 100}${
+                                    (
+                                      document.querySelector(
+                                        'input[name="name"]'
+                                      ) as HTMLInputElement
+                                    )?.value
+                                      ?.replace(/\s+/g, "")
+                                      .toUpperCase() || "TEACHER"
+                                  }`
+                                }
+                                readOnly
+                                className="flex-1 px-4 py-3 bg-white border-2 border-green-300 rounded-lg text-green-900 font-mono text-base font-bold shadow-sm"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const password =
+                                    generatedPassword ||
+                                    `U${Math.floor(Math.random() * 900) + 100}${
+                                      (
+                                        document.querySelector(
+                                          'input[name="name"]'
+                                        ) as HTMLInputElement
+                                      )?.value
+                                        ?.replace(/\s+/g, "")
+                                        .toUpperCase() || "TEACHER"
+                                    }`;
+                                  copyToClipboard(password);
+                                }}
+                                className="px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 font-bold shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2"
+                                title="Copy password"
+                              >
+                                <FiCopy className="h-4 w-4" />
+                                Copy
+                              </button>
+                            </div>
+                            <div className="mt-4 p-3 bg-green-100 rounded-lg border border-green-200">
+                              <p className="text-xs text-green-800 flex items-center gap-2">
+                                <FiInfo className="h-3 w-3" />
+                                <strong>Note:</strong> Password format:
+                                U[ID][NAME]. Username is entered manually above.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Teaching Schedule */}
+                      <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                          <FiCalendar className="h-5 w-5 text-gray-600" />
+                          <h3 className="text-xl font-bold text-gray-900">
+                            Teaching Schedule
+                          </h3>
+                          <span className="text-sm text-gray-500">
+                            Configure available time slots
+                          </span>
+                        </div>
+                        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                          <ScheduleGenerator
+                            value={teacherSchedule}
+                            onChange={setTeacherSchedule}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </form>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-6 border-t border-gray-200 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-600">* Required fields</div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      form="user-form"
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      <FiUserPlus className="h-4 w-4" />
+                      {editingUser ? "Update" : "Create"} User
+                    </button>
                   </div>
-                </>
-              )}
-
-              <div>
-                <label className="block text-lg text-black font-bold mb-3">
-                  Password{" "}
-                  {editingUser ? "(Leave blank to keep current)" : "(Required)"}
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
-                  required={!editingUser}
-                />
+                </div>
               </div>
-
-              <div className="flex justify-end gap-4 mt-8">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold transition-all hover:scale-105"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-3 rounded-xl bg-black hover:bg-gray-800 text-white font-bold transition-all hover:scale-105"
-                >
-                  {editingUser ? "Update User" : "Create User"}
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
         </Modal>
 

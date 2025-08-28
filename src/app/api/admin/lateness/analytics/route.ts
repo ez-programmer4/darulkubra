@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
       // Scheduled time
       function to24Hour(time12h: string) {
         if (!time12h) return "00:00";
-        
+
         // Handle AM/PM format
         if (time12h.includes("AM") || time12h.includes("PM")) {
           const [time, modifier] = time12h.split(" ");
@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
           else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
           return `${hours.padStart(2, "0")}:${minutes}`;
         }
-        
+
         // Handle existing 24-hour format (HH:MM:SS or HH:MM)
         if (time12h.includes(":")) {
           const parts = time12h.split(":");
@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
           const minutes = (parts[1] || "00").padStart(2, "0");
           return `${hours}:${minutes}`;
         }
-        
+
         return "00:00"; // fallback
       }
       const time24 = to24Hour(timeSlot);
@@ -151,19 +151,6 @@ export async function GET(req: NextRequest) {
 
       // Debug: Log first few lateness calculations
       if (totalEvents < 3) {
-        console.log(`Debug lateness for ${student.name} on ${dateStr}:`, {
-          scheduledTime: isNaN(scheduledTime.getTime())
-            ? "Invalid Date"
-            : scheduledTime.toISOString(),
-          actualStartTime: isNaN(actualStartTime.getTime())
-            ? "Invalid Date"
-            : actualStartTime.toISOString(),
-          latenessMinutes,
-          timeSlot,
-          time24,
-          scheduledTimeRaw: scheduledTime.toString(),
-          actualStartTimeRaw: actualStartTime.toString(),
-        });
       }
       // Deduction logic
       let deductionApplied = 0;
@@ -190,9 +177,6 @@ export async function GET(req: NextRequest) {
 
       // Debug: Log accumulation for first day
       if (dateStr === format(startDate, "yyyy-MM-dd") && totalEvents <= 3) {
-        console.log(
-          `Accumulating for ${student.name}: lateness=${latenessMinutes}, deduction=${deductionApplied}, totalEvents=${totalEvents}`
-        );
       }
       // Per-controller
       if (student.controller) {
@@ -216,9 +200,6 @@ export async function GET(req: NextRequest) {
           dateStr === format(startDate, "yyyy-MM-dd") &&
           controllerMap[cid].totalEvents <= 2
         ) {
-          console.log(
-            `Controller ${student.controller.name}: events=${controllerMap[cid].totalEvents}, lateness=${controllerMap[cid].totalLateness}, deduction=${controllerMap[cid].totalDeduction}`
-          );
         }
       }
       // Per-teacher
@@ -244,9 +225,6 @@ export async function GET(req: NextRequest) {
           dateStr === format(startDate, "yyyy-MM-dd") &&
           teacherMap[tid].totalEvents <= 2
         ) {
-          console.log(
-            `Teacher ${student.teacher.ustazname}: events=${teacherMap[tid].totalEvents}, lateness=${teacherMap[tid].totalLateness}, deduction=${teacherMap[tid].totalDeduction}`
-          );
         }
       }
     }
@@ -266,9 +244,7 @@ export async function GET(req: NextRequest) {
   // Per-controller summary
   const controllerData = Object.values(controllerMap).map((c: any) => {
     const avgLateness = c.totalEvents > 0 ? c.totalLateness / c.totalEvents : 0;
-    console.log(
-      `Final controller ${c.name}: events=${c.totalEvents}, lateness=${c.totalLateness}, deduction=${c.totalDeduction}`
-    );
+
     return {
       name: c.name,
       "Average Lateness": Number.isFinite(avgLateness)
@@ -283,9 +259,6 @@ export async function GET(req: NextRequest) {
   const teacherData = Object.values(teacherMap).map((t: any) => {
     const avgLateness = t.totalEvents > 0 ? t.totalLateness / t.totalEvents : 0;
     if (t.totalDeduction > 0 || t.totalLateness > 0) {
-      console.log(
-        `Final teacher ${t.name}: events=${t.totalEvents}, lateness=${t.totalLateness}, deduction=${t.totalDeduction}`
-      );
     }
     return {
       id: t.id,

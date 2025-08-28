@@ -7,6 +7,9 @@ import {
   to12Hour,
   validateTime,
   isTimeConflict,
+  toDbFormat,
+  fromDbFormat,
+  timesMatch,
 } from "@/utils/timeUtils";
 
 const prismaClient = globalPrisma;
@@ -47,18 +50,10 @@ const checkTeacherAvailability = async (
     ? teacher.schedule.split(",").map((t) => t.trim())
     : [];
 
-  // Normalize time formats for comparison - handle both 12-hour and 24-hour formats
+  // Normalize time formats for comparison - handle both 12-hour and 24-hour formats with seconds
   const normalizedScheduleTimes = scheduleTimes.map((time) => {
     try {
-      // If the time already has AM/PM, convert to 24-hour
-      if (time.includes("AM") || time.includes("PM")) {
-        return to24Hour(time);
-      }
-      // If it's already in 24-hour format, ensure proper formatting
-      const [hours, minutes] = time.split(":").map(Number);
-      return `${hours.toString().padStart(2, "0")}:${minutes
-        .toString()
-        .padStart(2, "0")}`;
+      return to24Hour(time); // This now handles HH:MM:SS format properly
     } catch {
       return time; // Keep original if conversion fails
     }
@@ -214,12 +209,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if the selected time slot is available for the teacher
+    // Check if the selected time slot is available for the teacher (handle both formats)
     const isTimeSlotAvailable =
       await prismaClient.wpos_ustaz_occupied_times.findFirst({
         where: {
           ustaz_id: ustaz,
-          time_slot: timeSlot,
+          OR: [
+            { time_slot: timeSlot },
+            { time_slot: toDbFormat(selectedTime) },
+            { time_slot: timeToMatch },
+          ],
           daypackage: selectedDayPackage,
         },
       });
@@ -231,12 +230,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for conflicts with existing bookings
+    // Check for conflicts with existing bookings (handle both formats)
     const existingBookings =
       await prismaClient.wpos_ustaz_occupied_times.findMany({
         where: {
           ustaz_id: ustaz,
-          time_slot: timeSlot,
+          OR: [
+            { time_slot: timeSlot },
+            { time_slot: toDbFormat(selectedTime) },
+            { time_slot: timeToMatch },
+          ],
         },
       });
 
@@ -332,12 +335,12 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create occupied time record
+      // Create occupied time record with database format
       try {
         await tx.wpos_ustaz_occupied_times.create({
           data: {
             ustaz_id: ustaz,
-            time_slot: timeSlot,
+            time_slot: toDbFormat(selectedTime), // Store in HH:MM:SS format
             daypackage: selectedDayPackage,
             student_id: registration.wdt_ID,
             occupied_at: new Date(),
@@ -594,12 +597,12 @@ export async function PUT(request: NextRequest) {
           },
         });
 
-        // Create new occupied time
+        // Create new occupied time with database format
         try {
           await tx.wpos_ustaz_occupied_times.create({
             data: {
               ustaz_id: ustaz,
-              time_slot: timeSlot,
+              time_slot: toDbFormat(selectedTime), // Store in HH:MM:SS format
               daypackage: selectedDayPackage,
               student_id: parseInt(id),
               occupied_at: new Date(),
@@ -713,15 +716,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the time slot from occupied times
-    const timeSlot =
-      registration.occupiedTimes?.[0]?.time_slot || "Not specified";
+    // Get the time slot from occupied times and convert to display format
+    const dbTimeSlot = registration.occupiedTimes?.[0]?.time_slot;
+    const displayTime = dbTimeSlot ? fromDbFormat(dbTimeSlot, "12h") : "Not specified";
 
     return NextResponse.json({
       ...registration,
       id: registration.wdt_ID,
       ustazname: registration.teacher?.ustazname || "Not assigned",
-      selectedTime: timeSlot, // Keep for backward compatibility
+      selectedTime: displayTime, // Convert from database format
     });
   }
 
@@ -760,12 +763,17 @@ export async function GET(request: NextRequest) {
     orderBy: { registrationdate: "desc" },
   });
 
-  const flatRegistrations = registrations.map((reg) => ({
-    ...reg,
-    id: reg.wdt_ID,
-    ustazname: reg.teacher?.ustazname || "Not assigned",
-    selectedTime: reg.occupiedTimes?.[0]?.time_slot || "Not specified", // Keep for backward compatibility
-  }));
+  const flatRegistrations = registrations.map((reg) => {
+    const dbTimeSlot = reg.occupiedTimes?.[0]?.time_slot;
+    const displayTime = dbTimeSlot ? fromDbFormat(dbTimeSlot, "12h") : "Not specified";
+    
+    return {
+      ...reg,
+      id: reg.wdt_ID,
+      ustazname: reg.teacher?.ustazname || "Not assigned",
+      selectedTime: displayTime, // Convert from database format
+    };
+  });
 
   return NextResponse.json(flatRegistrations);
 }
@@ -1011,14 +1019,16 @@ export async function PATCH(request: NextRequest) {
         "leave",
         "remadan leave",
         "not yet",
-        "fresh"
+        "fresh",
+        "not succeed",
+        "completed"
       ];
       
       if (!status || !validStatuses.includes(status.toLowerCase())) {
         return NextResponse.json(
           {
             message:
-              "Status must be Active, Leave, Remadan leave, Not yet, or Fresh",
+              "Status must be Active, Leave, Remadan leave, Not yet, Fresh, Not Succeed, or Completed",
           },
           { status: 400 }
         );

@@ -230,7 +230,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Store plain password for teachers, hash for others
+    const hashedPassword = role === "teacher" && reqBody.plainPassword 
+      ? reqBody.plainPassword 
+      : await bcrypt.hash(password, 10);
     let newUser;
 
     switch (role) {
@@ -407,6 +410,8 @@ export async function PUT(req: NextRequest) {
     if (password) {
       if (role === "admin") {
         data.passcode = await bcrypt.hash(password, 10);
+      } else if (role === "teacher" && reqBody.plainPassword) {
+        data.password = reqBody.plainPassword;
       } else {
         data.password = await bcrypt.hash(password, 10);
       }

@@ -25,6 +25,7 @@ import { useSession, signOut } from "next-auth/react";
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: Home },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/students", label: "Students", icon: Users },
   { href: "/admin/teacher-schedules", label: "Daily Attendance", icon: Clock },
 
   { href: "/admin/lateness", label: "Lateness Analytics", icon: UserCheck },
@@ -36,6 +37,11 @@ const navItems = [
     href: "/admin/controller-earnings",
     label: "Controller Earnings",
     icon: DollarSign,
+  },
+  {
+    href: "/admin/registrar-earnings",
+    label: "Registrar Earnings",
+    icon: Award,
   },
   { href: "/admin/ustaz", label: "Teacher Ratings", icon: Star },
   { href: "/admin/quality", label: "Quality Review", icon: Award },

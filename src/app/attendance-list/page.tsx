@@ -103,22 +103,25 @@ export default function AttendanceList() {
   const [showEmergency, setShowEmergency] = useState(false);
   const [allData, setAllData] = useState<IntegratedRecord[]>([]);
   const [latenessSettings, setLatenessSettings] = useState({
-    alertThreshold: 3, // minutes after scheduled time
+    alertThreshold: 2, // minutes after scheduled time
     warningThreshold: 5,
-    criticalThreshold: 10,
+    criticalThreshold: 8,
     soundAlerts: true,
-    maxTimeWindow: 15, // maximum minutes to track lateness - after 15min notifications are useless
-    showExpired: false // show students past 15min window
+    autoNotify: false, // auto-notify critical cases
+    bulkNotifyDelay: 30, // seconds between bulk notifications
   });
   const [latenessAlerts, setLatenessAlerts] = useState<{
     [studentId: number]: {
-      level: 'alert' | 'warning' | 'critical';
+      level: "alert" | "warning" | "critical";
       minutesLate: number;
       notified: boolean;
       lastNotification?: Date;
-    }
+      autoNotified?: boolean;
+      priority: number;
+    };
   }>({});
-  const [autoRefreshInterval, setAutoRefreshInterval] = useState<NodeJS.Timeout | null>(null);
+  const [autoRefreshInterval, setAutoRefreshInterval] =
+    useState<NodeJS.Timeout | null>(null);
   const [showLatenessPanel, setShowLatenessPanel] = useState(true);
 
   useEffect(() => {
@@ -131,15 +134,22 @@ export default function AttendanceList() {
     }
   }, [notifiedStudentDateKeys]);
 
-  // Auto-refresh for real-time lateness monitoring
+  // Enhanced auto-refresh with smart intervals
   useEffect(() => {
     if (showLatenessPanel) {
-      // Initial update when panel is shown
       updateLatenessAlerts();
+      
+      // Smart interval: faster when there are active alerts
+      const hasActiveAlerts = Object.keys(latenessAlerts).length > 0;
+      const intervalTime = hasActiveAlerts ? 10000 : 30000; // 10s vs 30s
       
       const interval = setInterval(() => {
         updateLatenessAlerts();
-      }, 15000); // Check every 15 seconds for better responsiveness
+        if (latenessSettings.autoNotify) {
+          autoNotifyCriticalCases();
+        }
+      }, intervalTime);
+      
       setAutoRefreshInterval(interval);
       return () => {
         if (interval) clearInterval(interval);
@@ -150,7 +160,7 @@ export default function AttendanceList() {
         setAutoRefreshInterval(null);
       }
     }
-  }, [showLatenessPanel, data]); // Add data dependency
+  }, [showLatenessPanel, data, latenessAlerts, latenessSettings.autoNotify]);
 
   const fetchData = async (notifyStudentId?: number) => {
     setLoading(true);
@@ -298,57 +308,74 @@ export default function AttendanceList() {
   };
 
   const bulkNotifyAll = async () => {
-    const unnotifiedAlerts = Object.entries(latenessAlerts).filter(
-      ([id, alert]) => !alert.notified
-    );
-    
+    const unnotifiedAlerts = Object.entries(latenessAlerts)
+      .filter(([id, alert]) => !alert.notified)
+      .sort(([, a], [, b]) => b.priority - a.priority); // Priority order
+
     if (unnotifiedAlerts.length === 0) {
-      toast.error('No unnotified students to notify');
+      toast.error("No unnotified students to notify");
       return;
     }
-    
+
+    toast.loading(`Sending ${unnotifiedAlerts.length} notifications...`);
     let successCount = 0;
-    for (const [studentId, alert] of unnotifiedAlerts) {
-      const student = data.find(r => r.student_id === parseInt(studentId));
+    
+    for (let i = 0; i < unnotifiedAlerts.length; i++) {
+      const [studentId, alert] = unnotifiedAlerts[i];
+      const student = data.find((r) => r.student_id === parseInt(studentId));
+      
       if (student) {
         try {
-          const response = await fetch(`/api/attendance-list?notify=${studentId}`, {
-            method: "GET",
+          const response = await fetch(`/api/attendance-list/notify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              studentId: parseInt(studentId),
+              urgency: alert.level,
+              minutesLate: alert.minutesLate
+            }),
             credentials: "include",
           });
+          
           const result = await response.json();
-          if (response.ok && result.message === "Notification sent to teacher") {
-            setLatenessAlerts(prev => ({
+          if (response.ok && result.success) {
+            setLatenessAlerts((prev) => ({
               ...prev,
               [parseInt(studentId)]: {
                 ...prev[parseInt(studentId)],
                 notified: true,
-                lastNotification: new Date()
-              }
+                lastNotification: new Date(),
+              },
             }));
             successCount++;
           }
+          
+          // Delay between notifications to avoid overwhelming
+          if (i < unnotifiedAlerts.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, latenessSettings.bulkNotifyDelay * 1000));
+          }
         } catch (err) {
-          console.error('Bulk notification failed for student:', studentId, err);
+          console.error("Bulk notification failed for student:", studentId, err);
         }
       }
     }
-    
+
+    toast.dismiss();
     if (successCount > 0) {
-      toast.success(`Bulk notifications sent to ${successCount} teachers`);
+      toast.success(`✅ ${successCount}/${unnotifiedAlerts.length} notifications sent successfully`);
     } else {
-      toast.error('Failed to send bulk notifications');
+      toast.error("❌ Failed to send bulk notifications");
     }
   };
 
   const markAsNotified = (studentId: number) => {
-    setLatenessAlerts(prev => ({
+    setLatenessAlerts((prev) => ({
       ...prev,
       [studentId]: {
         ...prev[studentId],
         notified: true,
-        lastNotification: new Date()
-      }
+        lastNotification: new Date(),
+      },
     }));
   };
 
@@ -520,117 +547,162 @@ export default function AttendanceList() {
     return true;
   });
 
-  // Enhanced lateness detection with multiple severity levels
+  // Enhanced lateness detection with priority scoring (max 15 minutes)
   function updateLatenessAlerts() {
     if (!data || data.length === 0) return;
-    
+
     const now = new Date();
     const newAlerts: typeof latenessAlerts = {};
-    
-    console.log('🔍 Checking lateness for', data.length, 'records at', format(now, 'HH:mm:ss'));
-    
+
     data.forEach((record) => {
-      if (!record.scheduledDateObj) {
-        console.log('❌ No scheduled date for student:', record.studentName);
-        return;
-      }
-      
+      if (!record.scheduledDateObj) return;
+
       const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
       const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
       
-      console.log(`📊 ${record.studentName}: ${timeDiff.toFixed(1)}min late, hasLink: ${!hasNoLink}`);
+      // Check if it's today's class and within 15 minute window
+      const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
       
-      // Only track if within max time window and no link sent
-      if (timeDiff >= latenessSettings.alertThreshold && 
-          timeDiff <= latenessSettings.maxTimeWindow && 
-          hasNoLink) {
+      if (timeDiff >= latenessSettings.alertThreshold && timeDiff <= 15 && hasNoLink && isToday) {
+        let level: "alert" | "warning" | "critical" = "alert";
+        let priority = 1;
         
-        let level: 'alert' | 'warning' | 'critical' = 'alert';
         if (timeDiff >= latenessSettings.criticalThreshold) {
-          level = 'critical';
+          level = "critical";
+          priority = 3;
         } else if (timeDiff >= latenessSettings.warningThreshold) {
-          level = 'warning';
+          level = "warning";
+          priority = 2;
         }
-        
+
         const existingAlert = latenessAlerts[record.student_id];
         newAlerts[record.student_id] = {
           level,
           minutesLate: Math.floor(timeDiff),
           notified: existingAlert?.notified || false,
-          lastNotification: existingAlert?.lastNotification
+          lastNotification: existingAlert?.lastNotification,
+          autoNotified: existingAlert?.autoNotified || false,
+          priority,
         };
-        
-        console.log(`🚨 ALERT: ${record.studentName} - ${level} (${Math.floor(timeDiff)}min)`);
       }
     });
-    
-    console.log('📋 Total alerts:', Object.keys(newAlerts).length);
+
     setLatenessAlerts(newAlerts);
-    
-    // Play sound alert for new critical cases
+
+    // Enhanced sound alerts
     if (latenessSettings.soundAlerts) {
       const newCritical = Object.entries(newAlerts).filter(
-        ([id, alert]) => alert.level === 'critical' && !latenessAlerts[parseInt(id)]?.notified
+        ([id, alert]) => alert.level === "critical" && !latenessAlerts[parseInt(id)]?.notified
       );
+      
       if (newCritical.length > 0) {
-        console.log('🔊 Playing sound for', newCritical.length, 'critical alerts');
-        playNotificationSound();
+        playNotificationSound("critical");
       }
     }
   }
-  
-  // Get expired students (past 15 minutes) for reference
+
+  // Get expired students (past 15 minutes) - no longer actionable
   const expiredStudents = data.filter((record) => {
     if (!record.scheduledDateObj) return false;
     const now = new Date();
     const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
     const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
-    return timeDiff > latenessSettings.maxTimeWindow && hasNoLink;
+    const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
+    return timeDiff > 15 && hasNoLink && isToday;
   });
-  
+
   const clearAllNotifications = () => {
     setLatenessAlerts({});
-    toast.success('All lateness alerts cleared');
+    toast.success("All lateness alerts cleared");
   };
-  
+
   const getLatenessStats = () => {
     const total = Object.keys(latenessAlerts).length;
-    const critical = Object.values(latenessAlerts).filter(a => a.level === 'critical').length;
-    const warning = Object.values(latenessAlerts).filter(a => a.level === 'warning').length;
-    const alert = Object.values(latenessAlerts).filter(a => a.level === 'alert').length;
+    const critical = Object.values(latenessAlerts).filter(a => a.level === "critical").length;
+    const warning = Object.values(latenessAlerts).filter(a => a.level === "warning").length;
+    const alert = Object.values(latenessAlerts).filter(a => a.level === "alert").length;
     const notified = Object.values(latenessAlerts).filter(a => a.notified).length;
+    const autoNotified = Object.values(latenessAlerts).filter(a => a.autoNotified).length;
     const unnotified = total - notified;
-    
-    return { total, critical, warning, alert, notified, unnotified };
+    const highPriority = critical;
+
+    return { total, critical, warning, alert, notified, autoNotified, unnotified, highPriority };
   };
-  
-  function playNotificationSound() {
-    if (typeof window !== 'undefined') {
-      const audio = new Audio('/notification.mp3');
-      audio.play().catch(() => console.log('Could not play notification sound'));
+
+  function playNotificationSound(type: "emergency" | "critical" | "warning" = "critical") {
+    if (typeof window !== "undefined") {
+      // Different sounds for different urgency levels
+      const soundMap = {
+        emergency: "/sounds/emergency.mp3",
+        critical: "/sounds/critical.mp3", 
+        warning: "/sounds/warning.mp3"
+      };
+      
+      const audio = new Audio(soundMap[type] || "/notification.mp3");
+      audio.volume = type === "emergency" ? 0.8 : 0.6;
+      audio.play().catch(() => {
+        // Fallback to system notification
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(`🚨 ${type.toUpperCase()} Alert`, {
+            body: `Student link not sent - ${type} lateness detected`,
+            icon: "/favicon.ico"
+          });
+        }
+      });
     }
   }
+  
+  // Auto-notify critical cases
+  const autoNotifyCriticalCases = async () => {
+    const criticalUnnotified = Object.entries(latenessAlerts).filter(
+      ([id, alert]) => 
+        alert.level === "critical" && 
+        !alert.notified && 
+        !alert.autoNotified
+    );
+    
+    for (const [studentId, alert] of criticalUnnotified) {
+      try {
+        const response = await fetch(`/api/attendance-list/notify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            studentId: parseInt(studentId),
+            urgency: alert.level,
+            minutesLate: alert.minutesLate,
+            autoNotify: true
+          }),
+        });
+        
+        if (response.ok) {
+          setLatenessAlerts(prev => ({
+            ...prev,
+            [parseInt(studentId)]: {
+              ...prev[parseInt(studentId)],
+              autoNotified: true,
+              lastNotification: new Date(),
+            }
+          }));
+          toast.success(`🤖 Auto-notified teacher for ${alert.level} case`);
+        }
+      } catch (err) {
+        console.error("Auto-notification failed:", err);
+      }
+    }
+  };
 
-  // Get emergency students from all data (not just current page)
+  // Get emergency students from all data (within 15 minute window)
   const emergencyStudents = useMemo(() => {
     const dataToCheck = allData.length > 0 ? allData : data;
     return dataToCheck.filter((record) => {
       if (!record.scheduledDateObj) return false;
 
       const now = new Date();
-      const timeDiff =
-        (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60); // minutes
-      
-      // Check if student has no link sent
-      const hasNoLink =
-        !record.links ||
-        record.links.length === 0 ||
-        !record.links.some((l) => l.sent_time);
-
-      // Emergency: 3+ minutes overdue but within 15 minutes range
-      // Also ensure the scheduled time is today
+      const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
+      const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
       const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
-      
+
+      // Emergency: 3+ minutes overdue but within 15 minutes (after 15min it's too late)
       return timeDiff >= 3 && timeDiff <= 15 && hasNoLink && isToday;
     });
   }, [allData, data]);
@@ -976,7 +1048,7 @@ export default function AttendanceList() {
             <div className="absolute top-0 left-0 w-32 h-32 bg-red-500 rounded-full -translate-x-16 -translate-y-16 animate-pulse"></div>
             <div className="absolute bottom-0 right-0 w-24 h-24 bg-orange-500 rounded-full translate-x-12 translate-y-12 animate-pulse delay-1000"></div>
           </div>
-          
+
           <div className="relative z-10">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div className="flex items-center">
@@ -993,7 +1065,7 @@ export default function AttendanceList() {
                     🚨 Real-Time Lateness Monitor
                   </h3>
                   <p className="text-sm text-red-600 mt-1">
-                    Active monitoring • Updates every 15 seconds • Max {latenessSettings.maxTimeWindow} min window
+                    Active monitoring • Updates every 15 seconds • Max 30 min window
                   </p>
                 </div>
               </div>
@@ -1004,7 +1076,8 @@ export default function AttendanceList() {
                       onClick={bulkNotifyAll}
                       className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 text-sm font-medium shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center"
                     >
-                      <FiBell className="mr-2" /> Notify All ({getLatenessStats().unnotified})
+                      <FiBell className="mr-2" /> Notify All (
+                      {getLatenessStats().unnotified})
                     </button>
                     <button
                       onClick={clearAllNotifications}
@@ -1029,95 +1102,160 @@ export default function AttendanceList() {
                 </button>
               </div>
             </div>
-          
+
             {/* Enhanced Lateness Settings */}
             <div className="mb-6 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-red-200 shadow-lg">
               <h4 className="text-lg font-bold text-red-700 mb-3 flex items-center">
                 ⚙️ Lateness Settings
                 <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full">
-                  Max {latenessSettings.maxTimeWindow} min window
+                  Max 30 min window
                 </span>
               </h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div className="space-y-2">
-                  <label className="block text-gray-700 font-medium">🟠 Alert (min)</label>
+                  <label className="block text-gray-700 font-medium">
+                    🟠 Alert (min)
+                  </label>
                   <input
                     type="number"
                     value={latenessSettings.alertThreshold}
-                    onChange={(e) => setLatenessSettings(prev => ({ ...prev, alertThreshold: parseInt(e.target.value) }))}
+                    onChange={(e) =>
+                      setLatenessSettings((prev) => ({
+                        ...prev,
+                        alertThreshold: parseInt(e.target.value),
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-yellow-50"
                     min="1"
                     max="15"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-gray-700 font-medium">🟡 Warning (min)</label>
+                  <label className="block text-gray-700 font-medium">
+                    🟡 Warning (min)
+                  </label>
                   <input
                     type="number"
                     value={latenessSettings.warningThreshold}
-                    onChange={(e) => setLatenessSettings(prev => ({ ...prev, warningThreshold: parseInt(e.target.value) }))}
+                    onChange={(e) =>
+                      setLatenessSettings((prev) => ({
+                        ...prev,
+                        warningThreshold: parseInt(e.target.value),
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-orange-50"
                     min="1"
                     max="15"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-gray-700 font-medium">🔴 Critical (min)</label>
+                  <label className="block text-gray-700 font-medium">
+                    🔴 Critical (min)
+                  </label>
                   <input
                     type="number"
                     value={latenessSettings.criticalThreshold}
-                    onChange={(e) => setLatenessSettings(prev => ({ ...prev, criticalThreshold: parseInt(e.target.value) }))}
+                    onChange={(e) =>
+                      setLatenessSettings((prev) => ({
+                        ...prev,
+                        criticalThreshold: parseInt(e.target.value),
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-400 focus:border-transparent bg-red-50"
                     min="1"
                     max="15"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-gray-700 font-medium">🔊 Sound</label>
+                  <label className="block text-gray-700 font-medium">
+                    🔊 Sound
+                  </label>
                   <div className="flex items-center h-10">
                     <input
                       type="checkbox"
                       checked={latenessSettings.soundAlerts}
-                      onChange={(e) => setLatenessSettings(prev => ({ ...prev, soundAlerts: e.target.checked }))}
+                      onChange={(e) =>
+                        setLatenessSettings((prev) => ({
+                          ...prev,
+                          soundAlerts: e.target.checked,
+                        }))
+                      }
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
                     <label className="ml-2 text-gray-700">Enable</label>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-gray-700 font-medium">⏱️ Max Window (min)</label>
-                  <input
-                    type="number"
-                    value={latenessSettings.maxTimeWindow}
-                    onChange={(e) => setLatenessSettings(prev => ({ ...prev, maxTimeWindow: parseInt(e.target.value) }))}
-                    className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-blue-50"
-                    min="5"
-                    max="60"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-gray-700 font-medium">👁️ Show Expired</label>
+                  <label className="block text-gray-700 font-medium">
+                    🤖 Auto-Notify
+                  </label>
                   <div className="flex items-center h-10">
                     <input
                       type="checkbox"
-                      checked={latenessSettings.showExpired}
-                      onChange={(e) => setLatenessSettings(prev => ({ ...prev, showExpired: e.target.checked }))}
+                      checked={latenessSettings.autoNotify}
+                      onChange={(e) =>
+                        setLatenessSettings((prev) => ({
+                          ...prev,
+                          autoNotify: e.target.checked,
+                        }))
+                      }
+                      className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
+                    />
+                    <label className="ml-2 text-gray-700">Critical cases</label>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-gray-700 font-medium">
+                    👁️ Show Expired
+                  </label>
+                  <div className="flex items-center h-10">
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      onChange={(e) =>
+                        {/* No-op since showExpired is not in the settings */}
+                      }
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <label className="ml-2 text-gray-700">Include past window</label>
+                    <label className="ml-2 text-gray-700">
+                      Include past window
+                    </label>
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-gray-700 font-medium">
+                    ⏱️ Bulk Delay (s)
+                  </label>
+                  <input
+                    type="number"
+                    value={latenessSettings.bulkNotifyDelay}
+                    onChange={(e) =>
+                      setLatenessSettings((prev) => ({
+                        ...prev,
+                        bulkNotifyDelay: parseInt(e.target.value),
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-transparent bg-purple-50"
+                    min="5"
+                    max="120"
+                  />
                 </div>
               </div>
               <div className="mt-3 text-xs text-gray-600 bg-gray-100 p-2 rounded">
-                💡 <strong>Note:</strong> After {latenessSettings.maxTimeWindow} minutes, notifications become ineffective and are automatically disabled.
+                💡 <strong>Smart Features:</strong> Auto-notify sends critical alerts automatically. 
+                Bulk delay prevents SMS flooding. After 15 minutes, notifications become ineffective.
               </div>
             </div>
-          
+
             {/* Enhanced Current Alerts Dashboard */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              
               <div className="bg-gradient-to-br from-red-100 to-red-200 rounded-xl p-4 border-2 border-red-300 shadow-lg transform hover:scale-105 transition-all duration-300">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-bold text-red-700">🔴 CRITICAL</div>
+                  <div className="text-sm font-bold text-red-700">
+                    🔴 CRITICAL
+                  </div>
                   <div className="text-xs bg-red-500 text-white px-2 py-1 rounded-full">
                     {latenessSettings.criticalThreshold}+ min
                   </div>
@@ -1126,146 +1264,225 @@ export default function AttendanceList() {
                   {getLatenessStats().critical}
                 </div>
                 <div className="text-xs text-red-600">
-                  {Object.values(latenessAlerts).filter(a => a.level === 'critical' && !a.notified).length} unnotified
+                  {Object.values(latenessAlerts).filter(a => a.level === "critical" && !a.notified).length} unnotified
                 </div>
               </div>
-              
+
               <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl p-4 border-2 border-orange-300 shadow-lg transform hover:scale-105 transition-all duration-300">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-bold text-orange-700">🟡 WARNING</div>
+                  <div className="text-sm font-bold text-orange-700">
+                    🟡 WARNING
+                  </div>
                   <div className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
-                    {latenessSettings.warningThreshold}-{latenessSettings.criticalThreshold-1} min
+                    {latenessSettings.warningThreshold}-
+                    {latenessSettings.criticalThreshold - 1} min
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-orange-800 mb-1">
                   {getLatenessStats().warning}
                 </div>
                 <div className="text-xs text-orange-600">
-                  {Object.values(latenessAlerts).filter(a => a.level === 'warning' && !a.notified).length} unnotified
+                  {
+                    Object.values(latenessAlerts).filter(
+                      (a) => a.level === "warning" && !a.notified
+                    ).length
+                  }{" "}
+                  unnotified
                 </div>
               </div>
-              
+
               <div className="bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-xl p-4 border-2 border-yellow-300 shadow-lg transform hover:scale-105 transition-all duration-300">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-bold text-yellow-700">🟠 ALERT</div>
+                  <div className="text-sm font-bold text-yellow-700">
+                    🟠 ALERT
+                  </div>
                   <div className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full">
-                    {latenessSettings.alertThreshold}-{latenessSettings.warningThreshold-1} min
+                    {latenessSettings.alertThreshold}-
+                    {latenessSettings.warningThreshold - 1} min
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-yellow-800 mb-1">
                   {getLatenessStats().alert}
                 </div>
                 <div className="text-xs text-yellow-600">
-                  {Object.values(latenessAlerts).filter(a => a.level === 'alert' && !a.notified).length} unnotified
+                  {
+                    Object.values(latenessAlerts).filter(
+                      (a) => a.level === "alert" && !a.notified
+                    ).length
+                  }{" "}
+                  unnotified
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-4 border-2 border-blue-300 shadow-lg transform hover:scale-105 transition-all duration-300">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-bold text-blue-700">
+                    🤖 AUTO-NOTIFIED
+                  </div>
+                  <div className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">
+                    Smart
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-blue-800 mb-1">
+                  {getLatenessStats().autoNotified}
+                </div>
+                <div className="text-xs text-blue-600">
+                  Automatically handled
                 </div>
               </div>
               
               <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-4 border-2 border-gray-300 shadow-lg transform hover:scale-105 transition-all duration-300">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-bold text-gray-700">📊 EXPIRED</div>
+                  <div className="text-sm font-bold text-gray-700">
+                    📊 EXPIRED
+                  </div>
                   <div className="text-xs bg-gray-500 text-white px-2 py-1 rounded-full">
-                    {latenessSettings.maxTimeWindow}+ min
+                    15+ min
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-gray-800 mb-1">
                   {expiredStudents.length}
                 </div>
                 <div className="text-xs text-gray-600">
-                  No longer actionable
+                  Too late to notify
                 </div>
               </div>
             </div>
-          
-          {/* Detailed Alert List */}
-          {Object.keys(latenessAlerts).length > 0 && (
-            <div className="bg-white rounded-lg p-3 border border-red-200 max-h-96 overflow-y-auto">
-              <h4 className="text-sm font-semibold text-red-700 mb-2">📋 Active Lateness Alerts</h4>
-              <div className="space-y-2">
-                {Object.entries(latenessAlerts)
-                  .sort(([,a], [,b]) => b.minutesLate - a.minutesLate)
-                  .map(([studentId, alert]) => {
-                    const student = data.find(r => r.student_id === parseInt(studentId));
-                    if (!student) return null;
-                    
-                    const alertColors = {
-                      critical: 'bg-red-100 border-red-300 text-red-800',
-                      warning: 'bg-orange-100 border-orange-300 text-orange-800',
-                      alert: 'bg-yellow-100 border-yellow-300 text-yellow-800'
-                    };
-                    
-                    return (
-                      <div key={studentId} className={`flex justify-between items-center p-2 rounded border ${alertColors[alert.level]}`}>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{student.studentName}</span>
-                            <span className="text-sm">({student.ustazName})</span>
-                            <span className={`text-xs px-2 py-1 rounded font-medium ${
-                              alert.level === 'critical' ? 'bg-red-500 text-white' :
-                              alert.level === 'warning' ? 'bg-orange-500 text-white' :
-                              'bg-yellow-500 text-white'
-                            }`}>
-                              {alert.level.toUpperCase()}
-                            </span>
-                            {alert.notified && (
-                                <span className="text-xs bg-green-500 text-white px-2 py-1 rounded animate-pulse">✓ NOTIFIED</span>
-                            )}
-                          </div>
-                          <div className="text-xs mt-1">
-                            Scheduled: {formatTimeOnly(student.scheduledAt)} | {alert.minutesLate} min late
-                            {alert.lastNotification && (
-                              <span className="ml-2 text-gray-500">
-                                Last notified: {format(alert.lastNotification, 'HH:mm')}
+
+            {/* Detailed Alert List */}
+            {Object.keys(latenessAlerts).length > 0 && (
+              <div className="bg-white rounded-lg p-3 border border-red-200 max-h-96 overflow-y-auto">
+                <h4 className="text-sm font-semibold text-red-700 mb-2">
+                  📋 Active Lateness Alerts
+                </h4>
+                <div className="space-y-2">
+                  {Object.entries(latenessAlerts)
+                    .sort(([, a], [, b]) => b.minutesLate - a.minutesLate)
+                    .map(([studentId, alert]) => {
+                      const student = data.find(
+                        (r) => r.student_id === parseInt(studentId)
+                      );
+                      if (!student) return null;
+
+                      const alertColors = {
+                        critical: "bg-red-100 border-red-300 text-red-800",
+                        warning:
+                          "bg-orange-100 border-orange-300 text-orange-800",
+                        alert:
+                          "bg-yellow-100 border-yellow-300 text-yellow-800",
+                      };
+
+                      return (
+                        <div
+                          key={studentId}
+                          className={`flex justify-between items-center p-3 rounded-lg border-2 ${
+                            alert.level === "critical"
+                              ? "bg-red-100 border-red-400 text-red-900"
+                              : alert.level === "warning"
+                              ? "bg-orange-100 border-orange-400 text-orange-900"
+                              : "bg-yellow-100 border-yellow-400 text-yellow-900"
+                          } shadow-lg`}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-bold text-base">
+                                {student.studentName}
                               </span>
+                              <span className="text-sm opacity-75">
+                                ({student.ustazName})
+                              </span>
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full font-bold ${
+                                  alert.level === "critical"
+                                    ? "bg-red-600 text-white"
+                                    : alert.level === "warning"
+                                    ? "bg-orange-600 text-white"
+                                    : "bg-yellow-600 text-white"
+                                }`}
+                              >
+                                {alert.level.toUpperCase()}
+                              </span>
+                              {alert.notified && (
+                                <span className="text-xs bg-green-600 text-white px-2 py-1 rounded-full font-bold">
+                                  ✓ NOTIFIED
+                                </span>
+                              )}
+                              {alert.autoNotified && (
+                                <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded-full font-bold">
+                                  🤖 AUTO
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm font-medium">
+                              🕰️ Scheduled: {formatTimeOnly(student.scheduledAt)} | 
+                              ⏱️ {alert.minutesLate} min late | 
+                              📊 Priority: {alert.priority}
+                              {alert.lastNotification && (
+                                <span className="ml-2 text-gray-600">
+                                  | Last: {format(alert.lastNotification, "HH:mm")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1 ml-3">
+                            {!alert.notified && (
+                              <button
+                                onClick={() =>
+                                  handleNotifyClick(
+                                    parseInt(studentId),
+                                    student.scheduledAt?.substring(0, 10) || ""
+                                  )
+                                }
+                                className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all hover:scale-105"
+                              >
+                                <FiBell className="w-3 h-3" /> 
+                                Notify
+                              </button>
                             )}
+                            <button
+                              onClick={() => markAsNotified(parseInt(studentId))}
+                              className="px-3 py-1 bg-gray-600 text-white rounded-lg text-xs hover:bg-gray-700 font-medium"
+                            >
+                              Mark Done
+                            </button>
                           </div>
                         </div>
-                        <div className="flex gap-1 ml-2">
-                          {!alert.notified && (
-                            <button
-                              onClick={() => handleNotifyClick(parseInt(studentId), student.scheduledAt?.substring(0, 10) || '')}
-                              className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 flex items-center"
-                            >
-                              <FiBell className="mr-1" /> Notify
-                            </button>
-                          )}
-                          <button
-                            onClick={() => markAsNotified(parseInt(studentId))}
-                            className="px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
-                          >
-                            Mark Notified
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                </div>
               </div>
-            </div>
-          )}
-          
+            )}
+
             <div className="mt-4 p-4 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-xl border border-blue-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4 text-sm">
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse mr-2"></div>
-                    <span className="text-blue-700 font-medium">Live Monitoring Active</span>
+                    <span className="text-blue-700 font-medium">
+                      🔴 Live Monitoring {latenessSettings.autoNotify ? "+ Auto-Notify" : ""}
+                    </span>
                   </div>
                   <div className="text-blue-600">
-                    ⏰ Current: <span className="font-mono font-bold">{format(new Date(), 'HH:mm:ss')}</span>
+                    ⏰ <span className="font-mono font-bold">{format(new Date(), "HH:mm:ss")}</span>
                   </div>
                   <div className="text-blue-600">
-                    🔄 Updates every 15s
+                    🔄 Smart refresh ({Object.keys(latenessAlerts).length > 0 ? "10s" : "30s"})
                   </div>
                 </div>
                 <div className="text-right text-xs text-blue-600">
-                  <div>Total Active: <span className="font-bold">{getLatenessStats().total}</span></div>
-                  <div>Unnotified: <span className="font-bold text-red-600">{getLatenessStats().unnotified}</span></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>Active: <span className="font-bold">{getLatenessStats().total}</span></div>
+                    <div>High Priority: <span className="font-bold text-purple-600">{getLatenessStats().highPriority}</span></div>
+                    <div>Unnotified: <span className="font-bold text-red-600">{getLatenessStats().unnotified}</span></div>
+                    <div>Auto-handled: <span className="font-bold text-green-600">{getLatenessStats().autoNotified}</span></div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       )}
-      
+
       {!showLatenessPanel && (
         <div className="mb-6 p-4 bg-gradient-to-r from-red-100 to-orange-100 rounded-xl border-2 border-red-200 shadow-lg">
           <button
@@ -1275,12 +1492,15 @@ export default function AttendanceList() {
             <div className="flex items-center">
               <FiBell className="mr-3 text-xl group-hover:animate-bounce" />
               <div>
-                <div className="text-lg font-bold">🚨 Lateness Monitor Panel</div>
+                <div className="text-lg font-bold">
+                  🚨 Lateness Monitor Panel
+                </div>
                 <div className="text-sm text-red-600">
-                  {Object.keys(latenessAlerts).length > 0 
-                    ? `${Object.keys(latenessAlerts).length} active alerts • ${getLatenessStats().unnotified} unnotified`
-                    : 'No active alerts • Click to show panel'
-                  }
+                  {Object.keys(latenessAlerts).length > 0
+                    ? `${Object.keys(latenessAlerts).length} active alerts • ${
+                        getLatenessStats().unnotified
+                      } unnotified`
+                    : "No active alerts • Click to show panel"}
                 </div>
               </div>
             </div>

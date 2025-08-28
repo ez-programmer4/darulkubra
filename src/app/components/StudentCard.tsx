@@ -324,7 +324,17 @@ export default function StudentCard({
                 <div>
                   <p className="text-xs text-gray-500">Time Slot</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {student.selectedTime}
+                    {(() => {
+                      const time = student.selectedTime;
+                      if (!time || time.trim() === "") return "Not set";
+                      if (time.includes("AM") || time.includes("PM")) return time;
+                      const [hour, minute] = time.split(":").map(Number);
+                      if (isNaN(hour) || isNaN(minute)) return time;
+                      const period = hour >= 12 ? "PM" : "AM";
+                      const adjustedHour = hour % 12 || 12;
+                      return `${adjustedHour}:${minute.toString().padStart(2, "0")} ${period}`;
+                    })()
+                    }
                   </p>
                 </div>
               </div>

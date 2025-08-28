@@ -111,7 +111,11 @@ export default function AdminLatenessAnalyticsPage() {
   const [controllerSearch, setControllerSearch] = useState("");
   const [teacherSearch, setTeacherSearch] = useState("");
 
-  // Fetch controllers for filter
+  // Base deduction amount state
+  const [baseDeductionAmount, setBaseDeductionAmount] = useState(30);
+  const [savingBaseDeduction, setSavingBaseDeduction] = useState(false);
+
+  // Fetch controllers and base deduction amount
   useEffect(() => {
     const fetchControllers = async () => {
       try {
@@ -123,7 +127,21 @@ export default function AdminLatenessAnalyticsPage() {
         setControllers([]);
       }
     };
+
+    const fetchBaseDeduction = async () => {
+      try {
+        const res = await fetch("/api/admin/settings/lateness_base_deduction");
+        if (res.ok) {
+          const data = await res.json();
+          setBaseDeductionAmount(parseFloat(data.value) || 30);
+        }
+      } catch (err) {
+        setBaseDeductionAmount(30);
+      }
+    };
+
     fetchControllers();
+    fetchBaseDeduction();
   }, []);
 
   // Fetch analytics
@@ -323,6 +341,34 @@ export default function AdminLatenessAnalyticsPage() {
     }
   };
 
+  // Save base deduction amount
+  const saveBaseDeduction = async () => {
+    setSavingBaseDeduction(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "lateness_base_deduction",
+          value: baseDeductionAmount.toString(),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save base deduction amount");
+      toast({
+        title: "Success",
+        description: "Base deduction amount saved successfully.",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to save base deduction amount.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingBaseDeduction(false);
+    }
+  };
+
   // Export deduction detail to CSV
   function exportDeductionDetailToCSV() {
     if (!deductionDetail || deductionDetail.length === 0) {
@@ -461,6 +507,59 @@ export default function AdminLatenessAnalyticsPage() {
           </div>
         </div>
 
+        {/* Base Deduction Amount Configuration */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-black rounded-xl">
+              <FiClock className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-black">
+                Base Deduction Amount
+              </h2>
+              <p className="text-gray-600">
+                Configure the base deduction amount for lateness
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex-1 max-w-xs">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Base Amount (ETB)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={baseDeductionAmount}
+                onChange={(e) =>
+                  setBaseDeductionAmount(parseFloat(e.target.value) || 0)
+                }
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
+                placeholder="30.00"
+              />
+            </div>
+            <button
+              onClick={saveBaseDeduction}
+              disabled={savingBaseDeduction}
+              className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {savingBaseDeduction ? (
+                <>
+                  <FiRefreshCw className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save"
+              )}
+            </button>
+          </div>
+          <p className="text-sm text-gray-500 mt-3">
+            This amount is used as the base for tier calculations. Current:{" "}
+            {baseDeductionAmount} ETB
+          </p>
+        </div>
+
         {/* Lateness Deduction Config Manager */}
         <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
           <LatenessDeductionConfigManager />
@@ -489,77 +588,6 @@ export default function AdminLatenessAnalyticsPage() {
           </div>
         ) : analytics ? (
           <div className="space-y-8">
-            {/* Debug Info */}
-            <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
-              <h3 className="text-sm font-bold text-blue-900 mb-2">Debug Info</h3>
-              <div className="text-xs text-blue-700 space-y-2">
-                <p>Daily Trend Records: {analytics.dailyTrend?.length || 0}</p>
-                <p>Controller Records: {analytics.controllerData?.length || 0}</p>
-                <p>Teacher Records: {analytics.teacherData?.length || 0}</p>
-                <p>Date Range: {date?.from ? format(date.from, "yyyy-MM-dd") : "N/A"} to {date?.to ? format(date.to, "yyyy-MM-dd") : "N/A"}</p>
-                
-                {/* Sample Daily Trend Data */}
-                {analytics.dailyTrend?.length > 0 && (
-                  <div className="mt-2">
-                    <p className="font-semibold">Sample Daily Trend:</p>
-                    <pre className="text-xs bg-white p-2 rounded overflow-x-auto">
-                      {JSON.stringify(analytics.dailyTrend[0], null, 2)}
-                    </pre>
-                  </div>
-                )}
-                
-                {/* Sample Controller Data */}
-                {analytics.controllerData?.length > 0 && (
-                  <div className="mt-2">
-                    <p className="font-semibold">Sample Controller:</p>
-                    <pre className="text-xs bg-white p-2 rounded overflow-x-auto">
-                      {JSON.stringify(analytics.controllerData[0], null, 2)}
-                    </pre>
-                  </div>
-                )}
-                
-                {/* Sample Teacher Data */}
-                {analytics.teacherData?.length > 0 && (
-                  <div className="mt-2">
-                    <p className="font-semibold">Sample Teacher:</p>
-                    <pre className="text-xs bg-white p-2 rounded overflow-x-auto">
-                      {JSON.stringify(analytics.teacherData[0], null, 2)}
-                    </pre>
-                  </div>
-                )}
-                
-                {/* Summary Stats Debug */}
-                <div className="mt-2">
-                  <p className="font-semibold">Calculated Stats:</p>
-                  <p>Total Events: {totalEvents}</p>
-                  <p>Total Deduction: {totalDeduction}</p>
-                  <p>Avg Lateness: {avgLateness}</p>
-                </div>
-                
-                {/* Daily Records Debug */}
-                <div className="mt-2">
-                  <p className="font-semibold">Daily Records Sample ({dailyRecords.length} total):</p>
-                  {dailyRecords.length > 0 ? (
-                    <pre className="text-xs bg-white p-2 rounded overflow-x-auto max-h-32">
-                      {JSON.stringify(dailyRecords.slice(0, 2), null, 2)}
-                    </pre>
-                  ) : (
-                    <p className="text-red-600">No daily records found for {format(dailyDate, "yyyy-MM-dd")}</p>
-                  )}
-                  
-                  {/* Lateness Summary */}
-                  {dailyRecords.length > 0 && (
-                    <div className="mt-2 text-xs">
-                      <p className="font-semibold">Lateness Summary:</p>
-                      <p>Records with lateness &gt; 0: {dailyRecords.filter(r => r.latenessMinutes > 0).length}</p>
-                      <p>Records with deduction &gt; 0: {dailyRecords.filter(r => r.deductionApplied > 0).length}</p>
-                      <p>Max lateness: {Math.max(...dailyRecords.map(r => r.latenessMinutes))} min</p>
-                      <p>Total deductions: {dailyRecords.reduce((sum, r) => sum + r.deductionApplied, 0)} ETB</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
             {analytics.dailyTrend && analytics.dailyTrend.length > 0 && (
               <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
                 <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">

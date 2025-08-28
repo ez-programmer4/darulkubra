@@ -18,16 +18,9 @@ export default function Modal({ isOpen, onClose, children }: ModalProps) {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-3xl p-8 max-w-2xl w-full mx-4 shadow-2xl border border-gray-200"
+        className="bg-white rounded-3xl p-0 max-w-[98vw] w-full mx-2 shadow-2xl border border-gray-200 max-h-[95vh] overflow-hidden"
       >
-        <div className="absolute top-4 right-4">
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-          >
-            <FiX size={24} className="text-gray-500" />
-          </button>
-        </div>
+
         {children}
       </motion.div>
     </div>

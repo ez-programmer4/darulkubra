@@ -368,10 +368,25 @@ export default function StudentList({
   }, [students]);
 
   const timeSlots = useMemo(() => {
+    const convertTo12Hour = (time: string): string => {
+      if (!time || time.includes("AM") || time.includes("PM")) {
+        return time;
+      }
+      const [hour, minute] = time.split(":").map(Number);
+      if (isNaN(hour) || isNaN(minute)) return time;
+      const period = hour >= 12 ? "PM" : "AM";
+      const adjustedHour = hour % 12 || 12;
+      return `${adjustedHour}:${minute.toString().padStart(2, "0")} ${period}`;
+    };
+    
     const uniqueSlots = [
-      ...new Set(students.map((student) => student.selectedTime)),
+      ...new Set(students.map((student) => {
+        const time = student.selectedTime;
+        if (!time || time.trim() === "" || time === "Not specified") return null;
+        return convertTo12Hour(time.trim());
+      }).filter(Boolean)),
     ];
-    return ["all", ...uniqueSlots.filter(Boolean)];
+    return ["all", ...uniqueSlots];
   }, [students]);
 
   const filteredStudents = useMemo((): Student[] => {
@@ -396,8 +411,20 @@ export default function StudentList({
         (student.teacher?.ustazname || student.ustaz) === ustazFilter;
       const matchesPackage =
         packageFilter === "all" || student.package === packageFilter;
+      const convertTo12Hour = (time: string): string => {
+        if (!time || time.includes("AM") || time.includes("PM")) {
+          return time;
+        }
+        const [hour, minute] = time.split(":").map(Number);
+        if (isNaN(hour) || isNaN(minute)) return time;
+        const period = hour >= 12 ? "PM" : "AM";
+        const adjustedHour = hour % 12 || 12;
+        return `${adjustedHour}:${minute.toString().padStart(2, "0")} ${period}`;
+      };
+      
       const matchesTimeSlot =
-        timeSlotFilter === "all" || student.selectedTime === timeSlotFilter;
+        timeSlotFilter === "all" || 
+        convertTo12Hour(student.selectedTime) === timeSlotFilter;
 
       const paymentStatus = student.paymentStatus;
       let matchesPaymentStatus = true;
@@ -614,22 +641,24 @@ export default function StudentList({
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-black mb-2">
-                Time Slot
-              </label>
-              <select
-                value={timeSlotFilter}
-                onChange={(e) => setTimeSlotFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
-              >
-                {timeSlots.map((slot) => (
-                  <option key={slot} value={slot}>
-                    {slot === "all" ? "All Time Slots" : slot}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {timeSlots.length > 1 && (
+              <div>
+                <label className="block text-sm font-bold text-black mb-2">
+                  Time Slot
+                </label>
+                <select
+                  value={timeSlotFilter}
+                  onChange={(e) => setTimeSlotFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                >
+                  {timeSlots.map((slot) => (
+                    <option key={slot || "empty"} value={slot || ""}>
+                      {slot === "all" ? "All Time Slots" : slot || "Empty"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
       )}

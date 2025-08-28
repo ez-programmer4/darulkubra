@@ -28,7 +28,7 @@ import { toast } from "react-hot-toast";
 import Cookies from "js-cookie";
 import { useSession } from "next-auth/react";
 import { TimePicker } from "@/components/ui/TimePicker";
-import { to24Hour, validateTime } from "@/utils/timeUtils";
+import { to24Hour, validateTime, fromDbFormat, getPrayerRanges } from "@/utils/timeUtils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -1106,15 +1106,24 @@ function RegistrationContent() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {Object.keys(groupedTimeSlots).map((category) => (
+                        {Object.keys(groupedTimeSlots).map((category) => {
+                          const prayerRanges = getPrayerRanges();
+                          const categoryInfo = prayerRanges[category];
+                          
+                          return (
                           <div
                             key={category}
                             className="bg-white rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100"
                           >
-                            <h3 className="text-xl font-semibold text-teal-600 mb-4 flex items-center">
+                            <h3 className="text-xl font-semibold text-teal-600 mb-2 flex items-center">
                               <span className="w-4 h-4 bg-teal-500 rounded-full mr-3 shadow-sm"></span>
                               {category}
                             </h3>
+                            {categoryInfo && (
+                              <p className="text-sm text-gray-600 mb-4 font-medium">
+                                {categoryInfo.range} - {categoryInfo.description}
+                              </p>
+                            )}
                             <div className="space-y-3">
                               {groupedTimeSlots[category].map((slot) => {
                                 const isAvailable =
@@ -1142,7 +1151,7 @@ function RegistrationContent() {
                                         ? { scale: 0.97 }
                                         : {}
                                     }
-                                    className={`w-full text-left p-4 rounded-xl transition-all duration-200 text-sm font-semibold flex items-center shadow-sm ${
+                                    className={`w-full text-left p-4 rounded-xl transition-all duration-200 text-sm font-semibold flex flex-col shadow-sm ${
                                       isSelected
                                         ? "bg-teal-600 text-white shadow-md"
                                         : isLoading
@@ -1159,39 +1168,45 @@ function RegistrationContent() {
                                         : "No teacher available for this time and package"
                                     }
                                   >
-                                    <span className="flex-1">{slot.time}</span>
-                                    <div className="flex items-center space-x-2">
-                                      {isLoading ? (
-                                        <Badge className="bg-gray-100 text-gray-600 text-xs">
-                                          Checking...
-                                        </Badge>
-                                      ) : isAvailable ? (
-                                        <Badge className="bg-green-100 text-green-800 text-xs">
-                                          Available
-                                        </Badge>
-                                      ) : (
-                                        <Badge className="bg-red-100 text-red-800 text-xs">
-                                          Unavailable
-                                        </Badge>
-                                      )}
-                                      <FiArrowRight
-                                        className={`ml-2 ${
-                                          isSelected
-                                            ? "text-white"
-                                            : isLoading
-                                            ? "text-gray-400"
-                                            : isAvailable
-                                            ? "text-green-600"
-                                            : "text-red-400"
-                                        }`}
-                                      />
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex flex-col">
+                                        <span className="text-lg font-bold">{convertTo12Hour(slot.time)}</span>
+                                        <span className="text-xs opacity-75">{slot.time} (24hr)</span>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        {isLoading ? (
+                                          <Badge className="bg-gray-100 text-gray-600 text-xs">
+                                            Checking...
+                                          </Badge>
+                                        ) : isAvailable ? (
+                                          <Badge className="bg-green-100 text-green-800 text-xs">
+                                            Available
+                                          </Badge>
+                                        ) : (
+                                          <Badge className="bg-red-100 text-red-800 text-xs">
+                                            Unavailable
+                                          </Badge>
+                                        )}
+                                        <FiArrowRight
+                                          className={`ml-2 ${
+                                            isSelected
+                                              ? "text-white"
+                                              : isLoading
+                                              ? "text-gray-400"
+                                              : isAvailable
+                                              ? "text-green-600"
+                                              : "text-red-400"
+                                          }`}
+                                        />
+                                      </div>
                                     </div>
                                   </motion.button>
                                 );
                               })}
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       {/* Summary of availability */}
@@ -1611,7 +1626,7 @@ function RegistrationContent() {
                         className="w-full px-5 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm hover:border-teal-300"
                       >
                         <option value="">Select package</option>
-                        <option value="0 fee">0 fee</option>
+                        <option value="0 Fee">0 Fee</option>
                         <option value="3 days">3 days</option>
                         <option value="5 days">5 days</option>
                         <option value="europe">Europe</option>
@@ -1638,8 +1653,10 @@ function RegistrationContent() {
                               "remadan leave",
                               "not yet",
                               "fresh",
+                              "not succeed",
+                              "completed",
                             ].includes(value?.toLowerCase() || "") ||
-                            "Status must be Active, Leave, Remadan leave, Not yet, or Fresh",
+                            "Status must be Active, Leave, Remadan leave, Not yet, Fresh, Not Succeed, or Completed",
                         })}
                         className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
                           errors.status
@@ -1653,6 +1670,8 @@ function RegistrationContent() {
                         <option value="remadan leave">Remadan leave</option>
                         <option value="Not yet">Not yet</option>
                         <option value="fresh">Fresh</option>
+                        <option value="Not Succeed">Not Succeed</option>
+                        <option value="Completed">Completed</option>
                       </select>
                       {errors.status && (
                         <p className="mt-1 text-xs text-red-600 font-medium">

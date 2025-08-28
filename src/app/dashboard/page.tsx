@@ -866,6 +866,12 @@ export default function Dashboard() {
               >
                 <FiRefreshCw className="mr-2" /> Refresh
               </button>
+              <Link
+                href="/registral/earnings"
+                className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-4 py-3 rounded-xl flex items-center shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                <FiDollarSign className="mr-2" /> My Earnings
+              </Link>
               <button
                 onClick={handleLogout}
                 className="bg-red-100 hover:bg-red-200 text-red-800 px-4 py-3 rounded-xl flex items-center shadow-md hover:shadow-lg transition-all duration-300"
