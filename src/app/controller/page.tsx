@@ -8,6 +8,7 @@ import {
   FiUsers,
   FiCheckCircle,
   FiClock,
+  FiBarChart,
 } from "react-icons/fi";
 import StatsCards from "@/app/components/StatsCards";
 import StudentList from "@/app/components/StudentList";
@@ -240,6 +241,20 @@ export default function Controller() {
 
               {/* Stats */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:ml-auto">
+                <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-4 text-center border border-blue-300">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <FiBarChart className="h-5 w-5 text-white" />
+                    <span className="text-sm font-semibold text-white">
+                      Analytics
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => window.location.href = '/controller/student-analytics'}
+                    className="text-white hover:text-blue-100 transition-colors text-sm font-medium"
+                  >
+                    View Progress
+                  </button>
+                </div>
                 <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <FiUsers className="h-5 w-5 text-gray-600" />

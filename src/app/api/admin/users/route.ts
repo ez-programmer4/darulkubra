@@ -31,18 +31,20 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const getTotals = searchParams.get("getTotals") === "true";
-    
+
     // If requesting totals only, return total counts
     if (getTotals) {
-      const [adminCount, controllerCount, teacherCount, registralCount] = await Promise.all([
-        prisma.admin.count(),
-        prisma.wpos_wpdatatable_28.count(),
-        prisma.wpos_wpdatatable_24.count(),
-        prisma.wpos_wpdatatable_33.count(),
-      ]);
-      
-      const totalUsers = adminCount + controllerCount + teacherCount + registralCount;
-      
+      const [adminCount, controllerCount, teacherCount, registralCount] =
+        await Promise.all([
+          prisma.admin.count(),
+          prisma.wpos_wpdatatable_28.count(),
+          prisma.wpos_wpdatatable_24.count(),
+          prisma.wpos_wpdatatable_33.count(),
+        ]);
+
+      const totalUsers =
+        adminCount + controllerCount + teacherCount + registralCount;
+
       return NextResponse.json({
         totalsByRole: {
           admin: adminCount,
@@ -53,7 +55,7 @@ export async function GET(req: NextRequest) {
         totalUsers,
       });
     }
-    
+
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "10", 10);
     const searchQuery = searchParams.get("search") || "";
@@ -231,15 +233,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Store plain password for teachers, hash for others
-    const hashedPassword = role === "teacher" && reqBody.plainPassword 
-      ? reqBody.plainPassword 
-      : await bcrypt.hash(password, 10);
+    const hashedPassword =
+      role === "teacher" && reqBody.plainPassword
+        ? reqBody.plainPassword
+        : await bcrypt.hash(password, 10);
     let newUser;
 
     switch (role) {
       case "admin":
         newUser = await prisma.admin.create({
-          data: { name, username, passcode: hashedPassword },
+          data: { name, username, passcode: hashedPassword, chat_id: "" },
         });
         break;
       case "controller":

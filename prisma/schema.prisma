@@ -34,24 +34,25 @@ model wpos_wpdatatable_24 {
   students                wpos_wpdatatable_23[]       @relation("fk_student_ustaz")
   controller              wpos_wpdatatable_28?        @relation(fields: [control], references: [code])
   zoom_links              wpos_zoom_links[]
+  coursePackage           coursePackage[]
 
   @@index([ustazid], map: "idx_ustazid")
   @@index([control], map: "wpos_wpdatatable_24_control_fkey")
 }
 
 model wpos_wpdatatable_23 {
-  wdt_ID              Int                           @id @default(autoincrement())
-  name                String?                       @db.VarChar(255)
-  phoneno             String?                       @db.VarChar(32)
-  classfee            Float?                        @db.Float
-  startdate           DateTime?                     @db.DateTime(0)
-  status              String?                       @db.VarChar(255)
-  ustaz               String?                       @db.VarChar(255)
-  package             String?                       @db.VarChar(255)
-  subject             String?                       @db.VarChar(255)
-  country             String?                       @db.VarChar(255)
-  rigistral           String?                       @db.VarChar(255)
-  
+  wdt_ID    Int       @id @default(autoincrement())
+  name      String?   @db.VarChar(255)
+  phoneno   String?   @db.VarChar(32)
+  classfee  Float?    @db.Float
+  startdate DateTime? @db.DateTime(0)
+  status    String?   @db.VarChar(255)
+  ustaz     String?   @db.VarChar(255)
+  package   String?   @db.VarChar(255)
+  subject   String?   @db.VarChar(255)
+  country   String?   @db.VarChar(255)
+  rigistral String?   @db.VarChar(255)
+
   daypackages         String?                       @db.VarChar(255)
   refer               String?                       @db.VarChar(255)
   registrationdate    DateTime?                     @default(now()) @db.DateTime(0)
@@ -60,6 +61,11 @@ model wpos_wpdatatable_23 {
   progress            String?                       @db.VarChar(64)
   u_control           String?                       @db.VarChar(255)
   exitdate            DateTime?                     @db.DateTime(0)
+  isKid               Boolean?                      @default(false)
+  activePackage       coursePackage?                @relation("ActivePackage", fields: [youtubeSubject], references: [id])
+  youtubeSubject      String?
+  coursePackage       coursePackage?                @relation("PackageHistory", fields: [coursePackageId], references: [id])
+  coursePackageId     String?
   months_table        months_table[]
   payment             payment[]
   attendance_progress student_attendance_progress[]
@@ -69,6 +75,10 @@ model wpos_wpdatatable_23 {
   controller          wpos_wpdatatable_28?          @relation("StudentToController", fields: [u_control], references: [code])
   teacher             wpos_wpdatatable_24?          @relation("fk_student_ustaz", fields: [ustaz], references: [ustazid])
   zoom_links          wpos_zoom_links[]
+  studentProgress     studentProgress[]
+  finalExamResult     finalExamResult[]
+  tarbiaAttendance    tarbiaAttendance[]
+  studentQuiz         studentQuiz[]
 
   @@index([ustaz], map: "idx_ustaz")
   @@index([u_control], map: "wpos_wpdatatable_23_u_control_fkey")
@@ -88,13 +98,13 @@ model wpos_wpdatatable_28 {
   deductionbonusconfig     deductionbonusconfig[]
   latenessdeductionconfig  latenessdeductionconfig[]
   latenessrecord           latenessrecord[]
-  
-  permissionrequest        permissionrequest[]
-  qualityassessment        qualityassessment[]
-  qualitydescription       qualitydescription[]
-  teachersalarypayment     teachersalarypayment[]
-  students                 wpos_wpdatatable_23[]      @relation("StudentToController")
-  ustazs                   wpos_wpdatatable_24[]
+
+  permissionrequest    permissionrequest[]
+  qualityassessment    qualityassessment[]
+  qualitydescription   qualitydescription[]
+  teachersalarypayment teachersalarypayment[]
+  students             wpos_wpdatatable_23[]  @relation("StudentToController")
+  ustazs               wpos_wpdatatable_24[]
 }
 
 model wpos_ustaz_occupied_times {
@@ -125,6 +135,8 @@ model admin {
   passcode                 String                     @db.VarChar(120)
   phoneno                  String?                    @db.VarChar(32)
   role                     String?                    @default("admin") @db.VarChar(20)
+  chat_id                  String                     @unique
+  createdAt                DateTime                   @default(now())
   absencerecord            absencerecord[]
   attendancesubmissionlog  attendancesubmissionlog[]
   auditlog                 auditlog[]
@@ -388,16 +400,16 @@ model notification {
 }
 
 model payment {
-  id            Int       @map("wdt_ID") @id @default(autoincrement())   
-  studentid     Int
-  studentname   String   @db.VarChar(255)
-  paymentdate   DateTime @db.DateTime(0)
-  transactionid String    @db.VarChar(255)
-  paidamount    Decimal  @db.Decimal(10, 0)
-  reason        String   @db.VarChar(2000)
+  id                  Int                 @id @default(autoincrement()) @map("wdt_ID")
+  studentid           Int
+  studentname         String              @db.VarChar(255)
+  paymentdate         DateTime            @db.DateTime(0)
+  transactionid       String              @db.VarChar(255)
+  paidamount          Decimal             @db.Decimal(10, 0)
+  reason              String              @db.VarChar(2000)
   status              String              @default("pending") @db.VarChar(20)
   wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentid], references: [wdt_ID], map: "Payment_studentid_fkey")
-  
+
   @@map("wpos_wpdatatable_29")
 }
 
@@ -540,4 +552,179 @@ model testresult {
   @@index([questionId], map: "testResult_questionId_idx")
   @@index([studentId], map: "testResult_studentId_idx")
   @@map("testResult")
+}
+
+model coursePackage {
+  id                  String                @id @default(uuid())
+  name                String                @db.Text
+  description         String?               @db.Text
+  courses             course[]
+  questions           question[]
+  finalExamResult     finalExamResult[]
+  examDurationMinutes Int?
+  isPublished         Boolean               @default(false)
+  students            wpos_wpdatatable_23[] @relation("PackageHistory")
+  activeStudents      wpos_wpdatatable_23[] @relation("ActivePackage")
+  subjectPackages     subjectPackage[] // <-- Add this line for the relation
+  terbiaAttendance    tarbiaAttendance[]
+  ustazId             Int?
+  ustaz               wpos_wpdatatable_24?  @relation(fields: [id], references: [ustazid])
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+}
+
+model subjectPackage {
+  id          String        @id @default(uuid())
+  kidpackage  Boolean?      @default(false)
+  packageType String?
+  subject     String?
+  package     coursePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  packageId   String
+  createdAt   DateTime      @default(now())
+  // @@unique([subject, packageId])
+}
+
+model course {
+  id          String        @id @default(uuid())
+  title       String        @db.Text
+  description String?       @db.Text
+  imageUrl    String?       @db.Text
+  isPublished Boolean       @default(false)
+  order       Int // Determines sequence in package
+  packageId   String
+  package     coursePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  timeLimit Int?
+  timeUnit  String?
+
+  chapters  chapter[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([packageId])
+}
+
+model chapter {
+  id          String  @id @default(uuid())
+  title       String
+  description String? @db.Text
+  videoUrl    String? @db.Text
+  position    Int
+  isPublished Boolean @default(false)
+  // isFree      Boolean @default(false)
+
+  questions question[]
+
+  courseId String
+  course   course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  studentProgress studentProgress[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+model question {
+  id              String           @id @default(cuid())
+  chapter         chapter?         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  chapterId       String?
+  coursePackage   coursePackage?   @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  packageId       String?
+  question        String           @db.Text
+  questionOptions questionOption[]
+  questionAnswer  questionAnswer[]
+  studentQuiz     studentQuiz[]
+
+  @@index([chapterId])
+}
+
+model questionOption {
+  id                 String              @id @default(cuid())
+  question           question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId         String
+  option             String
+  questionAnswer     questionAnswer[]
+  studentQuizAnswers studentQuizAnswer[]
+
+  @@index([questionId])
+}
+
+model questionAnswer {
+  id         String         @id @default(cuid())
+  question   question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId String
+  answer     questionOption @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  answerId   String
+
+  @@index([answerId])
+  @@index([questionId])
+}
+
+model studentQuiz {
+  id                 String              @id @default(cuid())
+  student            wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID], onDelete: Cascade)
+  studentId          Int
+  question           question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId         String
+  isFinalExam        Boolean             @default(false)
+  takenAt            DateTime            @default(now())
+  studentQuizAnswers studentQuizAnswer[]
+
+  @@unique([studentId, questionId])
+  @@index([questionId])
+  @@index([studentId])
+}
+
+model studentQuizAnswer {
+  id               String         @id @default(cuid())
+  studentQuiz      studentQuiz    @relation(fields: [studentQuizId], references: [id], onDelete: Cascade)
+  studentQuizId    String
+  selectedOption   questionOption @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
+  selectedOptionId String
+
+  @@unique([studentQuizId, selectedOptionId])
+  @@index([selectedOptionId])
+  @@index([studentQuizId])
+}
+
+model studentProgress {
+  id          String              @id @default(cuid())
+  student     wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID], onDelete: Cascade)
+  studentId   Int
+  chapter     chapter             @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  chapterId   String
+  isStarted   Boolean             @default(true)
+  isCompleted Boolean             @default(false)
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, chapterId])
+  @@index([chapterId])
+  @@index([studentId])
+}
+
+model finalExamResult {
+  id                 String              @id @default(cuid())
+  student            wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID])
+  studentId          Int
+  coursePackage      coursePackage       @relation(fields: [packageId], references: [id])
+  packageId          String
+  updationProhibited Boolean             @default(false)
+  startingTime       DateTime            @default(now())
+  endingTime         DateTime?
+}
+
+model tarbiaAttendance {
+  id             String              @id @default(cuid())
+  studId         Int
+  student        wpos_wpdatatable_23 @relation(fields: [studId], references: [wdt_ID], onDelete: Cascade)
+  packageId      String
+  coursesPackage coursePackage       @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  status         Boolean             @default(false)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 }
