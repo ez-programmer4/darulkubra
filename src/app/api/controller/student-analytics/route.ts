@@ -83,8 +83,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-
-
     const page = currentPage > 0 ? currentPage : 1;
     const take = itemsPerPage > 0 ? itemsPerPage : 10;
     const skip = (page - 1) * take;
@@ -138,10 +136,6 @@ export async function GET(request: NextRequest) {
         chatId: true,
         teacher: {
           select: { ustazname: true },
-        },
-        occupiedTimes: {
-          select: { time_slot: true },
-          take: 1,
         },
       },
     });
@@ -207,7 +201,20 @@ export async function GET(request: NextRequest) {
           phoneNo = `${countryCode}${phoneNo}`;
         }
 
-        return {
+        // Fetch occupied time for this student
+        console.log(
+          `[DEBUG] Fetching occupied time for student ID: ${student.wdt_ID}`
+        );
+        const occupiedTime = await prisma.wpos_ustaz_occupied_times.findFirst({
+          where: { student_id: student.wdt_ID },
+          select: { time_slot: true },
+        });
+        console.log(
+          `[DEBUG] Student ${student.wdt_ID} (${student.name}) occupied time result:`,
+          occupiedTime
+        );
+
+        const result = {
           id: student.wdt_ID,
           name: student.name,
           phoneNo,
@@ -218,8 +225,15 @@ export async function GET(request: NextRequest) {
           chatid: student.chatId,
           activePackage: activePackage?.name ?? "",
           studentProgress: progress,
-          selectedTime: student.occupiedTimes?.[0]?.time_slot ?? null,
+          selectedTime: occupiedTime?.time_slot ?? null,
         };
+
+        console.log(
+          `[DEBUG] Final selectedTime for ${student.name}: ${
+            occupiedTime?.time_slot ?? "null"
+          }`
+        );
+        return result;
       })
     );
 
