@@ -41,6 +41,7 @@ export default function StudentAnalytics() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [students, setStudents] = useState<StudentAnalytics[]>([]);
+  const [allStudents, setAllStudents] = useState<StudentAnalytics[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export default function StudentAnalytics() {
     if (status === "loading") return;
 
     fetchStudents();
+    fetchAllStudents();
   }, [session, status, router, searchTerm, progressFilter, currentPage]);
 
   const fetchStudents = async () => {
@@ -82,6 +84,27 @@ export default function StudentAnalytics() {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllStudents = async () => {
+    try {
+      const params = new URLSearchParams({
+        progress: "all",
+        page: "1",
+        limit: "1000",
+      });
+
+      const response = await fetch(
+        `/api/controller/student-analytics?${params}`
+      );
+      const result = await response.json();
+
+      if (response.ok) {
+        setAllStudents(result.data);
+      }
+    } catch (err) {
+      // Silent fail for stats
     }
   };
 
@@ -203,7 +226,7 @@ export default function StudentAnalytics() {
                     Active Packages
                   </p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {new Set(students.map((s) => s.activePackage)).size}
+                    {new Set(allStudents.map((s) => s.activePackage)).size}
                   </p>
                 </div>
               </div>
@@ -217,7 +240,7 @@ export default function StudentAnalytics() {
                   </p>
                   <p className="text-2xl font-semibold text-gray-900">
                     {
-                      students.filter(
+                      allStudents.filter(
                         (s) =>
                           s.studentProgress !== "completed" &&
                           s.studentProgress !== "notstarted"
@@ -233,7 +256,7 @@ export default function StudentAnalytics() {
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-500">Connected</p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {students.filter((s) => s.chatid).length}
+                    {allStudents.filter((s) => s.chatid).length}
                   </p>
                 </div>
               </div>
