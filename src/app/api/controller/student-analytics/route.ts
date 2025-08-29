@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     // Get students using controller relation
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
-        controllerId: Number(controllerId),
+        controller: { wdt_ID: Number(controllerId) },
         status: { in: ["Active", "Not yet"] },
         OR: subjectPackageFilters,
         ...searchFilter,
