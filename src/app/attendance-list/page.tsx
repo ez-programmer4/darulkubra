@@ -504,11 +504,21 @@ export default function AttendanceList() {
       return "N/A";
     }
     try {
-      // Parse the date and add 3 hours for display (UTC+3)
+      // Parse the date and handle both 12hr and 24hr formats
       const date = parseISO(dateStr);
-      const localDate = new Date(date.getTime() + (3 * 60 * 60 * 1000));
-      const hours = localDate.getUTCHours();
-      const minutes = localDate.getUTCMinutes();
+      
+      // Check if time contains AM/PM (12hr format stored in DB)
+      if (dateStr.includes('AM') || dateStr.includes('PM')) {
+        // Already in 12hr format, just extract time
+        const timeMatch = dateStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (timeMatch) {
+          return `${timeMatch[1]}:${timeMatch[2]} ${timeMatch[3].toUpperCase()}`;
+        }
+      }
+      
+      // Handle 24hr format or ISO format
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
       const period = hours >= 12 ? "PM" : "AM";
       const displayHours = hours % 12 || 12;
       return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
@@ -569,12 +579,25 @@ export default function AttendanceList() {
     dataToCheck.forEach((record) => {
       if (!record.scheduledDateObj) return;
 
-      // Use scheduled time as-is (no timezone adjustment for calculation)
-      const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
+      // Create today's date with scheduled time for comparison
+      const today = new Date();
+      const scheduledTime = new Date(record.scheduledDateObj);
+      
+      // Create scheduled datetime for today
+      const todayScheduled = new Date(
+        today.getFullYear(),
+        today.getMonth(), 
+        today.getDate(),
+        scheduledTime.getHours(),
+        scheduledTime.getMinutes(),
+        scheduledTime.getSeconds()
+      );
+      
+      const timeDiff = (now.getTime() - todayScheduled.getTime()) / (1000 * 60);
       const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
       
       // Check if it's today's class and within 15 minute window (0-15 minutes)
-      const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
+      const isToday = today.toDateString() === now.toDateString();
       
       // Debug log
       if (record.student_id === dataToCheck[0]?.student_id) {
@@ -648,9 +671,19 @@ export default function AttendanceList() {
     return dataToCheck.filter((record) => {
       if (!record.scheduledDateObj) return false;
       const now = new Date();
-      const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
+      const today = new Date();
+      const scheduledTime = new Date(record.scheduledDateObj);
+      const todayScheduled = new Date(
+        today.getFullYear(),
+        today.getMonth(), 
+        today.getDate(),
+        scheduledTime.getHours(),
+        scheduledTime.getMinutes(),
+        scheduledTime.getSeconds()
+      );
+      const timeDiff = (now.getTime() - todayScheduled.getTime()) / (1000 * 60);
       const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
-      const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
+      const isToday = today.toDateString() === now.toDateString();
       return timeDiff > 15 && hasNoLink && isToday;
     });
   }, [allData, data]);
