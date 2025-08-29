@@ -139,6 +139,10 @@ export async function GET(request: NextRequest) {
         teacher: {
           select: { ustazname: true },
         },
+        occupiedTimes: {
+          select: { time_slot: true },
+          take: 1,
+        },
       },
     });
 
@@ -214,6 +218,7 @@ export async function GET(request: NextRequest) {
           chatid: student.chatId,
           activePackage: activePackage?.name ?? "",
           studentProgress: progress,
+          selectedTime: student.occupiedTimes?.[0]?.time_slot ?? null,
         };
       })
     );
