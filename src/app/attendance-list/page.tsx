@@ -542,7 +542,7 @@ export default function AttendanceList() {
     return true;
   });
 
-  // Enhanced lateness detection with comprehensive monitoring (0-15 minutes)
+  // Enhanced lateness detection based on scheduled time
   function updateLatenessAlerts() {
     const now = new Date();
     const newAlerts: typeof latenessAlerts = {};
@@ -553,6 +553,7 @@ export default function AttendanceList() {
     dataToCheck.forEach((record) => {
       if (!record.scheduledDateObj) return;
 
+      // Use scheduled time as-is, compare with current time
       const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
       const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
       
