@@ -62,10 +62,10 @@ model wpos_wpdatatable_23 {
   u_control           String?                       @db.VarChar(255)
   exitdate            DateTime?                     @db.DateTime(0)
   isKid               Boolean?                      @default(false)
-  activePackage       coursePackage?                @relation("ActivePackage", fields: [youtubeSubject], references: [id])
-  youtubeSubject      String?
-  coursePackage       coursePackage?                @relation("PackageHistory", fields: [coursePackageId], references: [id])
-  coursePackageId     String?
+  // activePackage       coursePackage?                @relation("ActivePackage", fields: [youtubeSubject], references: [id])
+  // youtubeSubject      String?
+  // coursePackage       coursePackage?                @relation("PackageHistory", fields: [coursePackageId], references: [id])
+  // coursePackageId     String?
   months_table        months_table[]
   payment             payment[]
   attendance_progress student_attendance_progress[]
@@ -571,8 +571,8 @@ model coursePackage {
   finalExamResult     finalExamResult[]
   examDurationMinutes Int?
   isPublished         Boolean               @default(false)
-  students            wpos_wpdatatable_23[] @relation("PackageHistory")
-  activeStudents      wpos_wpdatatable_23[] @relation("ActivePackage")
+  // students            wpos_wpdatatable_23[] @relation("PackageHistory")
+  // activeStudents      wpos_wpdatatable_23[] @relation("ActivePackage")
   subjectPackages     subjectPackage[] // <-- Add this line for the relation
   terbiaAttendance    tarbiaAttendance[]
   ustazId             Int?
