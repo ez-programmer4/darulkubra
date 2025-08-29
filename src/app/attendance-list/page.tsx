@@ -504,9 +504,11 @@ export default function AttendanceList() {
       return "N/A";
     }
     try {
-      // Extract time part and convert to 12-hour format
-      const timePart = dateStr.substring(11, 16); // "16:00"
-      const [hours, minutes] = timePart.split(":").map(Number);
+      // Parse the date and add 3 hours for display (UTC+3)
+      const date = parseISO(dateStr);
+      const localDate = new Date(date.getTime() + (3 * 60 * 60 * 1000));
+      const hours = localDate.getUTCHours();
+      const minutes = localDate.getUTCMinutes();
       const period = hours >= 12 ? "PM" : "AM";
       const displayHours = hours % 12 || 12;
       return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
@@ -542,7 +544,7 @@ export default function AttendanceList() {
     return true;
   });
 
-  // Enhanced lateness detection based on scheduled time
+  // Enhanced lateness detection with timezone-aware comparison
   function updateLatenessAlerts() {
     const now = new Date();
     const newAlerts: typeof latenessAlerts = {};
@@ -553,12 +555,13 @@ export default function AttendanceList() {
     dataToCheck.forEach((record) => {
       if (!record.scheduledDateObj) return;
 
-      // Use scheduled time as-is, compare with current time
-      const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
+      // Add 3 hours to scheduled time for local comparison (UTC+3)
+      const scheduledLocal = new Date(record.scheduledDateObj.getTime() + (3 * 60 * 60 * 1000));
+      const timeDiff = (now.getTime() - scheduledLocal.getTime()) / (1000 * 60);
       const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
       
       // Check if it's today's class and within 15 minute window (0-15 minutes)
-      const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
+      const isToday = scheduledLocal.toDateString() === now.toDateString();
       
       if (timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday) {
         let level: "alert" | "warning" | "critical" = "alert";
@@ -618,9 +621,10 @@ export default function AttendanceList() {
     return dataToCheck.filter((record) => {
       if (!record.scheduledDateObj) return false;
       const now = new Date();
-      const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
+      const scheduledLocal = new Date(record.scheduledDateObj.getTime() + (3 * 60 * 60 * 1000));
+      const timeDiff = (now.getTime() - scheduledLocal.getTime()) / (1000 * 60);
       const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
-      const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
+      const isToday = scheduledLocal.toDateString() === now.toDateString();
       return timeDiff > 15 && hasNoLink && isToday;
     });
   }, [allData, data]);
