@@ -249,6 +249,7 @@ export default function AttendanceList() {
 
   useEffect(() => {
     fetchData();
+    fetchAllDataForEmergencyAsync(); // Always fetch all data for monitoring
   }, [
     date,
     startDate,
@@ -265,14 +266,8 @@ export default function AttendanceList() {
     try {
       const params = new URLSearchParams({
         date,
-        ustaz,
-        attendanceStatus,
-        sentStatus,
-        clickedStatus,
         page: "1",
-        limit: "all", // Get all records for emergency detection
-        ...(startDate && { startDate }),
-        ...(endDate && { endDate }),
+        limit: "10000", // Get all records regardless of filters
       });
       const response = await fetch(
         `/api/attendance-list?${params.toString()}`,
@@ -552,14 +547,8 @@ export default function AttendanceList() {
     const now = new Date();
     const newAlerts: typeof latenessAlerts = {};
 
-    // Get all data for comprehensive monitoring
+    // Always use allData for comprehensive monitoring
     const dataToCheck = allData.length > 0 ? allData : data;
-    
-    console.log('Updating lateness alerts:', {
-      dataLength: dataToCheck.length,
-      currentTime: now.toISOString(),
-      selectedDate: date
-    });
 
     dataToCheck.forEach((record) => {
       if (!record.scheduledDateObj) return;
@@ -569,13 +558,6 @@ export default function AttendanceList() {
       
       // Check if it's today's class and within 15 minute window (0-15 minutes)
       const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
-      
-      console.log(`Student ${record.studentName}:`, {
-        scheduledAt: record.scheduledDateObj.toISOString(),
-        timeDiff: Math.floor(timeDiff),
-        hasNoLink,
-        isToday
-      });
       
       if (timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday) {
         let level: "alert" | "warning" | "critical" = "alert";
@@ -606,12 +588,9 @@ export default function AttendanceList() {
           autoNotified: existingAlert?.autoNotified || false,
           priority,
         };
-        
-        console.log(`Added alert for ${record.studentName}:`, newAlerts[record.student_id]);
       }
     });
 
-    console.log('Total alerts found:', Object.keys(newAlerts).length);
     setLatenessAlerts(newAlerts);
 
     // Enhanced sound alerts with different urgency levels
@@ -1085,7 +1064,7 @@ export default function AttendanceList() {
                     🚨 Real-Time Lateness Monitor
                   </h3>
                   <p className="text-sm text-red-600 mt-1">
-                    Comprehensive monitoring • 0-15 min window • Real-time alerts • Smart auto-refresh
+                    Live Student Monitoring • 0-15 min window • Real-time alerts • Auto-notifications
                   </p>
                 </div>
               </div>
@@ -1110,12 +1089,13 @@ export default function AttendanceList() {
                 <button
                   onClick={() => {
                     fetchAllDataForEmergencyAsync();
-                    setTimeout(() => updateLatenessAlerts(), 1000);
+                    toast.success(`Scanning ${allData.length || 'all'} students for lateness...`);
                   }}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-lg transition-all duration-300"
-                  title="Scan all records for lateness detection"
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-lg transition-all duration-300 flex items-center gap-2"
+                  title="Force refresh all student data for comprehensive monitoring"
                 >
-                  Scan All Students
+                  <FiRefreshCw className="animate-spin" />
+                  Force Refresh ({allData.length})
                 </button>
                 <button
                   onClick={() => setShowLatenessPanel(false)}
@@ -1360,109 +1340,198 @@ export default function AttendanceList() {
               </div>
             </div>
 
-            {/* Detailed Alert List */}
-            {Object.keys(latenessAlerts).length > 0 && (
-              <div className="bg-white rounded-lg p-3 border border-red-200 max-h-96 overflow-y-auto">
-                <h4 className="text-sm font-semibold text-red-700 mb-2">
-                  📋 Active Lateness Alerts
-                </h4>
-                <div className="space-y-2">
-                  {Object.entries(latenessAlerts)
-                    .sort(([, a], [, b]) => b.minutesLate - a.minutesLate)
-                    .map(([studentId, alert]) => {
-                      const student = data.find(
-                        (r) => r.student_id === parseInt(studentId)
-                      );
-                      if (!student) return null;
-
-                      const alertColors = {
-                        critical: "bg-red-100 border-red-300 text-red-800",
-                        warning:
-                          "bg-orange-100 border-orange-300 text-orange-800",
-                        alert:
-                          "bg-yellow-100 border-yellow-300 text-yellow-800",
-                      };
-
-                      return (
-                        <div
-                          key={studentId}
-                          className={`flex justify-between items-center p-3 rounded-lg border-2 ${
-                            alert.level === "critical"
-                              ? "bg-red-100 border-red-400 text-red-900"
-                              : alert.level === "warning"
-                              ? "bg-orange-100 border-orange-400 text-orange-900"
-                              : "bg-yellow-100 border-yellow-400 text-yellow-900"
-                          } shadow-lg`}
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-bold text-base">
-                                {student.studentName}
-                              </span>
-                              <span className="text-sm opacity-75">
-                                ({student.ustazName})
-                              </span>
-                              <span
-                                className={`text-xs px-2 py-1 rounded-full font-bold ${
-                                  alert.level === "critical"
-                                    ? "bg-red-600 text-white"
-                                    : alert.level === "warning"
-                                    ? "bg-orange-600 text-white"
-                                    : "bg-yellow-600 text-white"
-                                }`}
-                              >
-                                {alert.level.toUpperCase()}
-                              </span>
-                              {alert.notified && (
-                                <span className="text-xs bg-green-600 text-white px-2 py-1 rounded-full font-bold">
-                                  ✓ NOTIFIED
-                                </span>
-                              )}
-                              {alert.autoNotified && (
-                                <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded-full font-bold">
-                                  🤖 AUTO
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm font-medium">
-                              🕰️ Scheduled: {formatTimeOnly(student.scheduledAt)} | 
-                              ⏱️ {alert.minutesLate} min late | 
-                              📊 Priority: {alert.priority}
-                              {alert.lastNotification && (
-                                <span className="ml-2 text-gray-600">
-                                  | Last: {format(alert.lastNotification, "HH:mm")}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-1 ml-3">
-                            {!alert.notified && (
-                              <button
-                                onClick={() =>
-                                  handleNotifyClick(
-                                    parseInt(studentId),
-                                    student.scheduledAt?.substring(0, 10) || ""
-                                  )
-                                }
-                                className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all hover:scale-105"
-                              >
-                                <FiBell className="w-3 h-3" /> 
-                                Notify
-                              </button>
-                            )}
-                            <button
-                              onClick={() => markAsNotified(parseInt(studentId))}
-                              className="px-3 py-1 bg-gray-600 text-white rounded-lg text-xs hover:bg-gray-700 font-medium"
-                            >
-                              Mark Done
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+            {/* Late Students List */}
+            <div className="bg-white rounded-lg border border-red-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 px-6 py-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xl font-bold text-white flex items-center gap-3">
+                    🚨 Late Students Alert System
+                    <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
+                      {Object.keys(latenessAlerts).length} Active
+                    </span>
+                  </h4>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const criticalStudents = Object.entries(latenessAlerts)
+                          .filter(([, alert]) => alert.level === "critical" && !alert.notified)
+                          .map(([id]) => parseInt(id));
+                        criticalStudents.forEach(id => {
+                          const student = allData.find(s => s.student_id === id);
+                          if (student) handleNotifyClick(id, student.scheduledAt?.substring(0, 10) || "");
+                        });
+                      }}
+                      className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-bold transition-all"
+                    >
+                      🔥 Notify All Critical
+                    </button>
+                    <button
+                      onClick={() => {
+                        Object.keys(latenessAlerts).forEach(id => markAsNotified(parseInt(id)));
+                      }}
+                      className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-all"
+                    >
+                      ✅ Mark All Done
+                    </button>
+                  </div>
                 </div>
               </div>
-            )}
+
+              {Object.keys(latenessAlerts).length > 0 ? (
+                <div className="max-h-96 overflow-y-auto">
+                  <div className="divide-y divide-gray-200">
+                    {Object.entries(latenessAlerts)
+                      .sort(([, a], [, b]) => b.priority - a.priority || b.minutesLate - a.minutesLate)
+                      .map(([studentId, alert], index) => {
+                        const student = allData.find(
+                          (r) => r.student_id === parseInt(studentId)
+                        ) || data.find((r) => r.student_id === parseInt(studentId));
+                        if (!student) return null;
+
+                        const urgencyIcon = alert.level === "critical" ? "🔥" : alert.level === "warning" ? "⚠️" : "⏰";
+                        const timeRemaining = 15 - alert.minutesLate;
+                        const progressPercentage = Math.min((alert.minutesLate / 15) * 100, 100);
+
+                        return (
+                          <motion.div
+                            key={studentId}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            className={`p-4 hover:bg-gray-50 transition-all duration-300 ${
+                              alert.level === "critical" ? "bg-red-50 border-l-4 border-red-500" :
+                              alert.level === "warning" ? "bg-orange-50 border-l-4 border-orange-500" :
+                              "bg-yellow-50 border-l-4 border-yellow-500"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span className="text-2xl">{urgencyIcon}</span>
+                                  <div>
+                                    <h5 className="font-bold text-lg text-gray-900">
+                                      {student.studentName}
+                                    </h5>
+                                    <p className="text-sm text-gray-600">
+                                      Teacher: <span className="font-medium">{student.ustazName}</span>
+                                    </p>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <span
+                                      className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                        alert.level === "critical"
+                                          ? "bg-red-600 text-white animate-pulse"
+                                          : alert.level === "warning"
+                                          ? "bg-orange-600 text-white"
+                                          : "bg-yellow-600 text-white"
+                                      }`}
+                                    >
+                                      {alert.level.toUpperCase()}
+                                    </span>
+                                    {alert.notified && (
+                                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">
+                                        ✅ NOTIFIED
+                                      </span>
+                                    )}
+                                    {alert.autoNotified && (
+                                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
+                                        🤖 AUTO
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-4 gap-4 text-sm mb-3">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-gray-500">🕐</span>
+                                    <span className="font-medium">{formatTimeOnly(student.scheduledAt)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-red-500">⏱️</span>
+                                    <span className="font-bold text-red-600">{alert.minutesLate} min late</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-blue-500">⏳</span>
+                                    <span className={`font-medium ${
+                                      timeRemaining > 5 ? "text-green-600" :
+                                      timeRemaining > 0 ? "text-orange-600" : "text-red-600"
+                                    }`}>
+                                      {timeRemaining > 0 ? `${timeRemaining} min left` : 'EXPIRED'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-purple-500">📊</span>
+                                    <span className="font-medium">Priority {alert.priority}/5</span>
+                                  </div>
+                                </div>
+
+                                {/* Progress Bar */}
+                                <div className="mb-3">
+                                  <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                    <span>Time Progress</span>
+                                    <span>{Math.round(progressPercentage)}%</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div
+                                      className={`h-2 rounded-full transition-all duration-500 ${
+                                        progressPercentage < 33 ? "bg-green-500" :
+                                        progressPercentage < 66 ? "bg-yellow-500" :
+                                        progressPercentage < 90 ? "bg-orange-500" : "bg-red-500"
+                                      }`}
+                                      style={{ width: `${progressPercentage}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+
+                                {alert.lastNotification && (
+                                  <div className="text-xs text-gray-500">
+                                    Last notified: {format(alert.lastNotification, "HH:mm:ss")}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col gap-2 ml-6">
+                                {!alert.notified && (
+                                  <button
+                                    onClick={() =>
+                                      handleNotifyClick(
+                                        parseInt(studentId),
+                                        student.scheduledAt?.substring(0, 10) || ""
+                                      )
+                                    }
+                                    className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-all hover:scale-105 shadow-lg ${
+                                      alert.level === "critical"
+                                        ? "bg-red-600 hover:bg-red-700 text-white animate-pulse"
+                                        : alert.level === "warning"
+                                        ? "bg-orange-600 hover:bg-orange-700 text-white"
+                                        : "bg-yellow-600 hover:bg-yellow-700 text-white"
+                                    }`}
+                                  >
+                                    <FiBell className="w-4 h-4" />
+                                    {alert.level === "critical" ? "URGENT" : "NOTIFY"}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => markAsNotified(parseInt(studentId))}
+                                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+                                >
+                                  Mark Done
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-8 text-center">
+                  <div className="text-6xl mb-4">✅</div>
+                  <h3 className="text-xl font-bold text-gray-700 mb-2">All Clear!</h3>
+                  <p className="text-gray-500">No late students detected. All zoom links sent on time.</p>
+                </div>
+              )}
+            </div>
 
             <div className="mt-4 p-4 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-xl border border-blue-200">
               <div className="flex items-center justify-between">
@@ -1470,24 +1539,27 @@ export default function AttendanceList() {
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse mr-2"></div>
                     <span className="text-blue-700 font-medium">
-                      🔴 Live Monitoring {latenessSettings.autoNotify ? "+ Auto-Notify" : ""}
+                      🔴 Live Emergency Monitor {latenessSettings.autoNotify ? "+ Auto-Notify" : ""}
                     </span>
                   </div>
                   <div className="text-blue-600">
                     ⏰ <span className="font-mono font-bold">{format(new Date(), "HH:mm:ss")}</span>
                   </div>
                   <div className="text-blue-600">
-                    🔄 Smart refresh ({Object.keys(latenessAlerts).length > 0 ? "10s" : "30s"})
+                    📊 Monitoring: <span className="font-bold">{allData.length}</span> students
+                  </div>
+                  <div className="text-blue-600">
+                    🔄 Refresh: <span className="font-bold">{Object.keys(latenessAlerts).length > 0 ? "10s" : "30s"}</span>
                   </div>
                 </div>
                 <div className="text-right text-xs text-blue-600">
                   <div className="grid grid-cols-3 gap-2">
-                    <div>Total Active: <span className="font-bold">{getLatenessStats().total}</span></div>
-                    <div>Unnotified: <span className="font-bold text-red-600">{getLatenessStats().unnotified}</span></div>
-                    <div>Auto-handled: <span className="font-bold text-green-600">{getLatenessStats().autoNotified}</span></div>
-                    <div>Expired: <span className="font-bold text-gray-600">{expiredStudents.length}</span></div>
-                    <div>High Priority: <span className="font-bold text-purple-600">{Object.values(latenessAlerts).filter(a => a.priority >= 3).length}</span></div>
-                    <div>Coverage: <span className="font-bold text-indigo-600">{((getLatenessStats().total + expiredStudents.length) > 0 ? Math.round((getLatenessStats().total / (getLatenessStats().total + expiredStudents.length)) * 100) : 100)}%</span></div>
+                    <div>🚨 Active: <span className="font-bold text-red-600">{getLatenessStats().total}</span></div>
+                    <div>⚠️ Unnotified: <span className="font-bold text-orange-600">{getLatenessStats().unnotified}</span></div>
+                    <div>✅ Handled: <span className="font-bold text-green-600">{getLatenessStats().notified}</span></div>
+                    <div>💀 Expired: <span className="font-bold text-gray-600">{expiredStudents.length}</span></div>
+                    <div>🔥 Critical: <span className="font-bold text-purple-600">{Object.values(latenessAlerts).filter(a => a.level === 'critical').length}</span></div>
+                    <div>📈 Coverage: <span className="font-bold text-indigo-600">{allData.length > 0 ? Math.round((Object.keys(latenessAlerts).length / allData.length) * 100) : 0}%</span></div>
                   </div>
                 </div>
               </div>
