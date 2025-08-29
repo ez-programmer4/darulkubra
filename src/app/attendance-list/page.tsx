@@ -552,6 +552,20 @@ export default function AttendanceList() {
     // Always use allData for comprehensive monitoring
     const dataToCheck = allData.length > 0 ? allData : data;
 
+    // Debug: Force add a test student if we have data
+    if (dataToCheck.length > 0) {
+      const testStudent = dataToCheck[0];
+      if (testStudent && testStudent.scheduledDateObj) {
+        // Create a test alert for debugging
+        newAlerts[999999] = {
+          level: "critical",
+          minutesLate: 5,
+          notified: false,
+          priority: 3
+        };
+      }
+    }
+
     dataToCheck.forEach((record) => {
       if (!record.scheduledDateObj) return;
 
@@ -562,6 +576,20 @@ export default function AttendanceList() {
       
       // Check if it's today's class and within 15 minute window (0-15 minutes)
       const isToday = scheduledLocal.toDateString() === now.toDateString();
+      
+      // Debug log
+      if (record.student_id === dataToCheck[0]?.student_id) {
+        console.log('Debug student:', {
+          studentName: record.studentName,
+          scheduledOriginal: record.scheduledDateObj.toISOString(),
+          scheduledLocal: scheduledLocal.toISOString(),
+          currentTime: now.toISOString(),
+          timeDiff: Math.floor(timeDiff),
+          hasNoLink,
+          isToday,
+          willAlert: timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday
+        });
+      }
       
       if (timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday) {
         let level: "alert" | "warning" | "critical" = "alert";
@@ -595,6 +623,7 @@ export default function AttendanceList() {
       }
     });
 
+    console.log('Total alerts found:', Object.keys(newAlerts).length);
     setLatenessAlerts(newAlerts);
 
     // Enhanced sound alerts with different urgency levels
