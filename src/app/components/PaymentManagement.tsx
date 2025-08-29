@@ -298,7 +298,7 @@ export default function PaymentManagement({
     setAvailableMonths(months);
   }, []);
 
-  // Calculate total amount when months change
+  // Calculate total amount when months change - only for unpaid months
   useEffect(() => {
     if (
       student &&
@@ -306,17 +306,24 @@ export default function PaymentManagement({
       newMonthlyPayment.months.length > 0
     ) {
       const totalAmount = newMonthlyPayment.months.reduce((sum, month) => {
-        return (
-          sum +
-          calculateMonthlyAmount(month, student.startdate, student.classfee)
-        );
+        const monthStatus = getMonthPaymentStatus(month);
+        // Only add to total if month is not fully paid
+        if (!monthStatus.isPaid) {
+          return sum + monthStatus.shortfall;
+        }
+        return sum;
       }, 0);
       setNewMonthlyPayment((prev) => ({
         ...prev,
         calculatedAmount: totalAmount,
       }));
+    } else {
+      setNewMonthlyPayment((prev) => ({
+        ...prev,
+        calculatedAmount: 0,
+      }));
     }
-  }, [student, newMonthlyPayment.months]);
+  }, [student, newMonthlyPayment.months, monthlyPayments]);
 
   // Calculate prorated amount based on start date and selected month
   const calculateMonthlyAmount = (
@@ -506,26 +513,38 @@ export default function PaymentManagement({
     return unpaidMonths;
   };
 
-  // Set current month as default when component mounts
+  // Set unpaid months as default when component mounts
   useEffect(() => {
-    if (student && student.classfee) {
+    if (student && student.classfee && monthlyPayments.length >= 0) {
       const currentDate = new Date();
       const currentMonth = `${currentDate.getFullYear()}-${String(
         currentDate.getMonth() + 1
       ).padStart(2, "0")}`;
-      const calculatedAmount = calculateMonthlyAmount(
-        currentMonth,
-        student.startdate,
-        student.classfee
-      );
-      setNewMonthlyPayment({
-        months: [currentMonth],
-        amount: student.classfee.toString(),
-        calculatedAmount,
-        paymentType: calculatedAmount === student.classfee ? "full" : "partial",
-      });
+      
+      // Check if current month is already paid
+      const currentMonthStatus = getMonthPaymentStatus(currentMonth);
+      
+      // Only select current month if it's not paid and amount > 0
+      const shouldSelectCurrentMonth = !currentMonthStatus.isPaid && currentMonthStatus.expectedAmount > 0;
+      
+      if (shouldSelectCurrentMonth) {
+        setNewMonthlyPayment({
+          months: [currentMonth],
+          amount: student.classfee.toString(),
+          calculatedAmount: currentMonthStatus.shortfall,
+          paymentType: "full",
+        });
+      } else {
+        // If current month is paid, start with empty selection
+        setNewMonthlyPayment({
+          months: [],
+          amount: "",
+          calculatedAmount: 0,
+          paymentType: "full",
+        });
+      }
     }
-  }, [student?.id, student?.classfee, student?.startdate]); // More specific dependencies
+  }, [student?.id, student?.classfee, student?.startdate, monthlyPayments]);
 
   const handleDepositSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2590,55 +2609,98 @@ export default function PaymentManagement({
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Total Calculated Amount
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Payment Calculation
                       </label>
-                      <div className="relative overflow-hidden rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-white">
-                        <div className="flex items-center justify-between px-4 py-3 min-w-0">
-                          <div className="text-sm text-gray-600">
-                            Total to pay
+                      <div className="relative overflow-hidden rounded-2xl border-2 border-green-200 bg-gradient-to-br from-green-50 via-white to-green-50 shadow-sm">
+                        <div className="p-5">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-700">Total Payment Amount</span>
+                              {newMonthlyPayment.calculatedAmount > 0 && (
+                                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                  {newMonthlyPayment.months?.length || 0} month{(newMonthlyPayment.months?.length || 0) !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                              {newMonthlyPayment.months?.length === 0 && (
+                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                                  No months selected
+                                </span>
+                              )}
+                            </div>
+                            <div className={`text-2xl font-bold tabular-nums ${
+                              newMonthlyPayment.calculatedAmount > 0 ? 'text-green-700' : 'text-gray-400'
+                            }`}>
+                              ${newMonthlyPayment.calculatedAmount?.toFixed(2) || "0.00"}
+                            </div>
                           </div>
-                          <div className="text-lg font-semibold text-gray-900 ml-3 truncate max-w-[55%] text-right tabular-nums">
-                            $
-                            {newMonthlyPayment.calculatedAmount?.toFixed(2) ||
-                              "0.00"}
+                          
+                          <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="text-center p-3 bg-white rounded-xl border border-gray-100">
+                              <div className="text-xs text-gray-500 mb-1">Selected Months</div>
+                              <div className="text-lg font-semibold text-gray-900">{newMonthlyPayment.months?.length || 0}</div>
+                            </div>
+                            <div className="text-center p-3 bg-white rounded-xl border border-gray-100">
+                              <div className="text-xs text-gray-500 mb-1">Monthly Fee</div>
+                              <div className="text-lg font-semibold text-gray-900">${student?.classfee?.toFixed(2) || "0.00"}</div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="px-4 pb-3 text-xs text-gray-500 flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200">
-                            Months: {newMonthlyPayment.months?.length || 0}
-                          </span>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200">
-                            Monthly fee: $
-                            {student?.classfee?.toFixed(2) || "0.00"}
-                          </span>
+                          
+                          {newMonthlyPayment.months?.length === 0 && (
+                            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl mb-4 text-center">
+                              <div className="flex items-center justify-center gap-2 mb-2">
+                                <FiCalendar className="text-blue-600" size={16} />
+                                <span className="text-sm font-medium text-blue-700">Select Months to Pay</span>
+                              </div>
+                              <p className="text-xs text-blue-600">
+                                Choose one or more months from the grid above to calculate payment amount
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      {newMonthlyPayment.months &&
-                        newMonthlyPayment.months.length > 0 && (
-                          <div className="mt-3 space-y-1">
+                      
+                      {newMonthlyPayment.months && newMonthlyPayment.months.length > 0 && (
+                        <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200">
+                          <h5 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                            <FiClock className="text-gray-500" size={14} />
+                            Monthly Breakdown
+                          </h5>
+                          <div className="space-y-2 max-h-32 overflow-y-auto">
                             {newMonthlyPayment.months.map((month) => {
-                              const amount = student
-                                ? calculateMonthlyAmount(
-                                    month,
-                                    student.startdate,
-                                    student.classfee
-                                  )
-                                : 0;
+                              const monthStatus = getMonthPaymentStatus(month);
+                              const expectedAmount = monthStatus.expectedAmount;
+                              const paidAmount = monthStatus.totalPaid;
+                              const shortfall = monthStatus.shortfall;
+                              const hasPrize = monthStatus.hasPartialPrize || monthStatus.isFree;
+                              
                               return (
-                                <div
-                                  key={month}
-                                  className="flex justify-between text-xs text-gray-600"
-                                >
-                                  <span>{formatPaymentMonth(month)}:</span>
-                                  <span className="font-medium text-gray-800">
-                                    ${amount.toFixed(2)}
-                                  </span>
+                                <div key={month} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-gray-700">{formatPaymentMonth(month)}</span>
+                                    {hasPrize && (
+                                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">Prize</span>
+                                    )}
+                                    {monthStatus.isPaid && (
+                                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Paid</span>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-gray-900 tabular-nums">
+                                      ${shortfall > 0 ? shortfall.toFixed(2) : '0.00'}
+                                    </div>
+                                    {(paidAmount > 0 || expectedAmount !== shortfall) && (
+                                      <div className="text-xs text-gray-500">
+                                        ${paidAmount.toFixed(2)} / ${expectedAmount.toFixed(2)}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })}
                           </div>
-                        )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -2668,65 +2730,47 @@ export default function PaymentManagement({
                           </span>
                         </div>
                         <div className="flex justify-between items-center gap-2 min-w-0">
-                          <span className="text-sm text-gray-600">
-                            Current Balance
-                          </span>
-                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">
-                            $
-                            {(
-                              deposits.reduce((sum, deposit) => {
-                                if ((deposit as any).status === "Approved") {
-                                  const amount =
-                                    typeof (deposit as any).paidamount ===
-                                    "number"
-                                      ? (deposit as any).paidamount
-                                      : parseFloat(
-                                          (
-                                            (deposit as any).paidamount as any
-                                          )?.toString() || "0"
-                                        );
-                                  return sum + amount;
-                                }
-                                return sum;
-                              }, 0) -
-                              monthlyPayments.reduce((sum, payment) => {
-                                if (payment.payment_status === "Paid") {
-                                  return (
-                                    sum +
-                                    (parseFloat(
-                                      payment.paid_amount?.toString() || "0"
-                                    ) || 0)
-                                  );
-                                }
-                                return sum;
-                              }, 0)
-                            ).toFixed(2)}
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Available Balance</span>
+                            <div className="group relative">
+                              <FiInfo className="text-gray-400 cursor-help" size={14} />
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                Deposits minus regular payments (excludes prizes)
+                              </div>
+                            </div>
+                          </div>
+                          <span className={`font-medium truncate max-w-[60%] text-right tabular-nums ${
+                            calculateRemainingBalance() >= 0 ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            ${calculateRemainingBalance().toFixed(2)}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center gap-2 min-w-0">
-                          <span className="text-sm text-gray-600">
-                            Balance After Payment
-                          </span>
-                          <span className="font-medium text-green-600 truncate max-w-[60%] text-right tabular-nums">
-                            $
-                            {(
-                              deposits.reduce((sum, deposit) => {
-                                if ((deposit as any).status === "Approved") {
-                                  const amount =
-                                    typeof (deposit as any).paidamount ===
-                                    "number"
-                                      ? (deposit as any).paidamount
-                                      : parseFloat(
-                                          (
-                                            (deposit as any).paidamount as any
-                                          )?.toString() || "0"
-                                        );
-                                  return sum + amount;
-                                }
-                                return sum;
-                              }, 0) - newMonthlyPayment.calculatedAmount
-                            ).toFixed(2)}
-                          </span>
+
+                        {calculateRemainingBalance() < newMonthlyPayment.calculatedAmount && (
+                          <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                            <div className="flex items-center gap-2 mb-2">
+                              <FiAlertCircle className="text-red-500" size={16} />
+                              <span className="text-sm font-medium text-red-700">Insufficient Balance</span>
+                            </div>
+                            <p className="text-xs text-red-600">
+                              Payment amount (${newMonthlyPayment.calculatedAmount.toFixed(2)}) exceeds available balance (${calculateRemainingBalance().toFixed(2)}). Please add a deposit first.
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="border-t border-gray-200 pt-4">
+                          <div className="flex justify-between items-center gap-2 min-w-0 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                            <span className="text-sm font-semibold text-blue-700">
+                              Balance After Payment
+                            </span>
+                            <span className={`font-bold text-lg truncate max-w-[60%] text-right tabular-nums ${
+                              calculateRemainingBalance() - newMonthlyPayment.calculatedAmount >= 0 
+                                ? 'text-green-600' 
+                                : 'text-red-600'
+                            }`}>
+                              ${(calculateRemainingBalance() - newMonthlyPayment.calculatedAmount).toFixed(2)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
