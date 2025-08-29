@@ -83,18 +83,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get controller code
-    const controller = await prisma.wpos_wpdatatable_28.findFirst({
-      where: { wdt_ID: Number(controllerId) },
-      select: { code: true },
-    });
 
-    if (!controller) {
-      return NextResponse.json(
-        { error: "Controller not found" },
-        { status: 404 }
-      );
-    }
 
     const page = currentPage > 0 ? currentPage : 1;
     const take = itemsPerPage > 0 ? itemsPerPage : 10;
@@ -129,10 +118,10 @@ export async function GET(request: NextRequest) {
         }
       : {};
 
-    // Get students
+    // Get students using controller relation
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
-        u_control: controller.code,
+        controllerId: Number(controllerId),
         status: { in: ["Active", "Not yet"] },
         OR: subjectPackageFilters,
         ...searchFilter,
