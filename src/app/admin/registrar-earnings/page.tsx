@@ -9,6 +9,9 @@ import {
   FiCalendar,
   FiAward,
   FiBarChart,
+  FiSettings,
+  FiX,
+  FiSave,
 } from "react-icons/fi";
 
 interface RegistrarEarning {
@@ -22,10 +25,18 @@ interface RegistrarEarning {
   level: string | null;
 }
 
+interface Settings {
+  reading_reward: number;
+  hifz_reward: number;
+}
+
 export default function RegistrarEarningsPage() {
   const { data: session } = useSession();
   const [earnings, setEarnings] = useState<RegistrarEarning[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<Settings>({ reading_reward: 50, hifz_reward: 100 });
+  const [tempSettings, setTempSettings] = useState<Settings>({ reading_reward: 50, hifz_reward: 100 });
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -38,10 +49,31 @@ export default function RegistrarEarningsPage() {
       if (!response.ok) throw new Error('Failed to fetch earnings');
       const data = await response.json();
       setEarnings(data.earnings || []);
+      if (data.settings) {
+        setSettings(data.settings);
+        setTempSettings(data.settings);
+      }
     } catch (error) {
       console.error('Error fetching earnings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveSettings = async () => {
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tempSettings)
+      });
+      if (response.ok) {
+        setSettings(tempSettings);
+        setShowSettings(false);
+        fetchEarnings(); // Refresh data with new settings
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
     }
   };
 
@@ -87,6 +119,13 @@ export default function RegistrarEarningsPage() {
                   className="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <FiSettings className="h-4 w-4" />
+                Settings
+              </button>
               <button
                 onClick={fetchEarnings}
                 className="px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors flex items-center gap-2"
@@ -167,10 +206,10 @@ export default function RegistrarEarningsPage() {
                     Success Reg
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
-                    Reading ($50)
+                    Reading (${settings.reading_reward})
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
-                    Hifz ($100)
+                    Hifz (${settings.hifz_reward})
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Not Success
@@ -241,6 +280,69 @@ export default function RegistrarEarningsPage() {
             </div>
           )}
         </div>
+
+        {/* Settings Modal */}
+        {showSettings && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Reward Settings</h3>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <FiX size={20} />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Reading Reward ($)
+                  </label>
+                  <input
+                    type="number"
+                    value={tempSettings.reading_reward}
+                    onChange={(e) => setTempSettings(prev => ({ ...prev, reading_reward: Number(e.target.value) }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="0"
+                    step="1"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Hifz Reward ($)
+                  </label>
+                  <input
+                    type="number"
+                    value={tempSettings.hifz_reward}
+                    onChange={(e) => setTempSettings(prev => ({ ...prev, hifz_reward: Number(e.target.value) }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="0"
+                    step="1"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveSettings}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <FiSave size={16} />
+                  Save Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

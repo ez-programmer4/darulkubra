@@ -21,6 +21,23 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
     const endDate = new Date(parseInt(year), parseInt(monthNum), 0, 23, 59, 59);
 
+    // Get reward settings
+    const settings = await prisma.registralearningsconfig.findMany({
+      where: {
+        key: {
+          in: ['reading_reward', 'hifz_reward']
+        }
+      }
+    });
+
+    const settingsMap = settings.reduce((acc, setting) => {
+      acc[setting.key] = parseFloat(setting.value);
+      return acc;
+    }, {} as Record<string, number>);
+
+    const readingReward = settingsMap.reading_reward || 50;
+    const hifzReward = settingsMap.hifz_reward || 100;
+
     // Get registrar earnings data
     const registrations = await prisma.wpos_wpdatatable_23.findMany({
       select: {
@@ -115,8 +132,8 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Calculate reward
-      stats.reward = (stats.reading * 50) + (stats.hifz * 100);
+      // Calculate reward using dynamic values
+      stats.reward = (stats.reading * readingReward) + (stats.hifz * hifzReward);
 
       // Determine level
       if (registrar === "Abdulrahim") {
@@ -133,6 +150,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       earnings,
       month,
+      settings: {
+        reading_reward: readingReward,
+        hifz_reward: hifzReward,
+      },
     });
 
   } catch (error) {
