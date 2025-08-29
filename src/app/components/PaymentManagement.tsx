@@ -2044,7 +2044,7 @@ export default function PaymentManagement({
                                 return sum;
                               }, 0) -
                               monthlyPayments.reduce((sum, payment) => {
-                                if (payment.payment_status === "Paid") {
+                                if (payment.payment_status === "Paid" && payment.payment_type !== "prize" && payment.payment_type !== "free") {
                                   return sum + (parseFloat(payment.paid_amount?.toString() || "0") || 0);
                                 }
                                 return sum;
