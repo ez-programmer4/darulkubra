@@ -283,62 +283,142 @@ export default function RegistrarEarningsPage() {
 
         {/* Settings Modal */}
         {showSettings && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900">Reward Settings</h3>
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <FiX size={20} />
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reading Reward ($)
-                  </label>
-                  <input
-                    type="number"
-                    value={tempSettings.reading_reward}
-                    onChange={(e) => setTempSettings(prev => ({ ...prev, reading_reward: Number(e.target.value) }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    min="0"
-                    step="1"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Hifz Reward ($)
-                  </label>
-                  <input
-                    type="number"
-                    value={tempSettings.hifz_reward}
-                    onChange={(e) => setTempSettings(prev => ({ ...prev, hifz_reward: Number(e.target.value) }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    min="0"
-                    step="1"
-                  />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden border border-gray-100">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-8 py-6">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                      <FiSettings className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">Registrar Earnings Configuration</h3>
+                      <p className="text-green-100 mt-1">Configure reward amounts for different subjects</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    className="p-2 hover:bg-white/20 rounded-xl transition-colors text-white"
+                  >
+                    <FiX size={24} />
+                  </button>
                 </div>
               </div>
-              
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveSettings}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <FiSave size={16} />
-                  Save Settings
-                </button>
+
+              {/* Content */}
+              <div className="p-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Reading Reward */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-3 bg-blue-100 rounded-xl">
+                        <FiDollarSign className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900">Reading Subjects</h4>
+                        <p className="text-sm text-gray-500">Nethor & Qaidah rewards</p>
+                      </div>
+                    </div>
+                    
+                    <div className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Reward Amount per Student
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">$</span>
+                        <input
+                          type="number"
+                          value={tempSettings.reading_reward}
+                          onChange={(e) => setTempSettings(prev => ({ ...prev, reading_reward: Number(e.target.value) }))}
+                          className="w-full pl-8 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-lg font-semibold"
+                          min="0"
+                          step="1"
+                          placeholder="50"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">Amount earned per successful reading student registration</p>
+                    </div>
+                  </div>
+
+                  {/* Hifz Reward */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-3 bg-purple-100 rounded-xl">
+                        <FiAward className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900">Hifz Subject</h4>
+                        <p className="text-sm text-gray-500">Memorization rewards</p>
+                      </div>
+                    </div>
+                    
+                    <div className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Reward Amount per Student
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">$</span>
+                        <input
+                          type="number"
+                          value={tempSettings.hifz_reward}
+                          onChange={(e) => setTempSettings(prev => ({ ...prev, hifz_reward: Number(e.target.value) }))}
+                          className="w-full pl-8 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-lg font-semibold"
+                          min="0"
+                          step="1"
+                          placeholder="100"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">Amount earned per successful Hifz student registration</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preview Section */}
+                <div className="mt-8 p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200">
+                  <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <FiBarChart className="h-5 w-5 text-gray-600" />
+                    Earnings Preview
+                  </h5>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white p-4 rounded-xl border border-gray-200">
+                      <div className="text-sm text-gray-600 mb-1">1 Reading Student</div>
+                      <div className="text-2xl font-bold text-blue-600">${tempSettings.reading_reward}</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl border border-gray-200">
+                      <div className="text-sm text-gray-600 mb-1">1 Hifz Student</div>
+                      <div className="text-2xl font-bold text-purple-600">${tempSettings.hifz_reward}</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl border border-gray-200">
+                      <div className="text-sm text-gray-600 mb-1">Mixed (2R + 1H)</div>
+                      <div className="text-2xl font-bold text-green-600">${(tempSettings.reading_reward * 2) + tempSettings.hifz_reward}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="bg-gray-50 px-8 py-6 border-t border-gray-200">
+                <div className="flex justify-between items-center">
+                  <div className="text-sm text-gray-500">
+                    Changes will apply to all future earnings calculations
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowSettings(false)}
+                      className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition-colors font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveSettings}
+                      className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all flex items-center gap-2 font-medium shadow-lg"
+                    >
+                      <FiSave size={18} />
+                      Save Configuration
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
