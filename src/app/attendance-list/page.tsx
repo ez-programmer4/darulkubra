@@ -569,20 +569,18 @@ export default function AttendanceList() {
     dataToCheck.forEach((record) => {
       if (!record.scheduledDateObj) return;
 
-      // Add 3 hours to scheduled time for local comparison (UTC+3)
-      const scheduledLocal = new Date(record.scheduledDateObj.getTime() + (3 * 60 * 60 * 1000));
-      const timeDiff = (now.getTime() - scheduledLocal.getTime()) / (1000 * 60);
+      // Use scheduled time as-is (no timezone adjustment for calculation)
+      const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
       const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
       
       // Check if it's today's class and within 15 minute window (0-15 minutes)
-      const isToday = scheduledLocal.toDateString() === now.toDateString();
+      const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
       
       // Debug log
       if (record.student_id === dataToCheck[0]?.student_id) {
         console.log('Debug student:', {
           studentName: record.studentName,
           scheduledOriginal: record.scheduledDateObj.toISOString(),
-          scheduledLocal: scheduledLocal.toISOString(),
           currentTime: now.toISOString(),
           timeDiff: Math.floor(timeDiff),
           hasNoLink,
@@ -650,10 +648,9 @@ export default function AttendanceList() {
     return dataToCheck.filter((record) => {
       if (!record.scheduledDateObj) return false;
       const now = new Date();
-      const scheduledLocal = new Date(record.scheduledDateObj.getTime() + (3 * 60 * 60 * 1000));
-      const timeDiff = (now.getTime() - scheduledLocal.getTime()) / (1000 * 60);
+      const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
       const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
-      const isToday = scheduledLocal.toDateString() === now.toDateString();
+      const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
       return timeDiff > 15 && hasNoLink && isToday;
     });
   }, [allData, data]);
