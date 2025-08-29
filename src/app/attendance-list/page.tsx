@@ -547,32 +547,54 @@ export default function AttendanceList() {
     return true;
   });
 
-  // Enhanced lateness detection with priority scoring (max 15 minutes)
+  // Enhanced lateness detection with comprehensive monitoring (0-15 minutes)
   function updateLatenessAlerts() {
-    if (!data || data.length === 0) return;
-
     const now = new Date();
     const newAlerts: typeof latenessAlerts = {};
 
-    data.forEach((record) => {
+    // Get all data for comprehensive monitoring
+    const dataToCheck = allData.length > 0 ? allData : data;
+    
+    console.log('Updating lateness alerts:', {
+      dataLength: dataToCheck.length,
+      currentTime: now.toISOString(),
+      selectedDate: date
+    });
+
+    dataToCheck.forEach((record) => {
       if (!record.scheduledDateObj) return;
 
       const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
       const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
       
-      // Check if it's today's class and within 15 minute window
+      // Check if it's today's class and within 15 minute window (0-15 minutes)
       const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
       
-      if (timeDiff >= latenessSettings.alertThreshold && timeDiff <= 15 && hasNoLink && isToday) {
+      console.log(`Student ${record.studentName}:`, {
+        scheduledAt: record.scheduledDateObj.toISOString(),
+        timeDiff: Math.floor(timeDiff),
+        hasNoLink,
+        isToday
+      });
+      
+      if (timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday) {
         let level: "alert" | "warning" | "critical" = "alert";
         let priority = 1;
         
+        // Enhanced priority system based on time passed
         if (timeDiff >= latenessSettings.criticalThreshold) {
           level = "critical";
-          priority = 3;
+          priority = Math.min(5, Math.floor(timeDiff / 2) + 3);
         } else if (timeDiff >= latenessSettings.warningThreshold) {
           level = "warning";
           priority = 2;
+        } else if (timeDiff >= latenessSettings.alertThreshold) {
+          level = "alert";
+          priority = 1;
+        } else {
+          // Pre-scheduled alerts (0-2 minutes)
+          level = "alert";
+          priority = 0;
         }
 
         const existingAlert = latenessAlerts[record.student_id];
@@ -584,32 +606,44 @@ export default function AttendanceList() {
           autoNotified: existingAlert?.autoNotified || false,
           priority,
         };
+        
+        console.log(`Added alert for ${record.studentName}:`, newAlerts[record.student_id]);
       }
     });
 
+    console.log('Total alerts found:', Object.keys(newAlerts).length);
     setLatenessAlerts(newAlerts);
 
-    // Enhanced sound alerts
+    // Enhanced sound alerts with different urgency levels
     if (latenessSettings.soundAlerts) {
       const newCritical = Object.entries(newAlerts).filter(
         ([id, alert]) => alert.level === "critical" && !latenessAlerts[parseInt(id)]?.notified
       );
       
+      const newWarning = Object.entries(newAlerts).filter(
+        ([id, alert]) => alert.level === "warning" && !latenessAlerts[parseInt(id)]?.notified
+      );
+      
       if (newCritical.length > 0) {
         playNotificationSound("critical");
+      } else if (newWarning.length > 0) {
+        playNotificationSound("warning");
       }
     }
   }
 
   // Get expired students (past 15 minutes) - no longer actionable
-  const expiredStudents = data.filter((record) => {
-    if (!record.scheduledDateObj) return false;
-    const now = new Date();
-    const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
-    const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
-    const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
-    return timeDiff > 15 && hasNoLink && isToday;
-  });
+  const expiredStudents = useMemo(() => {
+    const dataToCheck = allData.length > 0 ? allData : data;
+    return dataToCheck.filter((record) => {
+      if (!record.scheduledDateObj) return false;
+      const now = new Date();
+      const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
+      const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
+      const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
+      return timeDiff > 15 && hasNoLink && isToday;
+    });
+  }, [allData, data]);
 
   const clearAllNotifications = () => {
     setLatenessAlerts({});
@@ -691,21 +725,7 @@ export default function AttendanceList() {
     }
   };
 
-  // Get emergency students from all data (within 15 minute window)
-  const emergencyStudents = useMemo(() => {
-    const dataToCheck = allData.length > 0 ? allData : data;
-    return dataToCheck.filter((record) => {
-      if (!record.scheduledDateObj) return false;
 
-      const now = new Date();
-      const timeDiff = (now.getTime() - record.scheduledDateObj.getTime()) / (1000 * 60);
-      const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
-      const isToday = record.scheduledDateObj.toDateString() === now.toDateString();
-
-      // Emergency: 3+ minutes overdue but within 15 minutes (after 15min it's too late)
-      return timeDiff >= 3 && timeDiff <= 15 && hasNoLink && isToday;
-    });
-  }, [allData, data]);
 
   // Attendance statistics calculation based on all data (not just current page)
 
@@ -1065,7 +1085,7 @@ export default function AttendanceList() {
                     🚨 Real-Time Lateness Monitor
                   </h3>
                   <p className="text-sm text-red-600 mt-1">
-                    Active monitoring • Updates every 15 seconds • Max 30 min window
+                    Comprehensive monitoring • 0-15 min window • Real-time alerts • Smart auto-refresh
                   </p>
                 </div>
               </div>
@@ -1088,9 +1108,12 @@ export default function AttendanceList() {
                   </>
                 )}
                 <button
-                  onClick={fetchAllDataForEmergencyAsync}
+                  onClick={() => {
+                    fetchAllDataForEmergencyAsync();
+                    setTimeout(() => updateLatenessAlerts(), 1000);
+                  }}
                   className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-lg transition-all duration-300"
-                  title="Scan all records for emergency detection"
+                  title="Scan all records for lateness detection"
                 >
                   Scan All Students
                 </button>
@@ -1243,51 +1266,28 @@ export default function AttendanceList() {
                 </div>
               </div>
               <div className="mt-3 text-xs text-gray-600 bg-gray-100 p-2 rounded">
-                💡 <strong>Smart Features:</strong> Auto-notify sends critical alerts automatically. 
-                Bulk delay prevents SMS flooding. After 15 minutes, notifications become ineffective.
+                💡 <strong>Enhanced Features:</strong> Monitors all students from class start (0min) to 15min window. 
+                Auto-notify for critical cases. Smart priority system. Bulk operations with delay protection.
               </div>
             </div>
 
             {/* Enhanced Current Alerts Dashboard */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
               
-              <div className="bg-gradient-to-br from-red-100 to-red-200 rounded-xl p-4 border-2 border-red-300 shadow-lg transform hover:scale-105 transition-all duration-300">
+              <div className="bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-4 border-2 border-green-300 shadow-lg transform hover:scale-105 transition-all duration-300">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-bold text-red-700">
-                    🔴 CRITICAL
+                  <div className="text-sm font-bold text-green-700">
+                    🟢 READY
                   </div>
-                  <div className="text-xs bg-red-500 text-white px-2 py-1 rounded-full">
-                    {latenessSettings.criticalThreshold}+ min
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-red-800 mb-1">
-                  {getLatenessStats().critical}
-                </div>
-                <div className="text-xs text-red-600">
-                  {Object.values(latenessAlerts).filter(a => a.level === "critical" && !a.notified).length} unnotified
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl p-4 border-2 border-orange-300 shadow-lg transform hover:scale-105 transition-all duration-300">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-bold text-orange-700">
-                    🟡 WARNING
-                  </div>
-                  <div className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
-                    {latenessSettings.warningThreshold}-
-                    {latenessSettings.criticalThreshold - 1} min
+                  <div className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">
+                    0-{latenessSettings.alertThreshold - 1} min
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-orange-800 mb-1">
-                  {getLatenessStats().warning}
+                <div className="text-3xl font-bold text-green-800 mb-1">
+                  {Object.values(latenessAlerts).filter(a => a.minutesLate < latenessSettings.alertThreshold).length}
                 </div>
-                <div className="text-xs text-orange-600">
-                  {
-                    Object.values(latenessAlerts).filter(
-                      (a) => a.level === "warning" && !a.notified
-                    ).length
-                  }{" "}
-                  unnotified
+                <div className="text-xs text-green-600">
+                  Pre-scheduled window
                 </div>
               </div>
 
@@ -1297,37 +1297,48 @@ export default function AttendanceList() {
                     🟠 ALERT
                   </div>
                   <div className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full">
-                    {latenessSettings.alertThreshold}-
-                    {latenessSettings.warningThreshold - 1} min
+                    {latenessSettings.alertThreshold}-{latenessSettings.warningThreshold - 1} min
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-yellow-800 mb-1">
                   {getLatenessStats().alert}
                 </div>
                 <div className="text-xs text-yellow-600">
-                  {
-                    Object.values(latenessAlerts).filter(
-                      (a) => a.level === "alert" && !a.notified
-                    ).length
-                  }{" "}
-                  unnotified
+                  {Object.values(latenessAlerts).filter(a => a.level === "alert" && !a.notified).length} unnotified
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-4 border-2 border-blue-300 shadow-lg transform hover:scale-105 transition-all duration-300">
+              <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl p-4 border-2 border-orange-300 shadow-lg transform hover:scale-105 transition-all duration-300">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-bold text-blue-700">
-                    🤖 AUTO-NOTIFIED
+                  <div className="text-sm font-bold text-orange-700">
+                    🟡 WARNING
                   </div>
-                  <div className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">
-                    Smart
+                  <div className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
+                    {latenessSettings.warningThreshold}-{latenessSettings.criticalThreshold - 1} min
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-blue-800 mb-1">
-                  {getLatenessStats().autoNotified}
+                <div className="text-3xl font-bold text-orange-800 mb-1">
+                  {getLatenessStats().warning}
                 </div>
-                <div className="text-xs text-blue-600">
-                  Automatically handled
+                <div className="text-xs text-orange-600">
+                  {Object.values(latenessAlerts).filter(a => a.level === "warning" && !a.notified).length} unnotified
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-red-100 to-red-200 rounded-xl p-4 border-2 border-red-300 shadow-lg transform hover:scale-105 transition-all duration-300">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-bold text-red-700">
+                    🔴 CRITICAL
+                  </div>
+                  <div className="text-xs bg-red-500 text-white px-2 py-1 rounded-full">
+                    {latenessSettings.criticalThreshold}-15 min
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-red-800 mb-1">
+                  {getLatenessStats().critical}
+                </div>
+                <div className="text-xs text-red-600">
+                  {Object.values(latenessAlerts).filter(a => a.level === "critical" && !a.notified).length} unnotified
                 </div>
               </div>
               
@@ -1470,11 +1481,13 @@ export default function AttendanceList() {
                   </div>
                 </div>
                 <div className="text-right text-xs text-blue-600">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>Active: <span className="font-bold">{getLatenessStats().total}</span></div>
-                    <div>High Priority: <span className="font-bold text-purple-600">{getLatenessStats().highPriority}</span></div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>Total Active: <span className="font-bold">{getLatenessStats().total}</span></div>
                     <div>Unnotified: <span className="font-bold text-red-600">{getLatenessStats().unnotified}</span></div>
                     <div>Auto-handled: <span className="font-bold text-green-600">{getLatenessStats().autoNotified}</span></div>
+                    <div>Expired: <span className="font-bold text-gray-600">{expiredStudents.length}</span></div>
+                    <div>High Priority: <span className="font-bold text-purple-600">{Object.values(latenessAlerts).filter(a => a.priority >= 3).length}</span></div>
+                    <div>Coverage: <span className="font-bold text-indigo-600">{((getLatenessStats().total + expiredStudents.length) > 0 ? Math.round((getLatenessStats().total / (getLatenessStats().total + expiredStudents.length)) * 100) : 100)}%</span></div>
                   </div>
                 </div>
               </div>
@@ -1515,245 +1528,7 @@ export default function AttendanceList() {
         </div>
       )}
 
-      {/* Legacy Emergency Section */}
-      <div className="mb-6 p-4 bg-red-50 rounded-lg border-2 border-red-200">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-red-800 flex items-center">
-            <FiBell className="mr-2 text-red-600" />
-            🚨 EMERGENCY: Links Not Sent ({emergencyStudents.length})
-          </h3>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                emergencyStudents.forEach((student) => {
-                  handleNotifyClick(
-                    student.student_id,
-                    student.scheduledAt?.substring(0, 10) || ""
-                  );
-                });
-              }}
-              disabled={emergencyStudents.length === 0}
-              className="px-3 py-1 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm disabled:bg-gray-400"
-            >
-              Notify All
-            </button>
-            <button
-              onClick={() => setShowEmergency(!showEmergency)}
-              className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
-            >
-              {showEmergency ? "Hide" : "Show"} Details
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-          <div className="bg-white rounded-lg p-3 border border-red-200">
-            <div className="text-sm font-medium text-red-700">
-              Critical (10+ min)
-            </div>
-            <div className="text-lg font-bold text-red-800">
-              {
-                emergencyStudents.filter((s) => {
-                  const timePassed =
-                    (new Date().getTime() -
-                      (s.scheduledDateObj?.getTime() || 0)) /
-                    (1000 * 60);
-                  return timePassed >= 10;
-                }).length
-              }
-            </div>
-          </div>
-          <div className="bg-white rounded-lg p-3 border border-orange-200">
-            <div className="text-sm font-medium text-orange-700">
-              Warning (5-10 min)
-            </div>
-            <div className="text-lg font-bold text-orange-800">
-              {
-                emergencyStudents.filter((s) => {
-                  const timePassed =
-                    (new Date().getTime() -
-                      (s.scheduledDateObj?.getTime() || 0)) /
-                    (1000 * 60);
-                  return timePassed >= 5 && timePassed < 10;
-                }).length
-              }
-            </div>
-          </div>
-          <div className="bg-white rounded-lg p-3 border border-yellow-200">
-            <div className="text-sm font-medium text-yellow-700">
-              Alert (3-5 min)
-            </div>
-            <div className="text-lg font-bold text-yellow-800">
-              {
-                emergencyStudents.filter((s) => {
-                  const timePassed =
-                    (new Date().getTime() -
-                      (s.scheduledDateObj?.getTime() || 0)) /
-                    (1000 * 60);
-                  return timePassed >= 3 && timePassed < 5;
-                }).length
-              }
-            </div>
-          </div>
-        </div>
-        <p className="text-sm text-red-700 mb-2">
-          Students whose scheduled time has passed by 3+ minutes without zoom
-          links being sent (within 15min range).
-        </p>
 
-        {showEmergency && (
-          <div className="bg-white rounded-lg p-3 border border-red-200 max-h-96 overflow-y-auto">
-            {emergencyStudents.length > 0 ? (
-              <div className="grid gap-2">
-                {emergencyStudents
-                  .sort((a, b) => {
-                    const timeA =
-                      (new Date().getTime() -
-                        (a.scheduledDateObj?.getTime() || 0)) /
-                      (1000 * 60);
-                    const timeB =
-                      (new Date().getTime() -
-                        (b.scheduledDateObj?.getTime() || 0)) /
-                      (1000 * 60);
-                    return timeB - timeA; // Most overdue first
-                  })
-                  .map((student) => {
-                    const timePassed = Math.floor(
-                      (new Date().getTime() -
-                        (student.scheduledDateObj?.getTime() || 0)) /
-                        (1000 * 60)
-                    );
-                    const urgencyColor =
-                      timePassed >= 10
-                        ? "bg-red-100 border-red-300"
-                        : timePassed >= 5
-                        ? "bg-orange-100 border-orange-300"
-                        : "bg-yellow-100 border-yellow-300";
-                    return (
-                      <div
-                        key={student.student_id}
-                        className={`flex justify-between items-center p-2 rounded border ${urgencyColor}`}
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-800">
-                              {student.studentName}
-                            </span>
-                            <span className="text-sm text-gray-600">
-                              ({student.ustazName})
-                            </span>
-                            {timePassed >= 10 && (
-                              <span className="text-xs bg-red-500 text-white px-2 py-1 rounded">
-                                CRITICAL
-                              </span>
-                            )}
-                            {timePassed >= 5 && timePassed < 10 && (
-                              <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded">
-                                WARNING
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            Scheduled: {formatTimeOnly(student.scheduledAt)} |{" "}
-                            {timePassed} min overdue
-                          </div>
-                        </div>
-                        <button
-                          onClick={() =>
-                            handleNotifyClick(
-                              student.student_id,
-                              student.scheduledAt?.substring(0, 10) || ""
-                            )
-                          }
-                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 flex items-center ml-2"
-                          title="Notify teacher about missing link"
-                        >
-                          <FiBell className="mr-1" /> Notify
-                        </button>
-                      </div>
-                    );
-                  })}
-              </div>
-            ) : (
-              <p className="text-gray-600 text-center py-4">
-                No emergency students found
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Original Emergency Section (hidden) */}
-      {false && emergencyStudents.length > 0 && (
-        <div className="mb-6 p-4 bg-red-50 rounded-lg border-2 border-red-200">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-bold text-red-800 flex items-center">
-              <FiBell className="mr-2 text-red-600" />
-              🚨 EMERGENCY: Links Not Sent ({emergencyStudents.length})
-            </h3>
-            <button
-              onClick={() => setShowEmergency(!showEmergency)}
-              className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
-            >
-              {showEmergency ? "Hide" : "Show"} Details
-            </button>
-          </div>
-          <p className="text-sm text-red-700 mb-3">
-            Students whose scheduled time has passed by 3+ minutes without zoom
-            links being sent (within 15min range).
-          </p>
-
-          {showEmergency && (
-            <div className="bg-white rounded-lg p-3 border border-red-200">
-              <div className="grid gap-2">
-                {emergencyStudents.map((student) => {
-                  const timePassed = Math.floor(
-                    (new Date().getTime() -
-                      (student.scheduledDateObj?.getTime() || 0)) /
-                      (1000 * 60)
-                  );
-                  return (
-                    <div
-                      key={student.student_id}
-                      className="flex justify-between items-center p-2 bg-red-50 rounded border"
-                    >
-                      <div>
-                        <span className="font-medium text-red-800">
-                          {student.studentName}
-                        </span>
-                        <span className="text-sm text-red-600 ml-2">
-                          ({student.ustazName})
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-red-700">
-                            Scheduled: {formatTimeOnly(student.scheduledAt)}
-                          </div>
-                          <div className="text-xs text-red-600">
-                            {timePassed} minutes overdue
-                          </div>
-                        </div>
-                        <button
-                          onClick={() =>
-                            handleNotifyClick(
-                              student.student_id,
-                              student.scheduledAt?.substring(0, 10) || ""
-                            )
-                          }
-                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 flex items-center"
-                          title="Notify teacher about missing link"
-                        >
-                          <FiBell className="mr-1" /> Notify
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Attendance Analytics Section */}
       <div className="mb-8">
