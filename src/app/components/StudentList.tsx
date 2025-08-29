@@ -67,7 +67,7 @@ export default function StudentList({
   user,
 }: StudentListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active-Not yet");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [ustazFilter, setUstazFilter] = useState("all");
   const [packageFilter, setPackageFilter] = useState("all");
@@ -341,7 +341,7 @@ export default function StudentList({
           .filter((s) => s && s.length > 0)
       ),
     ];
-    return ["all", "active-Not yet", ...uniqueStatuses];
+    return ["all", "active-Not yet", ...uniqueStatuses.sort()];
   }, [students]);
 
   const subjects = useMemo(() => {
@@ -484,7 +484,7 @@ export default function StudentList({
 
   const clearAllFilters = () => {
     setSearchQuery("");
-    setStatusFilter("all");
+    setStatusFilter("active-Not yet");
     setSubjectFilter("all");
     setUstazFilter("all");
     setPackageFilter("all");
@@ -496,7 +496,7 @@ export default function StudentList({
   const getActiveFiltersCount = () => {
     let count = 0;
     if (searchQuery) count++;
-    if (statusFilter !== "all") count++;
+    if (statusFilter !== "active-Not yet") count++;
     if (subjectFilter !== "all") count++;
     if (ustazFilter !== "all") count++;
     if (packageFilter !== "all") count++;
@@ -506,32 +506,32 @@ export default function StudentList({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Search and Filter Controls */}
-      <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-          <div className="relative flex-1 max-w-md">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+      <div className="bg-gradient-to-r from-white to-gray-50 rounded-3xl p-8 border border-gray-200 shadow-lg">
+        <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
+          <div className="relative flex-1 max-w-lg">
+            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <input
               type="text"
               placeholder="Search students by name, phone, or teacher..."
               onChange={handleSearchChange}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
+              className="w-full pl-12 pr-6 py-4 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 bg-white text-gray-900 shadow-sm transition-all duration-300 text-lg"
             />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <button
               onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 ${
+              className={`flex items-center gap-3 px-6 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 ${
                 isFilterPanelOpen
-                  ? "bg-black text-white"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                  : "bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200"
               }`}
             >
-              <FiFilter className="h-4 w-4" />
+              <FiFilter className="h-5 w-5" />
               Filters
               {getActiveFiltersCount() > 0 && (
-                <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                <span className="bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-sm">
                   {getActiveFiltersCount()}
                 </span>
               )}
@@ -539,10 +539,10 @@ export default function StudentList({
             {getActiveFiltersCount() > 0 && (
               <button
                 onClick={clearAllFilters}
-                className="flex items-center gap-2 px-4 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl font-bold transition-all hover:scale-105"
+                className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
               >
-                <FiX className="h-4 w-4" />
-                Clear
+                <FiX className="h-5 w-5" />
+                Clear All
               </button>
             )}
           </div>
@@ -551,16 +551,20 @@ export default function StudentList({
 
       {/* Filter Panel */}
       {isFilterPanelOpen && (
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-bold text-black mb-2">
+        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 backdrop-blur-sm">
+          <div className="mb-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Filter Options</h3>
+            <p className="text-gray-600">Refine your student search with advanced filters</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-gray-800 mb-3">
                 Status
               </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 bg-white text-gray-900 shadow-sm transition-all duration-300"
               >
                 {statuses.map((status) => (
                   <option key={status} value={status}>
@@ -568,20 +572,20 @@ export default function StudentList({
                       ? "All Statuses"
                       : status === "active-Not yet"
                       ? "Active & Not Yet"
-                      : status}
+                      : status.charAt(0).toUpperCase() + status.slice(1)}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-black mb-2">
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-gray-800 mb-3">
                 Teacher
               </label>
               <select
                 value={ustazFilter}
                 onChange={(e) => setUstazFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 bg-white text-gray-900 shadow-sm transition-all duration-300"
               >
                 {ustazes.map((ustaz) => (
                   <option key={ustaz} value={ustaz}>
@@ -591,14 +595,14 @@ export default function StudentList({
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-black mb-2">
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-gray-800 mb-3">
                 Subject
               </label>
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 bg-white text-gray-900 shadow-sm transition-all duration-300"
               >
                 {subjects.map((subject) => (
                   <option key={subject} value={subject}>
@@ -608,14 +612,14 @@ export default function StudentList({
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-black mb-2">
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-gray-800 mb-3">
                 Payment Status
               </label>
               <select
                 value={paymentStatusFilter}
                 onChange={(e) => setPaymentStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 bg-white text-gray-900 shadow-sm transition-all duration-300"
               >
                 <option value="all">All Payment Status</option>
                 <option value="Paid">✅ Paid This Month</option>
@@ -624,14 +628,14 @@ export default function StudentList({
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-black mb-2">
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-gray-800 mb-3">
                 Package
               </label>
               <select
                 value={packageFilter}
                 onChange={(e) => setPackageFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 bg-white text-gray-900 shadow-sm transition-all duration-300"
               >
                 {packages.map((pkg) => (
                   <option key={pkg} value={pkg}>
@@ -642,14 +646,14 @@ export default function StudentList({
             </div>
 
             {timeSlots.length > 1 && (
-              <div>
-                <label className="block text-sm font-bold text-black mb-2">
+              <div className="space-y-3">
+                <label className="block text-sm font-bold text-gray-800 mb-3">
                   Time Slot
                 </label>
                 <select
                   value={timeSlotFilter}
                   onChange={(e) => setTimeSlotFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 bg-white text-gray-900 shadow-sm transition-all duration-300"
                 >
                   {timeSlots.map((slot) => (
                     <option key={slot || "empty"} value={slot || ""}>
@@ -664,37 +668,48 @@ export default function StudentList({
       )}
 
       {/* Results Summary */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <span>
-          Showing {paginatedStudents.length} of {filteredStudents.length}{" "}
-          students
-        </span>
-        {filteredStudents.length !== students.length && (
-          <span className="text-blue-600 font-semibold">
-            {filteredStudents.length} filtered from {students.length} total
-          </span>
-        )}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-100 p-3 rounded-xl">
+              <FiUsers className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-gray-900">
+                Showing {paginatedStudents.length} of {filteredStudents.length} students
+              </p>
+              <p className="text-sm text-gray-600">Total records in database: {students.length}</p>
+            </div>
+          </div>
+          {filteredStudents.length !== students.length && (
+            <div className="bg-blue-50 px-4 py-2 rounded-xl">
+              <span className="text-blue-700 font-semibold text-sm">
+                {filteredStudents.length} filtered from {students.length} total
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Student Cards */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {paginatedStudents.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
-              <FiUsers className="h-16 w-16 text-gray-500" />
+          <div className="text-center py-16">
+            <div className="bg-gradient-to-br from-gray-100 to-gray-200 p-12 rounded-full w-fit mx-auto mb-8 shadow-lg">
+              <FiUsers className="h-20 w-20 text-gray-500" />
             </div>
-            <h3 className="text-3xl font-bold text-black mb-4">
+            <h3 className="text-4xl font-bold text-gray-900 mb-6">
               No Students Found
             </h3>
-            <p className="text-gray-600 text-xl">
+            <p className="text-gray-600 text-xl mb-8 max-w-md mx-auto">
               {searchQuery || getActiveFiltersCount() > 0
-                ? "No students match your current filters."
-                : "No students available."}
+                ? "No students match your current filters. Try adjusting your search criteria."
+                : "No students available in the system."}
             </p>
             {getActiveFiltersCount() > 0 && (
               <button
                 onClick={clearAllFilters}
-                className="mt-4 bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
               >
                 Clear All Filters
               </button>
@@ -716,27 +731,38 @@ export default function StudentList({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
-          <p className="text-lg font-semibold text-gray-700">
-            Page {currentPage} of {totalPages}
-          </p>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
-            >
-              <FiChevronLeft className="h-6 w-6" />
-            </button>
-            <button
-              onClick={() =>
-                setCurrentPage(Math.min(totalPages, currentPage + 1))
-              }
-              disabled={currentPage === totalPages}
-              className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
-            >
-              <FiChevronRight className="h-6 w-6" />
-            </button>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="bg-gray-100 px-4 py-2 rounded-xl">
+                <span className="text-sm font-medium text-gray-700">
+                  Page {currentPage} of {totalPages}
+                </span>
+              </div>
+              <span className="text-sm text-gray-500">
+                ({(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredStudents.length)} of {filteredStudents.length})
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-2 px-4 py-3 border-2 border-gray-200 rounded-xl bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-sm hover:shadow-md"
+              >
+                <FiChevronLeft className="h-5 w-5" />
+                Previous
+              </button>
+              <button
+                onClick={() =>
+                  setCurrentPage(Math.min(totalPages, currentPage + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-2 px-4 py-3 border-2 border-gray-200 rounded-xl bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-sm hover:shadow-md"
+              >
+                Next
+                <FiChevronRight className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </div>
       )}
