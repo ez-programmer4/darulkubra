@@ -51,19 +51,30 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Return all student data
-    return NextResponse.json(
-      students.map((student) => ({
-        ...student,
-        id: student.wdt_ID,
-        teacher: {
-          ustazname: student.ustaz || "N/A",
-        },
-        selectedTime: "",
-        chatId: student.chatId,
-        progress: "",
-      }))
+    // Fetch time slots for all students
+    const studentsWithTimeSlots = await Promise.all(
+      students.map(async (student) => {
+        // Fetch occupied time for this student
+        const occupiedTime = await prisma.wpos_ustaz_occupied_times.findFirst({
+          where: { student_id: student.wdt_ID },
+          select: { time_slot: true },
+        });
+
+        return {
+          ...student,
+          id: student.wdt_ID,
+          teacher: {
+            ustazname: student.ustaz || "N/A",
+          },
+          selectedTime: occupiedTime?.time_slot || null,
+          chatId: student.chatId,
+          progress: "",
+        };
+      })
     );
+
+    // Return all student data
+    return NextResponse.json(studentsWithTimeSlots);
   } catch (error) {
     console.error("Controller students API error:", error);
     return NextResponse.json(
