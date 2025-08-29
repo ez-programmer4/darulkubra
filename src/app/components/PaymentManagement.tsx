@@ -953,6 +953,7 @@ export default function PaymentManagement({
       if (
         payment.payment_status === "Paid" &&
         payment.payment_type !== "free" &&
+        payment.payment_type !== "prizepartial" &&
         (payment.payment_type === "full" || payment.payment_type === "partial")
       ) {
         const amount =
@@ -2213,7 +2214,8 @@ export default function PaymentManagement({
                                 if (
                                   payment.payment_status === "Paid" &&
                                   payment.payment_type !== "prize" &&
-                                  payment.payment_type !== "free"
+                                  payment.payment_type !== "free" &&
+                                  payment.payment_type !== "prizepartial"
                                 ) {
                                   return (
                                     sum +
