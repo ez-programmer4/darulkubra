@@ -217,7 +217,9 @@ export default function PaymentManagement({
 
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [deposits, setDeposits] = useState<Payment[]>([]);
-  const [activeTab, setActiveTab] = useState<'deposits' | 'monthly' | 'history'>('deposits');
+  const [activeTab, setActiveTab] = useState<
+    "deposits" | "monthly" | "history"
+  >("deposits");
 
   // Single source of truth for data fetching
   useEffect(() => {
@@ -388,7 +390,9 @@ export default function PaymentManagement({
   };
 
   // Enhanced function to check month payment status
-  const getMonthPaymentStatus = (month: string): {
+  const getMonthPaymentStatus = (
+    month: string
+  ): {
     isPaid: boolean;
     isFree: boolean;
     hasPartialPrize: boolean;
@@ -405,29 +409,53 @@ export default function PaymentManagement({
         totalPaid: 0,
         expectedAmount: 0,
         shortfall: 0,
-        paymentType: 'none'
+        paymentType: "none",
       };
     }
 
-    const monthPayments = monthlyPayments.filter(p => p.month === month);
-    const expectedAmount = calculateMonthlyAmount(month, student.startdate, student.classfee);
-    const totalPaid = monthPayments.reduce((sum, p) => sum + (typeof p.paid_amount === 'number' ? p.paid_amount : parseFloat(p.paid_amount?.toString() || '0')), 0);
-    
-    const isFree = monthPayments.some(p => p.payment_type === 'free' && p.payment_status === 'Paid');
-    const hasPartialPrize = monthPayments.some(p => p.payment_type === 'prizepartial');
-    const hasFullPayment = monthPayments.some(p => p.payment_type === 'full' && p.payment_status === 'Paid');
-    const hasPartialPayment = monthPayments.some(p => p.payment_type === 'partial' && p.payment_status === 'Paid');
-    
-    const isPaid = isFree || hasFullPayment || (hasPartialPrize && hasPartialPayment) || (totalPaid >= expectedAmount - 0.01);
+    const monthPayments = monthlyPayments.filter((p) => p.month === month);
+    const expectedAmount = calculateMonthlyAmount(
+      month,
+      student.startdate,
+      student.classfee
+    );
+    const totalPaid = monthPayments.reduce(
+      (sum, p) =>
+        sum +
+        (typeof p.paid_amount === "number"
+          ? p.paid_amount
+          : parseFloat(p.paid_amount?.toString() || "0")),
+      0
+    );
+
+    const isFree = monthPayments.some(
+      (p) => p.payment_type === "free" && p.payment_status === "Paid"
+    );
+    const hasPartialPrize = monthPayments.some(
+      (p) => p.payment_type === "prizepartial"
+    );
+    const hasFullPayment = monthPayments.some(
+      (p) => p.payment_type === "full" && p.payment_status === "Paid"
+    );
+    const hasPartialPayment = monthPayments.some(
+      (p) => p.payment_type === "partial" && p.payment_status === "Paid"
+    );
+
+    const isPaid =
+      isFree ||
+      hasFullPayment ||
+      (hasPartialPrize && hasPartialPayment) ||
+      totalPaid >= expectedAmount - 0.01;
     const shortfall = Math.max(0, expectedAmount - totalPaid);
-    
-    let paymentType = 'none';
-    if (isFree) paymentType = 'free';
-    else if (hasFullPayment) paymentType = 'full';
-    else if (hasPartialPrize && hasPartialPayment) paymentType = 'partial_with_prize';
-    else if (hasPartialPayment) paymentType = 'partial';
-    else if (hasPartialPrize) paymentType = 'prize_only';
-    
+
+    let paymentType = "none";
+    if (isFree) paymentType = "free";
+    else if (hasFullPayment) paymentType = "full";
+    else if (hasPartialPrize && hasPartialPayment)
+      paymentType = "partial_with_prize";
+    else if (hasPartialPayment) paymentType = "partial";
+    else if (hasPartialPrize) paymentType = "prize_only";
+
     return {
       isPaid,
       isFree,
@@ -435,43 +463,46 @@ export default function PaymentManagement({
       totalPaid,
       expectedAmount,
       shortfall,
-      paymentType
+      paymentType,
     };
   };
 
   // Function to get unpaid months before a target month
   const getUnpaidMonthsBefore = (targetMonth: string): string[] => {
     if (!student) return [];
-    
+
     const unpaidMonths = [];
     const startDate = new Date(student.startdate);
-    const targetDate = new Date(targetMonth + '-01');
-    
+    const targetDate = new Date(targetMonth + "-01");
+
     let checkDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-    
+
     while (checkDate < targetDate) {
-      const monthStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}`;
-      
+      const monthStr = `${checkDate.getFullYear()}-${String(
+        checkDate.getMonth() + 1
+      ).padStart(2, "0")}`;
+
       // Check if month is already marked as paid in months_table
       const isAlreadyPaid = monthlyPayments.some(
-        payment => payment.month === monthStr && payment.payment_status === 'Paid'
+        (payment) =>
+          payment.month === monthStr && payment.payment_status === "Paid"
       );
-      
+
       // If already paid, skip validation - don't check amount mismatch
       if (isAlreadyPaid) {
         checkDate.setMonth(checkDate.getMonth() + 1);
         continue;
       }
-      
+
       const status = getMonthPaymentStatus(monthStr);
-      
+
       if (status.expectedAmount > 0 && !status.isPaid) {
         unpaidMonths.push(monthStr);
       }
-      
+
       checkDate.setMonth(checkDate.getMonth() + 1);
     }
-    
+
     return unpaidMonths;
   };
 
@@ -628,7 +659,7 @@ export default function PaymentManagement({
 
             if (!response.ok) {
               const error = await response.json();
-              
+
               // Enhanced error handling with specific messages
               if (error.unpaidMonths) {
                 const unpaidList = error.unpaidMonths
@@ -638,12 +669,12 @@ export default function PaymentManagement({
                   `${error.error}\n\nUnpaid months: ${unpaidList}\n\nTip: Add prizes or partial payments for previous months first.`
                 );
               }
-              
+
               throw new Error(
                 error.error || `Failed to submit payment for ${month}`
               );
             }
-            
+
             processedMonths.push(month);
           } catch (monthError) {
             failedMonths.push({ month, error: monthError });
@@ -655,18 +686,20 @@ export default function PaymentManagement({
       // Show results
       if (processedMonths.length > 0) {
         toast.success(
-          `Successfully processed ${processedMonths.length} month(s): ${processedMonths.join(", ")}`
+          `Successfully processed ${
+            processedMonths.length
+          } month(s): ${processedMonths.join(", ")}`
         );
       }
-      
+
       if (failedMonths.length > 0) {
         const firstError = failedMonths[0].error;
         setMonthlyError(
-          firstError instanceof Error 
-            ? firstError.message 
+          firstError instanceof Error
+            ? firstError.message
             : `Failed to process ${failedMonths.length} month(s)`
         );
-        
+
         // Don't close modal if there were failures
         if (processedMonths.length === 0) {
           return;
@@ -685,7 +718,10 @@ export default function PaymentManagement({
         fetchPayments();
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to submit monthly payments";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to submit monthly payments";
       setMonthlyError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -1011,7 +1047,9 @@ export default function PaymentManagement({
       setMonthlyPayments(monthlyData);
       setDeposits(depositsData);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to fetch payments");
+      setError(
+        error instanceof Error ? error.message : "Failed to fetch payments"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -1208,7 +1246,7 @@ export default function PaymentManagement({
                     Available for future payments
                   </p>
                 </div>
-                
+
                 <div className="p-5 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200">
                   <p className="text-sm text-gray-600">Prizes Given</p>
                   <p className="text-2xl font-bold text-yellow-700">
@@ -1229,9 +1267,12 @@ export default function PaymentManagement({
                   <p className="text-xs text-gray-500 mt-1">
                     {
                       monthlyPayments.filter(
-                        (p) => p.payment_type === "free" && p.payment_status === "Paid"
+                        (p) =>
+                          p.payment_type === "free" &&
+                          p.payment_status === "Paid"
                       ).length
-                    } free months
+                    }{" "}
+                    free months
                   </p>
                 </div>
               </div>
@@ -1323,8 +1364,6 @@ export default function PaymentManagement({
             </div>
           </div>
 
-          
-          
           <div className="lg:col-span-1 space-y-6 sm:space-y-8">
             <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-3">
@@ -1334,57 +1373,75 @@ export default function PaymentManagement({
               <div className="space-y-4">
                 {(() => {
                   if (!student) return null;
-                  
-                  const currentMonth = format(new Date(), 'yyyy-MM');
+
+                  const currentMonth = format(new Date(), "yyyy-MM");
                   const unpaidMonths = getUnpaidMonthsBefore(currentMonth);
-                  const currentMonthStatus = getMonthPaymentStatus(currentMonth);
-                  
+                  const currentMonthStatus =
+                    getMonthPaymentStatus(currentMonth);
+
                   return (
                     <>
                       <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
                         <div className="flex items-center gap-3 mb-2">
                           <FiCheckCircle className="text-green-600" size={16} />
-                          <span className="text-sm font-medium text-green-700">Current Month</span>
+                          <span className="text-sm font-medium text-green-700">
+                            Current Month
+                          </span>
                         </div>
                         <p className="text-lg font-bold text-green-700">
-                          {currentMonthStatus.isPaid ? 'Paid' : `$${currentMonthStatus.shortfall.toFixed(2)} due`}
+                          {currentMonthStatus.isPaid
+                            ? "Paid"
+                            : `$${currentMonthStatus.shortfall.toFixed(2)} due`}
                         </p>
                         <p className="text-xs text-gray-600 mt-1">
                           {formatPaymentMonth(currentMonth)}
                         </p>
                       </div>
-                      
+
                       {unpaidMonths.length > 0 && (
                         <div className="p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-xl border border-red-200">
                           <div className="flex items-center gap-3 mb-2">
                             <FiAlertCircle className="text-red-600" size={16} />
-                            <span className="text-sm font-medium text-red-700">Unpaid Months</span>
+                            <span className="text-sm font-medium text-red-700">
+                              Unpaid Months
+                            </span>
                           </div>
                           <p className="text-lg font-bold text-red-700">
-                            {unpaidMonths.length} month{unpaidMonths.length !== 1 ? 's' : ''}
+                            {unpaidMonths.length} month
+                            {unpaidMonths.length !== 1 ? "s" : ""}
                           </p>
                           <p className="text-xs text-gray-600 mt-1">
                             Total shortfall: $
-                            {unpaidMonths.reduce((sum, month) => {
-                              const status = getMonthPaymentStatus(month);
-                              return sum + status.shortfall;
-                            }, 0).toFixed(2)}
+                            {unpaidMonths
+                              .reduce((sum, month) => {
+                                const status = getMonthPaymentStatus(month);
+                                return sum + status.shortfall;
+                              }, 0)
+                              .toFixed(2)}
                           </p>
                         </div>
                       )}
-                      
+
                       <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
                         <div className="flex items-center gap-3 mb-2">
                           <FiInfo className="text-blue-600" size={16} />
-                          <span className="text-sm font-medium text-blue-700">Payment Health</span>
+                          <span className="text-sm font-medium text-blue-700">
+                            Payment Health
+                          </span>
                         </div>
                         <p className="text-lg font-bold text-blue-700">
-                          {unpaidMonths.length === 0 ? 'Excellent' : 
-                           unpaidMonths.length <= 2 ? 'Good' : 'Needs Attention'}
+                          {unpaidMonths.length === 0
+                            ? "Excellent"
+                            : unpaidMonths.length <= 2
+                            ? "Good"
+                            : "Needs Attention"}
                         </p>
                         <p className="text-xs text-gray-600 mt-1">
-                          {unpaidMonths.length === 0 ? 'All payments up to date' :
-                           `${unpaidMonths.length} month${unpaidMonths.length !== 1 ? 's' : ''} behind`}
+                          {unpaidMonths.length === 0
+                            ? "All payments up to date"
+                            : `${unpaidMonths.length} month${
+                                unpaidMonths.length !== 1 ? "s" : ""
+                              } behind`}
                         </p>
                       </div>
                     </>
@@ -1392,7 +1449,7 @@ export default function PaymentManagement({
                 })()}
               </div>
             </div>
-            
+
             <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-3">
                 <FiAward className="text-purple-500" size={20} />
@@ -1401,42 +1458,47 @@ export default function PaymentManagement({
               <div className="space-y-3">
                 {(() => {
                   if (!student) return null;
-                  
-                  const currentMonth = format(new Date(), 'yyyy-MM');
+
+                  const currentMonth = format(new Date(), "yyyy-MM");
                   const unpaidMonths = getUnpaidMonthsBefore(currentMonth);
-                  const currentMonthStatus = getMonthPaymentStatus(currentMonth);
-                  
+                  const currentMonthStatus =
+                    getMonthPaymentStatus(currentMonth);
+
                   return (
                     <>
-                      {!currentMonthStatus.isPaid && currentMonthStatus.expectedAmount > 0 && (
-                        <button
-                          onClick={() => {
-                            setNewMonthlyPayment({
-                              months: [currentMonth],
-                              amount: "",
-                              calculatedAmount: currentMonthStatus.expectedAmount,
-                              paymentType: 'full'
-                            });
-                            setShowMonthlyModal(true);
-                          }}
-                          className="w-full p-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all flex items-center gap-2 justify-center"
-                        >
-                          <FiCalendar size={16} />
-                          Pay Current Month
-                        </button>
-                      )}
-                      
+                      {!currentMonthStatus.isPaid &&
+                        currentMonthStatus.expectedAmount > 0 && (
+                          <button
+                            onClick={() => {
+                              setNewMonthlyPayment({
+                                months: [currentMonth],
+                                amount: "",
+                                calculatedAmount:
+                                  currentMonthStatus.expectedAmount,
+                                paymentType: "full",
+                              });
+                              setShowMonthlyModal(true);
+                            }}
+                            className="w-full p-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all flex items-center gap-2 justify-center"
+                          >
+                            <FiCalendar size={16} />
+                            Pay Current Month
+                          </button>
+                        )}
+
                       {unpaidMonths.length > 0 && (
                         <button
                           onClick={() => {
                             setNewMonthlyPayment({
                               months: unpaidMonths.slice(0, 3), // Limit to first 3 unpaid months
                               amount: "",
-                              calculatedAmount: unpaidMonths.slice(0, 3).reduce((sum, month) => {
-                                const status = getMonthPaymentStatus(month);
-                                return sum + status.expectedAmount;
-                              }, 0),
-                              paymentType: 'full'
+                              calculatedAmount: unpaidMonths
+                                .slice(0, 3)
+                                .reduce((sum, month) => {
+                                  const status = getMonthPaymentStatus(month);
+                                  return sum + status.expectedAmount;
+                                }, 0),
+                              paymentType: "full",
                             });
                             setShowMonthlyModal(true);
                           }}
@@ -1446,13 +1508,13 @@ export default function PaymentManagement({
                           Pay Overdue Months
                         </button>
                       )}
-                      
+
                       <button
                         onClick={() => {
                           setNewPrize({
                             month: currentMonth,
                             percentage: 100,
-                            reason: ''
+                            reason: "",
                           });
                           setShowPrizeModal(true);
                         }}
@@ -1627,17 +1689,27 @@ export default function PaymentManagement({
                               student.classfee
                             )
                           : 0;
-                        const monthPayments = monthlyPayments.filter(p => p.month === payment.month);
-                        const totalPaid = monthPayments.reduce((sum, p) => sum + Number(p.paid_amount), 0);
-                        const isCurrentMonth = payment.month === format(new Date(), 'yyyy-MM');
-                        const isFutureMonth = new Date(payment.month + '-01') > new Date();
-                        
+                        const monthPayments = monthlyPayments.filter(
+                          (p) => p.month === payment.month
+                        );
+                        const totalPaid = monthPayments.reduce(
+                          (sum, p) => sum + Number(p.paid_amount),
+                          0
+                        );
+                        const isCurrentMonth =
+                          payment.month === format(new Date(), "yyyy-MM");
+                        const isFutureMonth =
+                          new Date(payment.month + "-01") > new Date();
+
                         return (
                           <tr key={payment.id} className="hover:bg-gray-50">
                             <td className="px-4 py-4 whitespace-nowrap">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-gray-900">
-                                  {format(new Date(payment.month + '-01'), 'MMM yyyy')}
+                                  {format(
+                                    new Date(payment.month + "-01"),
+                                    "MMM yyyy"
+                                  )}
                                 </span>
                                 {isCurrentMonth && (
                                   <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
@@ -1658,27 +1730,36 @@ export default function PaymentManagement({
                               ${Number(payment.paid_amount).toFixed(2)}
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                payment.payment_status === 'Paid' 
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}>
+                              <span
+                                className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  payment.payment_status === "Paid"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                                }`}
+                              >
                                 {payment.payment_status}
                               </span>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                payment.payment_type === 'free' 
-                                  ? 'bg-purple-100 text-purple-800'
-                                  : payment.payment_type === 'partial'
-                                  ? 'bg-orange-100 text-orange-800'
-                                  : payment.payment_type === 'prizepartial'
-                                  ? 'bg-indigo-100 text-indigo-800'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {payment.payment_type === 'free' ? 'Prize' : 
-                                 payment.payment_type === 'prizepartial' ? 'Prize Partial' :
-                                 payment.payment_type.charAt(0).toUpperCase() + payment.payment_type.slice(1)}
+                              <span
+                                className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  payment.payment_type === "free"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : payment.payment_type === "partial"
+                                    ? "bg-orange-100 text-orange-800"
+                                    : payment.payment_type === "prizepartial"
+                                    ? "bg-indigo-100 text-indigo-800"
+                                    : "bg-blue-100 text-blue-800"
+                                }`}
+                              >
+                                {payment.payment_type === "free"
+                                  ? "Prize"
+                                  : payment.payment_type === "prizepartial"
+                                  ? "Prize Partial"
+                                  : payment.payment_type
+                                      .charAt(0)
+                                      .toUpperCase() +
+                                    payment.payment_type.slice(1)}
                               </span>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1688,11 +1769,11 @@ export default function PaymentManagement({
                               {totalPaid < expectedAmount && (
                                 <button
                                   onClick={() => {
-                                    setNewMonthlyPayment(prev => ({
+                                    setNewMonthlyPayment((prev) => ({
                                       ...prev,
-                                      months: [payment.month]
+                                      months: [payment.month],
                                     }));
-                                    setActiveTab('deposits');
+                                    setActiveTab("deposits");
                                   }}
                                   className="text-blue-600 hover:text-blue-900 text-xs"
                                 >
@@ -1739,7 +1820,9 @@ export default function PaymentManagement({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-500">Amount</label>
+                        <label className="text-sm font-medium text-gray-500">
+                          Amount
+                        </label>
                         <div className="mt-1">
                           <span className="text-2xl font-bold text-gray-900">
                             $
@@ -1753,7 +1836,9 @@ export default function PaymentManagement({
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium text-gray-500">Status</label>
+                        <label className="text-sm font-medium text-gray-500">
+                          Status
+                        </label>
                         <div className="mt-1">
                           <span
                             className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
@@ -1771,7 +1856,9 @@ export default function PaymentManagement({
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium text-gray-500">Payment Date</label>
+                        <label className="text-sm font-medium text-gray-500">
+                          Payment Date
+                        </label>
                         <div className="mt-1">
                           <span className="text-gray-900">
                             {formatDate(selectedDeposit.paymentdate)}
@@ -1782,7 +1869,9 @@ export default function PaymentManagement({
 
                     <div className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-500">Reason</label>
+                        <label className="text-sm font-medium text-gray-500">
+                          Reason
+                        </label>
                         <div className="mt-1">
                           <span className="text-gray-900">
                             {selectedDeposit.reason}
@@ -1791,7 +1880,9 @@ export default function PaymentManagement({
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium text-gray-500">Payment Method</label>
+                        <label className="text-sm font-medium text-gray-500">
+                          Payment Method
+                        </label>
                         <div className="mt-1">
                           <span className="text-gray-900">
                             {selectedDeposit.paymentmethod || "Not specified"}
@@ -1800,7 +1891,9 @@ export default function PaymentManagement({
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium text-gray-500">Reference</label>
+                        <label className="text-sm font-medium text-gray-500">
+                          Reference
+                        </label>
                         <div className="mt-1">
                           <span className="text-gray-900 font-mono text-sm">
                             #{selectedDeposit.id}
@@ -1818,7 +1911,9 @@ export default function PaymentManagement({
                     <div className="bg-gray-50 rounded-xl p-4">
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <span className="text-gray-500">Total Monthly Payments:</span>
+                          <span className="text-gray-500">
+                            Total Monthly Payments:
+                          </span>
                           <span className="font-medium text-gray-900 ml-2">
                             $
                             {monthlyPayments
@@ -1879,8 +1974,12 @@ export default function PaymentManagement({
                       <FiDollarSign className="text-blue-600" size={24} />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-gray-900">Add Deposit</h3>
-                      <p className="text-sm text-gray-500 mt-1">Add a new deposit for the student</p>
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        Add Deposit
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Add a new deposit for the student
+                      </p>
                     </div>
                   </div>
                   <button
@@ -1903,7 +2002,9 @@ export default function PaymentManagement({
                 </div>
 
                 {depositError && (
-                  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm">{depositError}</div>
+                  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm">
+                    {depositError}
+                  </div>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
@@ -1913,16 +2014,30 @@ export default function PaymentManagement({
                         Amount <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                          $
+                        </span>
                         <input
                           type="number"
                           name="amount"
                           value={newDeposit.amount}
                           onChange={(e) => {
-                            const updatedValue = e.target.value.replace("$", "").trim();
-                            setNewDeposit((prev) => ({ ...prev, amount: updatedValue }));
-                            if (depositErrors[e.target.name as keyof typeof depositErrors]) {
-                              setDepositErrors((prev) => ({ ...prev, [e.target.name]: undefined }));
+                            const updatedValue = e.target.value
+                              .replace("$", "")
+                              .trim();
+                            setNewDeposit((prev) => ({
+                              ...prev,
+                              amount: updatedValue,
+                            }));
+                            if (
+                              depositErrors[
+                                e.target.name as keyof typeof depositErrors
+                              ]
+                            ) {
+                              setDepositErrors((prev) => ({
+                                ...prev,
+                                [e.target.name]: undefined,
+                              }));
                             }
                           }}
                           placeholder="0.00"
@@ -1937,7 +2052,9 @@ export default function PaymentManagement({
                         />
                       </div>
                       {depositErrors.amount && (
-                        <p className="mt-2 text-sm text-red-600">{depositErrors.amount}</p>
+                        <p className="mt-2 text-sm text-red-600">
+                          {depositErrors.amount}
+                        </p>
                       )}
                     </div>
 
@@ -1951,9 +2068,19 @@ export default function PaymentManagement({
                         value={newDeposit.reason}
                         onChange={(e) => {
                           const updatedValue = e.target.value;
-                          setNewDeposit((prev) => ({ ...prev, reason: updatedValue }));
-                          if (depositErrors[e.target.name as keyof typeof depositErrors]) {
-                            setDepositErrors((prev) => ({ ...prev, [e.target.name]: undefined }));
+                          setNewDeposit((prev) => ({
+                            ...prev,
+                            reason: updatedValue,
+                          }));
+                          if (
+                            depositErrors[
+                              e.target.name as keyof typeof depositErrors
+                            ]
+                          ) {
+                            setDepositErrors((prev) => ({
+                              ...prev,
+                              [e.target.name]: undefined,
+                            }));
                           }
                         }}
                         placeholder="Enter deposit reason"
@@ -1976,9 +2103,19 @@ export default function PaymentManagement({
                         value={newDeposit.transactionId}
                         onChange={(e) => {
                           const updatedValue = e.target.value;
-                          setNewDeposit((prev) => ({ ...prev, transactionId: updatedValue }));
-                          if (depositErrors[e.target.name as keyof typeof depositErrors]) {
-                            setDepositErrors((prev) => ({ ...prev, [e.target.name]: undefined }));
+                          setNewDeposit((prev) => ({
+                            ...prev,
+                            transactionId: updatedValue,
+                          }));
+                          if (
+                            depositErrors[
+                              e.target.name as keyof typeof depositErrors
+                            ]
+                          ) {
+                            setDepositErrors((prev) => ({
+                              ...prev,
+                              [e.target.name]: undefined,
+                            }));
                           }
                         }}
                         placeholder="Enter transaction ID"
@@ -1990,15 +2127,24 @@ export default function PaymentManagement({
                         } transition-all`}
                       />
                       {depositErrors.transactionId && (
-                        <p className="mt-2 text-sm text-red-600">{depositErrors.transactionId}</p>
+                        <p className="mt-2 text-sm text-red-600">
+                          {depositErrors.transactionId}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Payment Method
+                      </label>
                       <select
                         value={newDeposit.paymentMethod}
-                        onChange={(e) => setNewDeposit((p) => ({ ...p, paymentMethod: e.target.value as any }))}
+                        onChange={(e) =>
+                          setNewDeposit((p) => ({
+                            ...p,
+                            paymentMethod: e.target.value as any,
+                          }))
+                        }
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="cash">Cash</option>
@@ -2009,10 +2155,17 @@ export default function PaymentManagement({
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Notes
+                      </label>
                       <textarea
                         value={newDeposit.notes}
-                        onChange={(e) => setNewDeposit((p) => ({ ...p, notes: e.target.value }))}
+                        onChange={(e) =>
+                          setNewDeposit((p) => ({
+                            ...p,
+                            notes: e.target.value,
+                          }))
+                        }
                         placeholder="Optional notes"
                         rows={3}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -2022,30 +2175,52 @@ export default function PaymentManagement({
 
                   <div className="space-y-6">
                     <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-                      <h4 className="text-sm font-medium text-gray-700 mb-4">Deposit Summary</h4>
+                      <h4 className="text-sm font-medium text-gray-700 mb-4">
+                        Deposit Summary
+                      </h4>
                       <div className="space-y-4">
                         <div className="flex justify-between items-center gap-2 min-w-0">
-                          <span className="text-sm text-gray-600">Student Name</span>
-                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right">{student?.name || "N/A"}</span>
+                          <span className="text-sm text-gray-600">
+                            Student Name
+                          </span>
+                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right">
+                            {student?.name || "N/A"}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center gap-2 min-w-0">
-                          <span className="text-sm text-gray-600">Current Balance</span>
+                          <span className="text-sm text-gray-600">
+                            Current Balance
+                          </span>
                           <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">
                             $
                             {(
                               deposits.reduce((sum, deposit) => {
                                 if ((deposit as any).status === "Approved") {
                                   const amount =
-                                    typeof (deposit as any).paidamount === "number"
+                                    typeof (deposit as any).paidamount ===
+                                    "number"
                                       ? (deposit as any).paidamount
-                                      : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
+                                      : parseFloat(
+                                          (
+                                            (deposit as any).paidamount as any
+                                          )?.toString() || "0"
+                                        );
                                   return sum + amount;
                                 }
                                 return sum;
                               }, 0) -
                               monthlyPayments.reduce((sum, payment) => {
-                                if (payment.payment_status === "Paid" && payment.payment_type !== "prize" && payment.payment_type !== "free") {
-                                  return sum + (parseFloat(payment.paid_amount?.toString() || "0") || 0);
+                                if (
+                                  payment.payment_status === "Paid" &&
+                                  payment.payment_type !== "prize" &&
+                                  payment.payment_type !== "free"
+                                ) {
+                                  return (
+                                    sum +
+                                    (parseFloat(
+                                      payment.paid_amount?.toString() || "0"
+                                    ) || 0)
+                                  );
                                 }
                                 return sum;
                               }, 0)
@@ -2053,16 +2228,23 @@ export default function PaymentManagement({
                           </span>
                         </div>
                         <div className="flex justify-between items-center gap-2 min-w-0">
-                          <span className="text-sm text-gray-600">New Balance</span>
+                          <span className="text-sm text-gray-600">
+                            New Balance
+                          </span>
                           <span className="font-medium text-blue-600 truncate max-w-[60%] text-right tabular-nums">
                             $
                             {(
                               deposits.reduce((sum, deposit) => {
                                 if ((deposit as any).status === "Approved") {
                                   const amount =
-                                    typeof (deposit as any).paidamount === "number"
+                                    typeof (deposit as any).paidamount ===
+                                    "number"
                                       ? (deposit as any).paidamount
-                                      : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
+                                      : parseFloat(
+                                          (
+                                            (deposit as any).paidamount as any
+                                          )?.toString() || "0"
+                                        );
                                   return sum + amount;
                                 }
                                 return sum;
@@ -2071,16 +2253,23 @@ export default function PaymentManagement({
                           </span>
                         </div>
                         <div className="flex justify-between items-center gap-2 min-w-0">
-                          <span className="text-sm text-gray-600">Total Deposits</span>
+                          <span className="text-sm text-gray-600">
+                            Total Deposits
+                          </span>
                           <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">
                             $
                             {(
                               deposits.reduce((sum, deposit) => {
                                 if ((deposit as any).status === "Approved") {
                                   const amount =
-                                    typeof (deposit as any).paidamount === "number"
+                                    typeof (deposit as any).paidamount ===
+                                    "number"
                                       ? (deposit as any).paidamount
-                                      : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
+                                      : parseFloat(
+                                          (
+                                            (deposit as any).paidamount as any
+                                          )?.toString() || "0"
+                                        );
                                   return sum + amount;
                                 }
                                 return sum;
@@ -2098,7 +2287,9 @@ export default function PaymentManagement({
                       <ul className="space-y-3 text-sm text-blue-600">
                         <li className="flex items-start gap-2">
                           <span className="mt-1">•</span>
-                          <span>Deposits are added to the student's balance</span>
+                          <span>
+                            Deposits are added to the student's balance
+                          </span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="mt-1">•</span>
@@ -2138,7 +2329,8 @@ export default function PaymentManagement({
                   >
                     {isSubmitting ? (
                       <>
-                        <FiRefreshCw className="animate-spin" size={18} /> Adding...
+                        <FiRefreshCw className="animate-spin" size={18} />{" "}
+                        Adding...
                       </>
                     ) : (
                       <>
@@ -2169,8 +2361,12 @@ export default function PaymentManagement({
                       <FiCalendar className="text-green-600" size={24} />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-gray-900">Add Monthly Payment</h3>
-                      <p className="text-sm text-gray-500 mt-1">Process monthly payments for multiple months</p>
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        Add Monthly Payment
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Process monthly payments for multiple months
+                      </p>
                     </div>
                   </div>
                   <button
@@ -2191,7 +2387,9 @@ export default function PaymentManagement({
                 </div>
 
                 {monthlyError && (
-                  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm whitespace-pre-line break-words">{monthlyError}</div>
+                  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm whitespace-pre-line break-words">
+                    {monthlyError}
+                  </div>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
@@ -2199,23 +2397,34 @@ export default function PaymentManagement({
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="block text-sm font-medium text-gray-700">
-                          Select Months ({newMonthlyPayment.months?.length || 0} selected)
+                          Select Months ({newMonthlyPayment.months?.length || 0}{" "}
+                          selected)
                         </label>
                         <div className="flex items-center gap-2 flex-wrap">
                           <button
                             type="button"
                             className="text-xs px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 text-gray-700"
                             onClick={() => {
-                              const selectable = availableMonths.filter((month) => {
-                                const selectedDate = new Date(month + "-01");
-                                if (!student) return false;
-                                const startDate = new Date(student.startdate);
-                                const minMonth = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}`;
-                                const minDate = new Date(minMonth + "-01");
-                                const disabled = selectedDate < minDate || isMonthFullyCoveredByPrizes(month) || isMonthPaid(month);
-                                return !disabled;
-                              });
-                              setNewMonthlyPayment((prev: any) => ({ ...prev, months: selectable.sort() }));
+                              const selectable = availableMonths.filter(
+                                (month) => {
+                                  const selectedDate = new Date(month + "-01");
+                                  if (!student) return false;
+                                  const startDate = new Date(student.startdate);
+                                  const minMonth = `${startDate.getFullYear()}-${String(
+                                    startDate.getMonth() + 1
+                                  ).padStart(2, "0")}`;
+                                  const minDate = new Date(minMonth + "-01");
+                                  const disabled =
+                                    selectedDate < minDate ||
+                                    isMonthFullyCoveredByPrizes(month) ||
+                                    isMonthPaid(month);
+                                  return !disabled;
+                                }
+                              );
+                              setNewMonthlyPayment((prev: any) => ({
+                                ...prev,
+                                months: selectable.sort(),
+                              }));
                             }}
                           >
                             Select all eligible
@@ -2223,7 +2432,12 @@ export default function PaymentManagement({
                           <button
                             type="button"
                             className="text-xs px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 text-gray-700"
-                            onClick={() => setNewMonthlyPayment((prev: any) => ({ ...prev, months: [] }))}
+                            onClick={() =>
+                              setNewMonthlyPayment((prev: any) => ({
+                                ...prev,
+                                months: [],
+                              }))
+                            }
                           >
                             Clear
                           </button>
@@ -2235,13 +2449,22 @@ export default function PaymentManagement({
                               // First eligible month from start date that is not paid or prize-covered
                               const eligible = availableMonths.filter((m) => {
                                 const startDate = new Date(student.startdate);
-                                const minMonth = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}`;
+                                const minMonth = `${startDate.getFullYear()}-${String(
+                                  startDate.getMonth() + 1
+                                ).padStart(2, "0")}`;
                                 const selectedDate = new Date(m + "-01");
                                 const minDate = new Date(minMonth + "-01");
-                                return selectedDate >= minDate && !isMonthPaid(m) && !isMonthFullyCoveredByPrizes(m);
+                                return (
+                                  selectedDate >= minDate &&
+                                  !isMonthPaid(m) &&
+                                  !isMonthFullyCoveredByPrizes(m)
+                                );
                               });
                               const next3 = eligible.slice(0, 3);
-                              setNewMonthlyPayment((prev: any) => ({ ...prev, months: next3 }));
+                              setNewMonthlyPayment((prev: any) => ({
+                                ...prev,
+                                months: next3,
+                              }));
                             }}
                           >
                             Next 3 months
@@ -2251,8 +2474,15 @@ export default function PaymentManagement({
                             className="text-xs px-2 py-1 rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50"
                             onClick={() => {
                               const thisMonth = format(new Date(), "yyyy-MM");
-                              if (isMonthPaid(thisMonth) || isMonthFullyCoveredByPrizes(thisMonth)) return;
-                              setNewMonthlyPayment((prev: any) => ({ ...prev, months: [thisMonth] }));
+                              if (
+                                isMonthPaid(thisMonth) ||
+                                isMonthFullyCoveredByPrizes(thisMonth)
+                              )
+                                return;
+                              setNewMonthlyPayment((prev: any) => ({
+                                ...prev,
+                                months: [thisMonth],
+                              }));
                             }}
                           >
                             This month
@@ -2263,14 +2493,20 @@ export default function PaymentManagement({
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 p-3 border border-gray-300 rounded-xl bg-gray-50 max-h-56 overflow-y-auto">
                         {availableMonths.map((month) => {
                           const monthDate = new Date(month + "-01");
-                          const monthName = monthDate.toLocaleDateString("en-US", { year: "numeric", month: "short" });
-                          const isSelected = newMonthlyPayment.months?.includes(month) || false;
+                          const monthName = monthDate.toLocaleDateString(
+                            "en-US",
+                            { year: "numeric", month: "short" }
+                          );
+                          const isSelected =
+                            newMonthlyPayment.months?.includes(month) || false;
                           const paid = isMonthPaid(month);
                           const prize = isMonthFullyCoveredByPrizes(month);
                           const isDisabled = student
                             ? (() => {
                                 const startDate = new Date(student.startdate);
-                                const minMonth = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}`;
+                                const minMonth = `${startDate.getFullYear()}-${String(
+                                  startDate.getMonth() + 1
+                                ).padStart(2, "0")}`;
                                 const selectedDate = new Date(month + "-01");
                                 const minDate = new Date(minMonth + "-01");
                                 return selectedDate < minDate || prize || paid;
@@ -2285,8 +2521,12 @@ export default function PaymentManagement({
                               onClick={() => {
                                 setNewMonthlyPayment((prev: any) => {
                                   const set = new Set(prev.months || []);
-                                  if (set.has(month)) set.delete(month); else set.add(month);
-                                  return { ...prev, months: Array.from(set).sort() };
+                                  if (set.has(month)) set.delete(month);
+                                  else set.add(month);
+                                  return {
+                                    ...prev,
+                                    months: Array.from(set).sort(),
+                                  };
                                 });
                               }}
                               className={`text-left group w-full p-2.5 rounded-xl border transition-all ${
@@ -2298,15 +2538,27 @@ export default function PaymentManagement({
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">{monthName}</span>
+                                <span className="text-sm font-medium">
+                                  {monthName}
+                                </span>
                                 {isSelected && !isDisabled && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 border border-green-200">Selected</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 border border-green-200">
+                                    Selected
+                                  </span>
                                 )}
                               </div>
                               {(paid || prize) && (
                                 <div className="mt-1 flex items-center gap-1">
-                                  {paid && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">Paid</span>}
-                                  {!paid && prize && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200">Prize</span>}
+                                  {paid && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
+                                      Paid
+                                    </span>
+                                  )}
+                                  {!paid && prize && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200">
+                                      Prize
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </button>
@@ -2315,70 +2567,135 @@ export default function PaymentManagement({
                       </div>
 
                       <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-300 inline-block"></span> Selected</span>
-                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-purple-300 inline-block"></span> Prize Covered</span>
-                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-gray-300 inline-block"></span> Paid/Disabled</span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-sm bg-green-300 inline-block"></span>{" "}
+                          Selected
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-sm bg-purple-300 inline-block"></span>{" "}
+                          Prize Covered
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-sm bg-gray-300 inline-block"></span>{" "}
+                          Paid/Disabled
+                        </span>
                       </div>
 
                       {newMonthlyPayment.months?.length === 0 && (
-                        <p className="text-sm text-red-600 mt-2">Please select at least one month</p>
+                        <p className="text-sm text-red-600 mt-2">
+                          Please select at least one month
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Total Calculated Amount</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Total Calculated Amount
+                      </label>
                       <div className="relative overflow-hidden rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-white">
                         <div className="flex items-center justify-between px-4 py-3 min-w-0">
-                          <div className="text-sm text-gray-600">Total to pay</div>
-                          <div className="text-lg font-semibold text-gray-900 ml-3 truncate max-w-[55%] text-right tabular-nums">${newMonthlyPayment.calculatedAmount?.toFixed(2) || "0.00"}</div>
+                          <div className="text-sm text-gray-600">
+                            Total to pay
+                          </div>
+                          <div className="text-lg font-semibold text-gray-900 ml-3 truncate max-w-[55%] text-right tabular-nums">
+                            $
+                            {newMonthlyPayment.calculatedAmount?.toFixed(2) ||
+                              "0.00"}
+                          </div>
                         </div>
                         <div className="px-4 pb-3 text-xs text-gray-500 flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200">Months: {newMonthlyPayment.months?.length || 0}</span>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200">Monthly fee: ${student?.classfee?.toFixed(2) || "0.00"}</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200">
+                            Months: {newMonthlyPayment.months?.length || 0}
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200">
+                            Monthly fee: $
+                            {student?.classfee?.toFixed(2) || "0.00"}
+                          </span>
                         </div>
                       </div>
-                      {newMonthlyPayment.months && newMonthlyPayment.months.length > 0 && (
-                        <div className="mt-3 space-y-1">
-                          {newMonthlyPayment.months.map((month) => {
-                            const amount = student ? calculateMonthlyAmount(month, student.startdate, student.classfee) : 0;
-                            return (
-                              <div key={month} className="flex justify-between text-xs text-gray-600">
-                                <span>{formatPaymentMonth(month)}:</span>
-                                <span className="font-medium text-gray-800">${amount.toFixed(2)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                      {newMonthlyPayment.months &&
+                        newMonthlyPayment.months.length > 0 && (
+                          <div className="mt-3 space-y-1">
+                            {newMonthlyPayment.months.map((month) => {
+                              const amount = student
+                                ? calculateMonthlyAmount(
+                                    month,
+                                    student.startdate,
+                                    student.classfee
+                                  )
+                                : 0;
+                              return (
+                                <div
+                                  key={month}
+                                  className="flex justify-between text-xs text-gray-600"
+                                >
+                                  <span>{formatPaymentMonth(month)}:</span>
+                                  <span className="font-medium text-gray-800">
+                                    ${amount.toFixed(2)}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                     </div>
                   </div>
 
                   <div className="space-y-6">
                     <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-                      <h4 className="text-sm font-medium text-gray-700 mb-4">Payment Summary</h4>
+                      <h4 className="text-sm font-medium text-gray-700 mb-4">
+                        Payment Summary
+                      </h4>
                       <div className="space-y-4">
                         <div className="flex justify-between items-center gap-2 min-w-0">
-                          <span className="text-sm text-gray-600">Student Name</span>
-                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right">{student?.name || "N/A"}</span>
+                          <span className="text-sm text-gray-600">
+                            Student Name
+                          </span>
+                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right">
+                            {student?.name || "N/A"}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center gap-2 min-w-0">
-                          <span className="text-sm text-gray-600">Monthly Fee</span>
-                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">${student?.classfee ? student.classfee.toFixed(2) : "0.00"}</span>
+                          <span className="text-sm text-gray-600">
+                            Monthly Fee
+                          </span>
+                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">
+                            $
+                            {student?.classfee
+                              ? student.classfee.toFixed(2)
+                              : "0.00"}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center gap-2 min-w-0">
-                          <span className="text-sm text-gray-600">Current Balance</span>
-                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">$
+                          <span className="text-sm text-gray-600">
+                            Current Balance
+                          </span>
+                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right tabular-nums">
+                            $
                             {(
                               deposits.reduce((sum, deposit) => {
                                 if ((deposit as any).status === "Approved") {
-                                  const amount = typeof (deposit as any).paidamount === "number" ? (deposit as any).paidamount : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
+                                  const amount =
+                                    typeof (deposit as any).paidamount ===
+                                    "number"
+                                      ? (deposit as any).paidamount
+                                      : parseFloat(
+                                          (
+                                            (deposit as any).paidamount as any
+                                          )?.toString() || "0"
+                                        );
                                   return sum + amount;
                                 }
                                 return sum;
                               }, 0) -
                               monthlyPayments.reduce((sum, payment) => {
                                 if (payment.payment_status === "Paid") {
-                                  return sum + (parseFloat(payment.paid_amount?.toString() || "0") || 0);
+                                  return (
+                                    sum +
+                                    (parseFloat(
+                                      payment.paid_amount?.toString() || "0"
+                                    ) || 0)
+                                  );
                                 }
                                 return sum;
                               }, 0)
@@ -2386,16 +2703,29 @@ export default function PaymentManagement({
                           </span>
                         </div>
                         <div className="flex justify-between items-center gap-2 min-w-0">
-                          <span className="text-sm text-gray-600">Balance After Payment</span>
-                          <span className="font-medium text-green-600 truncate max-w-[60%] text-right tabular-nums">${(
-                            deposits.reduce((sum, deposit) => {
-                              if ((deposit as any).status === "Approved") {
-                                const amount = typeof (deposit as any).paidamount === "number" ? (deposit as any).paidamount : parseFloat(((deposit as any).paidamount as any)?.toString() || "0");
-                                return sum + amount;
-                              }
-                              return sum;
-                            }, 0) - newMonthlyPayment.calculatedAmount
-                          ).toFixed(2)}</span>
+                          <span className="text-sm text-gray-600">
+                            Balance After Payment
+                          </span>
+                          <span className="font-medium text-green-600 truncate max-w-[60%] text-right tabular-nums">
+                            $
+                            {(
+                              deposits.reduce((sum, deposit) => {
+                                if ((deposit as any).status === "Approved") {
+                                  const amount =
+                                    typeof (deposit as any).paidamount ===
+                                    "number"
+                                      ? (deposit as any).paidamount
+                                      : parseFloat(
+                                          (
+                                            (deposit as any).paidamount as any
+                                          )?.toString() || "0"
+                                        );
+                                  return sum + amount;
+                                }
+                                return sum;
+                              }, 0) - newMonthlyPayment.calculatedAmount
+                            ).toFixed(2)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -2405,9 +2735,20 @@ export default function PaymentManagement({
                         <FiInfo size={16} /> Payment Information
                       </h4>
                       <ul className="space-y-3 text-sm text-green-600">
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Payment will be deducted from student's balance</span></li>
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Amount is prorated for partial months</span></li>
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Previous months must be paid first</span></li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1">•</span>
+                          <span>
+                            Payment will be deducted from student's balance
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1">•</span>
+                          <span>Amount is prorated for partial months</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1">•</span>
+                          <span>Previous months must be paid first</span>
+                        </li>
                       </ul>
                     </div>
                   </div>
@@ -2436,7 +2777,8 @@ export default function PaymentManagement({
                   >
                     {isSubmitting ? (
                       <>
-                        <FiRefreshCw className="animate-spin" size={18} /> Processing...
+                        <FiRefreshCw className="animate-spin" size={18} />{" "}
+                        Processing...
                       </>
                     ) : (
                       <>
@@ -2467,23 +2809,34 @@ export default function PaymentManagement({
                       <FiGift className="text-purple-600" size={24} />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-gray-900">Add Prize</h3>
-                      <p className="text-sm text-gray-500 mt-1">Add a prize for the student</p>
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        Add Prize
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Add a prize for the student
+                      </p>
                     </div>
                   </div>
-                  <button onClick={handleClosePrize} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                  <button
+                    onClick={handleClosePrize}
+                    className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                  >
                     <FiX size={24} className="text-gray-500" />
                   </button>
                 </div>
 
                 {prizeError && (
-                  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm">{prizeError}</div>
+                  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm">
+                    {prizeError}
+                  </div>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Month <span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Month <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="month"
                         value={newPrize.month || ""}
@@ -2491,50 +2844,88 @@ export default function PaymentManagement({
                           const selectedMonth = e.target.value;
                           if (student) {
                             const startDate = new Date(student.startdate);
-                            const minMonth = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}`;
-                            const selectedDate = new Date(selectedMonth + "-01");
+                            const minMonth = `${startDate.getFullYear()}-${String(
+                              startDate.getMonth() + 1
+                            ).padStart(2, "0")}`;
+                            const selectedDate = new Date(
+                              selectedMonth + "-01"
+                            );
                             const minDate = new Date(minMonth + "-01");
                             if (selectedDate >= minDate) {
                               if (isMonthPaid(selectedMonth)) {
-                                toast.error("Cannot add a prize for a paid month.");
+                                toast.error(
+                                  "Cannot add a prize for a paid month."
+                                );
                                 return;
                               }
-                              setNewPrize((prev) => ({ ...prev, month: selectedMonth }));
+                              setNewPrize((prev) => ({
+                                ...prev,
+                                month: selectedMonth,
+                              }));
                             } else {
-                              toast.error(`Please select a month starting from ${format(new Date(minMonth + "-01"), "MMMM yyyy")}`);
+                              toast.error(
+                                `Please select a month starting from ${format(
+                                  new Date(minMonth + "-01"),
+                                  "MMMM yyyy"
+                                )}`
+                              );
                             }
                           }
                         }}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        min={student ? `${new Date(student.startdate).getFullYear()}-${String(new Date(student.startdate).getMonth() + 1).padStart(2, "0")}` : undefined}
+                        min={
+                          student
+                            ? `${new Date(
+                                student.startdate
+                              ).getFullYear()}-${String(
+                                new Date(student.startdate).getMonth() + 1
+                              ).padStart(2, "0")}`
+                            : undefined
+                        }
                         disabled={isMonthPaid(newPrize.month)}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Percentage <span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Percentage <span className="text-red-500">*</span>
+                      </label>
                       <div className="relative">
                         <input
                           type="range"
                           min="0"
                           max="100"
                           value={newPrize.percentage || 0}
-                          onChange={(e) => setNewPrize((prev) => ({ ...prev, percentage: parseInt(e.target.value) }))}
+                          onChange={(e) =>
+                            setNewPrize((prev) => ({
+                              ...prev,
+                              percentage: parseInt(e.target.value),
+                            }))
+                          }
                           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                         />
                         <div className="flex justify-between mt-2">
                           <span className="text-sm text-gray-500">0%</span>
-                          <span className="text-sm font-medium text-purple-600">{newPrize.percentage || 0}%</span>
+                          <span className="text-sm font-medium text-purple-600">
+                            {newPrize.percentage || 0}%
+                          </span>
                           <span className="text-sm text-gray-500">100%</span>
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Reason <span className="text-red-500">*</span>
+                      </label>
                       <textarea
                         value={newPrize.reason || ""}
-                        onChange={(e) => setNewPrize((prev) => ({ ...prev, reason: e.target.value }))}
+                        onChange={(e) =>
+                          setNewPrize((prev) => ({
+                            ...prev,
+                            reason: e.target.value,
+                          }))
+                        }
                         placeholder="Enter reason for the prize (e.g., free month)"
                         rows={3}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -2544,27 +2935,82 @@ export default function PaymentManagement({
 
                   <div className="space-y-6">
                     <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-                      <h4 className="text-sm font-medium text-gray-700 mb-4">Prize Summary</h4>
+                      <h4 className="text-sm font-medium text-gray-700 mb-4">
+                        Prize Summary
+                      </h4>
                       <div className="space-y-4">
-                        <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Student Name</span><span className="font-medium text-gray-900">{student?.name || "N/A"}</span></div>
-                        <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Monthly Fee</span><span className="font-medium text-gray-900">${student?.classfee ? student.classfee.toFixed(2) : "0.00"}</span></div>
-                        <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Prize Amount</span><span className="font-medium text-purple-600">${student?.classfee ? ((student.classfee * (newPrize.percentage || 0)) / 100).toFixed(2) : "0.00"}</span></div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">
+                            Student Name
+                          </span>
+                          <span className="font-medium text-gray-900">
+                            {student?.name || "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">
+                            Monthly Fee
+                          </span>
+                          <span className="font-medium text-gray-900">
+                            $
+                            {student?.classfee
+                              ? student.classfee.toFixed(2)
+                              : "0.00"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">
+                            Prize Amount
+                          </span>
+                          <span className="font-medium text-purple-600">
+                            $
+                            {student?.classfee
+                              ? (
+                                  (student.classfee *
+                                    (newPrize.percentage || 0)) /
+                                  100
+                                ).toFixed(2)
+                              : "0.00"}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
                     <div className="bg-purple-50 rounded-2xl p-6 border border-purple-200">
-                      <h4 className="text-sm font-medium text-purple-700 mb-4 flex items-center gap-2"><FiInfo size={16} /> Prize Information</h4>
+                      <h4 className="text-sm font-medium text-purple-700 mb-4 flex items-center gap-2">
+                        <FiInfo size={16} /> Prize Information
+                      </h4>
                       <ul className="space-y-3 text-sm text-purple-600">
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Prize is calculated as a percentage of monthly fee</span></li>
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Prize will be applied to the selected month</span></li>
-                        <li className="flex items-start gap-2"><span className="mt-1">•</span><span>Reason is optional for 100% prize (free month)</span></li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1">•</span>
+                          <span>
+                            Prize is calculated as a percentage of monthly fee
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1">•</span>
+                          <span>
+                            Prize will be applied to the selected month
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1">•</span>
+                          <span>
+                            Reason is optional for 100% prize (free month)
+                          </span>
+                        </li>
                       </ul>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 w-full">
-                  <button onClick={handleClosePrize} className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all">Cancel</button>
+                  <button
+                    onClick={handleClosePrize}
+                    className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all"
+                  >
+                    Cancel
+                  </button>
                   <button
                     onClick={handlePrizeSubmit}
                     disabled={isSubmitting}
@@ -2572,7 +3018,8 @@ export default function PaymentManagement({
                   >
                     {isSubmitting ? (
                       <>
-                        <FiRefreshCw className="animate-spin" size={18} /> Adding...
+                        <FiRefreshCw className="animate-spin" size={18} />{" "}
+                        Adding...
                       </>
                     ) : (
                       <>
