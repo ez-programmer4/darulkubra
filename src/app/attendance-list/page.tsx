@@ -527,12 +527,17 @@ export default function AttendanceList() {
         }
       }
 
+      return date
+        .toLocaleString()
+        .slice(11)
+        .replace(/(:\d{2}\s)/g, " ");
+
       // Handle 24hr format or ISO format
-      const hours = date.getHours();
-      const minutes = date.getMinutes();
-      const period = hours >= 12 ? "PM" : "AM";
-      const displayHours = hours % 12 || 12;
-      return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
+      // const hours = date.getHours();
+      // const minutes = date.getMinutes();
+      // const period = hours >= 12 ? "PM" : "AM";
+      // const displayHours = hours % 12 || 12;
+      // return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
     } catch (e) {
       return "N/A";
     }
