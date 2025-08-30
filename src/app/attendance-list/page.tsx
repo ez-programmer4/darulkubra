@@ -492,11 +492,12 @@ export default function AttendanceList() {
       return "N/A";
     }
     try {
+      return dateStr;
       // Directly format the UTC string to avoid local timezone conversion
       // Input: "2025-06-20T16:00:00.000Z" -> Output: "2025-06-20 16:00"
-      const datePart = dateStr.substring(0, 10);
-      const timePart = dateStr.substring(11, 16);
-      return `${datePart} ${timePart}`;
+      // const datePart = dateStr.substring(0, 10);
+      // const timePart = dateStr.substring(11, 16);
+      // return `${datePart} ${timePart}`;
     } catch (e) {
       return "N/A";
     }
