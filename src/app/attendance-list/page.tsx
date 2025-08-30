@@ -218,7 +218,7 @@ export default function AttendanceList() {
           // Parse scheduledAt
           let scheduled: Date | null = null;
           if (record.scheduledAt && record.scheduledAt !== "null") {
-            scheduled = parseISO(record.scheduledAt);
+            scheduled = new Date(record.scheduledAt);
             if (!isValid(scheduled)) scheduled = null;
           }
           return {
@@ -279,7 +279,7 @@ export default function AttendanceList() {
         const updatedData = result.integratedData.map((record: any) => {
           let scheduled: Date | null = null;
           if (record.scheduledAt && record.scheduledAt !== "null") {
-            scheduled = parseISO(record.scheduledAt);
+            scheduled = new Date(record.scheduledAt);
             if (!isValid(scheduled)) scheduled = null;
           }
           return {
@@ -615,15 +615,15 @@ export default function AttendanceList() {
 
       // Debug log
       if (record.student_id === dataToCheck[0]?.student_id) {
-        console.log("Debug student:", {
-          studentName: record.studentName,
-          scheduledOriginal: record.scheduledDateObj.toISOString(),
-          currentTime: now.toISOString(),
-          timeDiff: Math.floor(timeDiff),
-          hasNoLink,
-          isToday,
-          willAlert: timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday,
-        });
+        // console.log("Debug student:", {
+        //   studentName: record.studentName,
+        //   scheduledOriginal: record.scheduledDateObj.toISOString(),
+        //   currentTime: now.toISOString(),
+        //   timeDiff: Math.floor(timeDiff),
+        //   hasNoLink,
+        //   isToday,
+        //   willAlert: timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday,
+        // });
       }
 
       if (timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday) {
