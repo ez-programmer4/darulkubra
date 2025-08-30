@@ -524,13 +524,24 @@ export default function AttendanceList() {
         }
       }
 
-      // Handle 24hr format or ISO format - convert to 12hr
-      const date = new Date(dateStr);
-      const hours = date.getHours();
-      const minutes = date.getMinutes();
-      const period = hours >= 12 ? "PM" : "AM";
-      const displayHours = hours % 12 || 12;
-      return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
+      // Extract time directly from string if it's in format "HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS"
+      let timeStr = dateStr;
+      if (dateStr.includes('T')) {
+        // ISO format: extract time part after 'T'
+        timeStr = dateStr.split('T')[1].split('.')[0]; // Gets "20:00:00" from "2025-01-20T20:00:00.000Z"
+      }
+      
+      // Parse HH:MM:SS format directly
+      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+      if (timeMatch) {
+        const hours = parseInt(timeMatch[1]);
+        const minutes = parseInt(timeMatch[2]);
+        const period = hours >= 12 ? "PM" : "AM";
+        const displayHours = hours % 12 || 12;
+        return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
+      }
+
+      return "N/A";
     } catch (e) {
       return "N/A";
     }
