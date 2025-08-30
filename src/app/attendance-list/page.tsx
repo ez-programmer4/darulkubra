@@ -513,9 +513,6 @@ export default function AttendanceList() {
       return "N/A";
     }
     try {
-      // Parse the date and handle both 12hr and 24hr formats
-      const date = new Date(dateStr);
-
       // Check if time contains AM/PM (12hr format stored in DB)
       if (dateStr.includes("AM") || dateStr.includes("PM")) {
         // Already in 12hr format, just extract time
@@ -527,17 +524,13 @@ export default function AttendanceList() {
         }
       }
 
-      return date
-        .toLocaleString()
-        .slice(11)
-        .replace(/(:\d{2}\s)/g, " ");
-
-      // Handle 24hr format or ISO format
-      // const hours = date.getHours();
-      // const minutes = date.getMinutes();
-      // const period = hours >= 12 ? "PM" : "AM";
-      // const displayHours = hours % 12 || 12;
-      // return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
+      // Handle 24hr format or ISO format - convert to 12hr
+      const date = new Date(dateStr);
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      const period = hours >= 12 ? "PM" : "AM";
+      const displayHours = hours % 12 || 12;
+      return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
     } catch (e) {
       return "N/A";
     }
