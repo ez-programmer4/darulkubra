@@ -138,18 +138,18 @@ export default function AttendanceList() {
   useEffect(() => {
     if (showLatenessPanel) {
       updateLatenessAlerts();
-      
+
       // Smart interval: faster when there are active alerts
       const hasActiveAlerts = Object.keys(latenessAlerts).length > 0;
       const intervalTime = hasActiveAlerts ? 10000 : 30000; // 10s vs 30s
-      
+
       const interval = setInterval(() => {
         updateLatenessAlerts();
         if (latenessSettings.autoNotify) {
           autoNotifyCriticalCases();
         }
       }, intervalTime);
-      
+
       setAutoRefreshInterval(interval);
       return () => {
         if (interval) clearInterval(interval);
@@ -314,24 +314,24 @@ export default function AttendanceList() {
 
     toast.loading(`Sending ${unnotifiedAlerts.length} notifications...`);
     let successCount = 0;
-    
+
     for (let i = 0; i < unnotifiedAlerts.length; i++) {
       const [studentId, alert] = unnotifiedAlerts[i];
       const student = data.find((r) => r.student_id === parseInt(studentId));
-      
+
       if (student) {
         try {
           const response = await fetch(`/api/attendance-list/notify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
               studentId: parseInt(studentId),
               urgency: alert.level,
-              minutesLate: alert.minutesLate
+              minutesLate: alert.minutesLate,
             }),
             credentials: "include",
           });
-          
+
           const result = await response.json();
           if (response.ok && result.success) {
             setLatenessAlerts((prev) => ({
@@ -344,20 +344,28 @@ export default function AttendanceList() {
             }));
             successCount++;
           }
-          
+
           // Delay between notifications to avoid overwhelming
           if (i < unnotifiedAlerts.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, latenessSettings.bulkNotifyDelay * 1000));
+            await new Promise((resolve) =>
+              setTimeout(resolve, latenessSettings.bulkNotifyDelay * 1000)
+            );
           }
         } catch (err) {
-          console.error("Bulk notification failed for student:", studentId, err);
+          console.error(
+            "Bulk notification failed for student:",
+            studentId,
+            err
+          );
         }
       }
     }
 
     toast.dismiss();
     if (successCount > 0) {
-      toast.success(`✅ ${successCount}/${unnotifiedAlerts.length} notifications sent successfully`);
+      toast.success(
+        `✅ ${successCount}/${unnotifiedAlerts.length} notifications sent successfully`
+      );
     } else {
       toast.error("❌ Failed to send bulk notifications");
     }
@@ -505,17 +513,19 @@ export default function AttendanceList() {
     }
     try {
       // Parse the date and handle both 12hr and 24hr formats
-      const date = parseISO(dateStr);
-      
+      const date = new Date(dateStr);
+
       // Check if time contains AM/PM (12hr format stored in DB)
-      if (dateStr.includes('AM') || dateStr.includes('PM')) {
+      if (dateStr.includes("AM") || dateStr.includes("PM")) {
         // Already in 12hr format, just extract time
         const timeMatch = dateStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
         if (timeMatch) {
-          return `${timeMatch[1]}:${timeMatch[2]} ${timeMatch[3].toUpperCase()}`;
+          return `${timeMatch[1]}:${
+            timeMatch[2]
+          } ${timeMatch[3].toUpperCase()}`;
         }
       }
-      
+
       // Handle 24hr format or ISO format
       const hours = date.getHours();
       const minutes = date.getMinutes();
@@ -571,7 +581,7 @@ export default function AttendanceList() {
           level: "critical",
           minutesLate: 5,
           notified: false,
-          priority: 3
+          priority: 3,
         };
       }
     }
@@ -582,40 +592,43 @@ export default function AttendanceList() {
       // Create today's date with scheduled time for comparison
       const today = new Date();
       const scheduledTime = new Date(record.scheduledDateObj);
-      
+
       // Create scheduled datetime for today
       const todayScheduled = new Date(
         today.getFullYear(),
-        today.getMonth(), 
+        today.getMonth(),
         today.getDate(),
         scheduledTime.getHours(),
         scheduledTime.getMinutes(),
         scheduledTime.getSeconds()
       );
-      
+
       const timeDiff = (now.getTime() - todayScheduled.getTime()) / (1000 * 60);
-      const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
-      
+      const hasNoLink =
+        !record.links ||
+        record.links.length === 0 ||
+        !record.links.some((l) => l.sent_time);
+
       // Check if it's today's class and within 15 minute window (0-15 minutes)
       const isToday = today.toDateString() === now.toDateString();
-      
+
       // Debug log
       if (record.student_id === dataToCheck[0]?.student_id) {
-        console.log('Debug student:', {
+        console.log("Debug student:", {
           studentName: record.studentName,
           scheduledOriginal: record.scheduledDateObj.toISOString(),
           currentTime: now.toISOString(),
           timeDiff: Math.floor(timeDiff),
           hasNoLink,
           isToday,
-          willAlert: timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday
+          willAlert: timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday,
         });
       }
-      
+
       if (timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday) {
         let level: "alert" | "warning" | "critical" = "alert";
         let priority = 1;
-        
+
         // Enhanced priority system based on time passed
         if (timeDiff >= latenessSettings.criticalThreshold) {
           level = "critical";
@@ -644,19 +657,21 @@ export default function AttendanceList() {
       }
     });
 
-    console.log('Total alerts found:', Object.keys(newAlerts).length);
+    console.log("Total alerts found:", Object.keys(newAlerts).length);
     setLatenessAlerts(newAlerts);
 
     // Enhanced sound alerts with different urgency levels
     if (latenessSettings.soundAlerts) {
       const newCritical = Object.entries(newAlerts).filter(
-        ([id, alert]) => alert.level === "critical" && !latenessAlerts[parseInt(id)]?.notified
+        ([id, alert]) =>
+          alert.level === "critical" && !latenessAlerts[parseInt(id)]?.notified
       );
-      
+
       const newWarning = Object.entries(newAlerts).filter(
-        ([id, alert]) => alert.level === "warning" && !latenessAlerts[parseInt(id)]?.notified
+        ([id, alert]) =>
+          alert.level === "warning" && !latenessAlerts[parseInt(id)]?.notified
       );
-      
+
       if (newCritical.length > 0) {
         playNotificationSound("critical");
       } else if (newWarning.length > 0) {
@@ -675,14 +690,17 @@ export default function AttendanceList() {
       const scheduledTime = new Date(record.scheduledDateObj);
       const todayScheduled = new Date(
         today.getFullYear(),
-        today.getMonth(), 
+        today.getMonth(),
         today.getDate(),
         scheduledTime.getHours(),
         scheduledTime.getMinutes(),
         scheduledTime.getSeconds()
       );
       const timeDiff = (now.getTime() - todayScheduled.getTime()) / (1000 * 60);
-      const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
+      const hasNoLink =
+        !record.links ||
+        record.links.length === 0 ||
+        !record.links.some((l) => l.sent_time);
       const isToday = today.toDateString() === now.toDateString();
       return timeDiff > 15 && hasNoLink && isToday;
     });
@@ -695,26 +713,47 @@ export default function AttendanceList() {
 
   const getLatenessStats = () => {
     const total = Object.keys(latenessAlerts).length;
-    const critical = Object.values(latenessAlerts).filter(a => a.level === "critical").length;
-    const warning = Object.values(latenessAlerts).filter(a => a.level === "warning").length;
-    const alert = Object.values(latenessAlerts).filter(a => a.level === "alert").length;
-    const notified = Object.values(latenessAlerts).filter(a => a.notified).length;
-    const autoNotified = Object.values(latenessAlerts).filter(a => a.autoNotified).length;
+    const critical = Object.values(latenessAlerts).filter(
+      (a) => a.level === "critical"
+    ).length;
+    const warning = Object.values(latenessAlerts).filter(
+      (a) => a.level === "warning"
+    ).length;
+    const alert = Object.values(latenessAlerts).filter(
+      (a) => a.level === "alert"
+    ).length;
+    const notified = Object.values(latenessAlerts).filter(
+      (a) => a.notified
+    ).length;
+    const autoNotified = Object.values(latenessAlerts).filter(
+      (a) => a.autoNotified
+    ).length;
     const unnotified = total - notified;
     const highPriority = critical;
 
-    return { total, critical, warning, alert, notified, autoNotified, unnotified, highPriority };
+    return {
+      total,
+      critical,
+      warning,
+      alert,
+      notified,
+      autoNotified,
+      unnotified,
+      highPriority,
+    };
   };
 
-  function playNotificationSound(type: "emergency" | "critical" | "warning" = "critical") {
+  function playNotificationSound(
+    type: "emergency" | "critical" | "warning" = "critical"
+  ) {
     if (typeof window !== "undefined") {
       // Different sounds for different urgency levels
       const soundMap = {
         emergency: "/sounds/emergency.mp3",
-        critical: "/sounds/critical.mp3", 
-        warning: "/sounds/warning.mp3"
+        critical: "/sounds/critical.mp3",
+        warning: "/sounds/warning.mp3",
       };
-      
+
       const audio = new Audio(soundMap[type] || "/notification.mp3");
       audio.volume = type === "emergency" ? 0.8 : 0.6;
       audio.play().catch(() => {
@@ -722,43 +761,41 @@ export default function AttendanceList() {
         if ("Notification" in window && Notification.permission === "granted") {
           new Notification(`🚨 ${type.toUpperCase()} Alert`, {
             body: `Student link not sent - ${type} lateness detected`,
-            icon: "/favicon.ico"
+            icon: "/favicon.ico",
           });
         }
       });
     }
   }
-  
+
   // Auto-notify critical cases
   const autoNotifyCriticalCases = async () => {
     const criticalUnnotified = Object.entries(latenessAlerts).filter(
-      ([id, alert]) => 
-        alert.level === "critical" && 
-        !alert.notified && 
-        !alert.autoNotified
+      ([id, alert]) =>
+        alert.level === "critical" && !alert.notified && !alert.autoNotified
     );
-    
+
     for (const [studentId, alert] of criticalUnnotified) {
       try {
         const response = await fetch(`/api/attendance-list/notify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             studentId: parseInt(studentId),
             urgency: alert.level,
             minutesLate: alert.minutesLate,
-            autoNotify: true
+            autoNotify: true,
           }),
         });
-        
+
         if (response.ok) {
-          setLatenessAlerts(prev => ({
+          setLatenessAlerts((prev) => ({
             ...prev,
             [parseInt(studentId)]: {
               ...prev[parseInt(studentId)],
               autoNotified: true,
               lastNotification: new Date(),
-            }
+            },
           }));
           toast.success(`🤖 Auto-notified teacher for ${alert.level} case`);
         }
@@ -767,8 +804,6 @@ export default function AttendanceList() {
       }
     }
   };
-
-
 
   // Attendance statistics calculation based on all data (not just current page)
 
@@ -1128,7 +1163,8 @@ export default function AttendanceList() {
                     🚨 Real-Time Lateness Monitor
                   </h3>
                   <p className="text-sm text-red-600 mt-1">
-                    Live Student Monitoring • 0-15 min window • Real-time alerts • Auto-notifications
+                    Live Student Monitoring • 0-15 min window • Real-time alerts
+                    • Auto-notifications
                   </p>
                 </div>
               </div>
@@ -1153,7 +1189,11 @@ export default function AttendanceList() {
                 <button
                   onClick={() => {
                     fetchAllDataForEmergencyAsync();
-                    toast.success(`Scanning ${allData.length || 'all'} students for lateness...`);
+                    toast.success(
+                      `Scanning ${
+                        allData.length || "all"
+                      } students for lateness...`
+                    );
                   }}
                   className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-lg transition-all duration-300 flex items-center gap-2"
                   title="Force refresh all student data for comprehensive monitoring"
@@ -1280,9 +1320,9 @@ export default function AttendanceList() {
                     <input
                       type="checkbox"
                       checked={false}
-                      onChange={(e) =>
-                        {/* No-op since showExpired is not in the settings */}
-                      }
+                      onChange={(e) => {
+                        /* No-op since showExpired is not in the settings */
+                      }}
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
                     <label className="ml-2 text-gray-700">
@@ -1310,14 +1350,15 @@ export default function AttendanceList() {
                 </div>
               </div>
               <div className="mt-3 text-xs text-gray-600 bg-gray-100 p-2 rounded">
-                💡 <strong>Enhanced Features:</strong> Monitors all students from class start (0min) to 15min window. 
-                Auto-notify for critical cases. Smart priority system. Bulk operations with delay protection.
+                💡 <strong>Enhanced Features:</strong> Monitors all students
+                from class start (0min) to 15min window. Auto-notify for
+                critical cases. Smart priority system. Bulk operations with
+                delay protection.
               </div>
             </div>
 
             {/* Enhanced Current Alerts Dashboard */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-              
               <div className="bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-4 border-2 border-green-300 shadow-lg transform hover:scale-105 transition-all duration-300">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-sm font-bold text-green-700">
@@ -1328,7 +1369,11 @@ export default function AttendanceList() {
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-green-800 mb-1">
-                  {Object.values(latenessAlerts).filter(a => a.minutesLate < latenessSettings.alertThreshold).length}
+                  {
+                    Object.values(latenessAlerts).filter(
+                      (a) => a.minutesLate < latenessSettings.alertThreshold
+                    ).length
+                  }
                 </div>
                 <div className="text-xs text-green-600">
                   Pre-scheduled window
@@ -1341,14 +1386,20 @@ export default function AttendanceList() {
                     🟠 ALERT
                   </div>
                   <div className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full">
-                    {latenessSettings.alertThreshold}-{latenessSettings.warningThreshold - 1} min
+                    {latenessSettings.alertThreshold}-
+                    {latenessSettings.warningThreshold - 1} min
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-yellow-800 mb-1">
                   {getLatenessStats().alert}
                 </div>
                 <div className="text-xs text-yellow-600">
-                  {Object.values(latenessAlerts).filter(a => a.level === "alert" && !a.notified).length} unnotified
+                  {
+                    Object.values(latenessAlerts).filter(
+                      (a) => a.level === "alert" && !a.notified
+                    ).length
+                  }{" "}
+                  unnotified
                 </div>
               </div>
 
@@ -1358,14 +1409,20 @@ export default function AttendanceList() {
                     🟡 WARNING
                   </div>
                   <div className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
-                    {latenessSettings.warningThreshold}-{latenessSettings.criticalThreshold - 1} min
+                    {latenessSettings.warningThreshold}-
+                    {latenessSettings.criticalThreshold - 1} min
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-orange-800 mb-1">
                   {getLatenessStats().warning}
                 </div>
                 <div className="text-xs text-orange-600">
-                  {Object.values(latenessAlerts).filter(a => a.level === "warning" && !a.notified).length} unnotified
+                  {
+                    Object.values(latenessAlerts).filter(
+                      (a) => a.level === "warning" && !a.notified
+                    ).length
+                  }{" "}
+                  unnotified
                 </div>
               </div>
 
@@ -1382,10 +1439,15 @@ export default function AttendanceList() {
                   {getLatenessStats().critical}
                 </div>
                 <div className="text-xs text-red-600">
-                  {Object.values(latenessAlerts).filter(a => a.level === "critical" && !a.notified).length} unnotified
+                  {
+                    Object.values(latenessAlerts).filter(
+                      (a) => a.level === "critical" && !a.notified
+                    ).length
+                  }{" "}
+                  unnotified
                 </div>
               </div>
-              
+
               <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-4 border-2 border-gray-300 shadow-lg transform hover:scale-105 transition-all duration-300">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-sm font-bold text-gray-700">
@@ -1398,9 +1460,7 @@ export default function AttendanceList() {
                 <div className="text-3xl font-bold text-gray-800 mb-1">
                   {expiredStudents.length}
                 </div>
-                <div className="text-xs text-gray-600">
-                  Too late to notify
-                </div>
+                <div className="text-xs text-gray-600">Too late to notify</div>
               </div>
             </div>
 
@@ -1418,11 +1478,20 @@ export default function AttendanceList() {
                     <button
                       onClick={() => {
                         const criticalStudents = Object.entries(latenessAlerts)
-                          .filter(([, alert]) => alert.level === "critical" && !alert.notified)
+                          .filter(
+                            ([, alert]) =>
+                              alert.level === "critical" && !alert.notified
+                          )
                           .map(([id]) => parseInt(id));
-                        criticalStudents.forEach(id => {
-                          const student = allData.find(s => s.student_id === id);
-                          if (student) handleNotifyClick(id, student.scheduledAt?.substring(0, 10) || "");
+                        criticalStudents.forEach((id) => {
+                          const student = allData.find(
+                            (s) => s.student_id === id
+                          );
+                          if (student)
+                            handleNotifyClick(
+                              id,
+                              student.scheduledAt?.substring(0, 10) || ""
+                            );
                         });
                       }}
                       className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-bold transition-all"
@@ -1431,7 +1500,9 @@ export default function AttendanceList() {
                     </button>
                     <button
                       onClick={() => {
-                        Object.keys(latenessAlerts).forEach(id => markAsNotified(parseInt(id)));
+                        Object.keys(latenessAlerts).forEach((id) =>
+                          markAsNotified(parseInt(id))
+                        );
                       }}
                       className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-all"
                     >
@@ -1445,16 +1516,32 @@ export default function AttendanceList() {
                 <div className="max-h-96 overflow-y-auto">
                   <div className="divide-y divide-gray-200">
                     {Object.entries(latenessAlerts)
-                      .sort(([, a], [, b]) => b.priority - a.priority || b.minutesLate - a.minutesLate)
+                      .sort(
+                        ([, a], [, b]) =>
+                          b.priority - a.priority ||
+                          b.minutesLate - a.minutesLate
+                      )
                       .map(([studentId, alert], index) => {
-                        const student = allData.find(
-                          (r) => r.student_id === parseInt(studentId)
-                        ) || data.find((r) => r.student_id === parseInt(studentId));
+                        const student =
+                          allData.find(
+                            (r) => r.student_id === parseInt(studentId)
+                          ) ||
+                          data.find(
+                            (r) => r.student_id === parseInt(studentId)
+                          );
                         if (!student) return null;
 
-                        const urgencyIcon = alert.level === "critical" ? "🔥" : alert.level === "warning" ? "⚠️" : "⏰";
+                        const urgencyIcon =
+                          alert.level === "critical"
+                            ? "🔥"
+                            : alert.level === "warning"
+                            ? "⚠️"
+                            : "⏰";
                         const timeRemaining = 15 - alert.minutesLate;
-                        const progressPercentage = Math.min((alert.minutesLate / 15) * 100, 100);
+                        const progressPercentage = Math.min(
+                          (alert.minutesLate / 15) * 100,
+                          100
+                        );
 
                         return (
                           <motion.div
@@ -1463,21 +1550,28 @@ export default function AttendanceList() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.1 }}
                             className={`p-4 hover:bg-gray-50 transition-all duration-300 ${
-                              alert.level === "critical" ? "bg-red-50 border-l-4 border-red-500" :
-                              alert.level === "warning" ? "bg-orange-50 border-l-4 border-orange-500" :
-                              "bg-yellow-50 border-l-4 border-yellow-500"
+                              alert.level === "critical"
+                                ? "bg-red-50 border-l-4 border-red-500"
+                                : alert.level === "warning"
+                                ? "bg-orange-50 border-l-4 border-orange-500"
+                                : "bg-yellow-50 border-l-4 border-yellow-500"
                             }`}
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
-                                  <span className="text-2xl">{urgencyIcon}</span>
+                                  <span className="text-2xl">
+                                    {urgencyIcon}
+                                  </span>
                                   <div>
                                     <h5 className="font-bold text-lg text-gray-900">
                                       {student.studentName}
                                     </h5>
                                     <p className="text-sm text-gray-600">
-                                      Teacher: <span className="font-medium">{student.ustazName}</span>
+                                      Teacher:{" "}
+                                      <span className="font-medium">
+                                        {student.ustazName}
+                                      </span>
                                     </p>
                                   </div>
                                   <div className="flex gap-2">
@@ -1508,24 +1602,37 @@ export default function AttendanceList() {
                                 <div className="grid grid-cols-4 gap-4 text-sm mb-3">
                                   <div className="flex items-center gap-1">
                                     <span className="text-gray-500">🕐</span>
-                                    <span className="font-medium">{formatTimeOnly(student.scheduledAt)}</span>
+                                    <span className="font-medium">
+                                      {formatTimeOnly(student.scheduledAt)}
+                                    </span>
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <span className="text-red-500">⏱️</span>
-                                    <span className="font-bold text-red-600">{alert.minutesLate} min late</span>
+                                    <span className="font-bold text-red-600">
+                                      {alert.minutesLate} min late
+                                    </span>
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <span className="text-blue-500">⏳</span>
-                                    <span className={`font-medium ${
-                                      timeRemaining > 5 ? "text-green-600" :
-                                      timeRemaining > 0 ? "text-orange-600" : "text-red-600"
-                                    }`}>
-                                      {timeRemaining > 0 ? `${timeRemaining} min left` : 'EXPIRED'}
+                                    <span
+                                      className={`font-medium ${
+                                        timeRemaining > 5
+                                          ? "text-green-600"
+                                          : timeRemaining > 0
+                                          ? "text-orange-600"
+                                          : "text-red-600"
+                                      }`}
+                                    >
+                                      {timeRemaining > 0
+                                        ? `${timeRemaining} min left`
+                                        : "EXPIRED"}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <span className="text-purple-500">📊</span>
-                                    <span className="font-medium">Priority {alert.priority}/5</span>
+                                    <span className="font-medium">
+                                      Priority {alert.priority}/5
+                                    </span>
                                   </div>
                                 </div>
 
@@ -1533,23 +1640,32 @@ export default function AttendanceList() {
                                 <div className="mb-3">
                                   <div className="flex justify-between text-xs text-gray-600 mb-1">
                                     <span>Time Progress</span>
-                                    <span>{Math.round(progressPercentage)}%</span>
+                                    <span>
+                                      {Math.round(progressPercentage)}%
+                                    </span>
                                   </div>
                                   <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
                                       className={`h-2 rounded-full transition-all duration-500 ${
-                                        progressPercentage < 33 ? "bg-green-500" :
-                                        progressPercentage < 66 ? "bg-yellow-500" :
-                                        progressPercentage < 90 ? "bg-orange-500" : "bg-red-500"
+                                        progressPercentage < 33
+                                          ? "bg-green-500"
+                                          : progressPercentage < 66
+                                          ? "bg-yellow-500"
+                                          : progressPercentage < 90
+                                          ? "bg-orange-500"
+                                          : "bg-red-500"
                                       }`}
-                                      style={{ width: `${progressPercentage}%` }}
+                                      style={{
+                                        width: `${progressPercentage}%`,
+                                      }}
                                     ></div>
                                   </div>
                                 </div>
 
                                 {alert.lastNotification && (
                                   <div className="text-xs text-gray-500">
-                                    Last notified: {format(alert.lastNotification, "HH:mm:ss")}
+                                    Last notified:{" "}
+                                    {format(alert.lastNotification, "HH:mm:ss")}
                                   </div>
                                 )}
                               </div>
@@ -1560,7 +1676,8 @@ export default function AttendanceList() {
                                     onClick={() =>
                                       handleNotifyClick(
                                         parseInt(studentId),
-                                        student.scheduledAt?.substring(0, 10) || ""
+                                        student.scheduledAt?.substring(0, 10) ||
+                                          ""
                                       )
                                     }
                                     className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-all hover:scale-105 shadow-lg ${
@@ -1572,11 +1689,15 @@ export default function AttendanceList() {
                                     }`}
                                   >
                                     <FiBell className="w-4 h-4" />
-                                    {alert.level === "critical" ? "URGENT" : "NOTIFY"}
+                                    {alert.level === "critical"
+                                      ? "URGENT"
+                                      : "NOTIFY"}
                                   </button>
                                 )}
                                 <button
-                                  onClick={() => markAsNotified(parseInt(studentId))}
+                                  onClick={() =>
+                                    markAsNotified(parseInt(studentId))
+                                  }
                                   className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
                                 >
                                   Mark Done
@@ -1591,8 +1712,12 @@ export default function AttendanceList() {
               ) : (
                 <div className="p-8 text-center">
                   <div className="text-6xl mb-4">✅</div>
-                  <h3 className="text-xl font-bold text-gray-700 mb-2">All Clear!</h3>
-                  <p className="text-gray-500">No late students detected. All zoom links sent on time.</p>
+                  <h3 className="text-xl font-bold text-gray-700 mb-2">
+                    All Clear!
+                  </h3>
+                  <p className="text-gray-500">
+                    No late students detected. All zoom links sent on time.
+                  </p>
                 </div>
               )}
             </div>
@@ -1603,27 +1728,76 @@ export default function AttendanceList() {
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse mr-2"></div>
                     <span className="text-blue-700 font-medium">
-                      🔴 Live Emergency Monitor {latenessSettings.autoNotify ? "+ Auto-Notify" : ""}
+                      🔴 Live Emergency Monitor{" "}
+                      {latenessSettings.autoNotify ? "+ Auto-Notify" : ""}
                     </span>
                   </div>
                   <div className="text-blue-600">
-                    ⏰ <span className="font-mono font-bold">{format(new Date(), "HH:mm:ss")}</span>
+                    ⏰{" "}
+                    <span className="font-mono font-bold">
+                      {format(new Date(), "HH:mm:ss")}
+                    </span>
                   </div>
                   <div className="text-blue-600">
-                    📊 Monitoring: <span className="font-bold">{allData.length}</span> students
+                    📊 Monitoring:{" "}
+                    <span className="font-bold">{allData.length}</span> students
                   </div>
                   <div className="text-blue-600">
-                    🔄 Refresh: <span className="font-bold">{Object.keys(latenessAlerts).length > 0 ? "10s" : "30s"}</span>
+                    🔄 Refresh:{" "}
+                    <span className="font-bold">
+                      {Object.keys(latenessAlerts).length > 0 ? "10s" : "30s"}
+                    </span>
                   </div>
                 </div>
                 <div className="text-right text-xs text-blue-600">
                   <div className="grid grid-cols-3 gap-2">
-                    <div>🚨 Active: <span className="font-bold text-red-600">{getLatenessStats().total}</span></div>
-                    <div>⚠️ Unnotified: <span className="font-bold text-orange-600">{getLatenessStats().unnotified}</span></div>
-                    <div>✅ Handled: <span className="font-bold text-green-600">{getLatenessStats().notified}</span></div>
-                    <div>💀 Expired: <span className="font-bold text-gray-600">{expiredStudents.length}</span></div>
-                    <div>🔥 Critical: <span className="font-bold text-purple-600">{Object.values(latenessAlerts).filter(a => a.level === 'critical').length}</span></div>
-                    <div>📈 Coverage: <span className="font-bold text-indigo-600">{allData.length > 0 ? Math.round((Object.keys(latenessAlerts).length / allData.length) * 100) : 0}%</span></div>
+                    <div>
+                      🚨 Active:{" "}
+                      <span className="font-bold text-red-600">
+                        {getLatenessStats().total}
+                      </span>
+                    </div>
+                    <div>
+                      ⚠️ Unnotified:{" "}
+                      <span className="font-bold text-orange-600">
+                        {getLatenessStats().unnotified}
+                      </span>
+                    </div>
+                    <div>
+                      ✅ Handled:{" "}
+                      <span className="font-bold text-green-600">
+                        {getLatenessStats().notified}
+                      </span>
+                    </div>
+                    <div>
+                      💀 Expired:{" "}
+                      <span className="font-bold text-gray-600">
+                        {expiredStudents.length}
+                      </span>
+                    </div>
+                    <div>
+                      🔥 Critical:{" "}
+                      <span className="font-bold text-purple-600">
+                        {
+                          Object.values(latenessAlerts).filter(
+                            (a) => a.level === "critical"
+                          ).length
+                        }
+                      </span>
+                    </div>
+                    <div>
+                      📈 Coverage:{" "}
+                      <span className="font-bold text-indigo-600">
+                        {allData.length > 0
+                          ? Math.round(
+                              (Object.keys(latenessAlerts).length /
+                                allData.length) *
+                                100
+                            )
+                          : 0}
+                        %
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1663,8 +1837,6 @@ export default function AttendanceList() {
           </button>
         </div>
       )}
-
-
 
       {/* Attendance Analytics Section */}
       <div className="mb-8">

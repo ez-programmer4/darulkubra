@@ -730,7 +730,7 @@ export default function Dashboard() {
             .student-status.active { background: #d1fae5; color: #059669; }
             .student-status.leave, .student-status.remadan-leave { background: #fee2e2; color: #dc2626; }
             .student-status.fresh { background: #e0e7ff; color: #6366f1; }
-            .student-status.notyet { background: #f3f4f6; color: #6b7280; }
+            .student-status.Not yet { background: #f3f4f6; color: #6b7280; }
             .student-status.pending { background: #fef9c3; color: #b45309; }
             .student-status.inactive { background: #f3f4f6; color: #6b7280; }
             .student-details {
@@ -866,12 +866,6 @@ export default function Dashboard() {
               >
                 <FiRefreshCw className="mr-2" /> Refresh
               </button>
-              <Link
-                href="/registral/earnings"
-                className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-4 py-3 rounded-xl flex items-center shadow-md hover:shadow-lg transition-all duration-300"
-              >
-                <FiDollarSign className="mr-2" /> My Earnings
-              </Link>
               <button
                 onClick={handleLogout}
                 className="bg-red-100 hover:bg-red-200 text-red-800 px-4 py-3 rounded-xl flex items-center shadow-md hover:shadow-lg transition-all duration-300"
