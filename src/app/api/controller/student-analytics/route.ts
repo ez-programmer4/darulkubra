@@ -591,17 +591,26 @@ async function getPackageDetails(packageId: string, studentId: number) {
     orderBy: { order: "asc" },
   });
 
-  return courses.map((course) => ({
-    id: course.id,
-    title: course.title,
-    chapters: course.chapters.map((chapter) => ({
-      id: chapter.id,
-      title: chapter.title,
-      status: chapter.studentProgress[0]?.isCompleted
-        ? "completed"
-        : chapter.studentProgress[0]
-        ? "inprogress"
-        : "notstarted",
-    })),
-  }));
+  return courses.map((course) => {
+    const totalChapters = course.chapters.length;
+    const completedChapters = course.chapters.filter(
+      (chapter) => chapter.studentProgress[0]?.isCompleted
+    ).length;
+    const inProgressChapters = course.chapters.filter(
+      (chapter) => chapter.studentProgress[0] && !chapter.studentProgress[0]?.isCompleted
+    ).length;
+    const notStartedChapters = totalChapters - completedChapters - inProgressChapters;
+    const progressPercent = totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0;
+
+    return {
+      id: course.id,
+      title: course.title,
+      totalChapters,
+      completedChapters,
+      inProgressChapters,
+      notStartedChapters,
+      progressPercent,
+      status: progressPercent === 100 ? 'completed' : progressPercent > 0 ? 'inprogress' : 'notstarted'
+    };
+  });
 }

@@ -38,11 +38,12 @@ interface StudentAnalytics {
 interface PackageDetails {
   id: string;
   title: string;
-  chapters: {
-    id: string;
-    title: string;
-    status: 'notstarted' | 'inprogress' | 'completed';
-  }[];
+  totalChapters: number;
+  completedChapters: number;
+  inProgressChapters: number;
+  notStartedChapters: number;
+  progressPercent: number;
+  status: 'notstarted' | 'inprogress' | 'completed';
 }
 
 interface Pagination {
@@ -592,42 +593,139 @@ export default function StudentAnalytics() {
           )}
         </div>
 
-        {/* Package Details Modal */}
+        {/* Enhanced Package Details Modal */}
         {showPackageModal && packageDetails && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Package Progress Details</h3>
-                <button
-                  onClick={() => setShowPackageModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 text-white">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-xl font-bold">📊 Course Progress Overview</h3>
+                    <p className="text-blue-100 text-sm mt-1">Detailed learning analytics and progress tracking</p>
+                  </div>
+                  <button
+                    onClick={() => setShowPackageModal(false)}
+                    className="text-white hover:text-gray-200 transition-colors p-2 hover:bg-white/20 rounded-full"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
-              <div className="space-y-4">
-                {packageDetails.map((course) => (
-                  <div key={course.id} className="border rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3">{course.title}</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {course.chapters.map((chapter) => (
-                        <div
-                          key={chapter.id}
-                          className={`p-2 rounded text-xs ${
-                            chapter.status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : chapter.status === 'inprogress'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {chapter.status === 'completed' ? '✅' : 
-                           chapter.status === 'inprogress' ? '📚' : '⏸️'} {chapter.title}
+
+              {/* Modal Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(85vh-120px)]">
+                <div className="space-y-6">
+                  {packageDetails.map((course, index) => (
+                    <div key={course.id} className="bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100 rounded-xl p-6 hover:shadow-lg transition-all duration-300">
+                      {/* Course Header */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                            course.status === 'completed' ? 'bg-green-500' :
+                            course.status === 'inprogress' ? 'bg-blue-500' : 'bg-gray-400'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-bold text-gray-900">{course.title}</h4>
+                            <p className="text-sm text-gray-600">{course.totalChapters} chapters total</p>
+                          </div>
                         </div>
-                      ))}
+                        <div className="text-right">
+                          <div className={`text-2xl font-bold ${
+                            course.progressPercent === 100 ? 'text-green-600' :
+                            course.progressPercent > 0 ? 'text-blue-600' : 'text-gray-400'
+                          }`}>
+                            {course.progressPercent}%
+                          </div>
+                          <div className="text-xs text-gray-500 font-medium">
+                            {course.completedChapters}/{course.totalChapters} completed
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mb-4">
+                        <div className="flex justify-between text-xs text-gray-600 mb-2">
+                          <span>Progress</span>
+                          <span>{course.progressPercent}% Complete</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-500 ease-out ${
+                              course.progressPercent === 100 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                              course.progressPercent > 0 ? 'bg-gradient-to-r from-blue-400 to-blue-600' : 'bg-gray-300'
+                            }`}
+                            style={{ width: `${course.progressPercent}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                          <div className="text-2xl font-bold text-green-600">{course.completedChapters}</div>
+                          <div className="text-xs text-green-700 font-medium">✅ Completed</div>
+                        </div>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                          <div className="text-2xl font-bold text-blue-600">{course.inProgressChapters}</div>
+                          <div className="text-xs text-blue-700 font-medium">📚 In Progress</div>
+                        </div>
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+                          <div className="text-2xl font-bold text-gray-600">{course.notStartedChapters}</div>
+                          <div className="text-xs text-gray-700 font-medium">⏸️ Not Started</div>
+                        </div>
+                      </div>
+
+                      {/* Status Badge */}
+                      <div className="mt-4 flex justify-center">
+                        <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-bold ${
+                          course.status === 'completed' ? 'bg-green-100 text-green-800 border border-green-300' :
+                          course.status === 'inprogress' ? 'bg-blue-100 text-blue-800 border border-blue-300' :
+                          'bg-gray-100 text-gray-800 border border-gray-300'
+                        }`}>
+                          {course.status === 'completed' ? '🎉 Course Completed!' :
+                           course.status === 'inprogress' ? '🚀 Learning in Progress' :
+                           '📋 Ready to Start'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Summary Footer */}
+                <div className="mt-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
+                  <div className="text-center">
+                    <h5 className="text-lg font-bold text-indigo-800 mb-2">📈 Learning Summary</h5>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="text-center">
+                        <div className="text-xl font-bold text-indigo-600">{packageDetails.length}</div>
+                        <div className="text-indigo-700">Total Courses</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xl font-bold text-green-600">
+                          {packageDetails.filter(c => c.status === 'completed').length}
+                        </div>
+                        <div className="text-green-700">Completed</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xl font-bold text-blue-600">
+                          {packageDetails.filter(c => c.status === 'inprogress').length}
+                        </div>
+                        <div className="text-blue-700">In Progress</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xl font-bold text-purple-600">
+                          {Math.round(packageDetails.reduce((acc, c) => acc + c.progressPercent, 0) / packageDetails.length) || 0}%
+                        </div>
+                        <div className="text-purple-700">Overall Progress</div>
+                      </div>
                     </div>
                   </div>
-                ))}
+                </div>
               </div>
             </div>
           </div>
