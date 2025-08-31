@@ -33,7 +33,14 @@ export async function POST(
     // Verify ownership and collect student messaging info
     const student = await prisma.wpos_wpdatatable_23.findUnique({
       where: { wdt_ID: studentId },
-      select: { ustaz: true, chatId: true, name: true, phoneno: true },
+      select: {
+        wdt_ID: true,
+        country: true,
+        ustaz: true,
+        chatId: true,
+        name: true,
+        phoneno: true,
+      },
     });
 
     if (!student) {
@@ -130,69 +137,78 @@ export async function POST(
       tokenToUse
     )}`;
 
-    // Send Telegram notification
     let notificationSent = false;
     let notificationError = null;
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
-    if (!botToken) {
-      notificationError = "Telegram bot token not configured";
-      console.error("TELEGRAM_BOT_TOKEN environment variable is missing");
-    } else if (!student.chatId) {
-      notificationError = "Student has no Telegram chat ID";
+    if (student.country == "USA") {
+      // send email
+      await fetch(`https://darulkubra.com/api/email`, {
+        method: "POST",
+        body: JSON.stringify({ id: student.wdt_ID, token: tokenToUse }),
+      });
     } else {
-      try {
-        const message = `🎓 Assalamu Alaikum dear ${
-          student.name ?? "student"
-        },\n\nYour teacher has shared a Zoom link for your class. Click the button below to join:`;
+      // Send Telegram notification
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
-        const requestPayload = {
-          chat_id: student.chatId,
-          text: message,
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "🔗 Join Zoom Class",
-                  url: trackURL,
-                },
+      if (!botToken) {
+        notificationError = "Telegram bot token not configured";
+        console.error("TELEGRAM_BOT_TOKEN environment variable is missing");
+      } else if (!student.chatId) {
+        notificationError = "Student has no Telegram chat ID";
+      } else {
+        try {
+          const message = `🎓 Assalamu Alaikum dear ${
+            student.name ?? "student"
+          },\n\nYour teacher has shared a Zoom link for your class. Click the button below to join:`;
+
+          const requestPayload = {
+            chat_id: student.chatId,
+            text: message,
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: "🔗 Join Zoom Class",
+                    url: trackURL,
+                  },
+                ],
               ],
-            ],
-          },
-        };
-
-        const telegramResponse = await fetch(
-          `https://api.telegram.org/bot${botToken}/sendMessage`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "User-Agent": "ZoomLinkBot/1.0",
             },
-            body: JSON.stringify(requestPayload),
+          };
+
+          const telegramResponse = await fetch(
+            `https://api.telegram.org/bot${botToken}/sendMessage`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "User-Agent": "ZoomLinkBot/1.0",
+              },
+              body: JSON.stringify(requestPayload),
+            }
+          );
+
+          const responseData = await telegramResponse.json();
+
+          if (telegramResponse.ok && responseData.ok) {
+            notificationSent = true;
+          } else {
+            notificationError =
+              responseData.description || "Telegram API error";
+            console.error("❌ Telegram API error:", {
+              error_code: responseData.error_code,
+              description: responseData.description,
+              parameters: responseData.parameters,
+            });
           }
-        );
-
-        const responseData = await telegramResponse.json();
-
-        if (telegramResponse.ok && responseData.ok) {
-          notificationSent = true;
-        } else {
-          notificationError = responseData.description || "Telegram API error";
-          console.error("❌ Telegram API error:", {
-            error_code: responseData.error_code,
-            description: responseData.description,
-            parameters: responseData.parameters,
-          });
+        } catch (err) {
+          notificationError =
+            err instanceof Error ? err.message : "Unknown error";
+          console.error("❌ Telegram request failed:", err);
         }
-      } catch (err) {
-        notificationError =
-          err instanceof Error ? err.message : "Unknown error";
-        console.error("❌ Telegram request failed:", err);
       }
     }
-
     return NextResponse.json(
       {
         id: created.id,

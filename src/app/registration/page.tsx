@@ -23,12 +23,18 @@ import {
   FiUserCheck,
   FiStar,
   FiClock,
+  FiRefreshCw,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import Cookies from "js-cookie";
 import { useSession } from "next-auth/react";
 import { TimePicker } from "@/components/ui/TimePicker";
-import { to24Hour, validateTime, fromDbFormat, getPrayerRanges } from "@/utils/timeUtils";
+import {
+  to24Hour,
+  validateTime,
+  fromDbFormat,
+  getPrayerRanges,
+} from "@/utils/timeUtils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -407,6 +413,35 @@ function RegistrationContent() {
     }
   }, [step, fetchTeachers, fetchAllTeachers, (session as any)?.role, status]);
 
+  // Handle pre-filled data from US students
+  const [isUsStudent, setIsUsStudent] = useState(false);
+
+  useEffect(() => {
+    const prefilled = searchParams.get("prefilled");
+    const name = searchParams.get("name");
+    const email = searchParams.get("email");
+    const phoneno = searchParams.get("phoneno");
+    const country = searchParams.get("country");
+    const usStudentId = searchParams.get("usStudentId");
+
+    if (prefilled === "true" && name) {
+      setIsUsStudent(true);
+      setValue("fullName", name);
+      if (phoneno) setValue("phoneNumber", phoneno);
+      // Set country to USA for US students (hidden field)
+      setValue("country", "USA");
+      // Set default class fee to null for US students
+      setValue("classfee", null);
+      // Store email and usStudentId for later use
+      if (email) {
+        sessionStorage.setItem("usStudentEmail", email);
+      }
+      if (usStudentId) {
+        sessionStorage.setItem("usStudentId", usStudentId);
+      }
+    }
+  }, [searchParams, setValue]);
+
   useEffect(() => {
     const fetchStudentData = async () => {
       if (!editId) return;
@@ -505,6 +540,10 @@ function RegistrationContent() {
       const selectedUstaz = teachers.find((t) => t.ustazid === selectedTeacher);
       const control = selectedUstaz?.control?.code || null;
 
+      // Get US student data from session storage
+      const usStudentEmail = sessionStorage.getItem("usStudentEmail");
+      const usStudentId = sessionStorage.getItem("usStudentId");
+
       const payload = {
         fullName: data.fullName,
         phoneNumber: data.phoneNumber,
@@ -527,6 +566,9 @@ function RegistrationContent() {
             ? selectedTime
             : undefined,
         registrationdate: editId ? undefined : new Date().toISOString(),
+        // Add US student data
+        email: usStudentEmail || null,
+        usStudentId: usStudentId ? parseInt(usStudentId) : null,
       };
 
       const url = editId
@@ -553,6 +595,8 @@ function RegistrationContent() {
       }
 
       const result = await response.json();
+
+      // US student is now automatically linked via userId field in registration
       setAriaMessage(
         result.message ||
           (editId
@@ -574,8 +618,17 @@ function RegistrationContent() {
       });
       setShowSummary(true);
       setFormTouched(false);
+
+      // Clean up session storage
+      sessionStorage.removeItem("usStudentEmail");
+      sessionStorage.removeItem("usStudentId");
+
       setTimeout(() => {
-        window.location.href = "/dashboard";
+        if (usStudentId) {
+          window.location.href = "/dashboard";
+        } else {
+          window.location.href = "/dashboard";
+        }
       }, 1500);
     } catch (error) {
       const errorMessage =
@@ -613,42 +666,51 @@ function RegistrationContent() {
     }
   }, [status, session, router]);
 
-  useEffect(() => {
-    const checkAvailability = async () => {
-      if (!selectedDayPackage) return;
-      setLoadingAvailability(true);
-      const availability: { [time: string]: boolean } = {};
+  const checkAvailability = useCallback(async () => {
+    if (!selectedDayPackage) return;
+    setLoadingAvailability(true);
+    const availability: { [time: string]: boolean } = {};
 
-      await Promise.all(
-        timeSlots.map(async (slot) => {
-          try {
-            const res = await fetch(
-              `/api/teachers-by-time?selectedTime=${encodeURIComponent(
-                slot.time
-              )}&selectedDayPackage=${encodeURIComponent(selectedDayPackage)}`
-            );
-            if (!res.ok) {
-              availability[slot.time] = false;
-              return;
-            }
-            const data = await res.json();
-            const teachers = Array.isArray(data) ? data : data.teachers;
-            const isAvailable = teachers && teachers.length > 0;
-            availability[slot.time] = isAvailable;
-          } catch (error) {
+    await Promise.all(
+      timeSlots.map(async (slot) => {
+        try {
+          const res = await fetch(
+            `/api/teachers-by-time?selectedTime=${encodeURIComponent(
+              slot.time
+            )}&selectedDayPackage=${encodeURIComponent(
+              selectedDayPackage
+            )}&_t=${Date.now()}`
+          );
+          if (!res.ok) {
             availability[slot.time] = false;
+            return;
           }
-        })
-      );
+          const data = await res.json();
+          const teachers = Array.isArray(data) ? data : data.teachers;
+          const isAvailable = teachers && teachers.length > 0;
+          availability[slot.time] = isAvailable;
+        } catch (error) {
+          availability[slot.time] = false;
+        }
+      })
+    );
 
-      setAvailableTimeSlots(availability);
-      setLoadingAvailability(false);
-    };
+    setAvailableTimeSlots(availability);
+    setLoadingAvailability(false);
+  }, [timeSlots, selectedDayPackage]);
 
+  useEffect(() => {
     if (timeSlots.length > 0 && selectedDayPackage) {
       checkAvailability();
     }
-  }, [timeSlots, selectedDayPackage]);
+  }, [timeSlots, selectedDayPackage, checkAvailability]);
+
+  // Refresh availability when returning from registration
+  useEffect(() => {
+    if (step === 1 && timeSlots.length > 0 && selectedDayPackage) {
+      checkAvailability();
+    }
+  }, [step, checkAvailability, timeSlots.length, selectedDayPackage]);
 
   useEffect(() => {
     setSelectedTime("");
@@ -1109,102 +1171,118 @@ function RegistrationContent() {
                         {Object.keys(groupedTimeSlots).map((category) => {
                           const prayerRanges = getPrayerRanges();
                           const categoryInfo = prayerRanges[category];
-                          
-                          return (
-                          <div
-                            key={category}
-                            className="bg-white rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100"
-                          >
-                            <h3 className="text-xl font-semibold text-teal-600 mb-2 flex items-center">
-                              <span className="w-4 h-4 bg-teal-500 rounded-full mr-3 shadow-sm"></span>
-                              {category}
-                            </h3>
-                            {categoryInfo && (
-                              <p className="text-sm text-gray-600 mb-4 font-medium">
-                                {categoryInfo.range} - {categoryInfo.description}
-                              </p>
-                            )}
-                            <div className="space-y-3">
-                              {groupedTimeSlots[category].map((slot) => {
-                                const isAvailable =
-                                  availableTimeSlots[slot.time];
-                                const isSelected = selectedTime === slot.time;
-                                const isLoading = loadingAvailability;
 
-                                return (
-                                  <motion.button
-                                    key={slot.id}
-                                    type="button"
-                                    onClick={() => {
-                                      if (isAvailable && !isLoading) {
-                                        setSelectedTime(slot.time);
+                          return (
+                            <div
+                              key={category}
+                              className="bg-white rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100"
+                            >
+                              <h3 className="text-xl font-semibold text-teal-600 mb-2 flex items-center">
+                                <span className="w-4 h-4 bg-teal-500 rounded-full mr-3 shadow-sm"></span>
+                                {category}
+                              </h3>
+                              {categoryInfo && (
+                                <p className="text-sm text-gray-600 mb-4 font-medium">
+                                  {categoryInfo.range} -{" "}
+                                  {categoryInfo.description}
+                                </p>
+                              )}
+                              <div className="space-y-3">
+                                {groupedTimeSlots[category].map((slot) => {
+                                  const isAvailable =
+                                    availableTimeSlots[slot.time];
+                                  const isSelected = selectedTime === slot.time;
+                                  const isLoading = loadingAvailability;
+
+                                  return (
+                                    <motion.button
+                                      key={slot.id}
+                                      type="button"
+                                      onClick={() => {
+                                        if (isAvailable && !isLoading) {
+                                          setSelectedTime(slot.time);
+                                        }
+                                      }}
+                                      disabled={!isAvailable || isLoading}
+                                      whileHover={
+                                        isAvailable && !isLoading
+                                          ? { scale: 1.03 }
+                                          : {}
                                       }
-                                    }}
-                                    disabled={!isAvailable || isLoading}
-                                    whileHover={
-                                      isAvailable && !isLoading
-                                        ? { scale: 1.03 }
-                                        : {}
-                                    }
-                                    whileTap={
-                                      isAvailable && !isLoading
-                                        ? { scale: 0.97 }
-                                        : {}
-                                    }
-                                    className={`w-full text-left p-4 rounded-xl transition-all duration-200 text-sm font-semibold flex flex-col shadow-sm ${
-                                      isSelected
-                                        ? "bg-teal-600 text-white shadow-md"
-                                        : isLoading
-                                        ? "bg-gray-100 text-gray-500 border border-gray-200 cursor-wait"
-                                        : isAvailable
-                                        ? "bg-green-50 text-green-800 hover:bg-green-100 border border-green-200 hover:border-green-300"
-                                        : "bg-red-50 text-red-600 border border-red-200 cursor-not-allowed"
-                                    }`}
-                                    title={
-                                      isLoading
-                                        ? "Checking availability..."
-                                        : isAvailable
-                                        ? "Click to select this time slot"
-                                        : "No teacher available for this time and package"
-                                    }
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex flex-col">
-                                        <span className="text-lg font-bold">{convertTo12Hour(slot.time)}</span>
-                                        <span className="text-xs opacity-75">{slot.time} (24hr)</span>
+                                      whileTap={
+                                        isAvailable && !isLoading
+                                          ? { scale: 0.97 }
+                                          : {}
+                                      }
+                                      className={`w-full text-left p-4 rounded-xl transition-all duration-200 text-sm font-semibold flex flex-col shadow-sm relative ${
+                                        isSelected
+                                          ? "bg-teal-600 text-white shadow-md"
+                                          : isLoading
+                                          ? "bg-gray-100 text-gray-500 border border-gray-200 cursor-wait"
+                                          : isAvailable
+                                          ? "bg-white text-gray-800 hover:bg-green-50 border-2 border-green-500 hover:border-green-600"
+                                          : "bg-red-50 text-red-800 border-2 border-red-500 cursor-not-allowed opacity-75"
+                                      }`}
+                                      title={
+                                        isLoading
+                                          ? "Checking availability..."
+                                          : isAvailable
+                                          ? "Click to select this time slot"
+                                          : "No teacher available for this time and package"
+                                      }
+                                    >
+                                      {/* Availability indicator circle */}
+                                      <div
+                                        className={`absolute top-2 right-2 w-3 h-3 rounded-full ${
+                                          isLoading
+                                            ? "bg-gray-400 animate-pulse"
+                                            : isAvailable
+                                            ? "bg-green-500"
+                                            : "bg-red-500"
+                                        }`}
+                                      />
+
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex flex-col">
+                                          <span className="text-lg font-bold">
+                                            {convertTo12Hour(slot.time)}
+                                          </span>
+                                          <span className="text-xs opacity-75">
+                                            {slot.time} (24hr)
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                          {isLoading ? (
+                                            <Badge className="bg-gray-100 text-gray-600 text-xs">
+                                              Checking...
+                                            </Badge>
+                                          ) : isAvailable ? (
+                                            <Badge className="bg-green-100 text-green-800 text-xs font-bold">
+                                              ✓ Available
+                                            </Badge>
+                                          ) : (
+                                            <Badge className="bg-red-100 text-red-800 text-xs font-bold">
+                                              ✗ Full
+                                            </Badge>
+                                          )}
+                                          <FiArrowRight
+                                            className={`ml-2 ${
+                                              isSelected
+                                                ? "text-white"
+                                                : isLoading
+                                                ? "text-gray-400"
+                                                : isAvailable
+                                                ? "text-green-600"
+                                                : "text-red-400"
+                                            }`}
+                                          />
+                                        </div>
                                       </div>
-                                      <div className="flex items-center space-x-2">
-                                        {isLoading ? (
-                                          <Badge className="bg-gray-100 text-gray-600 text-xs">
-                                            Checking...
-                                          </Badge>
-                                        ) : isAvailable ? (
-                                          <Badge className="bg-green-100 text-green-800 text-xs">
-                                            Available
-                                          </Badge>
-                                        ) : (
-                                          <Badge className="bg-red-100 text-red-800 text-xs">
-                                            Unavailable
-                                          </Badge>
-                                        )}
-                                        <FiArrowRight
-                                          className={`ml-2 ${
-                                            isSelected
-                                              ? "text-white"
-                                              : isLoading
-                                              ? "text-gray-400"
-                                              : isAvailable
-                                              ? "text-green-600"
-                                              : "text-red-400"
-                                          }`}
-                                        />
-                                      </div>
-                                    </div>
-                                  </motion.button>
-                                );
-                              })}
+                                    </motion.button>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
                           );
                         })}
                       </div>
@@ -1285,13 +1363,27 @@ function RegistrationContent() {
                       </div>
                     </div>
                   )}
-                  <Button
-                    onClick={() => setStep(2)}
-                    disabled={!selectedDayPackage || !selectedTime}
-                    className="mt-4"
-                  >
-                    Continue
-                  </Button>
+                  <div className="flex gap-4 mt-4">
+                    <Button
+                      onClick={() => checkAvailability()}
+                      disabled={loadingAvailability}
+                      // variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <FiRefreshCw
+                        className={`h-4 w-4 ${
+                          loadingAvailability ? "animate-spin" : ""
+                        }`}
+                      />
+                      Refresh Availability
+                    </Button>
+                    <Button
+                      onClick={() => setStep(2)}
+                      disabled={!selectedDayPackage || !selectedTime}
+                    >
+                      Continue
+                    </Button>
+                  </div>
                   {error && (
                     <motion.div
                       initial={{ opacity: 0 }}
@@ -1556,39 +1648,43 @@ function RegistrationContent() {
                       )}
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-gray-800 flex items-center">
-                        <FiDollarSign className="mr-2 text-teal-600" />
-                        Class Fee *
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
-                          $
-                        </span>
-                        <input
-                          {...register("classfee", {
-                            required: "Class Fee is required",
-                            valueAsNumber: true,
-                            min: {
-                              value: 0,
-                              message: "Fee cannot be negative",
-                            },
-                          })}
-                          className={`w-full pl-10 pr-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
-                            errors.classfee
-                              ? "border-red-500"
-                              : "border-gray-200 hover:border-teal-300"
-                          }`}
-                          placeholder="Enter fee amount"
-                          type="number"
-                        />
+                    {!isUsStudent && (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-800 flex items-center">
+                          <FiDollarSign className="mr-2 text-teal-600" />
+                          Class Fee *
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                            $
+                          </span>
+                          <input
+                            {...register("classfee", {
+                              required: !isUsStudent
+                                ? "Class Fee is required"
+                                : false,
+                              valueAsNumber: true,
+                              min: {
+                                value: 0,
+                                message: "Fee cannot be negative",
+                              },
+                            })}
+                            className={`w-full pl-10 pr-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
+                              errors.classfee
+                                ? "border-red-500"
+                                : "border-gray-200 hover:border-teal-300"
+                            }`}
+                            placeholder="Enter fee amount"
+                            type="number"
+                          />
+                        </div>
+                        {errors.classfee && (
+                          <p className="mt-1 text-xs text-red-600 font-medium">
+                            {errors.classfee.message}
+                          </p>
+                        )}
                       </div>
-                      {errors.classfee && (
-                        <p className="mt-1 text-xs text-red-600 font-medium">
-                          {errors.classfee.message}
-                        </p>
-                      )}
-                    </div>
+                    )}
 
                     <div className="space-y-2">
                       <label className="block text-sm font-semibold text-gray-800 flex items-center">
@@ -1708,31 +1804,41 @@ function RegistrationContent() {
                       )}
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-gray-800 flex items-center">
-                        <FiGlobe className="mr-2 text-teal-600" />
-                        Country
-                      </label>
-                      <select
+                    {!isUsStudent && (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-800 flex items-center">
+                          <FiGlobe className="mr-2 text-teal-600" />
+                          Country
+                        </label>
+                        <select
+                          {...register("country")}
+                          className="w-full px-5 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm hover:border-teal-300"
+                        >
+                          <option value="">Select country</option>
+                          {Object.keys(groupedCountries)
+                            .sort()
+                            .map((letter) => (
+                              <optgroup key={letter} label={letter}>
+                                {groupedCountries[letter]
+                                  .sort()
+                                  .map((country, index) => (
+                                    <option key={index} value={country}>
+                                      {country}
+                                    </option>
+                                  ))}
+                              </optgroup>
+                            ))}
+                        </select>
+                      </div>
+                    )}
+                    {/* Hidden country field for US students */}
+                    {isUsStudent && (
+                      <input
+                        type="hidden"
                         {...register("country")}
-                        className="w-full px-5 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm hover:border-teal-300"
-                      >
-                        <option value="">Select country</option>
-                        {Object.keys(groupedCountries)
-                          .sort()
-                          .map((letter) => (
-                            <optgroup key={letter} label={letter}>
-                              {groupedCountries[letter]
-                                .sort()
-                                .map((country, index) => (
-                                  <option key={index} value={country}>
-                                    {country}
-                                  </option>
-                                ))}
-                            </optgroup>
-                          ))}
-                      </select>
-                    </div>
+                        value="USA"
+                      />
+                    )}
 
                     {/* Referral Dropdown for Registral */}
                     {session?.user?.role === "registral" && (

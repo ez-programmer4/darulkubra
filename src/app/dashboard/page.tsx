@@ -72,6 +72,7 @@ export default function Dashboard() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [usStudentCount, setUsStudentCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [notification, setNotification] = useState<{
     message: string;
@@ -126,17 +127,18 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch("/api/registrations", {
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! Status: ${response.status}`);
+      const [regResponse, usResponse] = await Promise.all([
+        fetch("/api/registrations", {
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        }),
+        fetch("/api/us-student")
+      ]);
+      
+      if (!regResponse.ok) {
+        throw new Error(`HTTP error! Status: ${regResponse.status}`);
       }
-      const data = await response.json();
+      const data = await regResponse.json();
       if (!Array.isArray(data)) {
         throw new Error("Expected an array of registrations");
       }
@@ -146,6 +148,13 @@ export default function Dashboard() {
         selectedTime: reg.selectedTime || "Not specified",
       }));
       setRegistrations(sanitizedData);
+      
+      // Fetch US student count
+      if (usResponse.ok) {
+        const usData = await usResponse.json();
+        const pendingCount = usData.filter((s: any) => !s.wpos_wpdatatable_23Wdt_ID).length;
+        setUsStudentCount(pendingCount);
+      }
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Failed to load registrations"
@@ -860,12 +869,24 @@ export default function Dashboard() {
               >
                 <FiPlus className="mr-2" /> New Registration
               </Link>
-              <button
-                onClick={fetchRegistrations}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-3 rounded-xl flex items-center shadow-md hover:shadow-lg transition-all duration-300"
+
+              <Link
+                href="/registral/earnings"
+                className="bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 text-white px-6 py-3 rounded-xl flex items-center shadow-md hover:shadow-lg transition-all duration-300"
               >
-                <FiRefreshCw className="mr-2" /> Refresh
-              </button>
+                <FiPlus className="mr-2" /> My earning
+              </Link>
+              <Link
+                href="/us-student"
+                className="relative bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl flex items-center shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                <FiUser className="mr-2" /> US Students
+                {usStudentCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center animate-pulse shadow-lg">
+                    {usStudentCount}
+                  </span>
+                )}
+              </Link>
               <button
                 onClick={handleLogout}
                 className="bg-red-100 hover:bg-red-200 text-red-800 px-4 py-3 rounded-xl flex items-center shadow-md hover:shadow-lg transition-all duration-300"

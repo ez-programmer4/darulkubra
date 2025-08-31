@@ -67,8 +67,15 @@ const checkTeacherAvailability = async (
     };
   }
 
+  // Check for occupied times with multiple time formats
   const allBookings = await prisma.wpos_ustaz_occupied_times.findMany({
-    where: { time_slot: timeSlot },
+    where: {
+      OR: [
+        { time_slot: timeSlot }, // 12-hour format
+        { time_slot: timeToMatch }, // 24-hour format
+        { time_slot: `${timeToMatch}:00` }, // 24-hour with seconds
+      ],
+    },
     select: { ustaz_id: true, daypackage: true },
   });
   const teacherBookings = allBookings.filter(
@@ -169,7 +176,8 @@ export async function GET(request: NextRequest) {
       })
     ).then((results) => results.filter((teacher) => teacher !== null));
 
-    return NextResponse.json(availableTeachers, { status: 200 });
+    // Return in the expected format
+    return NextResponse.json({ teachers: availableTeachers }, { status: 200 });
   } catch (error) {
     return NextResponse.json(
       {

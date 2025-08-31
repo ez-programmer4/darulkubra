@@ -79,6 +79,8 @@ model wpos_wpdatatable_23 {
   finalExamResult     finalExamResult[]
   tarbiaAttendance    tarbiaAttendance[]
   studentQuiz         studentQuiz[]
+  user                user?                         @relation(fields: [userId], references: [id])
+  userId              String?                       @unique
 
   @@index([ustaz], map: "idx_ustaz")
   @@index([u_control], map: "wpos_wpdatatable_23_u_control_fkey")
@@ -563,22 +565,22 @@ model testresult {
 }
 
 model coursePackage {
-  id                  String                @id @default(uuid())
-  name                String                @db.Text
-  description         String?               @db.Text
+  id                  String               @id @default(uuid())
+  name                String               @db.Text
+  description         String?              @db.Text
   courses             course[]
   questions           question[]
   finalExamResult     finalExamResult[]
   examDurationMinutes Int?
-  isPublished         Boolean               @default(false)
+  isPublished         Boolean              @default(false)
   // students            wpos_wpdatatable_23[] @relation("PackageHistory")
   // activeStudents      wpos_wpdatatable_23[] @relation("ActivePackage")
   subjectPackages     subjectPackage[] // <-- Add this line for the relation
   terbiaAttendance    tarbiaAttendance[]
   ustazId             Int?
-  ustaz               wpos_wpdatatable_24?  @relation(fields: [id], references: [ustazid])
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  ustaz               wpos_wpdatatable_24? @relation(fields: [id], references: [ustazid])
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 }
 
 model subjectPackage {
@@ -735,4 +737,21 @@ model tarbiaAttendance {
   status         Boolean             @default(false)
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
+}
+
+enum role {
+  manager
+  teacher
+  student
+}
+
+model user {
+  id                  String               @id @default(cuid())
+  role                role
+  firstName           String               @default("")
+  lastName            String               @default("")
+  phoneNumber         String               @default("")
+  email               String               @unique @map("username")
+  password            String
+  wpos_wpdatatable_23 wpos_wpdatatable_23?
 }

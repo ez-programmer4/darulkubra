@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     // Use local time (Ethiopia UTC+3) for clicked_at timestamp
     const now = new Date();
     const localClickTime = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-    
+
     await prisma.wpos_zoom_links.update({
       where: { id: record.id },
       data: { clicked_at: localClickTime },

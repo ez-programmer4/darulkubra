@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { control } = body;
+    const { control, email, usStudentId } = body;
 
     if (session.role === "controller" && control !== session.code) {
       return NextResponse.json(
@@ -332,6 +332,7 @@ export async function POST(request: NextRequest) {
           registrationdate: registrationdate
             ? new Date(registrationdate)
             : new Date(),
+          userId: usStudentId ? usStudentId.toString() : null,
         },
       });
 
@@ -350,6 +351,8 @@ export async function POST(request: NextRequest) {
         console.warn("Failed to create occupied time record:", occupiedError);
         // Continue without occupied time record - registration still succeeds
       }
+
+      // No need to update user table since userId is now stored in registration
 
       return registration;
     });
