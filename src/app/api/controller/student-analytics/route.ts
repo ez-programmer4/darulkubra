@@ -1,7 +1,228 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
+import { differenceInDays } from "date-fns";
+async function getLastSeen(studentId: number): Promise<string> {
+  const lastProgressUpdatedDate = await prisma.studentProgress.findFirst({
+    where: {
+      studentId,
+    },
+    select: {
+      updatedAt: true,
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+  });
 
+  if (!lastProgressUpdatedDate) return "-";
+
+  const daysAgo = differenceInDays(
+    new Date(),
+    lastProgressUpdatedDate.updatedAt
+  );
+
+  if (daysAgo === 0) return "Today";
+  if (daysAgo === 1) return "1 day ago";
+  if (daysAgo <= 7) return `${daysAgo} days ago`;
+  if (daysAgo <= 14) return "1 week ago";
+  if (daysAgo <= 30) return `${Math.floor(daysAgo / 7)} weeks ago`;
+  if (daysAgo <= 60) return "1 month ago";
+  if (daysAgo <= 365) return `${Math.floor(daysAgo / 30)} months ago`;
+  if (daysAgo <= 730) return "1 year ago";
+  return `${Math.floor(daysAgo / 365)} years ago`;
+}
+export async function getAttendanceofAllStudents(studentIds: number[]) {
+  try {
+    const students = await prisma.wpos_wpdatatable_23.findMany({
+      where: { wdt_ID: { in: studentIds } },
+    });
+
+    if (students.length === 0) {
+      return {};
+    }
+
+    const records = await prisma.tarbiaAttendance.findMany({
+      where: { studId: { in: studentIds } },
+      select: { studId: true, status: true },
+    });
+
+    if (records.length === 0) {
+      return {};
+    }
+
+    // Group attendance by student
+    const attendanceMap: Record<number, { present: number; absent: number }> =
+      {};
+
+    for (const id of studentIds) {
+      attendanceMap[id] = { present: 0, absent: 0 };
+    }
+
+    for (const record of records) {
+      if (record.status) {
+        attendanceMap[record.studId].present += 1;
+      } else {
+        attendanceMap[record.studId].absent += 1;
+      }
+    }
+
+    return attendanceMap;
+  } catch (error) {
+    console.log("አቴንዳንስ ማሳየት ላይ ችግር አለ: ", error);
+    return {};
+  }
+}
+
+export async function correctExamAnswer(
+  coursesPackageId: string,
+  studentId: number
+) {
+  try {
+    const questions = await prisma.question.findMany({
+      where: { packageId: coursesPackageId },
+      select: { id: true },
+    });
+
+    if (!questions.length) {
+      console.error(
+        "No questions found for coursesPackageId:",
+        coursesPackageId
+      );
+    }
+
+    const questionIds = questions.map((q) => q.id);
+    const studentQuiz = await prisma.studentQuiz.findMany({
+      where: {
+        studentId: studentId,
+        questionId: { in: questionIds },
+        isFinalExam: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+    if (!studentQuiz) {
+      console.log("there is no students queiz");
+      return undefined;
+    }
+    console.log("Fetching student quiz answers for studentId:", studentId);
+    const studentQuizAnswers = await prisma.studentQuizAnswer.findMany({
+      where: {
+        studentQuiz: {
+          studentId: studentId,
+          questionId: { in: questionIds },
+          isFinalExam: true,
+        },
+      },
+      select: {
+        studentQuiz: { select: { questionId: true } },
+        selectedOptionId: true,
+      },
+    });
+    if (!studentQuizAnswers) {
+      console.log("there is no studentsanswer for the exam");
+      return undefined;
+    }
+    const studentResponse: { [questionId: string]: string[] } = {};
+    for (const ans of studentQuizAnswers) {
+      const qid = ans.studentQuiz.questionId;
+      if (!studentResponse[qid]) studentResponse[qid] = [];
+      studentResponse[qid].push(ans.selectedOptionId);
+    }
+
+    console.log("Fetching correct answers for questions:", questionIds);
+    const questionAnswersRaw = await prisma.questionAnswer.findMany({
+      where: { questionId: { in: questionIds } },
+      select: { questionId: true, answerId: true },
+    });
+
+    const questionAnswers: { [questionId: string]: string[] } = {};
+    for (const qa of questionAnswersRaw) {
+      if (!questionAnswers[qa.questionId]) questionAnswers[qa.questionId] = [];
+      questionAnswers[qa.questionId].push(qa.answerId);
+    }
+
+    const total = questionIds.length;
+    let correct = 0;
+
+    for (const questionId of questionIds) {
+      const correctAnswers = questionAnswers[questionId]?.sort() || [];
+      const userAnswers = studentResponse[questionId]?.sort() || [];
+      const isCorrect =
+        correctAnswers.length === userAnswers.length &&
+        correctAnswers.every((v, i) => v === userAnswers[i]);
+      if (isCorrect) correct++;
+    }
+
+    const result = {
+      total,
+      correct,
+      score: correct / total ? correct / total : 0,
+    };
+
+    console.log("Exam Result calculated:", result);
+    return { studentResponse: await studentResponse, questionAnswers, result };
+  } catch (error) {
+    console.error("Error in correctAnswer:", error);
+    throw new Error("Failed to calculate the correct answers.");
+  }
+}
+
+export async function checkFinalExamCreation(
+  studentId: number,
+  packageId: string
+) {
+  try {
+    // 1. Check if a registration for this student and package already exists
+    const updateProhibibted = await prisma.finalExamResult.findFirst({
+      where: {
+        studentId: studentId,
+        packageId: packageId,
+      },
+      select: {
+        id: true,
+        updationProhibited: true,
+      },
+    });
+    if (!updateProhibibted) {
+      return false;
+    } else {
+      return true;
+    }
+  } catch (error) {
+    console.error("update prohibted errror", error);
+    return false; // Re-throw the error to be handled by the caller
+  }
+}
+
+export async function checkingUpdateProhibition(
+  studentId: number,
+  packageId: string
+) {
+  try {
+    // 1. Check if a registration for this student and package already exists
+    const updateProhibibted = await prisma.finalExamResult.findFirst({
+      where: {
+        studentId: studentId,
+        packageId: packageId,
+      },
+      select: {
+        id: true,
+        updationProhibited: true,
+      },
+    });
+
+    if (updateProhibibted?.updationProhibited === true) {
+      return true;
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.error("update prohibted errror", error);
+    return false; // Re-throw the error to be handled by the caller
+  }
+}
 async function getStudentProgressStatus(
   studentId: number,
   activePackageId: string
@@ -74,6 +295,9 @@ export async function GET(request: NextRequest) {
         | "inprogress"
         | "completed"
         | "all") || "all";
+    const lastSeenFilter = searchParams.get("lastSeen") || "all";
+    const examFilter = searchParams.get("examStatus") || "all";
+    const packageDetails = searchParams.get("packageDetails");
     const controllerId = session.id?.toString();
 
     if (!controllerId) {
@@ -139,6 +363,9 @@ export async function GET(request: NextRequest) {
         },
       },
     });
+    const attendanceMap = await getAttendanceofAllStudents(
+      students.map((s) => s.wdt_ID)
+    );
 
     // Process students with progress
     let studentsWithProgress = await Promise.all(
@@ -213,8 +440,30 @@ export async function GET(request: NextRequest) {
           `[DEBUG] Student ${student.wdt_ID} (${student.name}) occupied time result:`,
           occupiedTime
         );
+        let examResult = { total: 0, correct: 0, score: 0 };
+        let hasFinalExam = false;
+        let isUpdateProhibited = false;
+        if (progress === "completed") {
+          const [examData, finalExamStatus, updateProhibition] =
+            await Promise.all([
+              correctExamAnswer(activePackageId, student.wdt_ID),
+              checkFinalExamCreation(student.wdt_ID, activePackageId),
+              checkingUpdateProhibition(student.wdt_ID, activePackageId),
+            ]);
 
-        const result = {
+          if (examData?.result) examResult = examData.result;
+          hasFinalExam = !!finalExamStatus;
+          isUpdateProhibited = !!updateProhibition;
+        }
+
+        const attendance = attendanceMap[student.wdt_ID] ?? {
+          present: 0,
+          absent: 0,
+        };
+        const totalSessions = attendance.present + attendance.absent;
+        const lastSeen = await getLastSeen(student.wdt_ID);
+
+        const studentResult = {
           id: student.wdt_ID,
           name: student.name,
           phoneNo,
@@ -226,6 +475,13 @@ export async function GET(request: NextRequest) {
           activePackage: activePackage?.name ?? "",
           studentProgress: progress,
           selectedTime: occupiedTime?.time_slot ?? null,
+          result: examResult,
+          hasFinalExam,
+          isUpdateProhibited,
+          attendance: `P-${attendance.present} A-${attendance.absent} T-${totalSessions}`,
+          totalSessions,
+          lastSeen,
+          activePackageId,
         };
 
         console.log(
@@ -233,7 +489,7 @@ export async function GET(request: NextRequest) {
             occupiedTime?.time_slot ?? "null"
           }`
         );
-        return result;
+        return studentResult;
       })
     );
 
@@ -249,6 +505,50 @@ export async function GET(request: NextRequest) {
           return student.studentProgress === progressFilter;
         }
       });
+    }
+
+    // Filter by last seen
+    if (lastSeenFilter && lastSeenFilter !== "all") {
+      studentsWithProgress = studentsWithProgress.filter((student) => {
+        const lastSeen = student.lastSeen;
+        if (lastSeenFilter === "today") return lastSeen === "Today";
+        if (lastSeenFilter === "week")
+          return lastSeen.includes("day") || lastSeen === "Today";
+        if (lastSeenFilter === "month")
+          return !lastSeen.includes("month") && !lastSeen.includes("year");
+        if (lastSeenFilter === "inactive")
+          return (
+            lastSeen.includes("month") ||
+            lastSeen.includes("year") ||
+            lastSeen === "-"
+          );
+        return true;
+      });
+    }
+
+    // Filter by exam status
+    if (examFilter && examFilter !== "all") {
+      studentsWithProgress = studentsWithProgress.filter((student) => {
+        if (examFilter === "taken") return student.hasFinalExam;
+        if (examFilter === "nottaken") return !student.hasFinalExam && student.studentProgress === "completed";
+        if (examFilter === "passed") return student.hasFinalExam && student.result.score >= 0.6;
+        if (examFilter === "failed") return student.hasFinalExam && student.result.score < 0.6;
+        return true;
+      });
+    }
+
+    // Handle package details request
+    if (packageDetails) {
+      const student = studentsWithProgress.find(
+        (s) => s.id === parseInt(packageDetails)
+      );
+      if (student && student.activePackageId) {
+        const packageInfo = await getPackageDetails(
+          student.activePackageId,
+          student.id
+        );
+        return NextResponse.json({ packageDetails: packageInfo });
+      }
     }
 
     // Paginate
@@ -274,4 +574,34 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+async function getPackageDetails(packageId: string, studentId: number) {
+  const courses = await prisma.course.findMany({
+    where: { packageId },
+    include: {
+      chapters: {
+        include: {
+          studentProgress: {
+            where: { studentId },
+          },
+        },
+      },
+    },
+    orderBy: { order: "asc" },
+  });
+
+  return courses.map((course) => ({
+    id: course.id,
+    title: course.title,
+    chapters: course.chapters.map((chapter) => ({
+      id: chapter.id,
+      title: chapter.title,
+      status: chapter.studentProgress[0]?.isCompleted
+        ? "completed"
+        : chapter.studentProgress[0]
+        ? "inprogress"
+        : "notstarted",
+    })),
+  }));
 }

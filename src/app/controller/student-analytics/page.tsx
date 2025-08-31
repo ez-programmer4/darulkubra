@@ -26,6 +26,23 @@ interface StudentAnalytics {
   chatid: string | null;
   activePackage: string;
   studentProgress: string;
+  lastSeen: string;
+  activePackageId: string;
+  result: { total: number; correct: number; score: number };
+  hasFinalExam: boolean;
+  isUpdateProhibited: boolean;
+  attendance: string;
+  totalSessions: number;
+}
+
+interface PackageDetails {
+  id: string;
+  title: string;
+  chapters: {
+    id: string;
+    title: string;
+    status: 'notstarted' | 'inprogress' | 'completed';
+  }[];
 }
 
 interface Pagination {
@@ -49,14 +66,23 @@ export default function StudentAnalytics() {
   const [progressFilter, setProgressFilter] = useState<
     "all" | "notstarted" | "inprogress" | "completed"
   >("all");
+  const [lastSeenFilter, setLastSeenFilter] = useState<
+    "all" | "today" | "week" | "month" | "inactive"
+  >("all");
+  const [examFilter, setExamFilter] = useState<
+    "all" | "taken" | "nottaken" | "passed" | "failed"
+  >("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
+  const [packageDetails, setPackageDetails] = useState<PackageDetails[] | null>(null);
+  const [showPackageModal, setShowPackageModal] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
 
     fetchStudents();
     fetchAllStudents();
-  }, [session, status, router, searchTerm, progressFilter, currentPage]);
+  }, [session, status, router, searchTerm, progressFilter, lastSeenFilter, examFilter, currentPage]);
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -65,6 +91,8 @@ export default function StudentAnalytics() {
       const params = new URLSearchParams({
         search: searchTerm,
         progress: progressFilter,
+        lastSeen: lastSeenFilter,
+        examStatus: examFilter,
         page: currentPage.toString(),
         limit: "10",
       });
@@ -108,6 +136,30 @@ export default function StudentAnalytics() {
     }
   };
 
+  const fetchPackageDetails = async (studentId: number) => {
+    try {
+      const response = await fetch(
+        `/api/controller/student-analytics?packageDetails=${studentId}`
+      );
+      const result = await response.json();
+      if (response.ok) {
+        setPackageDetails(result.packageDetails);
+        setSelectedStudent(studentId);
+        setShowPackageModal(true);
+      }
+    } catch (err) {
+      console.error('Failed to fetch package details:', err);
+    }
+  };
+
+  const getLastSeenColor = (lastSeen: string) => {
+    if (lastSeen === "Today") return "bg-green-100 text-green-800";
+    if (lastSeen.includes("day")) return "bg-blue-100 text-blue-800";
+    if (lastSeen.includes("week")) return "bg-yellow-100 text-yellow-800";
+    if (lastSeen.includes("month") || lastSeen.includes("year") || lastSeen === "-") return "bg-red-100 text-red-800";
+    return "bg-gray-100 text-gray-800";
+  };
+
   const getProgressColor = (progress: string) => {
     if (progress === "completed") return "bg-green-100 text-green-800";
     if (progress === "notstarted") return "bg-gray-100 text-gray-800";
@@ -118,6 +170,32 @@ export default function StudentAnalytics() {
     if (progress === "completed") return "✅";
     if (progress === "notstarted") return "⏸️";
     return "📚";
+  };
+
+  const getExamStatusColor = (student: StudentAnalytics) => {
+    if (!student.hasFinalExam && student.studentProgress === "completed") return "bg-yellow-100 text-yellow-800";
+    if (student.hasFinalExam && student.result.score >= 0.6) return "bg-green-100 text-green-800";
+    if (student.hasFinalExam && student.result.score < 0.6) return "bg-red-100 text-red-800";
+    return "bg-gray-100 text-gray-800";
+  };
+
+  const getExamStatusText = (student: StudentAnalytics) => {
+    if (!student.hasFinalExam && student.studentProgress === "completed") return "📝 Not Taken";
+    if (student.hasFinalExam && student.result.score >= 0.6) return `✅ Passed (${Math.round(student.result.score * 100)}%)`;
+    if (student.hasFinalExam && student.result.score < 0.6) return `❌ Failed (${Math.round(student.result.score * 100)}%)`;
+    return "➖ N/A";
+  };
+
+  const getAttendanceColor = (attendance: string) => {
+    const [, present, absent] = attendance.match(/P-(\d+) A-(\d+)/) || [];
+    const presentNum = parseInt(present) || 0;
+    const absentNum = parseInt(absent) || 0;
+    const total = presentNum + absentNum;
+    if (total === 0) return "bg-gray-100 text-gray-800";
+    const rate = presentNum / total;
+    if (rate >= 0.8) return "bg-green-100 text-green-800";
+    if (rate >= 0.6) return "bg-yellow-100 text-yellow-800";
+    return "bg-red-100 text-red-800";
   };
 
   if (status === "loading" || loading) {
@@ -199,66 +277,96 @@ export default function StudentAnalytics() {
                 <option value="completed">Completed</option>
               </select>
             </div>
+            <div className="md:w-48">
+              <select
+                value={lastSeenFilter}
+                onChange={(e) => {
+                  setLastSeenFilter(e.target.value as any);
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Activity</option>
+                <option value="today">Active Today</option>
+                <option value="week">Active This Week</option>
+                <option value="month">Active This Month</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+            <div className="md:w-48">
+              <select
+                value={examFilter}
+                onChange={(e) => {
+                  setExamFilter(e.target.value as any);
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Exams</option>
+                <option value="taken">Exam Taken</option>
+                <option value="nottaken">Not Taken</option>
+                <option value="passed">Passed</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Enhanced Stats */}
         {pagination && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center">
-                <FiUsers className="h-8 w-8 text-blue-600" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-500">
-                    Total Students
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {pagination.totalRecords}
-                  </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">Total Students</p>
+                  <p className="text-2xl font-bold">{pagination.totalRecords}</p>
                 </div>
+                <FiUsers className="h-8 w-8 text-blue-200" />
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center">
-                <FiBook className="h-8 w-8 text-green-600" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-500">
-                    Active Packages
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {new Set(allStudents.map((s) => s.activePackage)).size}
-                  </p>
+            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm font-medium">Completed</p>
+                  <p className="text-2xl font-bold">{allStudents.filter(s => s.studentProgress === "completed").length}</p>
                 </div>
+                <div className="text-2xl">✅</div>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center">
-                <FiTrendingUp className="h-8 w-8 text-purple-600" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-500">
-                    In Progress
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {
-                      allStudents.filter(
-                        (s) =>
-                          s.studentProgress !== "completed" &&
-                          s.studentProgress !== "notstarted"
-                      ).length
-                    }
-                  </p>
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm font-medium">In Progress</p>
+                  <p className="text-2xl font-bold">{allStudents.filter(s => s.studentProgress !== "completed" && s.studentProgress !== "notstarted").length}</p>
                 </div>
+                <div className="text-2xl">📚</div>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center">
-                <FiMessageCircle className="h-8 w-8 text-orange-600" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-500">Connected</p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {allStudents.filter((s) => s.chatid).length}
-                  </p>
+            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-lg p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100 text-sm font-medium">Active Today</p>
+                  <p className="text-2xl font-bold">{allStudents.filter(s => s.lastSeen === "Today").length}</p>
                 </div>
+                <div className="text-2xl">🔥</div>
+              </div>
+            </div>
+            <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-emerald-100 text-sm font-medium">Exam Passed</p>
+                  <p className="text-2xl font-bold">{allStudents.filter(s => s.hasFinalExam && s.result?.score >= 0.6).length}</p>
+                </div>
+                <div className="text-2xl">🎯</div>
+              </div>
+            </div>
+            <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-xl shadow-lg p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-100 text-sm font-medium">Need Exam</p>
+                  <p className="text-2xl font-bold">{allStudents.filter(s => !s.hasFinalExam && s.studentProgress === "completed").length}</p>
+                </div>
+                <div className="text-2xl">📝</div>
               </div>
             </div>
           </div>
@@ -281,6 +389,15 @@ export default function StudentAnalytics() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Progress
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Last Seen
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Exam Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Attendance
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Contact
@@ -315,11 +432,14 @@ export default function StudentAnalytics() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <button
+                        onClick={() => fetchPackageDetails(student.id)}
+                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                      >
                         {student.activePackage}
-                      </div>
+                      </button>
                       {student.isKid && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 ml-2">
                           Kid
                         </span>
                       )}
@@ -332,6 +452,34 @@ export default function StudentAnalytics() {
                       >
                         {getProgressIcon(student.studentProgress)}{" "}
                         {student.studentProgress}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getLastSeenColor(
+                          student.lastSeen
+                        )}`}
+                      >
+                        {student.lastSeen}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getExamStatusColor(
+                          student
+                        )}`}
+                      >
+                        {getExamStatusText(student)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAttendanceColor(
+                          student.attendance
+                        )}`}
+                        title={`Present: ${student.attendance.match(/P-(\d+)/)?.[1] || 0}, Absent: ${student.attendance.match(/A-(\d+)/)?.[1] || 0}, Total: ${student.totalSessions}`}
+                      >
+                        {student.attendance}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -444,6 +592,47 @@ export default function StudentAnalytics() {
           )}
         </div>
 
+        {/* Package Details Modal */}
+        {showPackageModal && packageDetails && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Package Progress Details</h3>
+                <button
+                  onClick={() => setShowPackageModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-4">
+                {packageDetails.map((course) => (
+                  <div key={course.id} className="border rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-3">{course.title}</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {course.chapters.map((chapter) => (
+                        <div
+                          key={chapter.id}
+                          className={`p-2 rounded text-xs ${
+                            chapter.status === 'completed'
+                              ? 'bg-green-100 text-green-800'
+                              : chapter.status === 'inprogress'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {chapter.status === 'completed' ? '✅' : 
+                           chapter.status === 'inprogress' ? '📚' : '⏸️'} {chapter.title}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {students.length === 0 && !loading && (
           <div className="text-center py-12">
             <FiUsers className="mx-auto h-12 w-12 text-gray-400" />
@@ -451,7 +640,7 @@ export default function StudentAnalytics() {
               No students found
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || progressFilter !== "all"
+              {searchTerm || progressFilter !== "all" || lastSeenFilter !== "all" || examFilter !== "all"
                 ? "Try adjusting your search or filter criteria."
                 : "No students are assigned to your control."}
             </p>
