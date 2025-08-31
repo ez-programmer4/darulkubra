@@ -431,7 +431,7 @@ function RegistrationContent() {
       // Set country to USA for US students (hidden field)
       setValue("country", "USA");
       // Set default class fee to null for US students
-      setValue("classfee", null);
+      setValue("classfee", undefined);
       // Store email and usStudentId for later use
       if (email) {
         sessionStorage.setItem("usStudentEmail", email);
