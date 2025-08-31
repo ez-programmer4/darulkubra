@@ -32,7 +32,7 @@ async function getLastSeen(studentId: number): Promise<string> {
   if (daysAgo <= 730) return "1 year ago";
   return `${Math.floor(daysAgo / 365)} years ago`;
 }
-export async function getAttendanceofAllStudents(studentIds: number[]) {
+async function getAttendanceofAllStudents(studentIds: number[]) {
   try {
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: { wdt_ID: { in: studentIds } },
@@ -74,7 +74,7 @@ export async function getAttendanceofAllStudents(studentIds: number[]) {
   }
 }
 
-export async function correctExamAnswer(
+async function correctExamAnswer(
   coursesPackageId: string,
   studentId: number
 ) {
@@ -169,7 +169,7 @@ export async function correctExamAnswer(
   }
 }
 
-export async function checkFinalExamCreation(
+async function checkFinalExamCreation(
   studentId: number,
   packageId: string
 ) {
@@ -196,7 +196,7 @@ export async function checkFinalExamCreation(
   }
 }
 
-export async function checkingUpdateProhibition(
+async function checkingUpdateProhibition(
   studentId: number,
   packageId: string
 ) {
