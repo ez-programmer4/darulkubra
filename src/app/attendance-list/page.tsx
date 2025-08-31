@@ -524,14 +524,26 @@ export default function AttendanceList() {
         }
       }
 
-      // Extract time directly from string if it's in format "HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS"
+      // Handle ISO format with timezone conversion
+      if (dateStr.includes('T') && dateStr.includes('Z')) {
+        // ISO UTC format: "2025-01-20T20:00:00.000Z"
+        const utcDate = new Date(dateStr);
+        // Convert to local time and format
+        return utcDate.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      // Extract time directly from string if it's in format "HH:MM:SS"
       let timeStr = dateStr;
       if (dateStr.includes('T')) {
         // ISO format: extract time part after 'T'
         timeStr = dateStr.split('T')[1].split('.')[0]; // Gets "20:00:00" from "2025-01-20T20:00:00.000Z"
       }
       
-      // Parse HH:MM:SS format directly
+      // Parse HH:MM:SS format directly (assume local time)
       const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
       if (timeMatch) {
         const hours = parseInt(timeMatch[1]);
@@ -576,6 +588,7 @@ export default function AttendanceList() {
 
   // Enhanced lateness detection with timezone-aware comparison
   function updateLatenessAlerts() {
+    // Get current time in local timezone
     const now = new Date();
     const newAlerts: typeof latenessAlerts = {};
 
@@ -585,17 +598,20 @@ export default function AttendanceList() {
     dataToCheck.forEach((record) => {
       if (!record.scheduledAt) return;
 
-      // Parse the scheduled time properly
+      // Parse the scheduled time properly with timezone handling
       let scheduledDateTime: Date;
       
       try {
         // Handle different time formats from the database
         if (record.scheduledAt.includes('T')) {
           // ISO format: "2025-01-31T08:00:00.000Z" or "2025-01-31T20:00:00.000Z"
-          scheduledDateTime = new Date(record.scheduledAt);
+          // Convert UTC to local timezone
+          const utcDate = new Date(record.scheduledAt);
+          scheduledDateTime = new Date(utcDate.getTime() + (utcDate.getTimezoneOffset() * 60000));
         } else {
           // Simple time format: "08:00:00" or "20:00:00"
-          const selectedDate = new Date(date); // Use the selected date from filter
+          // Create date in local timezone for the selected date
+          const selectedDate = new Date(date + 'T00:00:00'); // Parse as local date
           const [hours, minutes, seconds] = record.scheduledAt.split(':').map(Number);
           scheduledDateTime = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), hours, minutes, seconds || 0);
         }
@@ -606,8 +622,8 @@ export default function AttendanceList() {
           return;
         }
 
-        // Only check for today's classes
-        const selectedDateObj = new Date(date);
+        // Check if it's for the selected date (compare dates in local timezone)
+        const selectedDateObj = new Date(date + 'T00:00:00');
         const isSelectedDate = 
           scheduledDateTime.getFullYear() === selectedDateObj.getFullYear() &&
           scheduledDateTime.getMonth() === selectedDateObj.getMonth() &&
@@ -615,7 +631,7 @@ export default function AttendanceList() {
 
         if (!isSelectedDate) return;
 
-        // Calculate time difference in minutes
+        // Calculate time difference in minutes (both times are now in local timezone)
         const timeDiff = (now.getTime() - scheduledDateTime.getTime()) / (1000 * 60);
         
         // Check if student has no zoom link sent
@@ -660,11 +676,12 @@ export default function AttendanceList() {
           if (Object.keys(newAlerts).length <= 3) {
             console.log(`Alert for ${record.studentName}:`, {
               scheduledAt: record.scheduledAt,
-              scheduledDateTime: scheduledDateTime.toISOString(),
-              currentTime: now.toISOString(),
+              scheduledDateTime: scheduledDateTime.toLocaleString(),
+              currentTime: now.toLocaleString(),
               timeDiff: Math.floor(timeDiff),
               level,
-              hasNoLink
+              hasNoLink,
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
             });
           }
         }
@@ -673,7 +690,7 @@ export default function AttendanceList() {
       }
     });
 
-    console.log(`Lateness check: Found ${Object.keys(newAlerts).length} alerts for ${date}`);
+    console.log(`Lateness check: Found ${Object.keys(newAlerts).length} alerts for ${date} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`);
     setLatenessAlerts(newAlerts);
 
     // Enhanced sound alerts with different urgency levels
