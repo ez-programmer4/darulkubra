@@ -39,29 +39,31 @@ export async function GET(req: NextRequest) {
   const endDate = new Date(to);
   endDate.setHours(23, 59, 59, 999);
 
-  // Fetch lateness deduction config from DB
+  // Get base deduction amount from settings
+  const baseDeductionSetting = await prisma.setting.findUnique({
+    where: { key: "lateness_base_deduction" },
+  });
+  const baseDeductionAmount = baseDeductionSetting?.value ? parseFloat(baseDeductionSetting.value) : 30;
+
+  // Fetch lateness deduction config from DB - no fallback tiers
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
   });
-  let excusedThreshold = 3;
-  let tiers = [
-    { start: 4, end: 7, percent: 10 },
-    { start: 8, end: 14, percent: 20 },
-    { start: 15, end: 21, percent: 30 },
-  ];
-  let maxTierEnd = 21;
-  if (latenessConfigs.length > 0) {
-    // Use the minimum excusedThreshold from config (or 3 if not present)
-    excusedThreshold = Math.min(
-      ...latenessConfigs.map((c) => c.excusedThreshold ?? 3)
-    );
-    tiers = latenessConfigs.map((c) => ({
-      start: c.startMinute,
-      end: c.endMinute,
-      percent: c.deductionPercent,
-    }));
-    maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
+  
+  // Only use database configuration, no predefined tiers
+  if (latenessConfigs.length === 0) {
+    return NextResponse.json({ dailyTrend: [], controllerData: [], teacherData: [] });
   }
+  
+  const excusedThreshold = Math.min(
+    ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
+  );
+  const tiers = latenessConfigs.map((c) => ({
+    start: c.startMinute,
+    end: c.endMinute,
+    percent: c.deductionPercent,
+  }));
+  const maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
 
   // 2. Get all students with their teacher, controller, and day package
   const students = await prisma.wpos_wpdatatable_23.findMany({
@@ -159,14 +161,14 @@ export async function GET(req: NextRequest) {
         let foundTier = false;
         for (const [i, tier] of tiers.entries()) {
           if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {
-            deductionApplied = 30 * (tier.percent / 100);
+            deductionApplied = baseDeductionAmount * (tier.percent / 100);
             deductionTier = `Tier ${i + 1}`;
             foundTier = true;
             break;
           }
         }
         if (!foundTier && latenessMinutes > maxTierEnd) {
-          deductionApplied = 30;
+          deductionApplied = baseDeductionAmount;
           deductionTier = "> Max Tier";
         }
       }
