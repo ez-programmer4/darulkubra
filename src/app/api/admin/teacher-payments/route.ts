@@ -26,28 +26,31 @@ export async function GET(req: NextRequest) {
       }
       const fromDate = new Date(from);
       const toDate = new Date(to);
-      // Fetch lateness deduction config from DB
+      // Get base deduction amount from settings
+      const baseDeductionSetting = await prisma.setting.findUnique({
+        where: { key: "lateness_base_deduction" },
+      });
+      const baseDeductionAmount = baseDeductionSetting?.value ? parseFloat(baseDeductionSetting.value) : 30;
+
+      // Fetch lateness deduction config from DB - no fallback tiers
       const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
         orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
       });
-      let excusedThreshold = 3;
-      let tiers = [
-        { start: 4, end: 7, percent: 10 },
-        { start: 8, end: 14, percent: 20 },
-        { start: 15, end: 21, percent: 30 },
-      ];
-      let maxTierEnd = 21;
-      if (latenessConfigs.length > 0) {
-        excusedThreshold = Math.min(
-          ...latenessConfigs.map((c) => c.excusedThreshold ?? 3)
-        );
-        tiers = latenessConfigs.map((c) => ({
-          start: c.startMinute,
-          end: c.endMinute,
-          percent: c.deductionPercent,
-        }));
-        maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
+      
+      // Only use database configuration, no predefined tiers
+      if (latenessConfigs.length === 0) {
+        return NextResponse.json({ latenessRecords: [], absenceRecords: [], bonusRecords: [] });
       }
+      
+      const excusedThreshold = Math.min(
+        ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
+      );
+      const tiers = latenessConfigs.map((c) => ({
+        start: c.startMinute,
+        end: c.endMinute,
+        percent: c.deductionPercent,
+      }));
+      const maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
       // Get all students for this teacher in the date range
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: { ustaz: teacherId },
@@ -128,14 +131,14 @@ export async function GET(req: NextRequest) {
                 latenessMinutes >= tier.start &&
                 latenessMinutes <= tier.end
               ) {
-                deductionApplied = 30 * (tier.percent / 100);
+                deductionApplied = baseDeductionAmount * (tier.percent / 100);
                 deductionTier = `Tier ${i + 1}`;
                 foundTier = true;
                 break;
               }
             }
             if (!foundTier && latenessMinutes > maxTierEnd) {
-              deductionApplied = 30;
+              deductionApplied = baseDeductionAmount;
               deductionTier = "> Max Tier";
             }
           }
@@ -272,28 +275,92 @@ export async function GET(req: NextRequest) {
     const results = await Promise.all(
       teachers.map(async (t) => {
         // Calculate lateness deduction on-the-fly
-        // Fetch lateness deduction config from DB
+        // Get base deduction amount from settings
+        const baseDeductionSetting = await prisma.setting.findUnique({
+          where: { key: "lateness_base_deduction" },
+        });
+        const baseDeductionAmount = baseDeductionSetting?.value ? parseFloat(baseDeductionSetting.value) : 30;
+
+        // Fetch lateness deduction config from DB - no fallback tiers
         const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
           orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
         });
-        let excusedThreshold = 3;
-        let tiers = [
-          { start: 4, end: 7, percent: 10 },
-          { start: 8, end: 14, percent: 20 },
-          { start: 15, end: 21, percent: 30 },
-        ];
-        let maxTierEnd = 21;
-        if (latenessConfigs.length > 0) {
-          excusedThreshold = Math.min(
-            ...latenessConfigs.map((c) => c.excusedThreshold ?? 3)
-          );
-          tiers = latenessConfigs.map((c) => ({
-            start: c.startMinute,
-            end: c.endMinute,
-            percent: c.deductionPercent,
-          }));
-          maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
+        
+        // Only use database configuration, no predefined tiers
+        if (latenessConfigs.length === 0) {
+          // Return teacher with zero lateness deduction if no config
+          const numStudents = studentCountMap[t.ustazid] || 0;
+          const baseSalary = numStudents * BASE_SALARY_PER_STUDENT;
+          
+          // Calculate absence deduction
+          let absenceDeduction = 0;
+          if (numStudents > 0) {
+            for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+              const monthNumber = String(d.getMonth() + 1);
+              if (
+                absenceConfig.effectiveMonths.length > 0 &&
+                !absenceConfig.effectiveMonths.includes(monthNumber)
+              ) {
+                continue;
+              }
+              const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
+              if (absenceResult.isAbsent) {
+                absenceDeduction += absenceConfig.deductionAmount;
+              }
+            }
+          }
+          
+          // Calculate bonuses
+          const bonuses = await prisma.qualityassessment.aggregate({
+            where: {
+              teacherId: t.ustazid,
+              weekStart: { gte: from, lte: to },
+              managerApproved: true,
+            },
+            _sum: { bonusAwarded: true },
+          });
+          const bonusAmount = bonuses._sum?.bonusAwarded ?? 0;
+          
+          const totalSalary = baseSalary - absenceDeduction + bonusAmount;
+          
+          // Fetch payment status
+          let status: "Paid" | "Unpaid" = "Unpaid";
+          if (periodsInRange.length > 0) {
+            const payment = await prisma.teachersalarypayment.findUnique({
+              where: {
+                teacherId_period: {
+                  teacherId: t.ustazid,
+                  period: periodsInRange[0],
+                },
+              },
+              select: { status: true },
+            });
+            if (payment && payment.status)
+              status = payment.status as "Paid" | "Unpaid";
+          }
+          
+          return {
+            id: t.ustazid,
+            name: t.ustazname,
+            baseSalary,
+            latenessDeduction: 0,
+            absenceDeduction,
+            bonuses: bonusAmount,
+            totalSalary,
+            numStudents,
+            status,
+          };
         }
+        
+        const excusedThreshold = Math.min(
+          ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
+        );
+        const tiers = latenessConfigs.map((c) => ({
+          start: c.startMinute,
+          end: c.endMinute,
+          percent: c.deductionPercent,
+        }));
+        const maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
         // Get all students for this teacher
         const students = await prisma.wpos_wpdatatable_23.findMany({
           where: { ustaz: t.ustazid },
@@ -370,13 +437,13 @@ export async function GET(req: NextRequest) {
                   latenessMinutes >= tier.start &&
                   latenessMinutes <= tier.end
                 ) {
-                  deductionApplied = 30 * (tier.percent / 100);
+                  deductionApplied = baseDeductionAmount * (tier.percent / 100);
                   foundTier = true;
                   break;
                 }
               }
               if (!foundTier && latenessMinutes > maxTierEnd) {
-                deductionApplied = 30;
+                deductionApplied = baseDeductionAmount;
               }
             }
             latenessDeduction += deductionApplied;
