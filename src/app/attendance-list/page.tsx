@@ -106,7 +106,6 @@ export default function AttendanceList() {
     alertThreshold: 2, // minutes after scheduled time
     warningThreshold: 5,
     criticalThreshold: 8,
-    soundAlerts: true,
     autoNotify: false, // auto-notify critical cases
     bulkNotifyDelay: 30, // seconds between bulk notifications
   });
@@ -576,9 +575,11 @@ export default function AttendanceList() {
     return true;
   });
 
-  // Enhanced lateness detection with timezone-aware comparison
+  // Enhanced lateness detection with UTC-3 timezone
   function updateLatenessAlerts() {
+    // Get current time in UTC-3 (subtract 3 hours from UTC)
     const now = new Date();
+    const utcMinus3 = new Date(now.getTime() - (3 * 60 * 60 * 1000));
     const newAlerts: typeof latenessAlerts = {};
 
     // Always use allData for comprehensive monitoring
@@ -601,11 +602,11 @@ export default function AttendanceList() {
     dataToCheck.forEach((record) => {
       if (!record.scheduledDateObj) return;
 
-      // Create today's date with scheduled time for comparison
-      const today = new Date();
+      // Create today's date with scheduled time for comparison (UTC-3)
+      const today = new Date(utcMinus3);
       const scheduledTime = new Date(record.scheduledDateObj);
 
-      // Create scheduled datetime for today
+      // Create scheduled datetime for today in UTC-3
       const todayScheduled = new Date(
         today.getFullYear(),
         today.getMonth(),
@@ -615,14 +616,14 @@ export default function AttendanceList() {
         scheduledTime.getSeconds()
       );
 
-      const timeDiff = (now.getTime() - todayScheduled.getTime()) / (1000 * 60);
+      const timeDiff = (utcMinus3.getTime() - todayScheduled.getTime()) / (1000 * 60);
       const hasNoLink =
         !record.links ||
         record.links.length === 0 ||
         !record.links.some((l) => l.sent_time);
 
-      // Check if it's today's class and within 15 minute window (0-15 minutes)
-      const isToday = today.toDateString() === now.toDateString();
+      // Check if it's today's class and within 15 minute window (0-15 minutes) in UTC-3
+      const isToday = today.toDateString() === utcMinus3.toDateString();
 
       // Debug log
       if (record.student_id === dataToCheck[0]?.student_id) {
@@ -671,34 +672,16 @@ export default function AttendanceList() {
 
     console.log("Total alerts found:", Object.keys(newAlerts).length);
     setLatenessAlerts(newAlerts);
-
-    // Enhanced sound alerts with different urgency levels
-    if (latenessSettings.soundAlerts) {
-      const newCritical = Object.entries(newAlerts).filter(
-        ([id, alert]) =>
-          alert.level === "critical" && !latenessAlerts[parseInt(id)]?.notified
-      );
-
-      const newWarning = Object.entries(newAlerts).filter(
-        ([id, alert]) =>
-          alert.level === "warning" && !latenessAlerts[parseInt(id)]?.notified
-      );
-
-      if (newCritical.length > 0) {
-        playNotificationSound("critical");
-      } else if (newWarning.length > 0) {
-        playNotificationSound("warning");
-      }
-    }
   }
 
-  // Get expired students (past 15 minutes) - no longer actionable
+  // Get expired students (past 15 minutes) - no longer actionable (UTC-3)
   const expiredStudents = useMemo(() => {
     const dataToCheck = allData.length > 0 ? allData : data;
     return dataToCheck.filter((record) => {
       if (!record.scheduledDateObj) return false;
       const now = new Date();
-      const today = new Date();
+      const utcMinus3 = new Date(now.getTime() - (3 * 60 * 60 * 1000));
+      const today = new Date(utcMinus3);
       const scheduledTime = new Date(record.scheduledDateObj);
       const todayScheduled = new Date(
         today.getFullYear(),
@@ -708,12 +691,12 @@ export default function AttendanceList() {
         scheduledTime.getMinutes(),
         scheduledTime.getSeconds()
       );
-      const timeDiff = (now.getTime() - todayScheduled.getTime()) / (1000 * 60);
+      const timeDiff = (utcMinus3.getTime() - todayScheduled.getTime()) / (1000 * 60);
       const hasNoLink =
         !record.links ||
         record.links.length === 0 ||
         !record.links.some((l) => l.sent_time);
-      const isToday = today.toDateString() === now.toDateString();
+      const isToday = today.toDateString() === utcMinus3.toDateString();
       return timeDiff > 15 && hasNoLink && isToday;
     });
   }, [allData, data]);
@@ -755,30 +738,7 @@ export default function AttendanceList() {
     };
   };
 
-  function playNotificationSound(
-    type: "emergency" | "critical" | "warning" = "critical"
-  ) {
-    if (typeof window !== "undefined") {
-      // Different sounds for different urgency levels
-      const soundMap = {
-        emergency: "/sounds/emergency.mp3",
-        critical: "/sounds/critical.mp3",
-        warning: "/sounds/warning.mp3",
-      };
 
-      const audio = new Audio(soundMap[type] || "/notification.mp3");
-      audio.volume = type === "emergency" ? 0.8 : 0.6;
-      audio.play().catch(() => {
-        // Fallback to system notification
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification(`🚨 ${type.toUpperCase()} Alert`, {
-            body: `Student link not sent - ${type} lateness detected`,
-            icon: "/favicon.ico",
-          });
-        }
-      });
-    }
-  }
 
   // Auto-notify critical cases
   const autoNotifyCriticalCases = async () => {
@@ -1285,25 +1245,7 @@ export default function AttendanceList() {
                     max="15"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-gray-700 font-medium">
-                    🔊 Sound
-                  </label>
-                  <div className="flex items-center h-10">
-                    <input
-                      type="checkbox"
-                      checked={latenessSettings.soundAlerts}
-                      onChange={(e) =>
-                        setLatenessSettings((prev) => ({
-                          ...prev,
-                          soundAlerts: e.target.checked,
-                        }))
-                      }
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <label className="ml-2 text-gray-700">Enable</label>
-                  </div>
-                </div>
+
                 <div className="space-y-2">
                   <label className="block text-gray-700 font-medium">
                     🤖 Auto-Notify
@@ -1747,7 +1689,7 @@ export default function AttendanceList() {
                   <div className="text-blue-600">
                     ⏰{" "}
                     <span className="font-mono font-bold">
-                      {format(new Date(), "HH:mm:ss")}
+                      {format(new Date(new Date().getTime() - (3 * 60 * 60 * 1000)), "HH:mm:ss")} UTC-3
                     </span>
                   </div>
                   <div className="text-blue-600">
