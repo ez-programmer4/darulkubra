@@ -524,33 +524,23 @@ export default function AttendanceList() {
         }
       }
 
-      // Handle ISO format with timezone conversion
-      if (dateStr.includes('T') && dateStr.includes('Z')) {
-        // ISO UTC format: "2025-01-20T20:00:00.000Z"
-        const utcDate = new Date(dateStr);
-        // Convert to local time and format
-        return utcDate.toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-      }
-      
-      // Extract time directly from string if it's in format "HH:MM:SS"
+      // Extract time directly from string if it's in format "HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS"
       let timeStr = dateStr;
-      if (dateStr.includes('T')) {
+      if (dateStr.includes("T")) {
         // ISO format: extract time part after 'T'
-        timeStr = dateStr.split('T')[1].split('.')[0]; // Gets "20:00:00" from "2025-01-20T20:00:00.000Z"
+        timeStr = dateStr.split("T")[1].split(".")[0]; // Gets "20:00:00" from "2025-01-20T20:00:00.000Z"
       }
-      
-      // Parse HH:MM:SS format directly (assume local time)
+
+      // Parse HH:MM:SS format directly
       const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
       if (timeMatch) {
         const hours = parseInt(timeMatch[1]);
         const minutes = parseInt(timeMatch[2]);
         const period = hours >= 12 ? "PM" : "AM";
         const displayHours = hours % 12 || 12;
-        return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
+        return `${displayHours}:${minutes
+          .toString()
+          .padStart(2, "0")} ${period}`;
       }
 
       return "N/A";
@@ -588,109 +578,98 @@ export default function AttendanceList() {
 
   // Enhanced lateness detection with timezone-aware comparison
   function updateLatenessAlerts() {
-    // Get current time in local timezone
     const now = new Date();
     const newAlerts: typeof latenessAlerts = {};
 
     // Always use allData for comprehensive monitoring
     const dataToCheck = allData.length > 0 ? allData : data;
 
+    // Debug: Force add a test student if we have data
+    if (dataToCheck.length > 0) {
+      const testStudent = dataToCheck[0];
+      if (testStudent && testStudent.scheduledDateObj) {
+        // Create a test alert for debugging
+        newAlerts[999999] = {
+          level: "critical",
+          minutesLate: 5,
+          notified: false,
+          priority: 3,
+        };
+      }
+    }
+
     dataToCheck.forEach((record) => {
-      if (!record.scheduledAt) return;
+      if (!record.scheduledDateObj) return;
 
-      // Parse the scheduled time properly with timezone handling
-      let scheduledDateTime: Date;
-      
-      try {
-        // Handle different time formats from the database
-        if (record.scheduledAt.includes('T')) {
-          // ISO format: "2025-01-31T08:00:00.000Z" or "2025-01-31T20:00:00.000Z"
-          // Convert UTC to local timezone
-          const utcDate = new Date(record.scheduledAt);
-          scheduledDateTime = new Date(utcDate.getTime() + (utcDate.getTimezoneOffset() * 60000));
+      // Create today's date with scheduled time for comparison
+      const today = new Date();
+      const scheduledTime = new Date(record.scheduledDateObj);
+
+      // Create scheduled datetime for today
+      const todayScheduled = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+        scheduledTime.getHours(),
+        scheduledTime.getMinutes(),
+        scheduledTime.getSeconds()
+      );
+
+      const timeDiff = (now.getTime() - todayScheduled.getTime()) / (1000 * 60);
+      const hasNoLink =
+        !record.links ||
+        record.links.length === 0 ||
+        !record.links.some((l) => l.sent_time);
+
+      // Check if it's today's class and within 15 minute window (0-15 minutes)
+      const isToday = today.toDateString() === now.toDateString();
+
+      // Debug log
+      if (record.student_id === dataToCheck[0]?.student_id) {
+        // console.log("Debug student:", {
+        //   studentName: record.studentName,
+        //   scheduledOriginal: record.scheduledDateObj.toISOString(),
+        //   currentTime: now.toISOString(),
+        //   timeDiff: Math.floor(timeDiff),
+        //   hasNoLink,
+        //   isToday,
+        //   willAlert: timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday,
+        // });
+      }
+
+      if (timeDiff >= 0 && timeDiff <= 15 && hasNoLink && isToday) {
+        let level: "alert" | "warning" | "critical" = "alert";
+        let priority = 1;
+
+        // Enhanced priority system based on time passed
+        if (timeDiff >= latenessSettings.criticalThreshold) {
+          level = "critical";
+          priority = Math.min(5, Math.floor(timeDiff / 2) + 3);
+        } else if (timeDiff >= latenessSettings.warningThreshold) {
+          level = "warning";
+          priority = 2;
+        } else if (timeDiff >= latenessSettings.alertThreshold) {
+          level = "alert";
+          priority = 1;
         } else {
-          // Simple time format: "08:00:00" or "20:00:00"
-          // Create date in local timezone for the selected date
-          const selectedDate = new Date(date + 'T00:00:00'); // Parse as local date
-          const [hours, minutes, seconds] = record.scheduledAt.split(':').map(Number);
-          scheduledDateTime = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), hours, minutes, seconds || 0);
+          // Pre-scheduled alerts (0-2 minutes)
+          level = "alert";
+          priority = 0;
         }
 
-        // Ensure we have a valid date
-        if (isNaN(scheduledDateTime.getTime())) {
-          console.warn('Invalid scheduled time for student:', record.studentName, record.scheduledAt);
-          return;
-        }
-
-        // Check if it's for the selected date (compare dates in local timezone)
-        const selectedDateObj = new Date(date + 'T00:00:00');
-        const isSelectedDate = 
-          scheduledDateTime.getFullYear() === selectedDateObj.getFullYear() &&
-          scheduledDateTime.getMonth() === selectedDateObj.getMonth() &&
-          scheduledDateTime.getDate() === selectedDateObj.getDate();
-
-        if (!isSelectedDate) return;
-
-        // Calculate time difference in minutes (both times are now in local timezone)
-        const timeDiff = (now.getTime() - scheduledDateTime.getTime()) / (1000 * 60);
-        
-        // Check if student has no zoom link sent
-        const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
-
-        // Only alert if:
-        // 1. Time is past scheduled time (timeDiff >= 0)
-        // 2. Within 15 minute window (timeDiff <= 15)
-        // 3. No link has been sent
-        // 4. It's for the selected date
-        if (timeDiff >= 0 && timeDiff <= 15 && hasNoLink) {
-          let level: "alert" | "warning" | "critical" = "alert";
-          let priority = 1;
-
-          // Enhanced priority system based on time passed
-          if (timeDiff >= latenessSettings.criticalThreshold) {
-            level = "critical";
-            priority = Math.min(5, Math.floor(timeDiff / 2) + 3);
-          } else if (timeDiff >= latenessSettings.warningThreshold) {
-            level = "warning";
-            priority = 2;
-          } else if (timeDiff >= latenessSettings.alertThreshold) {
-            level = "alert";
-            priority = 1;
-          } else {
-            // Pre-scheduled alerts (0-2 minutes)
-            level = "alert";
-            priority = 0;
-          }
-
-          const existingAlert = latenessAlerts[record.student_id];
-          newAlerts[record.student_id] = {
-            level,
-            minutesLate: Math.floor(timeDiff),
-            notified: existingAlert?.notified || false,
-            lastNotification: existingAlert?.lastNotification,
-            autoNotified: existingAlert?.autoNotified || false,
-            priority,
-          };
-
-          // Debug log for first few students
-          if (Object.keys(newAlerts).length <= 3) {
-            console.log(`Alert for ${record.studentName}:`, {
-              scheduledAt: record.scheduledAt,
-              scheduledDateTime: scheduledDateTime.toLocaleString(),
-              currentTime: now.toLocaleString(),
-              timeDiff: Math.floor(timeDiff),
-              level,
-              hasNoLink,
-              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error processing scheduled time for student:', record.studentName, error);
+        const existingAlert = latenessAlerts[record.student_id];
+        newAlerts[record.student_id] = {
+          level,
+          minutesLate: Math.floor(timeDiff),
+          notified: existingAlert?.notified || false,
+          lastNotification: existingAlert?.lastNotification,
+          autoNotified: existingAlert?.autoNotified || false,
+          priority,
+        };
       }
     });
 
-    console.log(`Lateness check: Found ${Object.keys(newAlerts).length} alerts for ${date} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`);
+    console.log("Total alerts found:", Object.keys(newAlerts).length);
     setLatenessAlerts(newAlerts);
 
     // Enhanced sound alerts with different urgency levels
