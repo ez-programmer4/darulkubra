@@ -31,28 +31,25 @@ export async function GET(req: NextRequest) {
   });
   const baseDeductionAmount = baseDeductionSetting?.value ? parseFloat(baseDeductionSetting.value) : 30;
 
-  // Fetch lateness deduction config from DB
+  // Fetch lateness deduction config from DB - no fallback tiers
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
   });
-  let excusedThreshold = 3;
-  let tiers = [
-    { start: 4, end: 7, percent: 10 },
-    { start: 8, end: 14, percent: 20 },
-    { start: 15, end: 21, percent: 30 },
-  ];
-  let maxTierEnd = 21;
-  if (latenessConfigs.length > 0) {
-    excusedThreshold = Math.min(
-      ...latenessConfigs.map((c) => c.excusedThreshold ?? 3)
-    );
-    tiers = latenessConfigs.map((c) => ({
-      start: c.startMinute,
-      end: c.endMinute,
-      percent: c.deductionPercent,
-    }));
-    maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
+  
+  // Only use database configuration, no predefined tiers
+  if (latenessConfigs.length === 0) {
+    return NextResponse.json({ latenessData: [], total: 0, page, limit });
   }
+  
+  const excusedThreshold = Math.min(
+    ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
+  );
+  const tiers = latenessConfigs.map((c) => ({
+    start: c.startMinute,
+    end: c.endMinute,
+    percent: c.deductionPercent,
+  }));
+  const maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
 
   try {
     // 2. Get all students with their teacher and zoom links for the day
