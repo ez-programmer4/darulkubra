@@ -575,18 +575,14 @@ export default function AttendanceList() {
     return true;
   });
 
-  // Enhanced lateness detection using database time format (UTC-3)
+  // Enhanced lateness detection using database time format (local timezone)
   function updateLatenessAlerts() {
-    // Get current time in UTC-3 timezone
+    // CHANGE: Use local timezone directly for current time (no UTC-3 shift)
     const now = new Date();
-    const utcMinus3Hours = now.getTime() - (3 * 60 * 60 * 1000);
-    const currentTimeUTC3 = new Date(utcMinus3Hours);
-    
-    // Get current time in HH:MM format for comparison with database times
-    const currentHour = currentTimeUTC3.getHours();
-    const currentMinute = currentTimeUTC3.getMinutes();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
     const currentTimeMinutes = currentHour * 60 + currentMinute;
-    
+
     const newAlerts: typeof latenessAlerts = {};
     const dataToCheck = allData.length > 0 ? allData : data;
 
@@ -595,50 +591,68 @@ export default function AttendanceList() {
 
       // Extract time from scheduledAt string (database format)
       let scheduledTimeStr = record.scheduledAt;
-      
+
       // Handle different time formats from database
       let scheduledHour = 0;
       let scheduledMinute = 0;
-      
-      if (scheduledTimeStr.includes('T')) {
+
+      if (scheduledTimeStr.includes("T")) {
         // ISO format: "2025-01-20T20:00:00.000Z" -> extract "20:00"
-        const timePart = scheduledTimeStr.split('T')[1].split('.')[0]; // "20:00:00"
-        const [hour, minute] = timePart.split(':').map(Number);
+        const timePart = scheduledTimeStr.split("T")[1].split(".")[0]; // "20:00:00"
+        const [hour, minute] = timePart.split(":").map(Number);
         scheduledHour = hour;
         scheduledMinute = minute;
-      } else if (scheduledTimeStr.includes(':')) {
+      } else if (scheduledTimeStr.includes(":")) {
         // Direct time format: "20:00:00" or "8:00 PM"
-        if (scheduledTimeStr.includes('AM') || scheduledTimeStr.includes('PM')) {
+        if (
+          scheduledTimeStr.includes("AM") ||
+          scheduledTimeStr.includes("PM")
+        ) {
           // 12-hour format
-          const timeMatch = scheduledTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+          const timeMatch = scheduledTimeStr.match(
+            /(\d{1,2}):(\d{2})\s*(AM|PM)/i
+          );
           if (timeMatch) {
             let hour = parseInt(timeMatch[1]);
             const minute = parseInt(timeMatch[2]);
             const period = timeMatch[3].toUpperCase();
-            if (period === 'PM' && hour !== 12) hour += 12;
-            if (period === 'AM' && hour === 12) hour = 0;
+            if (period === "PM" && hour !== 12) hour += 12;
+            if (period === "AM" && hour === 12) hour = 0;
             scheduledHour = hour;
             scheduledMinute = minute;
           }
         } else {
           // 24-hour format
-          const [hour, minute] = scheduledTimeStr.split(':').map(Number);
+          const [hour, minute] = scheduledTimeStr.split(":").map(Number);
           scheduledHour = hour;
           scheduledMinute = minute;
         }
       }
-      
+
       const scheduledTimeMinutes = scheduledHour * 60 + scheduledMinute;
       const timeDiffMinutes = currentTimeMinutes - scheduledTimeMinutes;
-      
-      const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
-      
+
+      const hasNoLink =
+        !record.links ||
+        record.links.length === 0 ||
+        !record.links.some((l) => l.sent_time);
+
       // Check if it's today and within monitoring window (0-15 minutes late)
-      const today = currentTimeUTC3.toDateString();
-      const recordDate = new Date(record.scheduledAt).toDateString();
+      // CHANGE: Treat scheduledAt as local by removing .000Z (prevents date shift in UTC parse)
+      let parsedScheduledAt = record.scheduledAt;
+      if (parsedScheduledAt.endsWith(".000Z")) {
+        parsedScheduledAt = parsedScheduledAt.replace(/\.000Z$/, "");
+      }
+      const today = new Date().toDateString();
+      const recordDate = new Date(parsedScheduledAt).toDateString();
       const isToday = today === recordDate;
 
-      if (timeDiffMinutes >= 0 && timeDiffMinutes <= 15 && hasNoLink && isToday) {
+      if (
+        timeDiffMinutes >= 0 &&
+        timeDiffMinutes <= 15 &&
+        hasNoLink &&
+        isToday
+      ) {
         let level: "alert" | "warning" | "critical" = "alert";
         let priority = 1;
 
@@ -672,37 +686,45 @@ export default function AttendanceList() {
     setLatenessAlerts(newAlerts);
   }
 
-  // Get expired students (past 15 minutes) - no longer actionable (UTC-3)
+  // Get expired students (past 15 minutes) - no longer actionable (local timezone)
   const expiredStudents = useMemo(() => {
     const dataToCheck = allData.length > 0 ? allData : data;
+    // CHANGE: Use local timezone directly for current time (no UTC-3 shift)
     const now = new Date();
-    const currentTimeUTC3 = new Date(now.getTime() - (3 * 60 * 60 * 1000));
-    const currentHour = currentTimeUTC3.getHours();
-    const currentMinute = currentTimeUTC3.getMinutes();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
     const currentTimeMinutes = currentHour * 60 + currentMinute;
-    
+
     return dataToCheck.filter((record) => {
       if (!record.scheduledAt) return false;
-      
+
       // Extract scheduled time from database format
       let scheduledHour = 0;
       let scheduledMinute = 0;
-      
-      if (record.scheduledAt.includes('T')) {
-        const timePart = record.scheduledAt.split('T')[1].split('.')[0];
-        const [hour, minute] = timePart.split(':').map(Number);
+
+      if (record.scheduledAt.includes("T")) {
+        const timePart = record.scheduledAt.split("T")[1].split(".")[0];
+        const [hour, minute] = timePart.split(":").map(Number);
         scheduledHour = hour;
         scheduledMinute = minute;
       }
-      
+
       const scheduledTimeMinutes = scheduledHour * 60 + scheduledMinute;
       const timeDiffMinutes = currentTimeMinutes - scheduledTimeMinutes;
-      
-      const hasNoLink = !record.links || record.links.length === 0 || !record.links.some((l) => l.sent_time);
-      const today = currentTimeUTC3.toDateString();
-      const recordDate = new Date(record.scheduledAt).toDateString();
+
+      const hasNoLink =
+        !record.links ||
+        record.links.length === 0 ||
+        !record.links.some((l) => l.sent_time);
+      // CHANGE: Treat scheduledAt as local by removing .000Z (prevents date shift in UTC parse)
+      let parsedScheduledAt = record.scheduledAt;
+      if (parsedScheduledAt.endsWith(".000Z")) {
+        parsedScheduledAt = parsedScheduledAt.replace(/\.000Z$/, "");
+      }
+      const today = new Date().toDateString();
+      const recordDate = new Date(parsedScheduledAt).toDateString();
       const isToday = today === recordDate;
-      
+
       return timeDiffMinutes > 15 && hasNoLink && isToday;
     });
   }, [allData, data]);
@@ -743,8 +765,6 @@ export default function AttendanceList() {
       highPriority,
     };
   };
-
-
 
   // Auto-notify critical cases
   const autoNotifyCriticalCases = async () => {
@@ -1692,10 +1712,11 @@ export default function AttendanceList() {
                       {latenessSettings.autoNotify ? "+ Auto-Notify" : ""}
                     </span>
                   </div>
+                  {/* CHANGE: Use local time for display (no UTC-3 shift) */}
                   <div className="text-blue-600">
                     ⏰{" "}
                     <span className="font-mono font-bold">
-                      {format(new Date(new Date().getTime() - (3 * 60 * 60 * 1000)), "HH:mm:ss")} UTC-3
+                      {format(new Date(), "HH:mm:ss")} Local
                     </span>
                   </div>
                   <div className="text-blue-600">

@@ -42,8 +42,11 @@ export async function GET(req: NextRequest) {
     // Robust pagination parsing with support for limit=all
     const pageParam = searchParams.get("page") || "1";
     const limitParam = searchParams.get("limit") || "10";
-    const isAll = typeof limitParam === "string" && limitParam.toLowerCase() === "all";
-    const page = Number.isNaN(parseInt(pageParam, 10)) ? 1 : parseInt(pageParam, 10);
+    const isAll =
+      typeof limitParam === "string" && limitParam.toLowerCase() === "all";
+    const page = Number.isNaN(parseInt(pageParam, 10))
+      ? 1
+      : parseInt(pageParam, 10);
     const limit = isAll
       ? undefined
       : Number.isNaN(parseInt(limitParam, 10))
@@ -191,7 +194,7 @@ export async function GET(req: NextRequest) {
 
     if (ustaz) {
       whereClause.teacher = {
-        ustazname: ustaz
+        ustazname: ustaz,
       };
     }
 
@@ -250,77 +253,80 @@ export async function GET(req: NextRequest) {
       }),
     });
 
-    const integratedData = await Promise.all(records.map(async (record: any) => {
-      function to24Hour(time12h: string | null | undefined) {
-        if (!time12h || !/\d{1,2}:\d{2}\s?(AM|PM)/i.test(time12h))
-          return "00:00";
-        try {
-          const [time, modifier] = time12h.split(" ");
-          let [hours, minutes] = time.split(":");
-          if (hours === "12") {
-            hours = modifier.toUpperCase() === "AM" ? "00" : "12";
-          } else if (modifier.toUpperCase() === "PM") {
-            hours = String(parseInt(hours, 10) + 12);
+    const integratedData = await Promise.all(
+      records.map(async (record: any) => {
+        function to24Hour(time12h: string | null | undefined) {
+          if (!time12h || !/\d{1,2}:\d{2}\s?(AM|PM)/i.test(time12h))
+            return "00:00";
+          try {
+            const [time, modifier] = time12h.split(" ");
+            let [hours, minutes] = time.split(":");
+            if (hours === "12") {
+              hours = modifier.toUpperCase() === "AM" ? "00" : "12";
+            } else if (modifier.toUpperCase() === "PM") {
+              hours = String(parseInt(hours, 10) + 12);
+            }
+            return `${hours.padStart(2, "0")}:${minutes}`;
+          } catch {
+            return "00:00";
           }
-          return `${hours.padStart(2, "0")}:${minutes}`;
-        } catch {
-          return "00:00";
         }
-      }
 
-      const time24 = record.occupiedTimes?.[0]?.time_slot;
-      const scheduledAt = time24 ? `${date}T${time24}.000Z` : null;
+        const time24 = record.occupiedTimes?.[0]?.time_slot;
+        const scheduledAt = time24 ? `${date}T${time24}.000Z` : null;
 
-      const linksForDay = (record.zoom_links || []).map((zl: any) => ({
-        id: zl.id,
-        link: zl.link,
-        sent_time: zl.sent_time ? zl.sent_time.toISOString() : null,
-        clicked_at: zl.clicked_at ? zl.clicked_at.toISOString() : null,
-        expiration_date: zl.expiration_date
-          ? zl.expiration_date.toISOString()
-          : null,
-        report: zl.report || null,
-        tracking_token: zl.tracking_token || null,
-      }));
+        const linksForDay = (record.zoom_links || []).map((zl: any) => ({
+          id: zl.id,
+          link: zl.link,
+          sent_time: zl.sent_time ? zl.sent_time.toISOString() : null,
+          clicked_at: zl.clicked_at ? zl.clicked_at.toISOString() : null,
+          expiration_date: zl.expiration_date
+            ? zl.expiration_date.toISOString()
+            : null,
+          report: zl.report || null,
+          tracking_token: zl.tracking_token || null,
+        }));
 
-      const dailyAttendance = record.attendance_progress?.[0];
-      const attendance_status = formatAttendanceStatus(
-        dailyAttendance?.attendance_status
-      );
+        const dailyAttendance = record.attendance_progress?.[0];
+        const attendance_status = formatAttendanceStatus(
+          dailyAttendance?.attendance_status
+        );
 
-      let absentDaysCount = 0;
-      if (
-        startDate &&
-        endDate &&
-        isValid(new Date(startDate)) &&
-        isValid(new Date(endDate))
-      ) {
-        // Get all attendance records for this student in the date range
-        const attendanceInRange = await prisma.student_attendance_progress.findMany({
-          where: {
-            student_id: record.wdt_ID,
-            date: {
-              gte: new Date(startDate),
-              lte: new Date(endDate),
-            },
-            attendance_status: "Absent"
-          }
-        });
-        absentDaysCount = attendanceInRange.length;
-      }
+        let absentDaysCount = 0;
+        if (
+          startDate &&
+          endDate &&
+          isValid(new Date(startDate)) &&
+          isValid(new Date(endDate))
+        ) {
+          // Get all attendance records for this student in the date range
+          const attendanceInRange =
+            await prisma.student_attendance_progress.findMany({
+              where: {
+                student_id: record.wdt_ID,
+                date: {
+                  gte: new Date(startDate),
+                  lte: new Date(endDate),
+                },
+                attendance_status: "Absent",
+              },
+            });
+          absentDaysCount = attendanceInRange.length;
+        }
 
-      return {
-        student_id: record.wdt_ID,
-        studentName: record.name || "Unknown",
-        ustazName: record.teacher?.ustazname || "Unknown",
-        controllerName: record.controller?.name || "N/A",
-        scheduledAt,
-        links: linksForDay,
-        attendance_status,
-        absentDaysCount,
-        daypackages: record.daypackages || "All days",
-      };
-    }));
+        return {
+          student_id: record.wdt_ID,
+          studentName: record.name || "Unknown",
+          ustazName: record.teacher?.ustazname || "Unknown",
+          controllerName: record.controller?.name || "N/A",
+          scheduledAt,
+          links: linksForDay,
+          attendance_status,
+          absentDaysCount,
+          daypackages: record.daypackages || "All days",
+        };
+      })
+    );
 
     const total = await prisma.wpos_wpdatatable_23.count({
       where: whereClause,
@@ -372,10 +378,18 @@ export async function GET(req: NextRequest) {
 
     const stats = {
       totalStudents: allIntegratedData.length,
-      presentCount: allIntegratedData.filter(r => r.attendance_status === "Present").length,
-      absentCount: allIntegratedData.filter(r => r.attendance_status === "Absent").length,
-      permissionCount: allIntegratedData.filter(r => r.attendance_status === "Permission").length,
-      notTakenCount: allIntegratedData.filter(r => r.attendance_status === "Not Taken").length,
+      presentCount: allIntegratedData.filter(
+        (r) => r.attendance_status === "Present"
+      ).length,
+      absentCount: allIntegratedData.filter(
+        (r) => r.attendance_status === "Absent"
+      ).length,
+      permissionCount: allIntegratedData.filter(
+        (r) => r.attendance_status === "Permission"
+      ).length,
+      notTakenCount: allIntegratedData.filter(
+        (r) => r.attendance_status === "Not Taken"
+      ).length,
       totalLinks: allIntegratedData.reduce(
         (sum: number, r: any) => sum + r.links.length,
         0
@@ -412,10 +426,14 @@ export async function GET(req: NextRequest) {
       include: {
         teacher: { select: { ustazname: true } },
       },
-      distinct: ['ustaz'],
+      distinct: ["ustaz"],
     });
-    
-    const allTeachers = [...new Set(allTeachersQuery.map(r => r.teacher?.ustazname).filter(Boolean))];
+
+    const allTeachers = [
+      ...new Set(
+        allTeachersQuery.map((r) => r.teacher?.ustazname).filter(Boolean)
+      ),
+    ];
 
     return NextResponse.json({
       integratedData,
@@ -477,20 +495,34 @@ export async function POST(req: NextRequest) {
       }
 
       const formattedStatus = formatAttendanceStatus(attendance_status);
-      await prisma.student_attendance_progress.upsert({
+      // Try to find existing record first
+      const existingRecord = await prisma.student_attendance_progress.findFirst({
         where: {
-          id: student_id,
-          date: startOfDay(parsedDate),
-        },
-        update: {
-          attendance_status: formattedStatus,
-        },
-        create: {
           student_id,
           date: startOfDay(parsedDate),
-          attendance_status: formattedStatus,
         },
       });
+
+      if (existingRecord) {
+        // Update existing record
+        await prisma.student_attendance_progress.update({
+          where: {
+            id: existingRecord.id,
+          },
+          data: {
+            attendance_status: formattedStatus,
+          },
+        });
+      } else {
+        // Create new record
+        await prisma.student_attendance_progress.create({
+          data: {
+            student_id,
+            date: startOfDay(parsedDate),
+            attendance_status: formattedStatus,
+          },
+        });
+      }
     }
 
     return NextResponse.json({ message: "Attendance updated successfully" });
