@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         registrationdate: true,
         chatId: true,
         u_control: true,
+        teacher: { select: { ustazname: true } },
       },
     });
 
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
           ...student,
           id: student.wdt_ID,
           teacher: {
-            ustazname: student.ustaz || "N/A",
+            ustazname: student.teacher?.ustazname || "N/A",
           },
           selectedTime: occupiedTime?.time_slot || null,
           chatId: student.chatId,

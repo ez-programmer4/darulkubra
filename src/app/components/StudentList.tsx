@@ -408,39 +408,15 @@ export default function StudentList({
   }, [students]);
 
   const ustazes = useMemo(() => {
-    console.log('Processing teachers from students:', students.length);
-    
     const uniqueUstazes = [
       ...new Set(
         students.map((student) => {
-          // Try multiple possible fields for teacher name
-          const teacherName = student.teacher?.ustazname || 
-                             student.teacher?.name || 
-                             student.teacher?.username || 
-                             student.ustaz || 
-                             student.ustazname || 
-                             null;
-          
-          // Always log for debugging (remove this after fixing)
-          console.log('Student teacher data:', {
-            studentId: student.id,
-            studentName: student.name,
-            teacherObject: student.teacher,
-            ustazField: student.ustaz,
-            ustazNameField: student.ustazname,
-            extractedName: teacherName
-          });
-          
-          return teacherName || "Unknown Teacher";
+          // Prioritize ustazname from teacher object, fallback to ustaz field
+          return student.teacher?.ustazname || "Unknown Teacher";
         })
       ),
     ];
-    
-    console.log('Unique teachers found:', uniqueUstazes);
-    const filtered = uniqueUstazes.filter(name => name && name !== "Unknown Teacher");
-    console.log('Filtered teachers:', filtered);
-    
-    return ["all", ...filtered];
+    return ["all", ...uniqueUstazes.filter(name => name && name !== "Unknown Teacher")];
   }, [students]);
 
   const packages = useMemo(() => {
@@ -479,12 +455,7 @@ export default function StudentList({
 
   const filteredStudents = useMemo((): Student[] => {
     const filtered = studentsWithPaymentStatus.filter((student) => {
-      const teacherName = student.teacher?.ustazname || 
-                          student.teacher?.name || 
-                          student.teacher?.username || 
-                          student.ustaz || 
-                          student.ustazname || 
-                          "";
+      const teacherName = student.teacher?.ustazname || "";
 
       const matchesSearch =
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -499,12 +470,7 @@ export default function StudentList({
           (studentStatus === "active" || studentStatus === "not yet"));
       const matchesSubject =
         subjectFilter === "all" || student.subject === subjectFilter;
-      const currentTeacherName = student.teacher?.ustazname || 
-                                 student.teacher?.name || 
-                                 student.teacher?.username || 
-                                 student.ustaz || 
-                                 student.ustazname || 
-                                 "Unknown Teacher";
+      const currentTeacherName = student.teacher?.ustazname || "Unknown Teacher";
 
       const matchesUstaz =
         ustazFilter === "all" || currentTeacherName === ustazFilter;
