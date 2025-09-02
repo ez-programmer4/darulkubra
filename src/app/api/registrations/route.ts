@@ -502,6 +502,13 @@ export async function PUT(request: NextRequest) {
       },
     });
 
+    if (!existing) {
+      return NextResponse.json(
+        { message: "Registration not found" },
+        { status: 404 }
+      );
+    }
+
     const hasNotChanged =
       existing.ustaz === ustaz && existing.daypackages === selectedDayPackage;
 
