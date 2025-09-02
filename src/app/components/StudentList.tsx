@@ -408,6 +408,8 @@ export default function StudentList({
   }, [students]);
 
   const ustazes = useMemo(() => {
+    console.log('Processing teachers from students:', students.length);
+    
     const uniqueUstazes = [
       ...new Set(
         students.map((student) => {
@@ -419,22 +421,26 @@ export default function StudentList({
                              student.ustazname || 
                              null;
           
-          // Debug logging to see what data we're getting
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Student teacher data:', {
-              studentId: student.id,
-              studentName: student.name,
-              teacherObject: student.teacher,
-              ustazField: student.ustaz,
-              extractedName: teacherName
-            });
-          }
+          // Always log for debugging (remove this after fixing)
+          console.log('Student teacher data:', {
+            studentId: student.id,
+            studentName: student.name,
+            teacherObject: student.teacher,
+            ustazField: student.ustaz,
+            ustazNameField: student.ustazname,
+            extractedName: teacherName
+          });
           
           return teacherName || "Unknown Teacher";
         })
       ),
     ];
-    return ["all", ...uniqueUstazes.filter(name => name && name !== "Unknown Teacher")];
+    
+    console.log('Unique teachers found:', uniqueUstazes);
+    const filtered = uniqueUstazes.filter(name => name && name !== "Unknown Teacher");
+    console.log('Filtered teachers:', filtered);
+    
+    return ["all", ...filtered];
   }, [students]);
 
   const packages = useMemo(() => {
