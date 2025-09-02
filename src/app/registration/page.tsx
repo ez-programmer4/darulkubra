@@ -127,6 +127,7 @@ function RegistrationContent() {
     formState: { errors },
     reset,
     setValue,
+    clearErrors,
   } = useForm<FormData>({
     defaultValues: {
       daypackages: "All days",
@@ -415,6 +416,16 @@ function RegistrationContent() {
 
   // Handle pre-filled data from US students
   const [isUsStudent, setIsUsStudent] = useState(false);
+  const isUsStudentRef = useRef(false);
+
+  // Update ref when state changes
+  useEffect(() => {
+    isUsStudentRef.current = isUsStudent;
+    if (isUsStudent) {
+      clearErrors(["classfee", "country"]);
+      console.log("US student detected - clearing validation errors");
+    }
+  }, [isUsStudent, clearErrors]);
 
   useEffect(() => {
     const prefilled = searchParams.get("prefilled");
@@ -426,6 +437,7 @@ function RegistrationContent() {
 
     if (prefilled === "true" && name) {
       setIsUsStudent(true);
+      isUsStudentRef.current = true;
       setValue("fullName", name);
       if (phoneno) setValue("phoneNumber", phoneno);
       // Set country to USA for US students (hidden field)
@@ -439,6 +451,7 @@ function RegistrationContent() {
       if (usStudentId) {
         sessionStorage.setItem("usStudentId", usStudentId);
       }
+      console.log("Detected US student from URL params:", { prefilled, name, country });
     }
   }, [searchParams, setValue]);
 
@@ -470,6 +483,16 @@ function RegistrationContent() {
             }
           }
 
+          // Check if this is a US student FIRST (has userId field)
+          const isEditingUsStudent = !!data.userId;
+          if (isEditingUsStudent) {
+            setIsUsStudent(true);
+            isUsStudentRef.current = true;
+            // Clear any existing validation errors for US students
+            clearErrors(["classfee", "country"]);
+            console.log("Detected US student during edit:", { userId: data.userId, country: data.country });
+          }
+
           setValue("fullName", data.name || "");
           setValue("phoneNumber", data.phoneno || "");
           setValue("classfee", data.classfee || "");
@@ -489,6 +512,7 @@ function RegistrationContent() {
           setSelectedTime(fetchedSelectedTime);
           setSelectedTeacher(data.ustaz || "");
           setEditingTeacherName(data.ustaz || "");
+          
           await fetchTeachers();
         } catch (error) {
           setFetchError("Failed to load student data for editing.");
@@ -526,6 +550,16 @@ function RegistrationContent() {
     setIsSubmitting(true);
 
     try {
+      // Validate required fields based on student type
+      if (!isUsStudent) {
+        if (!data.classfee) {
+          throw new Error("Class Fee is required");
+        }
+        if (!data.country) {
+          throw new Error("Country is required");
+        }
+      }
+
       if (
         (!editId || editTimeTeacher) &&
         (!selectedTeacher || selectedTeacher.trim() === "")
@@ -1648,43 +1682,44 @@ function RegistrationContent() {
                       )}
                     </div>
 
-                    {!isUsStudent && (
-                      <div className="space-y-2">
-                        <label className="block text-sm font-semibold text-gray-800 flex items-center">
-                          <FiDollarSign className="mr-2 text-teal-600" />
-                          Class Fee *
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
-                            $
-                          </span>
-                          <input
-                            {...register("classfee", {
-                              required: !isUsStudent
-                                ? "Class Fee is required"
-                                : false,
-                              valueAsNumber: true,
-                              min: {
-                                value: 0,
-                                message: "Fee cannot be negative",
-                              },
-                            })}
-                            className={`w-full pl-10 pr-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
-                              errors.classfee
-                                ? "border-red-500"
-                                : "border-gray-200 hover:border-teal-300"
-                            }`}
-                            placeholder="Enter fee amount"
-                            type="number"
-                          />
-                        </div>
-                        {errors.classfee && (
-                          <p className="mt-1 text-xs text-red-600 font-medium">
-                            {errors.classfee.message}
-                          </p>
-                        )}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-gray-800 flex items-center">
+                        <FiDollarSign className="mr-2 text-teal-600" />
+                        Class Fee {!isUsStudent ? '*' : '(Optional for US students)'}
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                          $
+                        </span>
+                        <input
+                          {...register("classfee", {
+                            required: false, // Always optional - we'll handle in onSubmit
+                            min: {
+                              value: 0,
+                              message: "Fee cannot be negative",
+                            },
+                          })}
+                          className={`w-full pl-10 pr-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
+                            errors.classfee
+                              ? "border-red-500"
+                              : "border-gray-200 hover:border-teal-300"
+                          } ${isUsStudent ? 'bg-gray-50' : ''}`}
+                          placeholder={isUsStudent ? "Optional for US students" : "Enter fee amount"}
+                          type="number"
+                          readOnly={isUsStudent}
+                        />
                       </div>
-                    )}
+                      {errors.classfee && (
+                        <p className="mt-1 text-xs text-red-600 font-medium">
+                          {errors.classfee.message}
+                        </p>
+                      )}
+                      {isUsStudent && (
+                        <p className="mt-1 text-xs text-blue-600 font-medium">
+                          Class fee is not required for US students
+                        </p>
+                      )}
+                    </div>
 
                     <div className="space-y-2">
                       <label className="block text-sm font-semibold text-gray-800 flex items-center">
@@ -1804,15 +1839,30 @@ function RegistrationContent() {
                       )}
                     </div>
 
-                    {!isUsStudent && (
-                      <div className="space-y-2">
-                        <label className="block text-sm font-semibold text-gray-800 flex items-center">
-                          <FiGlobe className="mr-2 text-teal-600" />
-                          Country
-                        </label>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-gray-800 flex items-center">
+                        <FiGlobe className="mr-2 text-teal-600" />
+                        Country {!isUsStudent ? '*' : ''}
+                      </label>
+                      {isUsStudent ? (
+                        <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-700">
+                          USA (Pre-selected)
+                          <input
+                            type="hidden"
+                            {...register("country")}
+                            value="USA"
+                          />
+                        </div>
+                      ) : (
                         <select
-                          {...register("country")}
-                          className="w-full px-5 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm hover:border-teal-300"
+                          {...register("country", {
+                            required: false, // Always optional - we'll handle in onSubmit
+                          })}
+                          className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
+                            errors.country
+                              ? "border-red-500"
+                              : "border-gray-200 hover:border-teal-300"
+                          }`}
                         >
                           <option value="">Select country</option>
                           {Object.keys(groupedCountries)
@@ -1829,16 +1879,13 @@ function RegistrationContent() {
                               </optgroup>
                             ))}
                         </select>
-                      </div>
-                    )}
-                    {/* Hidden country field for US students */}
-                    {isUsStudent && (
-                      <input
-                        type="hidden"
-                        {...register("country")}
-                        value="USA"
-                      />
-                    )}
+                      )}
+                      {errors.country && (
+                        <p className="mt-1 text-xs text-red-600 font-medium">
+                          {errors.country.message}
+                        </p>
+                      )}
+                    </div>
 
                     {/* Referral Dropdown for Registral */}
                     {session?.user?.role === "registral" && (

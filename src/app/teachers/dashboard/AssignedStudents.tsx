@@ -127,7 +127,27 @@ export default function AssignedStudents() {
   useEffect(() => {
     refresh();
     loadSurahs();
+    checkZoomStatus();
   }, []);
+
+  // Check zoom link status for today
+  async function checkZoomStatus() {
+    try {
+      const res = await fetch("/api/teachers/students/zoom-status", {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const zoomStatus: Record<number, boolean> = {};
+        data.sentToday?.forEach((studentId: number) => {
+          zoomStatus[studentId] = true;
+        });
+        setZoomSent(zoomStatus);
+      }
+    } catch (error) {
+      console.error("Failed to check zoom status:", error);
+    }
+  }
 
   async function loadSurahs() {
     setSurahs([
@@ -267,6 +287,8 @@ export default function AssignedStudents() {
         (data.groups || []).forEach((g: Group) => (next[g.group] = true));
         setExpanded(next);
       }
+      // Also refresh zoom status
+      await checkZoomStatus();
     } catch (e: any) {
       setError(e.message);
       toast({
@@ -401,7 +423,10 @@ export default function AssignedStudents() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            attendance_status: rec.status === "no class" ? "No Class" : rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
+            attendance_status:
+              rec.status === "no class"
+                ? "No Class"
+                : rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
             surah: rec.surah || undefined,
             pages_read: rec.pages ? Number(rec.pages) : undefined,
             level: rec.level || undefined,
@@ -747,7 +772,8 @@ export default function AssignedStudents() {
                                   if (!zoomSent[s.id]) {
                                     toast({
                                       title: "Zoom Link Required",
-                                      description: "Please send the Zoom link first before marking attendance.",
+                                      description:
+                                        "Please send the Zoom link first before marking attendance.",
                                       variant: "destructive",
                                     });
                                     return;
@@ -846,20 +872,7 @@ export default function AssignedStudents() {
                                 {s.subject || "N/A"}
                               </span>
                             </div>
-                            {s.phone && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <FiPhone className="h-4 w-4 text-gray-500" />
-                                <span>{s.phone}</span>
-                                <button
-                                  className="ml-2 text-xs px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-100"
-                                  onClick={() => handleCopy(s.phone || "")}
-                                  aria-label="Copy phone"
-                                >
-                                  <FiCopy className="inline h-3 w-3 mr-1" />
-                                  Copy
-                                </button>
-                              </div>
-                            )}
+
                             <div className="flex items-center gap-2 text-sm text-gray-700">
                               <FiClock className="h-4 w-4 text-gray-500" />
                               <span>
@@ -892,7 +905,8 @@ export default function AssignedStudents() {
                             if (!zoomSent[s.id]) {
                               toast({
                                 title: "Zoom Link Required",
-                                description: "Please send the Zoom link first before marking attendance.",
+                                description:
+                                  "Please send the Zoom link first before marking attendance.",
                                 variant: "destructive",
                               });
                               return;
@@ -1068,7 +1082,8 @@ export default function AssignedStudents() {
                             </span>
                           </div>
                           <p className="text-sm text-yellow-700">
-                            Please send the Zoom link first before marking attendance.
+                            Please send the Zoom link first before marking
+                            attendance.
                           </p>
                         </div>
                       )}
@@ -1077,42 +1092,58 @@ export default function AssignedStudents() {
                           Attendance Status *
                         </label>
                         <div className="grid grid-cols-2 gap-3">
-                          {(["present", "absent", "permission", "no class"] as const).map((status) => {
+                          {(
+                            [
+                              "present",
+                              "absent",
+                              "permission",
+                              "no class",
+                            ] as const
+                          ).map((status) => {
                             const getStatusColor = (status: string) => {
                               switch (status) {
                                 case "present":
-                                  return attend[modal.studentId!]?.status === status
+                                  return attend[modal.studentId!]?.status ===
+                                    status
                                     ? "bg-green-600 text-white border-green-600"
                                     : "border-green-300 text-green-700 hover:bg-green-50";
                                 case "absent":
-                                  return attend[modal.studentId!]?.status === status
+                                  return attend[modal.studentId!]?.status ===
+                                    status
                                     ? "bg-red-600 text-white border-red-600"
                                     : "border-red-300 text-red-700 hover:bg-red-50";
                                 case "permission":
-                                  return attend[modal.studentId!]?.status === status
+                                  return attend[modal.studentId!]?.status ===
+                                    status
                                     ? "bg-yellow-600 text-white border-yellow-600"
                                     : "border-yellow-300 text-yellow-700 hover:bg-yellow-50";
                                 case "no class":
-                                  return attend[modal.studentId!]?.status === status
+                                  return attend[modal.studentId!]?.status ===
+                                    status
                                     ? "bg-gray-600 text-white border-gray-600"
                                     : "border-gray-300 text-gray-700 hover:bg-gray-50";
                                 default:
                                   return "border-gray-300 text-gray-700 hover:bg-gray-50";
                               }
                             };
-                            
+
                             return (
                               <button
                                 key={status}
                                 onClick={() =>
                                   updateAttend(modal.studentId!, { status })
                                 }
-                                className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${getStatusColor(status)}`}
+                                className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${getStatusColor(
+                                  status
+                                )}`}
                                 aria-pressed={
                                   attend[modal.studentId!]?.status === status
                                 }
                               >
-                                {status === "no class" ? "No Class" : status.charAt(0).toUpperCase() + status.slice(1)}
+                                {status === "no class"
+                                  ? "No Class"
+                                  : status.charAt(0).toUpperCase() +
+                                    status.slice(1)}
                               </button>
                             );
                           })}

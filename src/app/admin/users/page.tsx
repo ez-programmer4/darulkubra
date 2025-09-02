@@ -314,17 +314,26 @@ export default function UserManagementPage() {
     return `U${randomId}${cleanName}`;
   };
 
-  // Generate password when teacher name changes
+  // Generate password when teacher name changes or modal opens
   useEffect(() => {
     if ((editingUser ? editingUser.role : newUserRole) === "teacher") {
       const nameInput = document.querySelector(
         'input[name="name"]'
       ) as HTMLInputElement;
       if (nameInput && nameInput.value) {
-        setGeneratedPassword(generateTeacherPassword(nameInput.value));
+        const newPassword = generateTeacherPassword(nameInput.value);
+        setGeneratedPassword(newPassword);
       }
     }
-  }, [newUserRole, editingUser]);
+  }, [newUserRole, editingUser, isModalOpen]);
+
+  // Generate password when name input changes for teachers
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if ((editingUser ? editingUser.role : newUserRole) === "teacher") {
+      const newPassword = generateTeacherPassword(e.target.value);
+      setGeneratedPassword(newPassword);
+    }
+  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -405,11 +414,7 @@ export default function UserManagementPage() {
         return;
       }
 
-      // Generate only password for teacher (username is manual)
-      const cleanName = (data.name as string).replace(/\s+/g, "").toUpperCase();
-      const randomId = Math.floor(Math.random() * 900) + 100;
-      const generatedPassword = `U${randomId}${cleanName}`;
-
+      // Use the already generated password from state
       data.controlId = teacherControlId;
       data.schedule = teacherSchedule.trim();
       data.phone = teacherPhone.trim();
@@ -930,6 +935,7 @@ export default function UserManagementPage() {
                           type="text"
                           name="name"
                           defaultValue={editingUser?.name}
+                          onChange={handleNameChange}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="Enter full name"
                           required

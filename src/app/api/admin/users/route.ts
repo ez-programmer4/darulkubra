@@ -234,8 +234,8 @@ export async function POST(req: NextRequest) {
 
     // Store plain password for teachers, hash for others
     const hashedPassword =
-      role === "teacher" && reqBody.plainPassword
-        ? reqBody.plainPassword
+      role === "teacher"
+        ? password // Use the password as-is for teachers (already generated in frontend)
         : await bcrypt.hash(password, 10);
     let newUser;
 

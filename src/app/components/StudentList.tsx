@@ -108,7 +108,8 @@ export default function StudentList({
     const val = (s || "").toLowerCase().trim();
     if (!val) return "";
     if (val === "active") return "active";
-    if (["notyet", "not-yet", "not_yet", "not yet"].includes(val)) return "not yet";
+    if (["notyet", "not-yet", "not_yet", "not yet"].includes(val))
+      return "not yet";
     return val; // return other custom statuses as-is (lowercased, trimmed)
   };
 
@@ -131,7 +132,9 @@ export default function StudentList({
             }
             try {
               // Fetch actual payment data from API
-              const response = await fetch(`/api/payments/monthly?studentId=${studentId}`);
+              const response = await fetch(
+                `/api/payments/monthly?studentId=${studentId}`
+              );
               let paymentHistory: MonthlyPayment[] = [];
 
               if (response.ok) {
@@ -149,16 +152,41 @@ export default function StudentList({
                 // Normalize varying backend field names into MonthlyPayment shape
                 paymentHistory = arr
                   ? arr.map((r: any): MonthlyPayment => {
-                      const monthVal: string | undefined = r.month || r.Month || r.month_table || r.billing_month || undefined;
-                      const startDateVal: string | null = r.start_date || r.startdate || r.StartDate || null;
-                      const endDateVal: string | null = r.end_date || r.enddate || r.EndDate || null;
-                      const statusVal: string = r.payment_status || r.Payment_status || r.status || r.Status || r.PaymentStatus || "";
-                      const typeVal: string = r.payment_type || r.type || r.PaymentType || "";
-                      const paidAmt: number = r.paid_amount ?? r.paidamount ?? r.amount_paid ?? r.amount ?? 0;
+                      const monthVal: string | undefined =
+                        r.month ||
+                        r.Month ||
+                        r.month_table ||
+                        r.billing_month ||
+                        undefined;
+                      const startDateVal: string | null =
+                        r.start_date || r.startdate || r.StartDate || null;
+                      const endDateVal: string | null =
+                        r.end_date || r.enddate || r.EndDate || null;
+                      const statusVal: string =
+                        r.payment_status ||
+                        r.Payment_status ||
+                        r.status ||
+                        r.Status ||
+                        r.PaymentStatus ||
+                        "";
+                      const typeVal: string =
+                        r.payment_type || r.type || r.PaymentType || "";
+                      const paidAmt: number =
+                        r.paid_amount ??
+                        r.paidamount ??
+                        r.amount_paid ??
+                        r.amount ??
+                        0;
                       return {
                         id: r.id ?? r.paymentid ?? 0,
-                        studentid: r.studentid ?? r.student_id ?? r.StudentId ?? studentId,
-                        month: monthVal ?? (startDateVal ? String(startDateVal) : ""),
+                        studentid:
+                          r.studentid ??
+                          r.student_id ??
+                          r.StudentId ??
+                          studentId,
+                        month:
+                          monthVal ??
+                          (startDateVal ? String(startDateVal) : ""),
                         paid_amount: Number(paidAmt) || 0,
                         payment_status: String(statusVal),
                         payment_type: String(typeVal),
@@ -178,19 +206,22 @@ export default function StudentList({
               } else {
                 // Fallback: Use mock data based on student status and ID for testing
                 const currentMonth = format(new Date(), "yyyy-MM");
-                const isPaid = student.status === "Active" && (studentId % 2 === 0);
-                paymentHistory = isPaid ? [
-                  {
-                    id: 1,
-                    studentid: studentId,
-                    month: currentMonth,
-                    paid_amount: student.classfee || 100,
-                    payment_status: "paid",
-                    payment_type: "full",
-                    start_date: format(new Date(), "yyyy-MM-dd"),
-                    end_date: format(new Date(), "yyyy-MM-dd")
-                  }
-                ] : [];
+                const isPaid =
+                  student.status === "Active" && studentId % 2 === 0;
+                paymentHistory = isPaid
+                  ? [
+                      {
+                        id: 1,
+                        studentid: studentId,
+                        month: currentMonth,
+                        paid_amount: student.classfee || 100,
+                        payment_status: "paid",
+                        payment_type: "full",
+                        start_date: format(new Date(), "yyyy-MM-dd"),
+                        end_date: format(new Date(), "yyyy-MM-dd"),
+                      },
+                    ]
+                  : [];
                 if (DEBUG_PAYMENTS) {
                   console.warn("[PAYMENTS] API not OK, using fallback", {
                     studentId,
@@ -204,8 +235,9 @@ export default function StudentList({
               const calculateExpectedAmount = (monthStr: string): number => {
                 const [y, m] = monthStr.split("-").map(Number);
                 const monthStart = new Date(y, (m || 1) - 1, 1);
-                const monthEnd = new Date(y, (m || 1), 0);
-                const studentStart = safeParseISO(student.startdate) || new Date();
+                const monthEnd = new Date(y, m || 1, 0);
+                const studentStart =
+                  safeParseISO(student.startdate) || new Date();
                 const studentStartMonthStart = new Date(
                   studentStart.getFullYear(),
                   studentStart.getMonth(),
@@ -224,12 +256,16 @@ export default function StudentList({
                   // differenceInDays imported above
                   // We cannot import here, so approximate using direct diff in ms
                   const diffDays = Math.min(
-                    Math.ceil((monthEnd.getTime() - startDate.getTime() + 1) / (1000 * 60 * 60 * 24)),
+                    Math.ceil(
+                      (monthEnd.getTime() - startDate.getTime() + 1) /
+                        (1000 * 60 * 60 * 24)
+                    ),
                     daysInMonth
                   );
                   daysInClass = diffDays;
                 }
-                const expected = (Number(student.classfee || 0) * daysInClass) / daysInMonth;
+                const expected =
+                  (Number(student.classfee || 0) * daysInClass) / daysInMonth;
                 return Math.round(expected);
               };
 
@@ -240,15 +276,22 @@ export default function StudentList({
                 );
                 if (monthPayments.length === 0) return false;
                 // Free month
-                if (monthPayments.some((p) => p.payment_type === "free")) return true;
+                if (monthPayments.some((p) => p.payment_type === "free"))
+                  return true;
                 // prizepartial + any payment
-                const hasPrizePartial = monthPayments.some((p) => p.payment_type === "prizepartial");
+                const hasPrizePartial = monthPayments.some(
+                  (p) => p.payment_type === "prizepartial"
+                );
                 const hasPaid = monthPayments.some(
-                  (p) => p.payment_type === "partial" || p.payment_type === "full"
+                  (p) =>
+                    p.payment_type === "partial" || p.payment_type === "full"
                 );
                 if (hasPrizePartial && hasPaid) return true;
                 // Sum of paid amounts
-                const totalPaid = monthPayments.reduce((sum, p) => sum + Number(p.paid_amount || 0), 0);
+                const totalPaid = monthPayments.reduce(
+                  (sum, p) => sum + Number(p.paid_amount || 0),
+                  0
+                );
                 const expected = calculateExpectedAmount(monthKey);
                 return totalPaid >= expected;
               };
@@ -278,22 +321,29 @@ export default function StudentList({
               }
 
               // Get latest payment sorted by date
-              const latestPayment = paymentHistory.length > 0
-                ? paymentHistory.sort((a, b) => {
-                    const dateA = safeParseISO(a.end_date);
-                    const dateB = safeParseISO(b.end_date);
-                    if (!dateA && !dateB) return 0;
-                    if (!dateA) return 1;
-                    if (!dateB) return -1;
-                    return dateB.getTime() - dateA.getTime();
-                  })[0]
-                : undefined;
+              const latestPayment =
+                paymentHistory.length > 0
+                  ? paymentHistory.sort((a, b) => {
+                      const dateA = safeParseISO(a.end_date);
+                      const dateB = safeParseISO(b.end_date);
+                      if (!dateA && !dateB) return 0;
+                      if (!dateA) return 1;
+                      if (!dateB) return -1;
+                      return dateB.getTime() - dateA.getTime();
+                    })[0]
+                  : undefined;
 
               // Check for overdue payments: any month before current that is not fully covered
               const uniqueMonths = Array.from(
-                new Set(paymentHistory.map((p) => String(p.month).slice(0, 7)).filter(Boolean))
+                new Set(
+                  paymentHistory
+                    .map((p) => String(p.month).slice(0, 7))
+                    .filter(Boolean)
+                )
               ).sort();
-              const hasOverdue = uniqueMonths.some((m) => m < currentMonth && !isMonthFullyCovered(m));
+              const hasOverdue = uniqueMonths.some(
+                (m) => m < currentMonth && !isMonthFullyCovered(m)
+              );
 
               return {
                 ...student,
@@ -305,7 +355,10 @@ export default function StudentList({
                 },
               };
             } catch (error) {
-              console.error(`Error fetching payment for student ${studentId}:`, error);
+              console.error(
+                `Error fetching payment for student ${studentId}:`,
+                error
+              );
               return {
                 ...student,
                 paymentStatus: {
@@ -321,7 +374,7 @@ export default function StudentList({
 
         setStudentsWithPaymentStatus(updatedStudents);
       } catch (error) {
-        console.error('Error in fetchPaymentHistory:', error);
+        console.error("Error in fetchPaymentHistory:", error);
       }
     };
 
@@ -354,7 +407,12 @@ export default function StudentList({
   const ustazes = useMemo(() => {
     const uniqueUstazes = [
       ...new Set(
-        students.map((student) => student.teacher?.ustazname || student.ustaz)
+        students.map((student) => {
+          // Try multiple possible fields for teacher name
+          return (
+            student.teacher?.ustazname || student.ustaz || "Unknown Teacher"
+          );
+        })
       ),
     ];
     return ["all", ...uniqueUstazes.filter(Boolean)];
@@ -378,25 +436,30 @@ export default function StudentList({
       const adjustedHour = hour % 12 || 12;
       return `${adjustedHour}:${minute.toString().padStart(2, "0")} ${period}`;
     };
-    
+
     const uniqueSlots = [
-      ...new Set(students.map((student) => {
-        const time = student.selectedTime;
-        if (!time || time.trim() === "" || time === "Not specified") return null;
-        return convertTo12Hour(time.trim());
-      }).filter(Boolean)),
+      ...new Set(
+        students
+          .map((student) => {
+            const time = student.selectedTime;
+            if (!time || time.trim() === "" || time === "Not specified")
+              return null;
+            return convertTo12Hour(time.trim());
+          })
+          .filter(Boolean)
+      ),
     ];
     return ["all", ...uniqueSlots];
   }, [students]);
 
   const filteredStudents = useMemo((): Student[] => {
     const filtered = studentsWithPaymentStatus.filter((student) => {
+      const teacherName = student.teacher?.ustazname || student.ustaz || "";
+
       const matchesSearch =
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         student.phoneno.includes(searchQuery) ||
-        ((student.teacher?.ustazname || student.ustaz || "")
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase()));
+        teacherName.toLowerCase().includes(searchQuery.toLowerCase());
 
       const studentStatus = normalizeStatus(student.status);
       const matchesStatus =
@@ -406,9 +469,11 @@ export default function StudentList({
           (studentStatus === "active" || studentStatus === "not yet"));
       const matchesSubject =
         subjectFilter === "all" || student.subject === subjectFilter;
+      const currentTeacherName =
+        student.teacher?.ustazname || student.ustaz || "Unknown Teacher";
+
       const matchesUstaz =
-        ustazFilter === "all" ||
-        (student.teacher?.ustazname || student.ustaz) === ustazFilter;
+        ustazFilter === "all" || currentTeacherName === ustazFilter;
       const matchesPackage =
         packageFilter === "all" || student.package === packageFilter;
       const convertTo12Hour = (time: string): string => {
@@ -419,24 +484,33 @@ export default function StudentList({
         if (isNaN(hour) || isNaN(minute)) return time;
         const period = hour >= 12 ? "PM" : "AM";
         const adjustedHour = hour % 12 || 12;
-        return `${adjustedHour}:${minute.toString().padStart(2, "0")} ${period}`;
+        return `${adjustedHour}:${minute
+          .toString()
+          .padStart(2, "0")} ${period}`;
       };
-      
+
       const matchesTimeSlot =
-        timeSlotFilter === "all" || 
+        timeSlotFilter === "all" ||
         convertTo12Hour(student.selectedTime) === timeSlotFilter;
 
       const paymentStatus = student.paymentStatus;
       let matchesPaymentStatus = true;
-      
+
       if (paymentStatusFilter === "Paid") {
         // Student has paid for current month
-        matchesPaymentStatus = Boolean(paymentStatus?.currentMonthPaid === true);
+        matchesPaymentStatus = Boolean(
+          paymentStatus?.currentMonthPaid === true
+        );
       } else if (paymentStatusFilter === "unpaid") {
         // Student has NOT paid for current month (but exclude students with no payment history if they're inactive)
-        matchesPaymentStatus = Boolean(paymentStatus && paymentStatus.currentMonthPaid === false && 
-                              (student.status.toLowerCase() === "active" || student.status.toLowerCase() === "not yet" || 
-                               (paymentStatus?.paymentHistory && paymentStatus.paymentHistory.length > 0)));
+        matchesPaymentStatus = Boolean(
+          paymentStatus &&
+            paymentStatus.currentMonthPaid === false &&
+            (student.status.toLowerCase() === "active" ||
+              student.status.toLowerCase() === "not yet" ||
+              (paymentStatus?.paymentHistory &&
+                paymentStatus.paymentHistory.length > 0))
+        );
       } else if (paymentStatusFilter === "overdue") {
         // Student has overdue payments
         matchesPaymentStatus = Boolean(paymentStatus?.hasOverdue === true);
@@ -553,8 +627,12 @@ export default function StudentList({
       {isFilterPanelOpen && (
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 backdrop-blur-sm">
           <div className="mb-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Filter Options</h3>
-            <p className="text-gray-600">Refine your student search with advanced filters</p>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Filter Options
+            </h3>
+            <p className="text-gray-600">
+              Refine your student search with advanced filters
+            </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <div className="space-y-3">
@@ -676,9 +754,12 @@ export default function StudentList({
             </div>
             <div>
               <p className="text-lg font-semibold text-gray-900">
-                Showing {paginatedStudents.length} of {filteredStudents.length} students
+                Showing {paginatedStudents.length} of {filteredStudents.length}{" "}
+                students
               </p>
-              <p className="text-sm text-gray-600">Total records in database: {students.length}</p>
+              <p className="text-sm text-gray-600">
+                Total records in database: {students.length}
+              </p>
             </div>
           </div>
           {filteredStudents.length !== students.length && (
@@ -740,7 +821,9 @@ export default function StudentList({
                 </span>
               </div>
               <span className="text-sm text-gray-500">
-                ({(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredStudents.length)} of {filteredStudents.length})
+                ({(currentPage - 1) * itemsPerPage + 1}-
+                {Math.min(currentPage * itemsPerPage, filteredStudents.length)}{" "}
+                of {filteredStudents.length})
               </span>
             </div>
             <div className="flex items-center gap-3">

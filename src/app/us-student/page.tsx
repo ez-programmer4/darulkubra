@@ -65,6 +65,8 @@ export default function Page() {
     router.push(`/registration?${params.toString()}`);
   };
 
+
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

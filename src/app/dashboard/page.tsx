@@ -132,9 +132,9 @@ export default function Dashboard() {
           credentials: "include",
           headers: { "Content-Type": "application/json" },
         }),
-        fetch("/api/us-student")
+        fetch("/api/us-student"),
       ]);
-      
+
       if (!regResponse.ok) {
         throw new Error(`HTTP error! Status: ${regResponse.status}`);
       }
@@ -148,11 +148,13 @@ export default function Dashboard() {
         selectedTime: reg.selectedTime || "Not specified",
       }));
       setRegistrations(sanitizedData);
-      
+
       // Fetch US student count
       if (usResponse.ok) {
         const usData = await usResponse.json();
-        const pendingCount = usData.filter((s: any) => !s.wpos_wpdatatable_23Wdt_ID).length;
+        const pendingCount = usData.filter(
+          (s: any) => !s.wpos_wpdatatable_23Wdt_ID
+        ).length;
         setUsStudentCount(pendingCount);
       }
     } catch (error) {
