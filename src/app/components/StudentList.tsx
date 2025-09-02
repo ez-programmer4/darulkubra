@@ -78,7 +78,7 @@ export default function StudentList({
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [studentsWithPaymentStatus, setStudentsWithPaymentStatus] = useState<
     Student[]
   >(
@@ -540,12 +540,10 @@ export default function StudentList({
     paymentStatusFilter,
   ]);
 
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedStudents = filteredStudents.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
+  const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(filteredStudents.length / itemsPerPage);
+  const startIndex = itemsPerPage === -1 ? 0 : (currentPage - 1) * itemsPerPage;
+  const endIndex = itemsPerPage === -1 ? filteredStudents.length : startIndex + itemsPerPage;
+  const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
 
   const debouncedSearch = useMemo(
     () => debounce((query: string) => setSearchQuery(query), 300),
@@ -762,13 +760,32 @@ export default function StudentList({
               </p>
             </div>
           </div>
-          {filteredStudents.length !== students.length && (
-            <div className="bg-blue-50 px-4 py-2 rounded-xl">
-              <span className="text-blue-700 font-semibold text-sm">
-                {filteredStudents.length} filtered from {students.length} total
-              </span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Show:</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  const newItemsPerPage = parseInt(e.target.value);
+                  setItemsPerPage(newItemsPerPage);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all duration-200"
+              >
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={-1}>All students</option>
+              </select>
             </div>
-          )}
+            {filteredStudents.length !== students.length && (
+              <div className="bg-blue-50 px-4 py-2 rounded-xl">
+                <span className="text-blue-700 font-semibold text-sm">
+                  {filteredStudents.length} filtered from {students.length} total
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -811,7 +828,7 @@ export default function StudentList({
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {itemsPerPage !== -1 && totalPages > 1 && (
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
@@ -821,8 +838,7 @@ export default function StudentList({
                 </span>
               </div>
               <span className="text-sm text-gray-500">
-                ({(currentPage - 1) * itemsPerPage + 1}-
-                {Math.min(currentPage * itemsPerPage, filteredStudents.length)}{" "}
+                ({startIndex + 1}-{Math.min(endIndex, filteredStudents.length)}{" "}
                 of {filteredStudents.length})
               </span>
             </div>

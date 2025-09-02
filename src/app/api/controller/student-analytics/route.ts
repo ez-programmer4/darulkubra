@@ -74,10 +74,7 @@ async function getAttendanceofAllStudents(studentIds: number[]) {
   }
 }
 
-async function correctExamAnswer(
-  coursesPackageId: string,
-  studentId: number
-) {
+async function correctExamAnswer(coursesPackageId: string, studentId: number) {
   try {
     const questions = await prisma.question.findMany({
       where: { packageId: coursesPackageId },
@@ -106,7 +103,7 @@ async function correctExamAnswer(
       console.log("there is no students queiz");
       return undefined;
     }
-    console.log("Fetching student quiz answers for studentId:", studentId);
+
     const studentQuizAnswers = await prisma.studentQuizAnswer.findMany({
       where: {
         studentQuiz: {
@@ -169,10 +166,7 @@ async function correctExamAnswer(
   }
 }
 
-async function checkFinalExamCreation(
-  studentId: number,
-  packageId: string
-) {
+async function checkFinalExamCreation(studentId: number, packageId: string) {
   try {
     // 1. Check if a registration for this student and package already exists
     const updateProhibibted = await prisma.finalExamResult.findFirst({
@@ -196,10 +190,7 @@ async function checkFinalExamCreation(
   }
 }
 
-async function checkingUpdateProhibition(
-  studentId: number,
-  packageId: string
-) {
+async function checkingUpdateProhibition(studentId: number, packageId: string) {
   try {
     // 1. Check if a registration for this student and package already exists
     const updateProhibibted = await prisma.finalExamResult.findFirst({
@@ -530,9 +521,14 @@ export async function GET(request: NextRequest) {
     if (examFilter && examFilter !== "all") {
       studentsWithProgress = studentsWithProgress.filter((student) => {
         if (examFilter === "taken") return student.hasFinalExam;
-        if (examFilter === "nottaken") return !student.hasFinalExam && student.studentProgress === "completed";
-        if (examFilter === "passed") return student.hasFinalExam && student.result.score >= 0.6;
-        if (examFilter === "failed") return student.hasFinalExam && student.result.score < 0.6;
+        if (examFilter === "nottaken")
+          return (
+            !student.hasFinalExam && student.studentProgress === "completed"
+          );
+        if (examFilter === "passed")
+          return student.hasFinalExam && student.result.score >= 0.6;
+        if (examFilter === "failed")
+          return student.hasFinalExam && student.result.score < 0.6;
         return true;
       });
     }
@@ -597,10 +593,15 @@ async function getPackageDetails(packageId: string, studentId: number) {
       (chapter) => chapter.studentProgress[0]?.isCompleted
     ).length;
     const inProgressChapters = course.chapters.filter(
-      (chapter) => chapter.studentProgress[0] && !chapter.studentProgress[0]?.isCompleted
+      (chapter) =>
+        chapter.studentProgress[0] && !chapter.studentProgress[0]?.isCompleted
     ).length;
-    const notStartedChapters = totalChapters - completedChapters - inProgressChapters;
-    const progressPercent = totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0;
+    const notStartedChapters =
+      totalChapters - completedChapters - inProgressChapters;
+    const progressPercent =
+      totalChapters > 0
+        ? Math.round((completedChapters / totalChapters) * 100)
+        : 0;
 
     return {
       id: course.id,
@@ -610,7 +611,12 @@ async function getPackageDetails(packageId: string, studentId: number) {
       inProgressChapters,
       notStartedChapters,
       progressPercent,
-      status: progressPercent === 100 ? 'completed' : progressPercent > 0 ? 'inprogress' : 'notstarted'
+      status:
+        progressPercent === 100
+          ? "completed"
+          : progressPercent > 0
+          ? "inprogress"
+          : "notstarted",
     };
   });
 }

@@ -682,7 +682,6 @@ export default function AttendanceList() {
       }
     });
 
-    console.log("Total alerts found:", Object.keys(newAlerts).length);
     setLatenessAlerts(newAlerts);
   }
 
