@@ -451,7 +451,11 @@ function RegistrationContent() {
       if (usStudentId) {
         sessionStorage.setItem("usStudentId", usStudentId);
       }
-      console.log("Detected US student from URL params:", { prefilled, name, country });
+      console.log("Detected US student from URL params:", {
+        prefilled,
+        name,
+        country,
+      });
     }
   }, [searchParams, setValue]);
 
@@ -490,7 +494,10 @@ function RegistrationContent() {
             isUsStudentRef.current = true;
             // Clear any existing validation errors for US students
             clearErrors(["classfee", "country"]);
-            console.log("Detected US student during edit:", { userId: data.userId, country: data.country });
+            console.log("Detected US student during edit:", {
+              userId: data.userId,
+              country: data.country,
+            });
           }
 
           setValue("fullName", data.name || "");
@@ -512,7 +519,7 @@ function RegistrationContent() {
           setSelectedTime(fetchedSelectedTime);
           setSelectedTeacher(data.ustaz || "");
           setEditingTeacherName(data.ustaz || "");
-          
+
           await fetchTeachers();
         } catch (error) {
           setFetchError("Failed to load student data for editing.");
@@ -602,7 +609,7 @@ function RegistrationContent() {
         registrationdate: editId ? undefined : new Date().toISOString(),
         // Add US student data
         email: usStudentEmail || null,
-        usStudentId: usStudentId ? parseInt(usStudentId) : null,
+        usStudentId: usStudentId ?? null,
       };
 
       const url = editId
@@ -1685,7 +1692,8 @@ function RegistrationContent() {
                     <div className="space-y-2">
                       <label className="block text-sm font-semibold text-gray-800 flex items-center">
                         <FiDollarSign className="mr-2 text-teal-600" />
-                        Class Fee {!isUsStudent ? '*' : '(Optional for US students)'}
+                        Class Fee{" "}
+                        {!isUsStudent ? "*" : "(Optional for US students)"}
                       </label>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
@@ -1703,8 +1711,12 @@ function RegistrationContent() {
                             errors.classfee
                               ? "border-red-500"
                               : "border-gray-200 hover:border-teal-300"
-                          } ${isUsStudent ? 'bg-gray-50' : ''}`}
-                          placeholder={isUsStudent ? "Optional for US students" : "Enter fee amount"}
+                          } ${isUsStudent ? "bg-gray-50" : ""}`}
+                          placeholder={
+                            isUsStudent
+                              ? "Optional for US students"
+                              : "Enter fee amount"
+                          }
                           type="number"
                           readOnly={isUsStudent}
                         />
@@ -1842,7 +1854,7 @@ function RegistrationContent() {
                     <div className="space-y-2">
                       <label className="block text-sm font-semibold text-gray-800 flex items-center">
                         <FiGlobe className="mr-2 text-teal-600" />
-                        Country {!isUsStudent ? '*' : ''}
+                        Country {!isUsStudent ? "*" : ""}
                       </label>
                       {isUsStudent ? (
                         <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-700">
