@@ -29,7 +29,10 @@ export default function Page() {
   const fetchData = async () => {
     try {
       const response = await fetch(`/api/us-student?_t=${Date.now()}`, {
-        cache: "no-store",
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
       });
       if (!response.ok) throw new Error("Failed to fetch");
       const res = await response.json();
