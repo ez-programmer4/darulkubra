@@ -28,7 +28,9 @@ export default function Page() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch(`/api/us-student?_t=${Date.now()}`);
+      const response = await fetch(`/api/us-student?_t=${Date.now()}`, {
+        cache: "no-store",
+      });
       if (!response.ok) throw new Error("Failed to fetch");
       const res = await response.json();
       setData(res);
@@ -64,8 +66,6 @@ export default function Page() {
 
     router.push(`/registration?${params.toString()}`);
   };
-
-
 
   if (loading) {
     return (
@@ -278,8 +278,6 @@ export default function Page() {
             </table>
           </div>
         </div>
-
-
       </div>
     </div>
   );
