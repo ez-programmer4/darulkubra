@@ -79,7 +79,7 @@ model wpos_wpdatatable_23 {
   finalExamResult     finalExamResult[]
   tarbiaAttendance    tarbiaAttendance[]
   studentQuiz         studentQuiz[]
-  user                user?                         @relation(fields: [userId], references: [id])
+  user                user?                         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   userId              String?                       @unique
 
   @@index([ustaz], map: "idx_ustaz")
