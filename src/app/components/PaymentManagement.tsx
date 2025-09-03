@@ -2016,6 +2016,7 @@ export default function PaymentManagement({
                         transactionId: "",
                         reason: "",
                         senderName: "",
+                        paymentDate: format(new Date(), "yyyy-MM-dd"),
                       });
                       setDepositErrors({});
                     }}
