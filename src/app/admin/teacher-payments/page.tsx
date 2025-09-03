@@ -68,11 +68,12 @@ export default function TeacherPaymentsPage() {
   }>({ latenessRecords: [], absenceRecords: [], bonusRecords: [] });
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [breakdownError, setBreakdownError] = useState<string | null>(null);
-  const [baseSalaryPerStudent, setBaseSalaryPerStudent] = useState<number>(900);
-  const [baseSalaryInput, setBaseSalaryInput] = useState<string>("900");
-  const [baseSalaryLoading, setBaseSalaryLoading] = useState(false);
-  const [baseSalaryError, setBaseSalaryError] = useState<string | null>(null);
-  const [baseSalarySuccess, setBaseSalarySuccess] = useState<string | null>(null);
+  const [packageSalaries, setPackageSalaries] = useState<Record<string, number>>({});
+  const [packageSalaryInputs, setPackageSalaryInputs] = useState<Record<string, string>>({});
+  const [packageSalaryLoading, setPackageSalaryLoading] = useState(false);
+  const [packageSalaryError, setPackageSalaryError] = useState<string | null>(null);
+  const [packageSalarySuccess, setPackageSalarySuccess] = useState<string | null>(null);
+  const [availablePackages, setAvailablePackages] = useState<string[]>([]);
   const [teacherSalaryVisible, setTeacherSalaryVisible] = useState(true);
   const [salaryVisibilityLoading, setSalaryVisibilityLoading] = useState(false);
   const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(new Set());
@@ -153,25 +154,39 @@ export default function TeacherPaymentsPage() {
   }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
-    async function fetchBaseSalary() {
-      setBaseSalaryLoading(true);
-      setBaseSalaryError(null);
+    async function fetchPackageSalaries() {
+      setPackageSalaryLoading(true);
+      setPackageSalaryError(null);
       try {
-        const res = await fetch("/api/admin/settings");
-        if (!res.ok) throw new Error("Failed to fetch settings");
-        const data = await res.json();
-        const found = data.settings?.find((s: any) => s.key === "base_salary_per_student");
-        if (found && !isNaN(Number(found.value))) {
-          setBaseSalaryPerStudent(Number(found.value));
-          setBaseSalaryInput(String(found.value));
-        } else {
-          setBaseSalaryPerStudent(900);
-          setBaseSalaryInput("900");
-        }
+        const [settingsRes, packagesRes] = await Promise.all([
+          fetch("/api/admin/settings"),
+          fetch("/api/day-packages")
+        ]);
+        
+        if (!settingsRes.ok || !packagesRes.ok) throw new Error("Failed to fetch data");
+        
+        const settingsData = await settingsRes.json();
+        const packagesData = await packagesRes.json();
+        
+        const packages = packagesData.map((p: any) => p.name);
+        setAvailablePackages(packages);
+        
+        const salaries: Record<string, number> = {};
+        const inputs: Record<string, string> = {};
+        
+        packages.forEach((pkg: string) => {
+          const setting = settingsData.settings?.find((s: any) => s.key === `package_salary_${pkg}`);
+          const value = setting?.value ? Number(setting.value) : 900;
+          salaries[pkg] = value;
+          inputs[pkg] = String(value);
+        });
+        
+        setPackageSalaries(salaries);
+        setPackageSalaryInputs(inputs);
       } catch (err: any) {
-        setBaseSalaryError(err.message || "Failed to fetch base salary");
+        setPackageSalaryError(err.message || "Failed to fetch package salaries");
       } finally {
-        setBaseSalaryLoading(false);
+        setPackageSalaryLoading(false);
       }
     }
 
@@ -188,46 +203,46 @@ export default function TeacherPaymentsPage() {
       }
     }
 
-    fetchBaseSalary();
+    fetchPackageSalaries();
     fetchSalaryVisibility();
   }, []);
 
-  const handleUpdateBaseSalary = async () => {
-    setBaseSalaryLoading(true);
-    setBaseSalaryError(null);
-    setBaseSalarySuccess(null);
+  const handleUpdatePackageSalary = async (packageName: string) => {
+    setPackageSalaryLoading(true);
+    setPackageSalaryError(null);
+    setPackageSalarySuccess(null);
     try {
-      const value = Number(baseSalaryInput);
+      const value = Number(packageSalaryInputs[packageName]);
       if (isNaN(value) || value <= 0) {
-        setBaseSalaryError("Please enter a valid positive number.");
-        setBaseSalaryLoading(false);
+        setPackageSalaryError("Please enter a valid positive number.");
+        setPackageSalaryLoading(false);
         return;
       }
       const res = await fetch("/api/admin/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          key: "base_salary_per_student",
+          key: `package_salary_${packageName}`,
           value: String(value),
         }),
       });
-      if (!res.ok) throw new Error("Failed to update base salary");
-      setBaseSalaryPerStudent(value);
-      setBaseSalarySuccess("Base salary updated!");
-      setTimeout(() => setBaseSalarySuccess(null), 2000);
+      if (!res.ok) throw new Error("Failed to update package salary");
+      setPackageSalaries(prev => ({ ...prev, [packageName]: value }));
+      setPackageSalarySuccess(`${packageName} salary updated!`);
+      setTimeout(() => setPackageSalarySuccess(null), 2000);
       toast({
         title: "Success",
-        description: "Base salary updated successfully!",
+        description: `${packageName} salary updated successfully!`,
       });
     } catch (err: any) {
-      setBaseSalaryError(err.message || "Failed to update base salary");
+      setPackageSalaryError(err.message || "Failed to update package salary");
       toast({
         title: "Error",
-        description: "Failed to update base salary",
+        description: "Failed to update package salary",
         variant: "destructive",
       });
     } finally {
-      setBaseSalaryLoading(false);
+      setPackageSalaryLoading(false);
     }
   };
 
@@ -554,40 +569,47 @@ export default function TeacherPaymentsPage() {
 
         {/* Configuration Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Base Salary Config */}
+          {/* Package Salary Config */}
           <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8">
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-black rounded-xl">
                 <FiDollarSign className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-black">Base Salary Per Student</h2>
-                <p className="text-gray-600">Configure the base salary calculation</p>
+                <h2 className="text-2xl font-bold text-black">Package-Based Salaries</h2>
+                <p className="text-gray-600">Configure salary per student package</p>
               </div>
             </div>
-            <div className="flex flex-col md:flex-row flex-wrap md:flex-nowrap items-stretch md:items-center gap-3 w-full">
-              <input
-                type="number"
-                min={1}
-                value={baseSalaryInput}
-                onChange={(e) => setBaseSalaryInput(e.target.value)}
-                className="w-full md:flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
-                disabled={baseSalaryLoading}
-              />
-              <span className="text-black font-semibold md:w-auto">ETB</span>
-              <button
-                onClick={handleUpdateBaseSalary}
-                className={`w-full md:w-auto bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 ${
-                  baseSalaryLoading ? "opacity-75" : ""
-                }`}
-                disabled={baseSalaryLoading}
-              >
-                {baseSalaryLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
-                Update
-              </button>
+            <div className="space-y-4">
+              {availablePackages.map((packageName) => (
+                <div key={packageName} className="flex flex-col md:flex-row items-stretch md:items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                  <div className="md:w-32">
+                    <span className="text-sm font-semibold text-gray-700">{packageName}</span>
+                  </div>
+                  <input
+                    type="number"
+                    min={1}
+                    value={packageSalaryInputs[packageName] || "900"}
+                    onChange={(e) => setPackageSalaryInputs(prev => ({ ...prev, [packageName]: e.target.value }))}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
+                    disabled={packageSalaryLoading}
+                  />
+                  <span className="text-black font-semibold">ETB</span>
+                  <button
+                    onClick={() => handleUpdatePackageSalary(packageName)}
+                    className={`bg-black hover:bg-gray-800 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 ${
+                      packageSalaryLoading ? "opacity-75" : ""
+                    }`}
+                    disabled={packageSalaryLoading}
+                  >
+                    {packageSalaryLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
+                    Update
+                  </button>
+                </div>
+              ))}
             </div>
-            {baseSalaryError && <p className="text-sm text-red-600 mt-2">{baseSalaryError}</p>}
-            {baseSalarySuccess && <p className="text-sm text-green-600 mt-2">{baseSalarySuccess}</p>}
+            {packageSalaryError && <p className="text-sm text-red-600 mt-2">{packageSalaryError}</p>}
+            {packageSalarySuccess && <p className="text-sm text-green-600 mt-2">{packageSalarySuccess}</p>}
           </div>
 
           {/* Salary Visibility Config */}
@@ -734,9 +756,19 @@ export default function TeacherPaymentsPage() {
               </div>
             ) : (
               <>
-                <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
-                  <FiInfo className="text-gray-500 h-5 w-5" />
-                  Base salary is <span className="font-bold text-black">{baseSalaryPerStudent} ETB</span> per active student.
+                <div className="mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-2 text-sm text-blue-800 mb-2">
+                    <FiInfo className="text-blue-600 h-5 w-5" />
+                    <span className="font-semibold">Package-Based Salary System</span>
+                  </div>
+                  <div className="text-xs text-blue-700 space-y-1">
+                    {Object.entries(packageSalaries).map(([pkg, salary]) => (
+                      <div key={pkg} className="flex justify-between">
+                        <span>{pkg}:</span>
+                        <span className="font-semibold">{salary} ETB per student</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 
                 <div className="overflow-x-auto">
@@ -1017,7 +1049,7 @@ export default function TeacherPaymentsPage() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <FiInfo className="text-gray-500 h-5 w-5" />
-                    Base salary is {baseSalaryPerStudent} ETB per active student.
+                    Salary calculated based on student packages.
                   </div>
                 </div>
               </div>

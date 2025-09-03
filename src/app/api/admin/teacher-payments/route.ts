@@ -245,14 +245,23 @@ export async function GET(req: NextRequest) {
       if (!s.ustaz) continue;
       studentCountMap[s.ustaz] = (studentCountMap[s.ustaz] || 0) + 1;
     }
-    // Get base salary per student from settings
-    let BASE_SALARY_PER_STUDENT = 900;
-    const setting = await prisma.setting.findUnique({
-      where: { key: "base_salary_per_student" },
+    // Get package-based salary configuration
+    const packageSalaries = await prisma.setting.findMany({
+      where: {
+        key: {
+          startsWith: "package_salary_"
+        }
+      }
     });
-    if (setting && setting.value && !isNaN(Number(setting.value))) {
-      BASE_SALARY_PER_STUDENT = Number(setting.value);
-    }
+    
+    const salaryMap: Record<string, number> = {};
+    packageSalaries.forEach(setting => {
+      const packageName = setting.key.replace('package_salary_', '');
+      salaryMap[packageName] = Number(setting.value) || 900;
+    });
+    
+    // Default salary if no package found
+    const DEFAULT_SALARY = 900;
 
     // For each teacher, calculate deductions and bonuses
     // Helper to get all periods in the date range
@@ -289,8 +298,18 @@ export async function GET(req: NextRequest) {
         // Only use database configuration, no predefined tiers
         if (latenessConfigs.length === 0) {
           // Return teacher with zero lateness deduction if no config
-          const numStudents = studentCountMap[t.ustazid] || 0;
-          const baseSalary = numStudents * BASE_SALARY_PER_STUDENT;
+          // Calculate salary based on student packages
+          const teacherStudents = await prisma.wpos_wpdatatable_23.findMany({
+            where: { ustaz: t.ustazid, status: { in: ["active", "Active"] } },
+            select: { package: true }
+          });
+          
+          const baseSalary = teacherStudents.reduce((total, student) => {
+            const packageSalary = student.package ? salaryMap[student.package] || DEFAULT_SALARY : DEFAULT_SALARY;
+            return total + packageSalary;
+          }, 0);
+          
+          const numStudents = teacherStudents.length;
           
           // Calculate absence deduction
           let absenceDeduction = 0;
@@ -375,8 +394,19 @@ export async function GET(req: NextRequest) {
           },
         });
         let latenessDeduction = 0;
-        const numStudents = studentCountMap[t.ustazid] || 0;
-        const baseSalary = numStudents * BASE_SALARY_PER_STUDENT;
+        
+        // Calculate salary based on student packages
+        const teacherStudents = await prisma.wpos_wpdatatable_23.findMany({
+          where: { ustaz: t.ustazid, status: { in: ["active", "Active"] } },
+          select: { package: true }
+        });
+        
+        const baseSalary = teacherStudents.reduce((total, student) => {
+          const packageSalary = student.package ? salaryMap[student.package] || DEFAULT_SALARY : DEFAULT_SALARY;
+          return total + packageSalary;
+        }, 0);
+        
+        const numStudents = teacherStudents.length;
         for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
           const dateStr = format(d, "yyyy-MM-dd");
           for (const student of students) {
