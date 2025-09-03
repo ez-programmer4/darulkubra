@@ -10,6 +10,7 @@ import {
   FiRefreshCw,
   FiArrowLeft,
 } from "react-icons/fi";
+import { getStudents } from "./action";
 
 interface UsStudent {
   id: string;
@@ -20,23 +21,18 @@ interface UsStudent {
   wpos_wpdatatable_23Wdt_ID: number | null;
 }
 
+export const revalidate = 60;
+
 export default function Page() {
-  const [data, setData] = useState<UsStudent[]>([]);
+  const [data, setData] = useState<UsStudent[]>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   const fetchData = async () => {
     try {
-      const response = await fetch(`/api/us-student?_t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      if (!response.ok) throw new Error("Failed to fetch");
-      const res = await response.json();
-      setData(res);
+      const response = await getStudents();
+      setData(response);
     } catch (error) {
       console.error("Failed to fetch US students:", error);
     }
@@ -52,6 +48,7 @@ export default function Page() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    router.refresh();
     await fetchData();
     setRefreshing(false);
   };
