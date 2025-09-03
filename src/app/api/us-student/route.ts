@@ -5,30 +5,32 @@ export async function GET() {
   try {
     const data = await prisma.user.findMany({
       where: { role: "student" },
-      select: { 
+      select: {
         id: true,
-        firstName: true, 
-        lastName: true, 
-        email: true, 
+        firstName: true,
+        lastName: true,
+        email: true,
         phoneNumber: true,
         wpos_wpdatatable_23: {
           select: {
-            wdt_ID: true
-          }
-        }
+            wdt_ID: true,
+          },
+        },
       },
     });
-    
+
+    console.log("DATA >> ", data);
+
     // Transform data to match expected interface
-    const transformedData = data.map(user => ({
+    const transformedData = data.map((user) => ({
       id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
       phoneNumber: user.phoneNumber,
-      wpos_wpdatatable_23Wdt_ID: user.wpos_wpdatatable_23?.wdt_ID || null
+      wpos_wpdatatable_23Wdt_ID: user.wpos_wpdatatable_23?.wdt_ID || null,
     }));
-    
+
     return NextResponse.json(transformedData);
   } catch (error) {
     console.error("Error fetching US students:", error);

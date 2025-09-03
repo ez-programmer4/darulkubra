@@ -66,6 +66,7 @@ interface DepositForm {
   transactionId: string;
   reason: string;
   senderName: string;
+  paymentDate: string;
 }
 
 interface DepositErrors {
@@ -200,6 +201,7 @@ export default function PaymentManagement({
     transactionId: "",
     reason: "",
     senderName: "",
+    paymentDate: format(new Date(), "yyyy-MM-dd"),
   });
 
   const [newPrize, setNewPrize] = useState({
@@ -572,8 +574,9 @@ export default function PaymentManagement({
         body: JSON.stringify({
           studentId: studentId,
           amount: parseFloat(newDeposit.amount),
-          reason: "deposit",
+          reason: newDeposit.reason || "deposit",
           transactionId: newDeposit.transactionId,
+          paymentDate: newDeposit.paymentDate,
           status: "pending",
         }),
       });
@@ -603,6 +606,7 @@ export default function PaymentManagement({
         transactionId: "",
         reason: "",
         senderName: "",
+        paymentDate: format(new Date(), "yyyy-MM-dd"),
       });
       setDepositErrors({});
 
@@ -1339,6 +1343,7 @@ export default function PaymentManagement({
                       transactionId: "",
                       reason: "",
                       senderName: "",
+                      paymentDate: format(new Date(), "yyyy-MM-dd"),
                     });
                     setDepositErrors({});
                   }}
@@ -2154,6 +2159,24 @@ export default function PaymentManagement({
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Payment Date <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={newDeposit.paymentDate}
+                        onChange={(e) =>
+                          setNewDeposit((p) => ({
+                            ...p,
+                            paymentDate: e.target.value,
+                          }))
+                        }
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         Payment Method
                       </label>
                       <select
@@ -2335,6 +2358,7 @@ export default function PaymentManagement({
                         transactionId: "",
                         reason: "",
                         senderName: "",
+                        paymentDate: format(new Date(), "yyyy-MM-dd"),
                       });
                       setDepositErrors({});
                     }}

@@ -194,6 +194,7 @@ export async function POST(request: NextRequest) {
       status = "pending",
       reason,
       transactionId,
+      paymentDate,
     } = body;
 
     if (!studentId || !amount) {
@@ -246,7 +247,7 @@ export async function POST(request: NextRequest) {
           studentname: student.name ?? "",
           paidamount: new Prisma.Decimal(amount),
           reason: reason || "deposit",
-          paymentdate: new Date(),
+          paymentdate: paymentDate ? new Date(paymentDate) : new Date(),
           transactionid: transactionId || `DEP-${Date.now()}`,
           status: status || "pending",
         },

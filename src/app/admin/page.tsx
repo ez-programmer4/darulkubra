@@ -467,322 +467,179 @@ export default function AdminDashboardPage() {
   const qualityTotal = qualityData.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
-      {/* Background Elements hidden for neutral theme */}
-      <div className="hidden absolute inset-0 overflow-hidden pointer-events-none"></div>
-
-      {/* Page-level nav hidden (layout header is used) */}
-      <nav className="hidden sticky top-0 z-50 bg-white/90 backdrop-blur-2xl border-b border-gray-200/50 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-16 md:h-18">
-            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-              <div className="p-1.5 sm:p-2 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-lg sm:rounded-xl shadow-lg animate-pulse">
-                <FiShield className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white" />
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-sm sm:text-lg md:text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                  Admin Dashboard
-                </h1>
-                <p className="text-xs sm:text-sm text-gray-600 hidden md:block">
-                  DarulKubra Management System
-                </p>
-              </div>
-              <div className="sm:hidden">
-                <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Admin
-                </h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-              <NotificationPanel className="" />
-              <div className="h-6 sm:h-8 w-px bg-gray-300 hidden sm:block"></div>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
-                  <span className="text-white text-xs sm:text-sm font-bold">
-                    A
-                  </span>
-                </div>
-                <span className="text-xs sm:text-sm font-medium text-gray-700 hidden md:block">
-                  Admin
+    <div className="min-h-screen bg-gray-50">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Header Section */}
+        <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="flex items-center gap-2 text-green-600 font-medium text-sm">
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                  System Online
                 </span>
+                <span className="text-gray-400">•</span>
+                <span className="text-sm text-gray-500">Last updated: {format(new Date(), "MMM dd, HH:mm")}</span>
               </div>
-            </div>
-          </div>
-        </div>
-      </nav>
 
-      <main className="relative z-10 w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 space-y-4 sm:space-y-6 md:space-y-8">
-        {/* Enhanced Hero Overview */}
-        <section className="bg-white rounded-2xl sm:rounded-3xl shadow border border-gray-200 px-4 sm:px-6 md:px-8 lg:px-10 py-6 sm:py-8 md:py-10 animate-slide-in relative overflow-hidden">
-          <div className="absolute inset-0 rounded-2xl sm:rounded-3xl hidden"></div>
-          <div className="absolute top-0 right-0 w-32 h-32 sm:w-48 sm:h-48 rounded-full blur-2xl hidden"></div>
-          <div className="relative z-10">
-            <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 sm:gap-8 md:gap-10">
-              <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 mb-6">
-                  <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-2 text-teal-600 font-semibold text-sm sm:text-base">
-                      <span className="w-3 h-3 rounded-full bg-teal-500 animate-pulse"></span>
-                      All Systems Operational
-                    </span>
-                    <div className="hidden sm:block w-px h-6 bg-indigo-200"></div>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-xs sm:text-sm text-indigo-500">
-                    <span>Last login: {format(new Date(), "PPpp")}</span>
-                    <span>Last updated: {format(new Date(), "PPpp")}</span>
-                  </div>
-                </div>
+              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+                Admin Dashboard
+              </h1>
+              <p className="text-gray-600 text-sm">
+                Monitor system performance and manage operations
+              </p>
 
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 sm:mb-6 flex items-center gap-4">
-                  <div className="p-3 bg-black rounded-2xl shadow-lg">
-                    <FiUsers className="text-white h-8 sm:h-10 w-8 sm:w-10" />
-                  </div>
-                  Welcome Back, Admin
-                </h1>
-
-                <p className="text-gray-800 text-base sm:text-lg md:text-xl mb-8 sm:mb-10 max-w-3xl leading-relaxed">
-                  Monitor your system's health, user activity, and key metrics
-                  in real time with our comprehensive dashboard.
-                  <span className="text-black font-semibold">
-                    Everything is running smoothly.
-                  </span>
-                </p>
-
-                {/* Enhanced Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                  {statsBar.map((stat, idx) => (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: idx * 0.1 }}
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      className="group relative bg-white p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl shadow border border-gray-200 transition-all duration-300 overflow-hidden hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
-                    >
-                      <div className={`absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${stat.color}`}></div>
-                      <div className="relative z-10">
-                        <div className="flex items-center justify-center mb-4">
-                          <div className={`p-3 bg-gradient-to-r ${stat.color} rounded-xl text-white shadow-lg`}>
-                            {stat.icon}
-                          </div>
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                {statsBar.map((stat, idx) => (
+                  <div key={idx} className="bg-gray-50 p-4 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-600 rounded text-white">
+                        {stat.icon}
+                      </div>
+                      <div>
+                        <div className="text-xl font-semibold text-gray-900">
+                          {stat.value}
                         </div>
-                        <div className="text-center">
-                          <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">
-                            {stat.value}
-                          </div>
-                          <div className="text-gray-700 text-sm font-semibold">
-                            {stat.label}
-                          </div>
+                        <div className="text-sm text-gray-600">
+                          {stat.label}
                         </div>
                       </div>
-                    </motion.div>
-                  ))}
-                </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
               </div>
 
-              {/* Enhanced Action Panel */}
-              <div className="flex flex-col gap-3 sm:gap-4 items-stretch xl:items-end w-full xl:w-auto">
-                {/* Quick Stats Mini Cards */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
-                  <div className="bg-white border border-gray-200 p-3 sm:p-4 rounded-xl text-gray-900 shadow hover:shadow-md transition-all duration-200">
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <FiTrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-black" />
-                      <span className="text-xs sm:text-sm font-semibold text-gray-800">
-                        Revenue
-                      </span>
-                    </div>
-                    <div className="text-lg sm:text-xl font-bold mt-1 text-gray-900">
-                      ${(stats?.totalRevenue?.approved || 0).toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="bg-white border border-gray-200 p-3 sm:p-4 rounded-xl text-gray-900 shadow hover:shadow-md transition-all duration-200">
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <FiClock className="h-4 w-4 sm:h-5 sm:w-5 text-black" />
-                      <span className="text-xs sm:text-sm font-semibold text-gray-800">
-                        Today
-                      </span>
-                    </div>
-                    <div className="text-lg sm:text-xl font-bold mt-1 text-gray-900">
-                      {attendanceToday.present + attendanceToday.absent}
-                    </div>
-                  </div>
-                </div>
-
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full xl:w-72 justify-start text-left font-normal border-indigo-200 bg-white/95 hover:bg-indigo-50 focus:ring-2 focus:ring-indigo-500 shadow-lg hover:shadow-xl text-xs sm:text-sm md:text-base transition-all rounded-xl py-2 sm:py-3"
-                      aria-label="Select date range"
-                    >
-                      <FiCalendar className="mr-3 h-5 w-5 text-indigo-500" />
-                      {date?.from ? (
-                        date.to ? (
-                          <>
-                            {format(date.from, "LLL dd, y")} -{" "}
-                            {format(date.to, "LLL dd, y")}
-                          </>
-                        ) : (
-                          format(date.from, "LLL dd, y")
-                        )
+            </div>
+            
+            {/* Action Panel */}
+            <div className="flex flex-col gap-4">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full lg:w-64 justify-start">
+                    <FiCalendar className="mr-2 h-4 w-4" />
+                    {date?.from ? (
+                      date.to ? (
+                        <>
+                          {format(date.from, "MMM dd")} - {format(date.to, "MMM dd")}
+                        </>
                       ) : (
-                        <span>Pick a date range</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-auto p-0 bg-white/95 border-indigo-200 shadow-xl rounded-2xl"
-                    align="end"
-                  >
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={date?.from}
-                      selected={date}
-                      onSelect={setDate}
-                      numberOfMonths={2}
-                      className="bg-white/95 rounded-2xl"
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-2 sm:gap-3">
-                  {[
-                    {
-                      text: "Add New User",
-                      shortText: "Add User",
-                      icon: <FiUserPlus className="w-4 h-4 sm:w-5 sm:h-5" />,
-                      action: () => {},
-                      color: "",
-                      badge: null,
-                    },
-                    {
-                      text: "Review Permissions",
-                      shortText: "Permissions",
-                      icon: <FiClipboard className="w-4 h-4 sm:w-5 sm:h-5" />,
-                      action: () => {},
-                      color: "",
-                      badge: pendingPermissions > 0 ? pendingPermissions : null,
-                    },
-                    {
-                      text: "Process Payments",
-                      shortText: "Payments",
-                      icon: <FiDollarSign className="w-4 h-4 sm:w-5 sm:h-5" />,
-                      action: () => {},
-                      color: "",
-                      badge: stats?.pendingPaymentCount || null,
-                    },
-                  ].map((btn, idx) => (
-                    <Button
-                      key={idx}
-                      className={`relative w-full xl:w-72 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 flex items-center justify-center gap-2 sm:gap-3 rounded-xl shadow-sm hover:shadow transition-all duration-200 text-xs sm:text-sm md:text-base font-semibold py-2.5 sm:py-3`}
-                      onClick={btn.action}
-                      aria-label={btn.text}
-                    >
-                      {btn.icon}
-                      <span className="hidden sm:inline xl:inline">
-                        {btn.text}
-                      </span>
-                      <span className="sm:hidden">{btn.shortText}</span>
-                      {btn.badge && (
-                        <span className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-black text-white text-xs font-bold rounded-full h-5 w-5 sm:h-6 sm:w-6 flex items-center justify-center shadow-lg">
-                          {btn.badge}
-                        </span>
-                      )}
-                    </Button>
-                  ))}
-                </div>
+                        format(date.from, "MMM dd, y")
+                      )
+                    ) : (
+                      "Select date range"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={date?.from}
+                    selected={date}
+                    onSelect={setDate}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              <div className="flex flex-col gap-2">
+                <Button size="sm" className="w-full lg:w-64">
+                  <FiUserPlus className="mr-2 h-4 w-4" />
+                  Add User
+                </Button>
+                <Button variant="outline" size="sm" className="w-full lg:w-64 relative">
+                  <FiClipboard className="mr-2 h-4 w-4" />
+                  Permissions
+                  {pendingPermissions > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {pendingPermissions}
+                    </span>
+                  )}
+                </Button>
+                <Button variant="outline" size="sm" className="w-full lg:w-64 relative">
+                  <FiDollarSign className="mr-2 h-4 w-4" />
+                  Payments
+                  {stats?.pendingPaymentCount && stats.pendingPaymentCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {stats.pendingPaymentCount}
+                    </span>
+                  )}
+                </Button>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Enhanced Alerts */}
+        {/* Alerts */}
         {badQualityTeachers.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-6 sm:p-8 bg-gradient-to-r from-red-50 to-orange-50 backdrop-blur-md rounded-3xl shadow-xl border border-red-100 flex items-center gap-6 mb-8 animate-slide-in"
-          >
-            <div className="p-4 bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl">
-              <FiAlertTriangle className="text-white h-8 w-8 animate-pulse" />
+          <section className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-4">
+            <div className="p-2 bg-red-500 rounded">
+              <FiAlertTriangle className="text-white h-5 w-5" />
             </div>
             <div className="flex-1">
-              <div className="font-bold text-red-900 text-lg sm:text-xl mb-2">
+              <div className="font-medium text-red-900 text-sm">
                 Teachers Requiring Review
               </div>
-              <div className="text-sm sm:text-base text-red-700">
+              <div className="text-sm text-red-700">
                 {badQualityTeachers
                   .map((t) => safeDisplay(t.ustazname ?? t.name))
                   .join(", ") || "No teachers"}
               </div>
             </div>
-            <Button className="bg-gradient-to-r from-red-600 to-orange-600 text-white hover:shadow-lg rounded-xl">
-              Review Now
+            <Button size="sm" className="bg-red-600 hover:bg-red-700">
+              Review
             </Button>
-          </motion.section>
+          </section>
         )}
 
-        {/* Main Grid */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
+        {/* Charts Grid */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {/* User Growth Chart */}
-          <div className="lg:col-span-2 xl:col-span-2 bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6 sm:p-8 animate-slide-in hover:shadow-2xl transition-all duration-300">
+          <div className="lg:col-span-2 xl:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl">
-                  <FiUsers className="text-white h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-indigo-900 bg-clip-text text-transparent">
-                    User Growth Trend
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Monthly registration analytics
-                  </p>
-                </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  User Growth Trend
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Monthly registration analytics
+                </p>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-blue-600">
-                  +
+                <div className="text-xl font-semibold text-gray-900">
                   {Object.values(analytics?.monthlyRegistrations || {}).reduce(
                     (a, b) => a + b,
                     0
                   )}
                 </div>
-                <div className="text-xs text-gray-500">Total this period</div>
+                <div className="text-xs text-gray-500">Total registrations</div>
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart
-                data={registrationChartData}
-                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-              >
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={registrationChartData}>
                 <defs>
                   <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis
-                  dataKey="name"
-                  stroke="#6B7280"
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis stroke="#6B7280" tick={{ fontSize: 12 }} />
-                <CartesianGrid strokeDasharray="3 3" stroke="#E0E7FF" />
+                <XAxis dataKey="name" stroke="#6B7280" fontSize={12} />
+                <YAxis stroke="#6B7280" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#FFF",
-                    borderColor: "#E0E7FF",
-                    borderRadius: "8px",
-                    fontSize: "14px",
+                    backgroundColor: "white",
+                    border: "1px solid #E5E7EB",
+                    borderRadius: "6px",
                   }}
                 />
                 <Area
                   type="monotone"
                   dataKey="Registrations"
-                  stroke="#4F46E5"
-                  fillOpacity={1}
+                  stroke="#3B82F6"
+                  strokeWidth={2}
                   fill="url(#colorUsers)"
                 />
               </AreaChart>
