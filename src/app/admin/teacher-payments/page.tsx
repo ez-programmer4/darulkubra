@@ -196,7 +196,7 @@ export default function TeacherPaymentsPage() {
         if (res.ok) {
           const data = await res.json();
           const setting = data.settings?.find((s: any) => s.key === "teacher_salary_visible");
-          setTeacherSalaryVisible(setting?.value !== "false");
+          setTeacherSalaryVisible(setting?.value === "true");
         }
       } catch (error) {
         console.error("Failed to fetch salary visibility setting:", error);
@@ -589,8 +589,9 @@ export default function TeacherPaymentsPage() {
                   <input
                     type="number"
                     min={1}
-                    value={packageSalaryInputs[packageName] || "900"}
+                    value={packageSalaryInputs[packageName] || packageSalaries[packageName] || "900"}
                     onChange={(e) => setPackageSalaryInputs(prev => ({ ...prev, [packageName]: e.target.value }))}
+                    placeholder={String(packageSalaries[packageName] || 900)}
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                     disabled={packageSalaryLoading}
                   />
