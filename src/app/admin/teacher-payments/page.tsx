@@ -168,7 +168,7 @@ export default function TeacherPaymentsPage() {
         const settingsData = await settingsRes.json();
         const packagesData = await packagesRes.json();
         
-        const packages = packagesData.map((p: any) => p.name);
+        const packages = Array.isArray(packagesData) ? packagesData.map((p: any) => p.name) : [];
         setAvailablePackages(packages);
         
         const salaries: Record<string, number> = {};
