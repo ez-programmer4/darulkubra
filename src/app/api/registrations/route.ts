@@ -311,6 +311,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("AK >> ", usStudentId);
+
     const newRegistration = await prismaClient.$transaction(async (tx) => {
       const registration = await tx.wpos_wpdatatable_23.create({
         data: {
@@ -320,7 +322,9 @@ export async function POST(request: NextRequest) {
           startdate: startdate ? new Date(startdate) : null,
           u_control,
           status: status
-            ? status.toLowerCase() === "not yet" ? "Not yet" : status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+            ? status.toLowerCase() === "not yet"
+              ? "Not yet"
+              : status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
             : "Not yet",
           ustaz,
           package: regionPackage || null,
@@ -401,10 +405,11 @@ export async function PUT(request: NextRequest) {
     const { control } = body;
 
     // Check if this is a US student first
-    const existingRegistration = await prismaClient.wpos_wpdatatable_23.findUnique({
-      where: { wdt_ID: parseInt(id) },
-      select: { u_control: true, userId: true },
-    });
+    const existingRegistration =
+      await prismaClient.wpos_wpdatatable_23.findUnique({
+        where: { wdt_ID: parseInt(id) },
+        select: { u_control: true, userId: true },
+      });
 
     if (!existingRegistration) {
       return NextResponse.json(
@@ -458,7 +463,10 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!isUsStudent && (!classfee || classfee === null || classfee === undefined)) {
+    if (
+      !isUsStudent &&
+      (!classfee || classfee === null || classfee === undefined)
+    ) {
       return NextResponse.json(
         { message: "Class Fee is required" },
         { status: 400 }
@@ -560,7 +568,8 @@ export async function PUT(request: NextRequest) {
         if (status.toLowerCase() === "not yet") {
           newStatus = "Not yet";
         } else {
-          newStatus = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+          newStatus =
+            status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
         }
       } else {
         newStatus = "Pending";
@@ -573,9 +582,13 @@ export async function PUT(request: NextRequest) {
           : undefined;
 
       // Check if status requires freeing up time slot
-      const shouldFreeTimeSlot = ["leave", "completed", "not succeed"].includes(newStatus.toLowerCase());
-      const wasActiveStatus = currentRecord?.status && !["Leave", "Completed", "Not succeed"].includes(currentRecord.status);
-      
+      const shouldFreeTimeSlot = ["leave", "completed", "not succeed"].includes(
+        newStatus.toLowerCase()
+      );
+      const wasActiveStatus =
+        currentRecord?.status &&
+        !["Leave", "Completed", "Not succeed"].includes(currentRecord.status);
+
       // Free up time slot if changing from active status to inactive status
       if (shouldFreeTimeSlot && wasActiveStatus) {
         await tx.wpos_ustaz_occupied_times.deleteMany({
@@ -640,8 +653,11 @@ export async function PUT(request: NextRequest) {
       } else if (!shouldFreeTimeSlot && hasNotChanged) {
         // If status is changing back to active and time/teacher hasn't changed, ensure time slot exists
         const activeStatuses = ["active", "not yet", "fresh"];
-        if (activeStatuses.includes(newStatus.toLowerCase()) && 
-            (!currentRecord?.status || !["Active", "Not yet", "Fresh"].includes(currentRecord.status))) {
+        if (
+          activeStatuses.includes(newStatus.toLowerCase()) &&
+          (!currentRecord?.status ||
+            !["Active", "Not yet", "Fresh"].includes(currentRecord.status))
+        ) {
           // Re-create time slot for reactivated student
           try {
             await tx.wpos_ustaz_occupied_times.create({
@@ -654,7 +670,10 @@ export async function PUT(request: NextRequest) {
               },
             });
           } catch (occupiedError) {
-            console.warn("Failed to recreate occupied time record:", occupiedError);
+            console.warn(
+              "Failed to recreate occupied time record:",
+              occupiedError
+            );
           }
         }
       }
@@ -764,7 +783,9 @@ export async function GET(request: NextRequest) {
 
     // Get the time slot from occupied times and convert to display format
     const dbTimeSlot = registration.occupiedTimes?.[0]?.time_slot;
-    const displayTime = dbTimeSlot ? fromDbFormat(dbTimeSlot, "12h") : "Not specified";
+    const displayTime = dbTimeSlot
+      ? fromDbFormat(dbTimeSlot, "12h")
+      : "Not specified";
 
     return NextResponse.json({
       ...registration,
@@ -812,8 +833,10 @@ export async function GET(request: NextRequest) {
 
   const flatRegistrations = registrations.map((reg) => {
     const dbTimeSlot = reg.occupiedTimes?.[0]?.time_slot;
-    const displayTime = dbTimeSlot ? fromDbFormat(dbTimeSlot, "12h") : "Not specified";
-    
+    const displayTime = dbTimeSlot
+      ? fromDbFormat(dbTimeSlot, "12h")
+      : "Not specified";
+
     return {
       ...reg,
       id: reg.wdt_ID,
@@ -1061,16 +1084,16 @@ export async function PATCH(request: NextRequest) {
 
       const validStatuses = [
         "active",
-        "inactive", 
+        "inactive",
         "pending",
         "leave",
         "remadan leave",
         "not yet",
         "fresh",
         "not succeed",
-        "completed"
+        "completed",
       ];
-      
+
       if (!status || !validStatuses.includes(status.toLowerCase())) {
         return NextResponse.json(
           {
@@ -1101,12 +1124,15 @@ export async function PATCH(request: NextRequest) {
       if (status.toLowerCase() === "not yet") {
         newStatus = "Not yet";
       } else {
-        newStatus = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+        newStatus =
+          status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
       }
 
       // Check if status requires freeing up time slots
-      const shouldFreeTimeSlot = ["leave", "completed", "not succeed"].includes(newStatus.toLowerCase());
-      
+      const shouldFreeTimeSlot = ["leave", "completed", "not succeed"].includes(
+        newStatus.toLowerCase()
+      );
+
       await prismaClient.$transaction(async (tx) => {
         // Free up time slots for students changing to inactive status
         if (shouldFreeTimeSlot) {
@@ -1114,15 +1140,20 @@ export async function PATCH(request: NextRequest) {
           const currentRecords = await tx.wpos_wpdatatable_23.findMany({
             where: {
               wdt_ID: { in: ids.map((id: string) => parseInt(id)) },
-              u_control: session.role === "controller" ? session.code : undefined,
+              u_control:
+                session.role === "controller" ? session.code : undefined,
             },
             select: { wdt_ID: true, status: true },
           });
-          
+
           const studentsToFreeSlots = currentRecords
-            .filter(record => record.status && !["Leave", "Completed", "Not succeed"].includes(record.status))
-            .map(record => record.wdt_ID);
-          
+            .filter(
+              (record) =>
+                record.status &&
+                !["Leave", "Completed", "Not succeed"].includes(record.status)
+            )
+            .map((record) => record.wdt_ID);
+
           if (studentsToFreeSlots.length > 0) {
             await tx.wpos_ustaz_occupied_times.deleteMany({
               where: {
@@ -1131,13 +1162,14 @@ export async function PATCH(request: NextRequest) {
             });
           }
         }
-        
+
         // Update statuses
         if (newStatus === "Leave") {
           await tx.wpos_wpdatatable_23.updateMany({
             where: {
               wdt_ID: { in: ids.map((id: string) => parseInt(id)) },
-              u_control: session.role === "controller" ? session.code : undefined,
+              u_control:
+                session.role === "controller" ? session.code : undefined,
               status: { not: "Leave" }, // Only update if not already Leave
             },
             data: {
@@ -1149,7 +1181,8 @@ export async function PATCH(request: NextRequest) {
           await tx.wpos_wpdatatable_23.updateMany({
             where: {
               wdt_ID: { in: ids.map((id: string) => parseInt(id)) },
-              u_control: session.role === "controller" ? session.code : undefined,
+              u_control:
+                session.role === "controller" ? session.code : undefined,
             },
             data: {
               status: newStatus,
