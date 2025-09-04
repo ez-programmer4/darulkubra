@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
     const date = searchParams.get("date");
     const teacherId = searchParams.get("teacherId");
 
+    console.log('Time slots API - Received params:', { date, teacherId, rawUrl: req.url });
+
     if (!date || !teacherId) {
       return NextResponse.json({ error: "Date and teacherId required" }, { status: 400 });
     }

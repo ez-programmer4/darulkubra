@@ -140,9 +140,15 @@ export default function TeacherPermissions() {
         return;
       }
       try {
-        console.log('Fetching time slots for:', { date, userId: user.id });
+        console.log('Frontend - Fetching time slots for:', { 
+          date, 
+          userId: user.id, 
+          dateType: typeof date,
+          dateLength: date.length,
+          dateValue: JSON.stringify(date)
+        });
         const res = await fetch(
-          `/api/teachers/time-slots?date=${date}&teacherId=${user.id}`
+          `/api/teachers/time-slots?date=${encodeURIComponent(date)}&teacherId=${user.id}`
         );
         if (res.ok) {
           const data = await res.json();
