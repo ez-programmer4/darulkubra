@@ -78,10 +78,10 @@ function packageIncludesToday(pkg?: string): boolean {
 }
 
 function convertTo12Hour(timeStr: string): string {
-  if (!timeStr || !timeStr.includes(':')) return timeStr;
-  const [hours, minutes] = timeStr.split(':');
+  if (!timeStr || !timeStr.includes(":")) return timeStr;
+  const [hours, minutes] = timeStr.split(":");
   const hour = parseInt(hours);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const ampm = hour >= 12 ? "PM" : "AM";
   const displayHour = hour % 12 || 12;
   return `${displayHour}:${minutes} ${ampm}`;
 }
@@ -138,38 +138,34 @@ export default function AssignedStudents() {
     loadSurahs();
   }, []);
 
-  // Load zoom status from localStorage on mount
-  useEffect(() => {
-    console.log('🔄 Loading zoom status from localStorage...');
-    const stored = localStorage.getItem('zoomSentToday');
-    console.log('📦 Stored data:', stored);
-    if (stored) {
-      try {
-        const { date, status } = JSON.parse(stored);
-        const today = new Date().toDateString();
-        console.log('📅 Stored date:', date, 'Today:', today);
-        // Only use stored data if it's from today
-        if (date === today) {
-          console.log('✅ Using stored zoom status:', status);
-          setZoomSent(status);
-        } else {
-          console.log('🗑️ Removing old stored data');
-          localStorage.removeItem('zoomSentToday');
-        }
-      } catch (e) {
-        console.log('❌ Error parsing stored data:', e);
-        localStorage.removeItem('zoomSentToday');
-      }
-    } else {
-      console.log('📭 No stored zoom status found');
-    }
-  }, []);
+  // Initialize zoom status from multiple sources
+  // useEffect(() => {
+  //   const initializeZoomStatus = async () => {
+  //     // Try localStorage first for immediate UI update
+  //     const stored = localStorage.getItem('zoomSentToday');
+  //     if (stored) {
+  //       try {
+  //         const { date, status } = JSON.parse(stored);
+  //         if (date === new Date().toDateString()) {
+  //           setZoomSent(status);
+  //         } else {
+  //           localStorage.removeItem('zoomSentToday');
+  //         }
+  //       } catch (e) {
+  //         localStorage.removeItem('zoomSentToday');
+  //       }
+  //     }
 
-  // Check zoom status when component mounts and when groups change
+  //     // Always fetch from API for accuracy
+  //     await checkZoomStatus();
+  //   };
+
+  //   initializeZoomStatus();
+  // }, []);
+
+  // Refresh zoom status when groups are loaded
   useEffect(() => {
-    console.log('👥 Groups changed, length:', groups.length);
     if (groups.length > 0) {
-      console.log('🔍 Checking zoom status from API...');
       checkZoomStatus();
     }
   }, [groups]);
@@ -177,34 +173,50 @@ export default function AssignedStudents() {
   // Check zoom link status for today
   async function checkZoomStatus() {
     try {
-      console.log('🌐 Fetching zoom status from API...');
       const res = await fetch("/api/teachers/students/zoom-status", {
         credentials: "include",
         cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
       });
-      console.log('📡 API Response status:', res.status);
+
       if (res.ok) {
         const data = await res.json();
-        console.log('📊 API Response data:', data);
         const zoomStatus: Record<number, boolean> = {};
-        data.sentToday?.forEach((studentId: number) => {
-          zoomStatus[studentId] = true;
+
+        if (data.sentToday && Array.isArray(data.sentToday)) {
+          data.sentToday.forEach((studentId: number) => {
+            zoomStatus[studentId] = true;
+          });
+        }
+
+        setZoomSent((prev) => {
+          // Only update if there's a change to prevent unnecessary re-renders
+          const hasChanged =
+            JSON.stringify(prev) !== JSON.stringify(zoomStatus);
+          if (hasChanged) {
+            // Persist to localStorage
+            try {
+              localStorage.setItem(
+                "zoomSentToday",
+                JSON.stringify({
+                  date: new Date().toDateString(),
+                  status: zoomStatus,
+                  timestamp: Date.now(),
+                })
+              );
+            } catch (e) {
+              // Handle localStorage quota exceeded or other errors
+            }
+          }
+          return zoomStatus;
         });
-        console.log('🎯 Setting zoom status:', zoomStatus);
-        setZoomSent(zoomStatus);
-        
-        // Persist to localStorage to prevent loss on refresh
-        const storageData = {
-          date: new Date().toDateString(),
-          status: zoomStatus
-        };
-        console.log('💾 Saving to localStorage:', storageData);
-        localStorage.setItem('zoomSentToday', JSON.stringify(storageData));
-      } else {
-        console.error('❌ API Error:', res.status, await res.text());
       }
     } catch (error) {
-      console.error("💥 Failed to check zoom status:", error);
+      // Silently handle errors to prevent UI disruption
     }
   }
 
@@ -450,11 +462,19 @@ export default function AssignedStudents() {
       }));
       setZoomSent((z) => {
         const newStatus = { ...z, [studentId]: true };
-        // Update localStorage
-        localStorage.setItem('zoomSentToday', JSON.stringify({
-          date: new Date().toDateString(),
-          status: newStatus
-        }));
+        // Update localStorage with error handling
+        try {
+          localStorage.setItem(
+            "zoomSentToday",
+            JSON.stringify({
+              date: new Date().toDateString(),
+              status: newStatus,
+              timestamp: Date.now(),
+            })
+          );
+        } catch (e) {
+          // Handle localStorage errors silently
+        }
         return newStatus;
       });
       setModal({ type: null, studentId: null });
@@ -488,7 +508,8 @@ export default function AssignedStudents() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            attendance_status: rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
+            attendance_status:
+              rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
             surah: rec.surah || undefined,
             lesson: rec.lesson || undefined,
             notes: rec.notes || undefined,
@@ -809,7 +830,8 @@ export default function AssignedStudents() {
                                     key={i}
                                     className="px-2 py-1 bg-gray-100 rounded-full text-xs font-semibold text-gray-800"
                                   >
-                                    {convertTo12Hour(o.time_slot)} ({o.daypackage})
+                                    {convertTo12Hour(o.time_slot)} (
+                                    {o.daypackage})
                                   </span>
                                 ))
                               ) : (
@@ -830,7 +852,6 @@ export default function AssignedStudents() {
                               </Button>
                               <Button
                                 onClick={() => {
-                                  console.log('🎯 Attendance button clicked for student:', s.id, 'zoomSent status:', zoomSent[s.id], 'all zoomSent:', zoomSent);
                                   if (!zoomSent[s.id]) {
                                     toast({
                                       title: "Zoom Link Required",
@@ -942,7 +963,9 @@ export default function AssignedStudents() {
                                   ? s.occupied
                                       .map(
                                         (o) =>
-                                          `${convertTo12Hour(o.time_slot)} (${o.daypackage})`
+                                          `${convertTo12Hour(o.time_slot)} (${
+                                            o.daypackage
+                                          })`
                                       )
                                       .join(", ")
                                   : "No schedule"}
@@ -964,7 +987,6 @@ export default function AssignedStudents() {
                         </Button>
                         <Button
                           onClick={() => {
-                            console.log('📱 Mobile attendance button clicked for student:', s.id, 'zoomSent status:', zoomSent[s.id]);
                             if (!zoomSent[s.id]) {
                               toast({
                                 title: "Zoom Link Required",
@@ -1155,62 +1177,59 @@ export default function AssignedStudents() {
                           Attendance Status *
                         </label>
                         <div className="grid grid-cols-2 gap-3">
-                          {(
-                            [
-                              "present",
-                              "absent",
-                              "permission",
-                            ] as const
-                          ).map((status) => {
-                            const getStatusColor = (status: string) => {
-                              switch (status) {
-                                case "present":
-                                  return attend[modal.studentId!]?.status ===
-                                    status
-                                    ? "bg-green-600 text-white border-green-600"
-                                    : "border-green-300 text-green-700 hover:bg-green-50";
-                                case "absent":
-                                  return attend[modal.studentId!]?.status ===
-                                    status
-                                    ? "bg-red-600 text-white border-red-600"
-                                    : "border-red-300 text-red-700 hover:bg-red-50";
-                                case "permission":
-                                  return attend[modal.studentId!]?.status ===
-                                    status
-                                    ? "bg-yellow-600 text-white border-yellow-600"
-                                    : "border-yellow-300 text-yellow-700 hover:bg-yellow-50";
-                                default:
-                                  return "border-gray-300 text-gray-700 hover:bg-gray-50";
-                              }
-                            };
+                          {(["present", "absent", "permission"] as const).map(
+                            (status) => {
+                              const getStatusColor = (status: string) => {
+                                switch (status) {
+                                  case "present":
+                                    return attend[modal.studentId!]?.status ===
+                                      status
+                                      ? "bg-green-600 text-white border-green-600"
+                                      : "border-green-300 text-green-700 hover:bg-green-50";
+                                  case "absent":
+                                    return attend[modal.studentId!]?.status ===
+                                      status
+                                      ? "bg-red-600 text-white border-red-600"
+                                      : "border-red-300 text-red-700 hover:bg-red-50";
+                                  case "permission":
+                                    return attend[modal.studentId!]?.status ===
+                                      status
+                                      ? "bg-yellow-600 text-white border-yellow-600"
+                                      : "border-yellow-300 text-yellow-700 hover:bg-yellow-50";
+                                  default:
+                                    return "border-gray-300 text-gray-700 hover:bg-gray-50";
+                                }
+                              };
 
-                            return (
-                              <button
-                                key={status}
-                                onClick={() =>
-                                  updateAttend(modal.studentId!, { status })
-                                }
-                                className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${getStatusColor(
-                                  status
-                                )}`}
-                                aria-pressed={
-                                  attend[modal.studentId!]?.status === status
-                                }
-                              >
-                                {status.charAt(0).toUpperCase() +
-                                  status.slice(1)}
-                              </button>
-                            );
-                          })}
+                              return (
+                                <button
+                                  key={status}
+                                  onClick={() =>
+                                    updateAttend(modal.studentId!, { status })
+                                  }
+                                  className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${getStatusColor(
+                                    status
+                                  )}`}
+                                  aria-pressed={
+                                    attend[modal.studentId!]?.status === status
+                                  }
+                                >
+                                  {status.charAt(0).toUpperCase() +
+                                    status.slice(1)}
+                                </button>
+                              );
+                            }
+                          )}
                         </div>
                       </div>
 
                       {(() => {
                         const currentStudent = groups
-                          .flatMap(g => g.students)
-                          .find(s => s.id === modal.studentId);
-                        const isQaidah = currentStudent?.subject?.toLowerCase() === 'qaidah';
-                        
+                          .flatMap((g) => g.students)
+                          .find((s) => s.id === modal.studentId);
+                        const isQaidah =
+                          currentStudent?.subject?.toLowerCase() === "qaidah";
+
                         return (
                           <div>
                             {isQaidah ? (
