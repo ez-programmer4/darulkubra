@@ -707,6 +707,17 @@ export default function TeacherPermissions() {
                         <FiCalendar className="h-4 w-4" />
                         Date of Absence
                       </Label>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          const testDate = '2025-01-20';
+                          console.log('Setting test date:', testDate);
+                          setDate(testDate);
+                        }}
+                        className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+                      >
+                        Test Date
+                      </button>
                       <Input
                         id="date"
                         type="date"
