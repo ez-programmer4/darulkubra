@@ -112,6 +112,19 @@ export default function AssignedStudents() {
   const [sending, setSending] = useState<Record<number, boolean>>({});
   const [surahs, setSurahs] = useState<string[]>([]);
   const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
+
+  // Set all students as having zoom sent (temporary fix)
+  useEffect(() => {
+    if (groups.length > 0) {
+      const allStudentIds: Record<number, boolean> = {};
+      groups.forEach(group => {
+        group.students.forEach(student => {
+          allStudentIds[student.id] = true;
+        });
+      });
+      setZoomSent(allStudentIds);
+    }
+  }, [groups]);
   const [query, setQuery] = useState("");
   const [pkgFilter, setPkgFilter] = useState("all");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
