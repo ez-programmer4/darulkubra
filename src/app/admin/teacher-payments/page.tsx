@@ -944,7 +944,8 @@ export default function TeacherPaymentsPage() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           startDate: from.toISOString(),
-                          endDate: to.toISOString()
+                          endDate: to.toISOString(),
+                          includeDeductions: true
                         })
                       });
                       
