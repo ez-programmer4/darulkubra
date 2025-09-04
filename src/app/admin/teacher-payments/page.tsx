@@ -54,12 +54,16 @@ export default function TeacherPaymentsPage() {
   const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1);
   const [selectedYear, setSelectedYear] = useState(dayjs().year());
   const [teachers, setTeachers] = useState<TeacherPayment[]>([]);
-  const [selectedTeacher, setSelectedTeacher] = useState<TeacherPayment | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<TeacherPayment | null>(
+    null
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [salaryStatus, setSalaryStatus] = useState<Record<string, "Paid" | "Unpaid">>({});
+  const [salaryStatus, setSalaryStatus] = useState<
+    Record<string, "Paid" | "Unpaid">
+  >({});
   const [showDetails, setShowDetails] = useState(false);
   const [breakdown, setBreakdown] = useState<{
     latenessRecords: any[];
@@ -68,21 +72,35 @@ export default function TeacherPaymentsPage() {
   }>({ latenessRecords: [], absenceRecords: [], bonusRecords: [] });
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [breakdownError, setBreakdownError] = useState<string | null>(null);
-  const [packageSalaries, setPackageSalaries] = useState<Record<string, number>>({});
-  const [packageSalaryInputs, setPackageSalaryInputs] = useState<Record<string, string>>({});
+  const [packageSalaries, setPackageSalaries] = useState<
+    Record<string, number>
+  >({});
+  const [packageSalaryInputs, setPackageSalaryInputs] = useState<
+    Record<string, string>
+  >({});
   const [packageSalaryLoading, setPackageSalaryLoading] = useState(false);
-  const [packageSalaryError, setPackageSalaryError] = useState<string | null>(null);
-  const [packageSalarySuccess, setPackageSalarySuccess] = useState<string | null>(null);
+  const [packageSalaryError, setPackageSalaryError] = useState<string | null>(
+    null
+  );
+  const [packageSalarySuccess, setPackageSalarySuccess] = useState<
+    string | null
+  >(null);
   const [availablePackages, setAvailablePackages] = useState<string[]>([]);
   const [teacherSalaryVisible, setTeacherSalaryVisible] = useState(true);
   const [salaryVisibilityLoading, setSalaryVisibilityLoading] = useState(false);
-  const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<"mark-paid" | "mark-unpaid" | "">("");
+  const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(
+    new Set()
+  );
+  const [bulkAction, setBulkAction] = useState<
+    "mark-paid" | "mark-unpaid" | ""
+  >("");
   const [bulkLoading, setBulkLoading] = useState(false);
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortKey, setSortKey] = useState<keyof TeacherPayment | "status">("name");
+  const [sortKey, setSortKey] = useState<keyof TeacherPayment | "status">(
+    "name"
+  );
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const months = [
@@ -101,7 +119,9 @@ export default function TeacherPaymentsPage() {
   ];
 
   function getMonthRange(year: number, month: number) {
-    const from = dayjs(`${year}-${String(month).padStart(2, "0")}-01`).startOf("month").toDate();
+    const from = dayjs(`${year}-${String(month).padStart(2, "0")}-01`)
+      .startOf("month")
+      .toDate();
     const to = dayjs(from).endOf("month").toDate();
     return { from, to };
   }
@@ -114,14 +134,22 @@ export default function TeacherPaymentsPage() {
       "bg-red-100 text-red-700",
       "bg-purple-100 text-purple-700",
     ];
-    const hash = id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const hash = id
+      .split("")
+      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return colors[hash % colors.length];
   };
 
   const sortData = (data: TeacherPayment[]) => {
     return [...data].sort((a, b) => {
-      let aValue: any = sortKey === "status" ? salaryStatus[a.id] || "Unpaid" : a[sortKey as keyof TeacherPayment];
-      let bValue: any = sortKey === "status" ? salaryStatus[b.id] || "Unpaid" : b[sortKey as keyof TeacherPayment];
+      let aValue: any =
+        sortKey === "status"
+          ? salaryStatus[a.id] || "Unpaid"
+          : a[sortKey as keyof TeacherPayment];
+      let bValue: any =
+        sortKey === "status"
+          ? salaryStatus[b.id] || "Unpaid"
+          : b[sortKey as keyof TeacherPayment];
 
       if (sortKey === "name" || sortKey === "status") {
         aValue = String(aValue).toLowerCase();
@@ -136,33 +164,43 @@ export default function TeacherPaymentsPage() {
     });
   };
 
-  const [teacherPackageBreakdown, setTeacherPackageBreakdown] = useState<any>(null);
+  const [teacherPackageBreakdown, setTeacherPackageBreakdown] =
+    useState<any>(null);
 
-  const fetchBreakdown = useCallback(async (teacherId: string) => {
-    setBreakdownLoading(true);
-    setBreakdownError(null);
-    try {
-      const { from, to } = getMonthRange(selectedYear, selectedMonth);
-      const [breakdownRes, studentsRes] = await Promise.all([
-        fetch(`/api/admin/teacher-payments?teacherId=${teacherId}&from=${from.toISOString()}&to=${to.toISOString()}`),
-        fetch(`/api/admin/teacher-students/${teacherId}`)
-      ]);
-      
-      if (!breakdownRes.ok) throw new Error("Failed to fetch breakdown");
-      const data = await breakdownRes.json();
-      setBreakdown(data);
-      
-      if (studentsRes.ok) {
-        const studentsData = await studentsRes.json();
-        setTeacherPackageBreakdown(studentsData);
+  const fetchBreakdown = useCallback(
+    async (teacherId: string) => {
+      setBreakdownLoading(true);
+      setBreakdownError(null);
+      try {
+        const { from, to } = getMonthRange(selectedYear, selectedMonth);
+        const [breakdownRes, studentsRes] = await Promise.all([
+          fetch(
+            `/api/admin/teacher-payments?teacherId=${teacherId}&from=${from.toISOString()}&to=${to.toISOString()}`
+          ),
+          fetch(`/api/admin/teacher-students/${teacherId}`),
+        ]);
+
+        if (!breakdownRes.ok) throw new Error("Failed to fetch breakdown");
+        const data = await breakdownRes.json();
+        setBreakdown(data);
+
+        if (studentsRes.ok) {
+          const studentsData = await studentsRes.json();
+          setTeacherPackageBreakdown(studentsData);
+        }
+      } catch (err: any) {
+        setBreakdownError(err.message || "Failed to fetch breakdown");
+        setBreakdown({
+          latenessRecords: [],
+          absenceRecords: [],
+          bonusRecords: [],
+        });
+      } finally {
+        setBreakdownLoading(false);
       }
-    } catch (err: any) {
-      setBreakdownError(err.message || "Failed to fetch breakdown");
-      setBreakdown({ latenessRecords: [], absenceRecords: [], bonusRecords: [] });
-    } finally {
-      setBreakdownLoading(false);
-    }
-  }, [selectedMonth, selectedYear]);
+    },
+    [selectedMonth, selectedYear]
+  );
 
   useEffect(() => {
     async function fetchPackageSalaries() {
@@ -171,29 +209,34 @@ export default function TeacherPaymentsPage() {
       try {
         const [packageSalariesRes, packagesRes] = await Promise.all([
           fetch("/api/admin/package-salaries"),
-          fetch("/api/admin/packages")
+          fetch("/api/admin/packages"),
         ]);
-        
-        if (!packageSalariesRes.ok || !packagesRes.ok) throw new Error("Failed to fetch data");
-        
+
+        if (!packageSalariesRes.ok || !packagesRes.ok)
+          throw new Error("Failed to fetch data");
+
         const packageSalariesData = await packageSalariesRes.json();
         const packages = await packagesRes.json();
         setAvailablePackages(packages);
-        
+
         const salaries: Record<string, number> = {};
         const inputs: Record<string, string> = {};
-        
+
         packages.forEach((pkg: string) => {
-          const packageSalary = packageSalariesData.find((ps: any) => ps.packageName === pkg);
+          const packageSalary = packageSalariesData.find(
+            (ps: any) => ps.packageName === pkg
+          );
           const value = packageSalary?.salaryPerStudent || 0;
           salaries[pkg] = value;
           inputs[pkg] = String(value);
         });
-        
+
         setPackageSalaries(salaries);
         setPackageSalaryInputs(inputs);
       } catch (err: any) {
-        setPackageSalaryError(err.message || "Failed to fetch package salaries");
+        setPackageSalaryError(
+          err.message || "Failed to fetch package salaries"
+        );
       } finally {
         setPackageSalaryLoading(false);
       }
@@ -204,7 +247,9 @@ export default function TeacherPaymentsPage() {
         const res = await fetch("/api/admin/settings");
         if (res.ok) {
           const data = await res.json();
-          const setting = data.settings?.find((s: any) => s.key === "teacher_salary_visible");
+          const setting = data.settings?.find(
+            (s: any) => s.key === "teacher_salary_visible"
+          );
           setTeacherSalaryVisible(setting?.value === "true");
         }
       } catch (error) {
@@ -236,7 +281,7 @@ export default function TeacherPaymentsPage() {
         }),
       });
       if (!res.ok) throw new Error("Failed to update package salary");
-      setPackageSalaries(prev => ({ ...prev, [packageName]: value }));
+      setPackageSalaries((prev) => ({ ...prev, [packageName]: value }));
       setPackageSalarySuccess(`${packageName} salary updated!`);
       setTimeout(() => setPackageSalarySuccess(null), 2000);
       toast({
@@ -261,7 +306,9 @@ export default function TeacherPaymentsPage() {
       setError(null);
       try {
         const { from, to } = getMonthRange(selectedYear, selectedMonth);
-        const res = await fetch(`/api/admin/teacher-payments?startDate=${from.toISOString()}&endDate=${to.toISOString()}`);
+        const res = await fetch(
+          `/api/admin/teacher-payments?startDate=${from.toISOString()}&endDate=${to.toISOString()}`
+        );
         if (!res.ok) throw new Error("Failed to fetch teacher payments");
         const data = await res.json();
         setTeachers(data);
@@ -297,7 +344,15 @@ export default function TeacherPaymentsPage() {
       });
       return;
     }
-    const headers = ["Teacher", "Base Salary", "Lateness Deduction", "Absence Deduction", "Bonuses", "Total Salary", "Status"];
+    const headers = [
+      "Teacher",
+      "Base Salary",
+      "Lateness Deduction",
+      "Absence Deduction",
+      "Bonuses",
+      "Total Salary",
+      "Status",
+    ];
     const rows = data.map((row) => [
       row.name,
       row.baseSalary,
@@ -323,7 +378,8 @@ export default function TeacherPaymentsPage() {
 
   const filteredTeachers = teachers.filter((t) => {
     const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = !statusFilter || (salaryStatus[t.id] || "Unpaid") === statusFilter;
+    const matchesStatus =
+      !statusFilter || (salaryStatus[t.id] || "Unpaid") === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -339,9 +395,14 @@ export default function TeacherPaymentsPage() {
   const monthSummary = {
     totalTeachers: teachers.length,
     totalPaid: Object.values(salaryStatus).filter((s) => s === "Paid").length,
-    totalUnpaid: teachers.length - Object.values(salaryStatus).filter((s) => s === "Paid").length,
+    totalUnpaid:
+      teachers.length -
+      Object.values(salaryStatus).filter((s) => s === "Paid").length,
     totalBaseSalary: teachers.reduce((sum, t) => sum + t.baseSalary, 0),
-    totalDeductions: teachers.reduce((sum, t) => sum + t.latenessDeduction + t.absenceDeduction, 0),
+    totalDeductions: teachers.reduce(
+      (sum, t) => sum + t.latenessDeduction + t.absenceDeduction,
+      0
+    ),
     totalBonuses: teachers.reduce((sum, t) => sum + t.bonuses, 0),
     totalSalary: teachers.reduce((sum, t) => sum + t.totalSalary, 0),
   };
@@ -375,13 +436,17 @@ export default function TeacherPaymentsPage() {
 
     setBulkLoading(true);
     try {
-      const period = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
+      const period = `${selectedYear}-${String(selectedMonth).padStart(
+        2,
+        "0"
+      )}`;
       const newStatus = bulkAction === "mark-paid" ? "Paid" : "Unpaid";
 
       if (newStatus === "Paid" && !canMarkPaid) {
         toast({
           title: "Error",
-          description: "Cannot mark as paid before the 28th of the current month or for future months.",
+          description:
+            "Cannot mark as paid before the 28th of the current month or for future months.",
           variant: "destructive",
         });
         return;
@@ -464,36 +529,53 @@ export default function TeacherPaymentsPage() {
                   <div className="p-2 bg-blue-100 rounded-lg">
                     <FiUsers className="h-4 w-4 text-blue-600" />
                   </div>
-                  <span className="text-xs font-semibold text-blue-700">Teachers</span>
+                  <span className="text-xs font-semibold text-blue-700">
+                    Teachers
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-blue-900">{monthSummary.totalTeachers}</div>
+                <div className="text-2xl font-bold text-blue-900">
+                  {monthSummary.totalTeachers}
+                </div>
               </div>
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-green-200 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <div className="p-2 bg-green-100 rounded-lg">
                     <FiCheckCircle className="h-4 w-4 text-green-600" />
                   </div>
-                  <span className="text-xs font-semibold text-green-700">Paid</span>
+                  <span className="text-xs font-semibold text-green-700">
+                    Paid
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-green-900">{monthSummary.totalPaid}</div>
+                <div className="text-2xl font-bold text-green-900">
+                  {monthSummary.totalPaid}
+                </div>
               </div>
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-orange-200 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <div className="p-2 bg-orange-100 rounded-lg">
                     <FiXCircle className="h-4 w-4 text-orange-600" />
                   </div>
-                  <span className="text-xs font-semibold text-orange-700">Unpaid</span>
+                  <span className="text-xs font-semibold text-orange-700">
+                    Unpaid
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-orange-900">{monthSummary.totalUnpaid}</div>
+                <div className="text-2xl font-bold text-orange-900">
+                  {monthSummary.totalUnpaid}
+                </div>
               </div>
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-purple-200 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <div className="p-2 bg-purple-100 rounded-lg">
                     <FiDollarSign className="h-4 w-4 text-purple-600" />
                   </div>
-                  <span className="text-xs font-semibold text-purple-700">Total</span>
+                  <span className="text-xs font-semibold text-purple-700">
+                    Total
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-purple-900 truncate" title={currencyFormatter.format(monthSummary.totalSalary)}>
+                <div
+                  className="text-2xl font-bold text-purple-900 truncate"
+                  title={currencyFormatter.format(monthSummary.totalSalary)}
+                >
                   {compactCurrencyFormatter.format(monthSummary.totalSalary)}
                 </div>
               </div>
@@ -588,17 +670,21 @@ export default function TeacherPaymentsPage() {
         <div className="relative">
           {/* Background decoration */}
           <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-purple-100/50 to-pink-100/50 rounded-3xl blur-3xl -z-10"></div>
-          
+
           <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8">
             <div className="text-center mb-8">
               <div className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-lg mb-4">
                 <FiDollarSign className="h-6 w-6 text-white" />
-                <span className="text-white font-bold text-lg">Salary Configuration</span>
+                <span className="text-white font-bold text-lg">
+                  Salary Configuration
+                </span>
               </div>
               <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2">
                 Package & System Settings
               </h2>
-              <p className="text-gray-600 text-lg">Configure package-based salaries and system preferences</p>
+              <p className="text-gray-600 text-lg">
+                Configure package-based salaries and system preferences
+              </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -606,7 +692,7 @@ export default function TeacherPaymentsPage() {
               <div className="relative group">
                 {/* Animated background */}
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 via-indigo-400/20 to-purple-400/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-                
+
                 <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-blue-200/50 p-6 hover:shadow-2xl transition-all duration-300">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="relative">
@@ -616,43 +702,67 @@ export default function TeacherPaymentsPage() {
                       </div>
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold bg-gradient-to-r from-blue-800 to-indigo-900 bg-clip-text text-transparent">Package-Based Salaries</h3>
-                      <p className="text-blue-700 text-sm">Configure salary per student package</p>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-blue-800 to-indigo-900 bg-clip-text text-transparent">
+                        Package-Based Salaries
+                      </h3>
+                      <p className="text-blue-700 text-sm">
+                        Configure salary per student package
+                      </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
                     {availablePackages.map((packageName, index) => {
                       return (
-                        <div key={packageName} className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-all">
+                        <div
+                          key={packageName}
+                          className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-all"
+                        >
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                              <span className="font-bold text-blue-900 text-sm">{packageName}</span>
+                              <span className="font-bold text-blue-900 text-sm">
+                                {packageName}
+                              </span>
                             </div>
-                            <span className="text-xs text-blue-700 font-medium">ETB per student</span>
+                            <span className="text-xs text-blue-700 font-medium">
+                              ETB per student
+                            </span>
                           </div>
-                          
+
                           <div className="flex items-center gap-3">
                             <div className="flex-1">
                               <input
                                 type="number"
                                 min={0}
                                 value={packageSalaryInputs[packageName] || ""}
-                                onChange={(e) => setPackageSalaryInputs(prev => ({ ...prev, [packageName]: e.target.value }))}
-                                placeholder={String(packageSalaries[packageName] || 0)}
+                                onChange={(e) =>
+                                  setPackageSalaryInputs((prev) => ({
+                                    ...prev,
+                                    [packageName]: e.target.value,
+                                  }))
+                                }
+                                placeholder={String(
+                                  packageSalaries[packageName] || 0
+                                )}
                                 className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 font-semibold text-center"
                                 disabled={packageSalaryLoading}
                               />
                             </div>
-                            
+
                             <button
-                              onClick={() => handleUpdatePackageSalary(packageName)}
+                              onClick={() =>
+                                handleUpdatePackageSalary(packageName)
+                              }
                               className={`bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 flex items-center gap-1 ${
                                 packageSalaryLoading ? "opacity-75" : ""
                               }`}
                               disabled={packageSalaryLoading}
                             >
-                              {packageSalaryLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
+                              {packageSalaryLoading ? (
+                                <FiLoader className="animate-spin h-4 w-4" />
+                              ) : (
+                                <FiCheck className="h-4 w-4" />
+                              )}
                               Save
                             </button>
                           </div>
@@ -666,13 +776,17 @@ export default function TeacherPaymentsPage() {
                       {packageSalaryError && (
                         <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
                           <FiXCircle className="h-4 w-4 text-red-500" />
-                          <p className="text-sm text-red-700 font-medium">{packageSalaryError}</p>
+                          <p className="text-sm text-red-700 font-medium">
+                            {packageSalaryError}
+                          </p>
                         </div>
                       )}
                       {packageSalarySuccess && (
                         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">
                           <FiCheckCircle className="h-4 w-4 text-green-500" />
-                          <p className="text-sm text-green-700 font-medium">{packageSalarySuccess}</p>
+                          <p className="text-sm text-green-700 font-medium">
+                            {packageSalarySuccess}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -684,30 +798,36 @@ export default function TeacherPaymentsPage() {
               <div className="relative group">
                 {/* Animated background */}
                 <div className="absolute inset-0 bg-gradient-to-br from-green-400/20 via-emerald-400/20 to-teal-400/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-                
+
                 <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-green-200/50 p-6 hover:shadow-2xl transition-all duration-300">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="relative">
                       <div className="absolute inset-0 bg-gradient-to-br from-green-600 to-emerald-700 rounded-xl blur-sm"></div>
-                      <div className="relative p-3 bg-gradient-to-br from-green-600 to-emerald-700 rounded-xl shadow-lg">
+                      <div className="relative p-3  rounded-xl shadow-lg">
                         <FiInfo className="h-6 w-6 text-white" />
                       </div>
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold bg-gradient-to-r from-green-800 to-emerald-900 bg-clip-text text-transparent">Teacher Salary Visibility</h3>
-                      <p className="text-green-700 text-sm">Control teacher access to salary information</p>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-green-800 to-emerald-900 bg-clip-text text-transparent">
+                        Teacher Salary Visibility
+                      </h3>
+                      <p className="text-green-700 text-sm">
+                        Control teacher access to salary information
+                      </p>
                     </div>
                   </div>
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-green-50 to-emerald-100 rounded-xl opacity-60"></div>
-                    
+
                     <div className="relative flex flex-col md:flex-row flex-wrap md:flex-nowrap items-stretch md:items-center gap-4 p-4 border border-green-200 rounded-xl backdrop-blur-sm">
                       <label className="flex items-center gap-3 cursor-pointer w-full md:flex-1 group/label">
                         <div className="relative">
                           <input
                             type="checkbox"
                             checked={teacherSalaryVisible}
-                            onChange={(e) => setTeacherSalaryVisible(e.target.checked)}
+                            onChange={(e) =>
+                              setTeacherSalaryVisible(e.target.checked)
+                            }
                             className="w-5 h-5 rounded border-2 border-green-300 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all"
                             disabled={salaryVisibilityLoading}
                           />
@@ -718,13 +838,19 @@ export default function TeacherPaymentsPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-green-900 font-semibold group-hover/label:text-green-700 transition-colors">Allow teachers to see their salary</span>
-                          <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                            teacherSalaryVisible ? 'bg-green-500 shadow-lg shadow-green-500/50' : 'bg-gray-300'
-                          }`}></div>
+                          <span className="text-green-900 font-semibold group-hover/label:text-green-700 transition-colors">
+                            Allow teachers to see their salary
+                          </span>
+                          <div
+                            className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                              teacherSalaryVisible
+                                ? "bg-green-500 shadow-lg shadow-green-500/50"
+                                : "bg-gray-300"
+                            }`}
+                          ></div>
                         </div>
                       </label>
-                      
+
                       <button
                         onClick={async () => {
                           setSalaryVisibilityLoading(true);
@@ -738,10 +864,18 @@ export default function TeacherPaymentsPage() {
                               }),
                             });
                             if (res.ok) {
-                              toast({ title: "Success", description: "Salary visibility updated successfully!" });
+                              toast({
+                                title: "Success",
+                                description:
+                                  "Salary visibility updated successfully!",
+                              });
                             }
                           } catch (error) {
-                            toast({ title: "Error", description: "Failed to update salary visibility", variant: "destructive" });
+                            toast({
+                              title: "Error",
+                              description: "Failed to update salary visibility",
+                              variant: "destructive",
+                            });
                           } finally {
                             setSalaryVisibilityLoading(false);
                           }
@@ -752,7 +886,11 @@ export default function TeacherPaymentsPage() {
                         disabled={salaryVisibilityLoading}
                       >
                         <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-500"></div>
-                        {salaryVisibilityLoading ? <FiLoader className="animate-spin h-4 w-4 relative z-10" /> : <FiCheck className="h-4 w-4 relative z-10" />}
+                        {salaryVisibilityLoading ? (
+                          <FiLoader className="animate-spin h-4 w-4 relative z-10" />
+                        ) : (
+                          <FiCheck className="h-4 w-4 relative z-10" />
+                        )}
                         <span className="relative z-10">Update Settings</span>
                       </button>
                     </div>
@@ -773,18 +911,71 @@ export default function TeacherPaymentsPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-black">
-                    {months.find((m) => m.value === String(selectedMonth))?.label} {selectedYear} Payments
+                    {
+                      months.find((m) => m.value === String(selectedMonth))
+                        ?.label
+                    }{" "}
+                    {selectedYear} Payments
                   </h2>
-                  <p className="text-gray-600">Manage teacher salary calculations and payment status</p>
+                  <p className="text-gray-600">
+                    Manage teacher salary calculations and payment status
+                  </p>
                 </div>
               </div>
-              <button
-                onClick={() => exportToCSV(filteredTeachers, `teacher_payments_${dayjs().format("YYYY-MM-DD")}.csv`)}
-                className="bg-black hover:bg-gray-800 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
-              >
-                <FiDownload className="h-4 w-4" />
-                Export CSV
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() =>
+                    exportToCSV(
+                      filteredTeachers,
+                      `teacher_payments_${dayjs().format("YYYY-MM-DD")}.csv`
+                    )
+                  }
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
+                >
+                  <FiDownload className="h-4 w-4" />
+                  Export CSV
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const { from, to } = getMonthRange(selectedYear, selectedMonth);
+                      const response = await fetch('/api/admin/teacher-payments/pdf', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          startDate: from.toISOString(),
+                          endDate: to.toISOString()
+                        })
+                      });
+                      
+                      if (response.ok) {
+                        const html = await response.text();
+                        const newWindow = window.open('', '_blank');
+                        if (newWindow) {
+                          newWindow.document.write(html);
+                          newWindow.document.close();
+                        }
+                        toast({
+                          title: "Success",
+                          description: "Professional report generated successfully!"
+                        });
+                      } else {
+                        throw new Error('Failed to generate report');
+                      }
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: "Failed to generate PDF report",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
+                >
+                  <FiDownload className="h-4 w-4" />
+                  Generate Report
+                </button>
+              </div>
             </div>
           </div>
 
@@ -814,7 +1005,11 @@ export default function TeacherPaymentsPage() {
                       disabled={!bulkAction || bulkLoading}
                       className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
                     >
-                      {bulkLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
+                      {bulkLoading ? (
+                        <FiLoader className="animate-spin h-4 w-4" />
+                      ) : (
+                        <FiCheck className="h-4 w-4" />
+                      )}
                       Apply
                     </button>
                     <button
@@ -831,15 +1026,21 @@ export default function TeacherPaymentsPage() {
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
-                <p className="text-black font-medium text-lg">Loading payments...</p>
-                <p className="text-gray-500 text-sm mt-2">Please wait while we fetch the data</p>
+                <p className="text-black font-medium text-lg">
+                  Loading payments...
+                </p>
+                <p className="text-gray-500 text-sm mt-2">
+                  Please wait while we fetch the data
+                </p>
               </div>
             ) : error ? (
               <div className="text-center py-12">
                 <div className="p-8 bg-red-50 rounded-full w-fit mx-auto mb-8">
                   <FiXCircle className="h-16 w-16 text-red-500" />
                 </div>
-                <h3 className="text-3xl font-bold text-black mb-4">Error Loading Payments</h3>
+                <h3 className="text-3xl font-bold text-black mb-4">
+                  Error Loading Payments
+                </h3>
                 <p className="text-red-600 text-xl">{error}</p>
               </div>
             ) : filteredTeachers.length === 0 ? (
@@ -847,26 +1048,15 @@ export default function TeacherPaymentsPage() {
                 <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
                   <FiDollarSign className="h-16 w-16 text-gray-500" />
                 </div>
-                <h3 className="text-3xl font-bold text-black mb-4">No Teachers Found</h3>
-                <p className="text-gray-600 text-xl">No teachers match your current filters.</p>
+                <h3 className="text-3xl font-bold text-black mb-4">
+                  No Teachers Found
+                </h3>
+                <p className="text-gray-600 text-xl">
+                  No teachers match your current filters.
+                </p>
               </div>
             ) : (
               <>
-                <div className="mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <div className="flex items-center gap-2 text-sm text-blue-800 mb-2">
-                    <FiInfo className="text-blue-600 h-5 w-5" />
-                    <span className="font-semibold">Package-Based Salary System</span>
-                  </div>
-                  <div className="text-xs text-blue-700 space-y-1">
-                    {Object.entries(packageSalaries).map(([pkg, salary]) => (
-                      <div key={pkg} className="flex justify-between">
-                        <span>{pkg}:</span>
-                        <span className="font-semibold">{salary} ETB per student</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -874,10 +1064,16 @@ export default function TeacherPaymentsPage() {
                         <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
                           <input
                             type="checkbox"
-                            checked={selectedTeachers.size === filteredTeachers.length && filteredTeachers.length > 0}
+                            checked={
+                              selectedTeachers.size ===
+                                filteredTeachers.length &&
+                              filteredTeachers.length > 0
+                            }
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedTeachers(new Set(filteredTeachers.map((t) => t.id)));
+                                setSelectedTeachers(
+                                  new Set(filteredTeachers.map((t) => t.id))
+                                );
                               } else {
                                 setSelectedTeachers(new Set());
                               }
@@ -885,15 +1081,33 @@ export default function TeacherPaymentsPage() {
                             className="rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
                           />
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">Teacher</th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider"># Students</th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">Base Salary</th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">Lateness Deduction</th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">Absence Deduction</th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">Bonuses</th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">Total Salary</th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-4 text-right text-sm font-bold text-black uppercase tracking-wider">Actions</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Teacher
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          # Students
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Base Salary
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Lateness Deduction
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Absence Deduction
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Bonuses
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Total Salary
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-4 text-right text-sm font-bold text-black uppercase tracking-wider">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
@@ -912,7 +1126,9 @@ export default function TeacherPaymentsPage() {
                                 checked={selectedTeachers.has(t.id)}
                                 onChange={(e) => {
                                   if (e.target.checked) {
-                                    setSelectedTeachers((prev) => new Set([...prev, t.id]));
+                                    setSelectedTeachers(
+                                      (prev) => new Set([...prev, t.id])
+                                    );
                                   } else {
                                     setSelectedTeachers((prev) => {
                                       const newSet = new Set(prev);
@@ -926,10 +1142,21 @@ export default function TeacherPaymentsPage() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full ${getAvatarColor(t.id)} flex items-center justify-center font-bold`}>
-                                  {t.name ? t.name.split(" ").map((n: string) => n[0]).join("") : "N/A"}
+                                <div
+                                  className={`w-10 h-10 rounded-full ${getAvatarColor(
+                                    t.id
+                                  )} flex items-center justify-center font-bold`}
+                                >
+                                  {t.name
+                                    ? t.name
+                                        .split(" ")
+                                        .map((n: string) => n[0])
+                                        .join("")
+                                    : "N/A"}
                                 </div>
-                                <span className="font-semibold text-black">{t.name || "Unknown Teacher"}</span>
+                                <span className="font-semibold text-black">
+                                  {t.name || "Unknown Teacher"}
+                                </span>
                               </div>
                             </td>
                             <td className="px-6 py-4 text-center">
@@ -937,7 +1164,9 @@ export default function TeacherPaymentsPage() {
                                 {t.numStudents || 0}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-center font-medium text-gray-700">{t.baseSalary} ETB</td>
+                            <td className="px-6 py-4 text-center font-medium text-gray-700">
+                              {t.baseSalary} ETB
+                            </td>
                             <td className="px-6 py-4 text-center">
                               <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs">
                                 -{t.latenessDeduction} ETB
@@ -959,7 +1188,9 @@ export default function TeacherPaymentsPage() {
                                 +{t.bonuses} ETB
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-center font-bold text-black">{t.totalSalary} ETB</td>
+                            <td className="px-6 py-4 text-center font-bold text-black">
+                              {t.totalSalary} ETB
+                            </td>
                             <td className="px-6 py-4 text-center">
                               <button
                                 className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${
@@ -971,31 +1202,60 @@ export default function TeacherPaymentsPage() {
                                 }`}
                                 onClick={async () => {
                                   if (!canMarkPaid) return;
-                                  const newStatus = (salaryStatus[t.id] || "Unpaid") === "Paid" ? "Unpaid" : "Paid";
+                                  const newStatus =
+                                    (salaryStatus[t.id] || "Unpaid") === "Paid"
+                                      ? "Unpaid"
+                                      : "Paid";
                                   try {
-                                    const period = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
-                                    const res = await fetch("/api/admin/teacher-payments", {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({
-                                        teacherId: t.id,
-                                        period,
-                                        status: newStatus,
-                                        totalSalary: t.totalSalary,
-                                        latenessDeduction: t.latenessDeduction,
-                                        absenceDeduction: t.absenceDeduction,
-                                        bonuses: t.bonuses,
-                                      }),
+                                    const period = `${selectedYear}-${String(
+                                      selectedMonth
+                                    ).padStart(2, "0")}`;
+                                    const res = await fetch(
+                                      "/api/admin/teacher-payments",
+                                      {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          teacherId: t.id,
+                                          period,
+                                          status: newStatus,
+                                          totalSalary: t.totalSalary,
+                                          latenessDeduction:
+                                            t.latenessDeduction,
+                                          absenceDeduction: t.absenceDeduction,
+                                          bonuses: t.bonuses,
+                                        }),
+                                      }
+                                    );
+                                    if (!res.ok)
+                                      throw new Error(
+                                        "Failed to update salary status"
+                                      );
+                                    setSalaryStatus((prev) => ({
+                                      ...prev,
+                                      [t.id]: newStatus,
+                                    }));
+                                    toast({
+                                      title: "Success",
+                                      description: `Salary for ${t.name} marked as ${newStatus}`,
                                     });
-                                    if (!res.ok) throw new Error("Failed to update salary status");
-                                    setSalaryStatus((prev) => ({ ...prev, [t.id]: newStatus }));
-                                    toast({ title: "Success", description: `Salary for ${t.name} marked as ${newStatus}` });
                                   } catch (err) {
-                                    toast({ title: "Error", description: "Failed to update salary status", variant: "destructive" });
+                                    toast({
+                                      title: "Error",
+                                      description:
+                                        "Failed to update salary status",
+                                      variant: "destructive",
+                                    });
                                   }
                                 }}
                                 disabled={!canMarkPaid}
-                                title={!canMarkPaid ? "You can only mark as paid after the 28th of the current month or for past months." : undefined}
+                                title={
+                                  !canMarkPaid
+                                    ? "You can only mark as paid after the 28th of the current month or for past months."
+                                    : undefined
+                                }
                               >
                                 {(salaryStatus[t.id] || "Unpaid") === "Paid" ? (
                                   <FiCheckCircle className="text-green-600 h-4 w-4" />
@@ -1028,7 +1288,8 @@ export default function TeacherPaymentsPage() {
                 {/* Pagination */}
                 <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
                   <p className="text-lg font-semibold text-gray-700">
-                    Page {page} of {Math.ceil(filteredTeachers.length / pageSize)}
+                    Page {page} of{" "}
+                    {Math.ceil(filteredTeachers.length / pageSize)}
                   </p>
                   <div className="flex items-center gap-4">
                     <button
@@ -1039,8 +1300,17 @@ export default function TeacherPaymentsPage() {
                       <FiChevronLeft className="h-6 w-6" />
                     </button>
                     <button
-                      onClick={() => setPage(Math.min(Math.ceil(filteredTeachers.length / pageSize), page + 1))}
-                      disabled={page >= Math.ceil(filteredTeachers.length / pageSize)}
+                      onClick={() =>
+                        setPage(
+                          Math.min(
+                            Math.ceil(filteredTeachers.length / pageSize),
+                            page + 1
+                          )
+                        )
+                      }
+                      disabled={
+                        page >= Math.ceil(filteredTeachers.length / pageSize)
+                      }
                       className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
                     >
                       <FiChevronRight className="h-6 w-6" />
@@ -1062,9 +1332,12 @@ export default function TeacherPaymentsPage() {
               >
                 <FiX size={20} />
               </button>
-              <h2 className="text-xl font-semibold text-black mb-4">Confirm Bulk Action</h2>
+              <h2 className="text-xl font-semibold text-black mb-4">
+                Confirm Bulk Action
+              </h2>
               <p className="text-gray-700 mb-6">
-                Are you sure you want to mark {selectedTeachers.size} teacher(s) as {bulkAction === "mark-paid" ? "Paid" : "Unpaid"}?
+                Are you sure you want to mark {selectedTeachers.size} teacher(s)
+                as {bulkAction === "mark-paid" ? "Paid" : "Unpaid"}?
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -1078,7 +1351,11 @@ export default function TeacherPaymentsPage() {
                   className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl transition-all font-semibold"
                   disabled={bulkLoading}
                 >
-                  {bulkLoading ? <FiLoader className="animate-spin h-4 w-4" /> : "Confirm"}
+                  {bulkLoading ? (
+                    <FiLoader className="animate-spin h-4 w-4" />
+                  ) : (
+                    "Confirm"
+                  )}
                 </button>
               </div>
             </div>
@@ -1095,14 +1372,16 @@ export default function TeacherPaymentsPage() {
               >
                 <FiX size={20} />
               </button>
-              
+
               <div className="flex items-center gap-4 mb-6">
                 <div className="p-3 bg-black rounded-xl">
                   <FiUser className="h-6 w-6 text-white" />
                 </div>
-                <h2 className="text-2xl font-bold text-black">Salary Review for {selectedTeacher.name}</h2>
+                <h2 className="text-2xl font-bold text-black">
+                  Salary Review for {selectedTeacher.name}
+                </h2>
               </div>
-              
+
               {/* Package Breakdown Section */}
               {teacherPackageBreakdown && (
                 <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200">
@@ -1111,27 +1390,47 @@ export default function TeacherPaymentsPage() {
                     Package-Based Salary Breakdown
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {teacherPackageBreakdown.packageBreakdown?.map((pkg: any, index: number) => {
-                      const colors = ['bg-emerald-100 text-emerald-800', 'bg-blue-100 text-blue-800', 'bg-purple-100 text-purple-800', 'bg-orange-100 text-orange-800'];
-                      return (
-                        <div key={pkg.packageName} className={`p-4 rounded-xl ${colors[index % colors.length]} border`}>
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold">{pkg.packageName}</span>
-                            <span className="text-sm font-semibold">{pkg.count} students</span>
-                          </div>
-                          <div className="text-sm space-y-1">
-                            <div className="flex justify-between">
-                              <span>Rate per student:</span>
-                              <span className="font-semibold">{pkg.salaryPerStudent} ETB</span>
+                    {teacherPackageBreakdown.packageBreakdown?.map(
+                      (pkg: any, index: number) => {
+                        const colors = [
+                          "bg-emerald-100 text-emerald-800",
+                          "bg-blue-100 text-blue-800",
+                          "bg-purple-100 text-purple-800",
+                          "bg-orange-100 text-orange-800",
+                        ];
+                        return (
+                          <div
+                            key={pkg.packageName}
+                            className={`p-4 rounded-xl ${
+                              colors[index % colors.length]
+                            } border`}
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="font-bold">
+                                {pkg.packageName}
+                              </span>
+                              <span className="text-sm font-semibold">
+                                {pkg.count} students
+                              </span>
                             </div>
-                            <div className="flex justify-between border-t pt-1">
-                              <span>Package total:</span>
-                              <span className="font-bold">{pkg.totalSalary} ETB</span>
+                            <div className="text-sm space-y-1">
+                              <div className="flex justify-between">
+                                <span>Rate per student:</span>
+                                <span className="font-semibold">
+                                  {pkg.salaryPerStudent} ETB
+                                </span>
+                              </div>
+                              <div className="flex justify-between border-t pt-1">
+                                <span>Package total:</span>
+                                <span className="font-bold">
+                                  {pkg.totalSalary} ETB
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      }
+                    )}
                   </div>
                 </div>
               )}
@@ -1139,26 +1438,76 @@ export default function TeacherPaymentsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="space-y-4">
                   {[
-                    { label: "Base Salary", value: `${selectedTeacher.baseSalary} ETB`, color: "blue", icon: FiDollarSign },
-                    { label: "# Students", value: selectedTeacher.numStudents || 0, color: "gray", badge: true, icon: FiUsers },
-                    { label: "Lateness Deduction", value: `-${selectedTeacher.latenessDeduction} ETB`, color: "red", badge: true, icon: FiAlertTriangle },
-                    { label: "Absence Deduction", value: `-${selectedTeacher.absenceDeduction} ETB`, color: "red", badge: true, icon: FiXCircle },
-                    { label: "Bonuses", value: `+${selectedTeacher.bonuses} ETB`, color: "green", badge: true, icon: FiAward },
-                    { label: "Total Salary", value: `${selectedTeacher.totalSalary} ETB`, color: "purple", bold: true, icon: FiCheckCircle },
+                    {
+                      label: "Base Salary",
+                      value: `${selectedTeacher.baseSalary} ETB`,
+                      color: "blue",
+                      icon: FiDollarSign,
+                    },
+                    {
+                      label: "# Students",
+                      value: selectedTeacher.numStudents || 0,
+                      color: "gray",
+                      badge: true,
+                      icon: FiUsers,
+                    },
+                    {
+                      label: "Lateness Deduction",
+                      value: `-${selectedTeacher.latenessDeduction} ETB`,
+                      color: "red",
+                      badge: true,
+                      icon: FiAlertTriangle,
+                    },
+                    {
+                      label: "Absence Deduction",
+                      value: `-${selectedTeacher.absenceDeduction} ETB`,
+                      color: "red",
+                      badge: true,
+                      icon: FiXCircle,
+                    },
+                    {
+                      label: "Bonuses",
+                      value: `+${selectedTeacher.bonuses} ETB`,
+                      color: "green",
+                      badge: true,
+                      icon: FiAward,
+                    },
+                    {
+                      label: "Total Salary",
+                      value: `${selectedTeacher.totalSalary} ETB`,
+                      color: "purple",
+                      bold: true,
+                      icon: FiCheckCircle,
+                    },
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
-                      <div key={item.label} className="flex items-center gap-3 p-3 bg-white rounded-xl border shadow-sm">
+                      <div
+                        key={item.label}
+                        className="flex items-center gap-3 p-3 bg-white rounded-xl border shadow-sm"
+                      >
                         <div className={`p-2 rounded-lg bg-${item.color}-100`}>
                           <Icon className={`h-4 w-4 text-${item.color}-600`} />
                         </div>
-                        <span className="font-semibold text-gray-700 flex-1">{item.label}:</span>
+                        <span className="font-semibold text-gray-700 flex-1">
+                          {item.label}:
+                        </span>
                         {item.badge ? (
-                          <span className={`inline-block px-3 py-1 rounded-full bg-${item.color}-100 text-${item.color}-700 font-semibold text-sm`}>
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full bg-${item.color}-100 text-${item.color}-700 font-semibold text-sm`}
+                          >
                             {item.value}
                           </span>
                         ) : (
-                          <span className={`font-${item.bold ? "bold" : "medium"} text-${item.color === "purple" ? "purple-900" : "gray-900"} text-lg`}>
+                          <span
+                            className={`font-${
+                              item.bold ? "bold" : "medium"
+                            } text-${
+                              item.color === "purple"
+                                ? "purple-900"
+                                : "gray-900"
+                            } text-lg`}
+                          >
                             {item.value}
                           </span>
                         )}
@@ -1169,12 +1518,16 @@ export default function TeacherPaymentsPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <span className="font-semibold text-gray-700">Status:</span>
-                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
-                      (salaryStatus[selectedTeacher.id] || "Unpaid") === "Paid"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}>
-                      {(salaryStatus[selectedTeacher.id] || "Unpaid") === "Paid" ? (
+                    <span
+                      className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
+                        (salaryStatus[selectedTeacher.id] || "Unpaid") ===
+                        "Paid"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
+                      {(salaryStatus[selectedTeacher.id] || "Unpaid") ===
+                      "Paid" ? (
                         <FiCheckCircle className="text-green-600 h-4 w-4" />
                       ) : (
                         <FiXCircle className="text-yellow-600 h-4 w-4" />
@@ -1188,21 +1541,27 @@ export default function TeacherPaymentsPage() {
                   </div>
                 </div>
               </div>
-              
+
               <button
                 className="w-full mb-4 px-4 py-3 bg-gray-100 text-gray-800 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-200 transition-all"
                 onClick={() => setShowDetails((v) => !v)}
               >
-                {showDetails ? <FiChevronUp className="h-5 w-5" /> : <FiChevronDown className="h-5 w-5" />}
+                {showDetails ? (
+                  <FiChevronUp className="h-5 w-5" />
+                ) : (
+                  <FiChevronDown className="h-5 w-5" />
+                )}
                 {showDetails ? "Hide Details" : "Show Details"}
               </button>
-              
+
               {showDetails && (
                 <div className="bg-gray-50 rounded-xl p-6 text-sm max-h-80 overflow-y-auto border border-gray-200 mb-6">
                   {breakdownLoading ? (
                     <div className="flex items-center gap-3 text-gray-600 animate-pulse">
                       <FiLoader className="h-6 w-6 animate-spin" />
-                      <span className="font-semibold">Loading breakdown...</span>
+                      <span className="font-semibold">
+                        Loading breakdown...
+                      </span>
                     </div>
                   ) : breakdownError ? (
                     <div className="flex items-center gap-3 text-red-600">
@@ -1212,10 +1571,13 @@ export default function TeacherPaymentsPage() {
                   ) : (
                     <>
                       <div className="mb-4 font-semibold text-black flex items-center gap-2">
-                        <FiAlertTriangle className="text-red-500 h-5 w-5" /> Lateness Records
+                        <FiAlertTriangle className="text-red-500 h-5 w-5" />{" "}
+                        Lateness Records
                       </div>
                       {breakdown.latenessRecords?.length === 0 ? (
-                        <div className="text-gray-500 mb-4">No lateness records.</div>
+                        <div className="text-gray-500 mb-4">
+                          No lateness records.
+                        </div>
                       ) : (
                         <ul className="mb-6 space-y-2">
                           {breakdown.latenessRecords.map((r: any) => (
@@ -1229,17 +1591,22 @@ export default function TeacherPaymentsPage() {
                               <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs">
                                 -{r.deductionApplied} ETB
                               </span>
-                              <span className="text-sm text-gray-600">({r.deductionTier})</span>
+                              <span className="text-sm text-gray-600">
+                                ({r.deductionTier})
+                              </span>
                             </li>
                           ))}
                         </ul>
                       )}
-                      
+
                       <div className="mb-4 font-semibold text-black flex items-center gap-2">
-                        <FiAlertTriangle className="text-yellow-500 h-5 w-5" /> Absence Records
+                        <FiAlertTriangle className="text-yellow-500 h-5 w-5" />{" "}
+                        Absence Records
                       </div>
                       {breakdown.absenceRecords?.length === 0 ? (
-                        <div className="text-gray-500 mb-4">No absence records.</div>
+                        <div className="text-gray-500 mb-4">
+                          No absence records.
+                        </div>
                       ) : (
                         <ul className="mb-6 space-y-2">
                           {breakdown.absenceRecords.map((r: any) => (
@@ -1247,25 +1614,36 @@ export default function TeacherPaymentsPage() {
                               <span className="font-mono text-sm text-gray-600">
                                 {new Date(r.classDate).toLocaleDateString()}
                               </span>
-                              <span className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
-                                r.permitted ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                              }`}>
+                              <span
+                                className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
+                                  r.permitted
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
+                              >
                                 {r.permitted ? "Permitted" : "Unpermitted"}
                               </span>
                               <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs">
                                 -{r.deductionApplied} ETB
                               </span>
-                              {r.reviewNotes && <span className="text-sm text-gray-600">({r.reviewNotes})</span>}
+                              {r.reviewNotes && (
+                                <span className="text-sm text-gray-600">
+                                  ({r.reviewNotes})
+                                </span>
+                              )}
                             </li>
                           ))}
                         </ul>
                       )}
-                      
+
                       <div className="mb-4 font-semibold text-black flex items-center gap-2">
-                        <FiAward className="text-green-500 h-5 w-5" /> Bonus Records
+                        <FiAward className="text-green-500 h-5 w-5" /> Bonus
+                        Records
                       </div>
                       {breakdown.bonusRecords?.length === 0 ? (
-                        <div className="text-gray-500 mb-4">No bonus records.</div>
+                        <div className="text-gray-500 mb-4">
+                          No bonus records.
+                        </div>
                       ) : (
                         <ul className="space-y-2">
                           {breakdown.bonusRecords.map((r: any) => (
@@ -1276,7 +1654,9 @@ export default function TeacherPaymentsPage() {
                               <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-700 font-semibold text-xs">
                                 +{r.amount} ETB
                               </span>
-                              <span className="text-sm text-gray-600">({r.reason})</span>
+                              <span className="text-sm text-gray-600">
+                                ({r.reason})
+                              </span>
                             </li>
                           ))}
                         </ul>
@@ -1285,7 +1665,7 @@ export default function TeacherPaymentsPage() {
                   )}
                 </div>
               )}
-              
+
               <button
                 className="w-full bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
                 onClick={() => setSelectedTeacher(null)}
