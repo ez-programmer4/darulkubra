@@ -620,56 +620,40 @@ export default function TeacherPaymentsPage() {
                       <p className="text-blue-700 text-sm">Configure salary per student package</p>
                     </div>
                   </div>
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
                     {availablePackages.map((packageName, index) => {
-                      const colors = [
-                        { bg: 'from-emerald-50 to-green-100', border: 'border-emerald-300', text: 'text-emerald-900', button: 'from-emerald-600 to-green-700', dot: 'from-emerald-400 to-green-500' },
-                        { bg: 'from-blue-50 to-indigo-100', border: 'border-blue-300', text: 'text-blue-900', button: 'from-blue-600 to-indigo-700', dot: 'from-blue-400 to-indigo-500' },
-                        { bg: 'from-purple-50 to-violet-100', border: 'border-purple-300', text: 'text-purple-900', button: 'from-purple-600 to-violet-700', dot: 'from-purple-400 to-violet-500' },
-                        { bg: 'from-orange-50 to-red-100', border: 'border-orange-300', text: 'text-orange-900', button: 'from-orange-600 to-red-700', dot: 'from-orange-400 to-red-500' },
-                        { bg: 'from-pink-50 to-rose-100', border: 'border-pink-300', text: 'text-pink-900', button: 'from-pink-600 to-rose-700', dot: 'from-pink-400 to-rose-500' }
-                      ];
-                      const color = colors[index % colors.length];
                       return (
-                        <div key={packageName} className={`relative group/item overflow-hidden`}>
-                          {/* Animated background */}
-                          <div className={`absolute inset-0 bg-gradient-to-r ${color.bg} rounded-xl opacity-60 group-hover/item:opacity-80 transition-all duration-300`}></div>
-                          
-                          <div className={`relative flex flex-col md:flex-row items-stretch md:items-center gap-3 p-4 border ${color.border} rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 backdrop-blur-sm`}>
-                            <div className="md:w-32">
-                              <div className="flex items-center gap-3">
-                                <div className="relative">
-                                  <div className={`w-4 h-4 rounded-full bg-gradient-to-r ${color.dot} shadow-lg`}></div>
-                                  <div className={`absolute inset-0 w-4 h-4 rounded-full bg-gradient-to-r ${color.dot} animate-ping opacity-20`}></div>
-                                </div>
-                                <span className={`text-sm font-bold ${color.text}`}>{packageName}</span>
-                              </div>
+                        <div key={packageName} className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-all">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                              <span className="font-bold text-blue-900 text-sm">{packageName}</span>
                             </div>
-                            
-                            <div className="flex-1 relative">
+                            <span className="text-xs text-blue-700 font-medium">ETB per student</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
                               <input
                                 type="number"
                                 min={0}
-                                value={packageSalaryInputs[packageName] || packageSalaries[packageName] || "0"}
+                                value={packageSalaryInputs[packageName] || ""}
                                 onChange={(e) => setPackageSalaryInputs(prev => ({ ...prev, [packageName]: e.target.value }))}
                                 placeholder={String(packageSalaries[packageName] || 0)}
-                                className="w-full px-4 py-3 border border-white/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-gray-900 shadow-sm font-semibold"
+                                className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 font-semibold text-center"
                                 disabled={packageSalaryLoading}
                               />
                             </div>
                             
-                            <span className="text-gray-700 font-semibold text-sm whitespace-nowrap">ETB per student</span>
-                            
                             <button
                               onClick={() => handleUpdatePackageSalary(packageName)}
-                              className={`relative overflow-hidden bg-gradient-to-r ${color.button} hover:shadow-xl text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 group/btn ${
+                              className={`bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 flex items-center gap-1 ${
                                 packageSalaryLoading ? "opacity-75" : ""
                               }`}
                               disabled={packageSalaryLoading}
                             >
-                              <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-500"></div>
-                              {packageSalaryLoading ? <FiLoader className="animate-spin h-4 w-4 relative z-10" /> : <FiCheck className="h-4 w-4 relative z-10" />}
-                              <span className="relative z-10">Update</span>
+                              {packageSalaryLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
+                              Save
                             </button>
                           </div>
                         </div>
