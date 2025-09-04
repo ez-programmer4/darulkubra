@@ -162,7 +162,24 @@ export default function TeacherPermissions() {
           if (data.reasons && Array.isArray(data.reasons) && data.reasons.length > 0) {
             setPermissionReasons(data.reasons);
           } else {
-            console.log('No reasons found in database, using fallback');
+            console.log('No reasons found in database, seeding default reasons');
+            // Try to seed default reasons
+            try {
+              await fetch('/api/seed-permission-reasons', { method: 'POST' });
+              // Retry fetching reasons
+              const retryRes = await fetch("/api/permission-reasons", {
+                credentials: "include",
+              });
+              if (retryRes.ok) {
+                const retryData = await retryRes.json();
+                if (retryData.reasons && Array.isArray(retryData.reasons) && retryData.reasons.length > 0) {
+                  setPermissionReasons(retryData.reasons);
+                  return;
+                }
+              }
+            } catch (error) {
+              console.log('Failed to seed reasons, using fallback');
+            }
             setPermissionReasons([
               "Sick Leave",
               "Personal Emergency",
