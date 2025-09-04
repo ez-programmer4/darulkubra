@@ -140,25 +140,36 @@ export default function AssignedStudents() {
 
   // Load zoom status from localStorage on mount
   useEffect(() => {
+    console.log('🔄 Loading zoom status from localStorage...');
     const stored = localStorage.getItem('zoomSentToday');
+    console.log('📦 Stored data:', stored);
     if (stored) {
       try {
         const { date, status } = JSON.parse(stored);
+        const today = new Date().toDateString();
+        console.log('📅 Stored date:', date, 'Today:', today);
         // Only use stored data if it's from today
-        if (date === new Date().toDateString()) {
+        if (date === today) {
+          console.log('✅ Using stored zoom status:', status);
           setZoomSent(status);
         } else {
+          console.log('🗑️ Removing old stored data');
           localStorage.removeItem('zoomSentToday');
         }
       } catch (e) {
+        console.log('❌ Error parsing stored data:', e);
         localStorage.removeItem('zoomSentToday');
       }
+    } else {
+      console.log('📭 No stored zoom status found');
     }
   }, []);
 
   // Check zoom status when component mounts and when groups change
   useEffect(() => {
+    console.log('👥 Groups changed, length:', groups.length);
     if (groups.length > 0) {
+      console.log('🔍 Checking zoom status from API...');
       checkZoomStatus();
     }
   }, [groups]);
@@ -166,26 +177,34 @@ export default function AssignedStudents() {
   // Check zoom link status for today
   async function checkZoomStatus() {
     try {
+      console.log('🌐 Fetching zoom status from API...');
       const res = await fetch("/api/teachers/students/zoom-status", {
         credentials: "include",
         cache: "no-store",
       });
+      console.log('📡 API Response status:', res.status);
       if (res.ok) {
         const data = await res.json();
+        console.log('📊 API Response data:', data);
         const zoomStatus: Record<number, boolean> = {};
         data.sentToday?.forEach((studentId: number) => {
           zoomStatus[studentId] = true;
         });
+        console.log('🎯 Setting zoom status:', zoomStatus);
         setZoomSent(zoomStatus);
         
         // Persist to localStorage to prevent loss on refresh
-        localStorage.setItem('zoomSentToday', JSON.stringify({
+        const storageData = {
           date: new Date().toDateString(),
           status: zoomStatus
-        }));
+        };
+        console.log('💾 Saving to localStorage:', storageData);
+        localStorage.setItem('zoomSentToday', JSON.stringify(storageData));
+      } else {
+        console.error('❌ API Error:', res.status, await res.text());
       }
     } catch (error) {
-      console.error("Failed to check zoom status:", error);
+      console.error("💥 Failed to check zoom status:", error);
     }
   }
 
@@ -811,6 +830,7 @@ export default function AssignedStudents() {
                               </Button>
                               <Button
                                 onClick={() => {
+                                  console.log('🎯 Attendance button clicked for student:', s.id, 'zoomSent status:', zoomSent[s.id], 'all zoomSent:', zoomSent);
                                   if (!zoomSent[s.id]) {
                                     toast({
                                       title: "Zoom Link Required",
@@ -944,6 +964,7 @@ export default function AssignedStudents() {
                         </Button>
                         <Button
                           onClick={() => {
+                            console.log('📱 Mobile attendance button clicked for student:', s.id, 'zoomSent status:', zoomSent[s.id]);
                             if (!zoomSent[s.id]) {
                               toast({
                                 title: "Zoom Link Required",
