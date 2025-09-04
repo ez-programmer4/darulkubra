@@ -117,8 +117,8 @@ export default function AssignedStudents() {
   useEffect(() => {
     if (groups.length > 0) {
       const allStudentIds: Record<number, boolean> = {};
-      groups.forEach(group => {
-        group.students.forEach(student => {
+      groups.forEach((group) => {
+        group.students.forEach((student) => {
           allStudentIds[student.id] = true;
         });
       });
@@ -1114,7 +1114,6 @@ export default function AssignedStudents() {
 
                   {modal.type === "attendance" && (
                     <div className="space-y-6">
-
                       <div>
                         <label className="block text-sm font-bold text-gray-800 mb-3">
                           Attendance Status *
@@ -1217,22 +1216,6 @@ export default function AssignedStudents() {
                           </div>
                         );
                       })()}
-
-                      <div>
-                        <label className="block text-sm font-bold text-gray-800 mb-2">
-                          Session Notes
-                        </label>
-                        <textarea
-                          placeholder="Additional notes about the session..."
-                          value={attend[modal.studentId]?.notes || ""}
-                          onChange={(e) =>
-                            updateAttend(modal.studentId!, {
-                              notes: e.target.value,
-                            })
-                          }
-                          className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-500 resize-none h-24 text-base"
-                        />
-                      </div>
 
                       <Button
                         onClick={() => saveAttendance(modal.studentId!)}
