@@ -65,24 +65,43 @@ export async function POST(req: NextRequest) {
           packageBreakdown[pkg].totalSalary = packageBreakdown[pkg].count * packageBreakdown[pkg].salaryPerStudent;
         });
 
-        // Calculate deductions and bonuses for the period
-        const res = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/admin/teacher-payments?startDate=${from.toISOString()}&endDate=${to.toISOString()}`);
-        const paymentsData = await res.json();
-        const teacherData = paymentsData.find((t: any) => t.id === teacher.ustazid) || {
-          latenessDeduction: 0,
-          absenceDeduction: 0,
-          bonuses: 0
-        };
+        // Get deductions and bonuses from database
+        const latenessDeductions = await prisma.latenessDeduction.aggregate({
+          where: {
+            teacherId: teacher.ustazid,
+            classDate: { gte: from, lte: to }
+          },
+          _sum: { deductionApplied: true }
+        });
 
-        const totalSalary = baseSalary - teacherData.latenessDeduction - teacherData.absenceDeduction + teacherData.bonuses;
+        const absenceDeductions = await prisma.absenceRecord.aggregate({
+          where: {
+            teacherId: teacher.ustazid,
+            classDate: { gte: from, lte: to }
+          },
+          _sum: { deductionApplied: true }
+        });
+
+        const bonuses = await prisma.bonus.aggregate({
+          where: {
+            teacherId: teacher.ustazid,
+            createdAt: { gte: from, lte: to }
+          },
+          _sum: { amount: true }
+        });
+
+        const latenessDeduction = latenessDeductions._sum.deductionApplied || 0;
+        const absenceDeduction = absenceDeductions._sum.deductionApplied || 0;
+        const totalBonuses = bonuses._sum.amount || 0;
+        const totalSalary = baseSalary - latenessDeduction - absenceDeduction + totalBonuses;
 
         return {
           id: teacher.ustazid,
           name: teacher.ustazname,
           baseSalary,
-          latenessDeduction: teacherData.latenessDeduction,
-          absenceDeduction: teacherData.absenceDeduction,
-          bonuses: teacherData.bonuses,
+          latenessDeduction,
+          absenceDeduction,
+          bonuses: totalBonuses,
           totalSalary,
           numStudents: students.length,
           packageBreakdown: Object.entries(packageBreakdown).map(([name, data]) => ({
