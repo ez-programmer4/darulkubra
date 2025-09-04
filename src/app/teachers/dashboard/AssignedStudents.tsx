@@ -138,30 +138,10 @@ export default function AssignedStudents() {
     loadSurahs();
   }, []);
 
-  // Initialize zoom status from multiple sources
-  // useEffect(() => {
-  //   const initializeZoomStatus = async () => {
-  //     // Try localStorage first for immediate UI update
-  //     const stored = localStorage.getItem('zoomSentToday');
-  //     if (stored) {
-  //       try {
-  //         const { date, status } = JSON.parse(stored);
-  //         if (date === new Date().toDateString()) {
-  //           setZoomSent(status);
-  //         } else {
-  //           localStorage.removeItem('zoomSentToday');
-  //         }
-  //       } catch (e) {
-  //         localStorage.removeItem('zoomSentToday');
-  //       }
-  //     }
-
-  //     // Always fetch from API for accuracy
-  //     await checkZoomStatus();
-  //   };
-
-  //   initializeZoomStatus();
-  // }, []);
+  // Initialize zoom status from database only
+  useEffect(() => {
+    checkZoomStatus();
+  }, []);
 
   // Refresh zoom status when groups are loaded
   useEffect(() => {
@@ -170,7 +150,7 @@ export default function AssignedStudents() {
     }
   }, [groups]);
 
-  // Check zoom link status for today
+  // Check zoom link status for today from database only
   async function checkZoomStatus() {
     try {
       const res = await fetch("/api/teachers/students/zoom-status", {
@@ -193,30 +173,10 @@ export default function AssignedStudents() {
           });
         }
 
-        setZoomSent((prev) => {
-          // Only update if there's a change to prevent unnecessary re-renders
-          const hasChanged =
-            JSON.stringify(prev) !== JSON.stringify(zoomStatus);
-          if (hasChanged) {
-            // Persist to localStorage
-            try {
-              localStorage.setItem(
-                "zoomSentToday",
-                JSON.stringify({
-                  date: new Date().toDateString(),
-                  status: zoomStatus,
-                  timestamp: Date.now(),
-                })
-              );
-            } catch (e) {
-              // Handle localStorage quota exceeded or other errors
-            }
-          }
-          return zoomStatus;
-        });
+        setZoomSent(zoomStatus);
       }
     } catch (error) {
-      // Silently handle errors to prevent UI disruption
+      console.error("Failed to check zoom status:", error);
     }
   }
 
@@ -460,23 +420,7 @@ export default function AssignedStudents() {
         ...f,
         [studentId]: { link: "" },
       }));
-      setZoomSent((z) => {
-        const newStatus = { ...z, [studentId]: true };
-        // Update localStorage with error handling
-        try {
-          localStorage.setItem(
-            "zoomSentToday",
-            JSON.stringify({
-              date: new Date().toDateString(),
-              status: newStatus,
-              timestamp: Date.now(),
-            })
-          );
-        } catch (e) {
-          // Handle localStorage errors silently
-        }
-        return newStatus;
-      });
+      setZoomSent((z) => ({ ...z, [studentId]: true }));
       setModal({ type: null, studentId: null });
     } catch (e: any) {
       console.error("Zoom sending error:", e);
