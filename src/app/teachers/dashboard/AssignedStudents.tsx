@@ -153,6 +153,7 @@ export default function AssignedStudents() {
   // Check zoom link status for today from database only
   async function checkZoomStatus() {
     try {
+      alert('🔍 Calling zoom status API...');
       const res = await fetch("/api/teachers/students/zoom-status", {
         credentials: "include",
         cache: "no-store",
@@ -163,8 +164,12 @@ export default function AssignedStudents() {
         },
       });
 
+      alert(`📡 API Status: ${res.status}`);
+
       if (res.ok) {
         const data = await res.json();
+        alert(`📊 API Data: ${JSON.stringify(data)}`);
+        
         const zoomStatus: Record<number, boolean> = {};
 
         if (data.sentToday && Array.isArray(data.sentToday)) {
@@ -173,10 +178,14 @@ export default function AssignedStudents() {
           });
         }
 
+        alert(`🎯 Final Status: ${JSON.stringify(zoomStatus)}`);
         setZoomSent(zoomStatus);
+      } else {
+        const errorText = await res.text();
+        alert(`❌ API Error: ${res.status} - ${errorText}`);
       }
     } catch (error) {
-      console.error("Failed to check zoom status:", error);
+      alert(`💥 Fetch Error: ${error}`);
     }
   }
 

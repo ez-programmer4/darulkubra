@@ -4,23 +4,30 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
+    console.log('🔍 Zoom status API called');
+    
     const session = await getToken({
       req,
       secret: process.env.NEXTAUTH_SECRET,
     });
 
+    console.log('👤 Session:', { username: session?.username, role: session?.role });
+
     if (!session || session.role !== "teacher") {
+      console.log('❌ Unauthorized access');
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const teacherId = session.username;
     if (!teacherId) {
+      console.log('❌ No teacher ID found');
       return NextResponse.json({ error: "Teacher ID not found" }, { status: 400 });
     }
 
     // Get today's date in YYYY-MM-DD format
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
+    console.log('📅 Today:', todayStr, 'Teacher ID:', teacherId);
 
     // Find zoom links sent today for this teacher's students
     const zoomLinks = await prisma.wpos_zoom_links.findMany({
@@ -33,20 +40,33 @@ export async function GET(req: NextRequest) {
       },
       select: {
         studentid: true,
+        sent_time: true,
       },
     });
 
-    const sentToday = zoomLinks.map(link => link.studentid);
+    console.log('🔗 Found zoom links:', zoomLinks.length);
+    console.log('📋 Zoom links details:', zoomLinks);
 
-    return NextResponse.json({
+    const sentToday = zoomLinks.map(link => link.studentid);
+    console.log('✅ Student IDs with zoom sent today:', sentToday);
+
+    const response = {
       sentToday,
       date: todayStr,
-    });
+      debug: {
+        teacherId,
+        totalLinks: zoomLinks.length,
+        links: zoomLinks
+      }
+    };
+
+    console.log('📤 API Response:', response);
+    return NextResponse.json(response);
 
   } catch (error) {
-    console.error("Zoom status check error:", error);
+    console.error("💥 Zoom status check error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
