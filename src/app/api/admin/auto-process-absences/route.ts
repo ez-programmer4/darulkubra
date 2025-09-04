@@ -100,7 +100,7 @@ export async function GET() {
           const permission = await prisma.permissionrequest.findFirst({
             where: {
               teacherId: teacher.ustazid,
-              requestedDates: dateStr
+              requestedDate: dateStr
             }
           });
 

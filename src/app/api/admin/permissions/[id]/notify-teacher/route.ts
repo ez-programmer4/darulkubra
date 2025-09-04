@@ -93,7 +93,7 @@ export async function POST(
     let smsDetails = null;
 
     // Use the actual permission request date
-    const actualDate = permission.requestedDates;
+    const actualDate = permission.requestedDate;
 
     const dateToUse = actualDate || requestDate;
 

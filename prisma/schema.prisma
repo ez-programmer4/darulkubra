@@ -426,7 +426,8 @@ model permissionreason {
 model permissionrequest {
   id                        Int                  @id @default(autoincrement())
   teacherId                 String
-  requestedDates            String
+  requestedDate             String               // Single date
+  timeSlots                 String               // JSON array of time slots
   reasonCategory            String
   reasonDetails             String
   supportingDocs            String?

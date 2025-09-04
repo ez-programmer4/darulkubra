@@ -55,7 +55,7 @@ export async function POST(
     }
 
     // Use actual date from permission request
-    const actualDate = permission.requestedDates;
+    const actualDate = permission.requestedDate;
     const dateToUse = actualDate || absenceDate;
     const formattedDate = new Date(dateToUse).toLocaleDateString("en-US", {
       weekday: "long",

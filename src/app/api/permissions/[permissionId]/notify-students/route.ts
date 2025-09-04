@@ -55,17 +55,16 @@ export async function POST(
       permission.wpos_wpdatatable_24.ustazname ||
       permission.wpos_wpdatatable_24.ustazid;
     const students = permission.wpos_wpdatatable_24.students || [];
-    const message = `Teacher ${teacherName} will be absent on ${permission.requestedDates}. Your class is cancelled or rescheduled.`;
+    const message = `Teacher ${teacherName} will be absent on ${permission.requestedDate}. Your class is cancelled or rescheduled.`;
     let sentCount = 0;
     for (const student of students) {
       if (student.phoneno) {
         try {
           await sendSMS(student.phoneno, message);
           sentCount++;
-          } catch (e) {
-          }
+        } catch (e) {}
       } else {
-        }
+      }
     }
     return NextResponse.json({ success: true, sentCount });
   } catch (error) {

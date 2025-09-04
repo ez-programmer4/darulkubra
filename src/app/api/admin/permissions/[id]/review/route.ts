@@ -72,7 +72,7 @@ export async function POST(
     // If reviewing after the class date, require lateReviewReason
     const today = new Date();
     const requestedDate = new Date(
-      permissionRequest.requestedDates?.split(",")[0] || new Date()
+      permissionRequest.requestedDate?.split(",")[0] || new Date()
     );
     if (today > requestedDate && !lateReviewReason) {
       return NextResponse.json(
@@ -96,7 +96,7 @@ export async function POST(
     if (notifyStudents && permissionRequest.wpos_wpdatatable_24?.students) {
       const teacherName =
         permissionRequest.wpos_wpdatatable_24.ustazname || "Your teacher";
-      const message = `Teacher ${teacherName} will be absent on ${permissionRequest.requestedDates}. Your class is cancelled/rescheduled.`;
+      const message = `Teacher ${teacherName} will be absent on ${permissionRequest.requestedDate}. Your class is cancelled/rescheduled.`;
       for (const student of permissionRequest.wpos_wpdatatable_24.students) {
         if (student.phoneno) {
           await sendSMS(student.phoneno, message);

@@ -60,6 +60,8 @@ export default function TeacherPermissions() {
   );
   const [showForm, setShowForm] = useState(true);
   const [date, setDate] = useState("");
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
   const [reason, setReason] = useState("");
   const [details, setDetails] = useState("");
   const [permissionReasons, setPermissionReasons] = useState<string[]>([]);
@@ -89,14 +91,13 @@ export default function TeacherPermissions() {
 
         const mappedPermissions = Array.isArray(data)
           ? data.map((perm) => ({
-              date: perm.requestedDates,
-              dates: Array.isArray(perm.requestedDates)
-                ? perm.requestedDates
-                : [perm.requestedDates],
+              date: perm.requestedDate,
+              dates: [perm.requestedDate],
               reason: perm.reasonCategory,
               details: perm.reasonDetails,
               status: perm.status,
               createdAt: perm.createdAt,
+              timeSlots: perm.timeSlots ? JSON.parse(perm.timeSlots) : [],
             }))
           : [];
         setPermissions(mappedPermissions);
@@ -122,6 +123,25 @@ export default function TeacherPermissions() {
     if (!authLoading) fetchPermissions();
   }, [selectedMonth, authLoading]);
 
+  // Fetch available time slots for selected date
+  useEffect(() => {
+    const fetchTimeSlots = async () => {
+      if (!date || !user?.id) return;
+      try {
+        const res = await fetch(
+          `/api/teachers/time-slots?date=${date}&teacherId=${user.id}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setAvailableTimeSlots(data.timeSlots || []);
+        }
+      } catch (error) {
+        console.error("Error fetching time slots:", error);
+      }
+    };
+    fetchTimeSlots();
+  }, [date, user?.id]);
+
   // Fetch permission reasons
   useEffect(() => {
     const loadReasons = async () => {
@@ -131,12 +151,10 @@ export default function TeacherPermissions() {
         });
         if (res.ok) {
           const data = await res.json();
-
-          if (data.reasons && Array.isArray(data.reasons)) {
+          if (data.reasons && Array.isArray(data.reasons) && data.reasons.length > 0) {
             setPermissionReasons(data.reasons);
-          } else if (Array.isArray(data)) {
-            setPermissionReasons(data.map((r: any) => r.reason || r.name || r));
           } else {
+            // Fallback only if no reasons found in database
             setPermissionReasons([
               "Sick Leave",
               "Personal Emergency",
@@ -146,6 +164,7 @@ export default function TeacherPermissions() {
             ]);
           }
         } else {
+          // Fallback for API error
           setPermissionReasons([
             "Sick Leave",
             "Personal Emergency",
@@ -179,13 +198,12 @@ export default function TeacherPermissions() {
         // Map API response to frontend format
         const mappedPermissions = Array.isArray(data)
           ? data.map((perm) => ({
-              date: perm.requestedDates,
-              dates: Array.isArray(perm.requestedDates)
-                ? perm.requestedDates
-                : [perm.requestedDates],
+              date: perm.requestedDate,
+              dates: [perm.requestedDate],
               reason: perm.reasonCategory,
               details: perm.reasonDetails,
               status: perm.status,
+              timeSlots: perm.timeSlots ? JSON.parse(perm.timeSlots) : [],
             }))
           : [];
         setPermissions(mappedPermissions);
@@ -196,10 +214,10 @@ export default function TeacherPermissions() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!date || !reason) {
+    if (!date || !reason || selectedTimeSlots.length === 0) {
       toast({
         title: "Error",
-        description: "Date and reason are required.",
+        description: "Date, reason, and at least one time slot are required.",
         variant: "destructive",
       });
       return;
@@ -240,7 +258,12 @@ export default function TeacherPermissions() {
       const res = await fetch("/api/teachers/permissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, reason, details }),
+        body: JSON.stringify({
+          date,
+          timeSlots: selectedTimeSlots,
+          reason,
+          details,
+        }),
         credentials: "include",
       });
 
@@ -275,10 +298,11 @@ export default function TeacherPermissions() {
           responseData.message || "Permission request submitted successfully.",
       });
       setDate("");
+      setSelectedTimeSlots([]);
       setReason("");
       setDetails("");
       setShowForm(false);
-      await reloadPermissions();
+      reloadPermissions();
       setTimeout(() => {
         setSubmitted(false);
       }, 1800);
@@ -293,6 +317,14 @@ export default function TeacherPermissions() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleTimeSlotToggle = (timeSlot: string) => {
+    setSelectedTimeSlots((prev) =>
+      prev.includes(timeSlot)
+        ? prev.filter((slot) => slot !== timeSlot)
+        : [...prev, timeSlot]
+    );
   };
 
   // Summary
@@ -672,6 +704,40 @@ export default function TeacherPermissions() {
                       </Select>
                     </div>
                   </div>
+
+                  {/* Time Slot Selection */}
+                  {date && availableTimeSlots.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold text-black flex items-center gap-2">
+                        <FiCalendar className="h-4 w-4" />
+                        Select Time Slots for {date}
+                      </Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {availableTimeSlots.map((timeSlot) => (
+                          <button
+                            key={timeSlot}
+                            type="button"
+                            onClick={() => handleTimeSlotToggle(timeSlot)}
+                            className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                              selectedTimeSlots.includes(timeSlot)
+                                ? "border-blue-500 bg-blue-50 text-blue-700"
+                                : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                            }`}
+                          >
+                            {timeSlot}
+                          </button>
+                        ))}
+                      </div>
+                      {selectedTimeSlots.length > 0 && (
+                        <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                          <p className="text-sm text-blue-700">
+                            Selected: {selectedTimeSlots.join(", ")}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-3">
                     <Label
                       htmlFor="details"

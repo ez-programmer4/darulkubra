@@ -57,7 +57,7 @@ export async function POST(
       permission.wpos_wpdatatable_24.ustazname ||
       permission.wpos_wpdatatable_24.ustazid;
     const message = `Your permission request for ${
-      permission.requestedDates
+      permission.requestedDate
     } has been ${status.toLowerCase()}.\nNotes: ${reviewNotes || "-"}`;
     await sendSMS(teacherPhone, message);
     return NextResponse.json({ success: true });

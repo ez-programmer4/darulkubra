@@ -123,15 +123,14 @@ export async function POST(
     ) {
       const teacherName =
         permissionWithTeacher.wpos_wpdatatable_24.ustazname || "Your teacher";
-      const message = `Teacher ${teacherName} will be absent on ${permissionWithTeacher.requestedDates}. Your class is cancelled/rescheduled.`;
+      const message = `Teacher ${teacherName} will be absent on ${permissionWithTeacher.requestedDate}. Your class is cancelled/rescheduled.`;
       for (const student of permissionWithTeacher.wpos_wpdatatable_24
         .students) {
         if (student.phoneno) {
           // You may need to import or define sendSMS
           try {
             await sendSMS(student.phoneno, message);
-          } catch (e) {
-            }
+          } catch (e) {}
         }
         await prisma.notification.create({
           data: {
@@ -148,9 +147,10 @@ export async function POST(
     return NextResponse.json(updated);
   } catch (err) {
     const error = err as Error;
-    if (error.stack) if (error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (error.stack)
+      if (error.message === "Unauthorized") {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
     return NextResponse.json(
       { error: "Failed to review permission request." },
       { status: 500 }

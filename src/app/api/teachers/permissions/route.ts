@@ -38,13 +38,13 @@ export async function POST(req: NextRequest) {
     }
     const user = session.user as { id: string; role: string };
     const body = await req.json();
-    const { date, reason, details } = body;
+    const { date, timeSlots, reason, details } = body;
 
-    if (!date || !reason || !details) {
+    if (!date || !timeSlots || !reason || !details) {
       return NextResponse.json(
         {
           error:
-            "Missing required fields: date, reason, and details are required",
+            "Missing required fields: date, timeSlots, reason, and details are required",
         },
         { status: 400 }
       );
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     const existingRequest = await prisma.permissionrequest.findFirst({
       where: {
         teacherId: user.id,
-        requestedDates: date,
+        requestedDate: date,
       },
     });
     if (existingRequest) {
@@ -121,7 +121,8 @@ export async function POST(req: NextRequest) {
     const permissionRequest = await prisma.permissionrequest.create({
       data: {
         teacherId: user.id,
-        requestedDates: date,
+        requestedDate: date,
+        timeSlots: JSON.stringify(timeSlots),
         reasonCategory: reason,
         reasonDetails: details,
         status: "Pending",

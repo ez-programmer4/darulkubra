@@ -70,7 +70,7 @@ async function processAbsences(targetDate: Date) {
         // This is a simplified check. A robust implementation would parse requestedDates
         // and check if the targetDate falls within any of the ranges.
         // For now, we assume requestedDates is a single date in 'yyyy-MM-dd' format.
-        requestedDates: format(targetDate, "yyyy-MM-dd"),
+        requestedDate: format(targetDate, "yyyy-MM-dd"),
       },
     });
 

@@ -127,10 +127,8 @@ export default function AdminPermissionsPage() {
     setSavingReasons(true);
     setReasonsError(null);
     try {
-      const res = await fetch("/api/admin/permission-reasons", {
+      const res = await fetch(`/api/admin/permission-reasons?id=${reasonId}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: reasonId }),
       });
       if (!res.ok) {
         const data = await res.json();

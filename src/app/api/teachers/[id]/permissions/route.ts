@@ -27,7 +27,8 @@ export async function GET(
 }
 
 const PermissionRequestSchema = z.object({
-  requestedDates: z.string().min(1),
+  requestedDate: z.string().min(1),
+  timeSlots: z.array(z.string()).optional(),
   reasonCategory: z.string().min(1),
   reasonDetails: z.string().min(1),
   supportingDocs: z.string().nullable().optional(),
@@ -54,7 +55,8 @@ export async function POST(
       );
     }
     const {
-      requestedDates,
+      requestedDate,
+      timeSlots,
       reasonCategory,
       reasonDetails,
       supportingDocs,
@@ -63,7 +65,9 @@ export async function POST(
     const record = await prisma.permissionrequest.create({
       data: {
         teacherId,
-        requestedDates,
+        requestedDate,
+        timeSlots: timeSlots ? JSON.stringify(timeSlots) : JSON.stringify([]),
+
         reasonCategory,
         reasonDetails,
         supportingDocs,

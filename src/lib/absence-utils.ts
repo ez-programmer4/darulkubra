@@ -33,7 +33,7 @@ export async function isTeacherAbsent(
     },
   });
   const excludeSundays = sundayConfig?.value === "true";
-  
+
   if (excludeSundays && dayName === "Sunday") {
     return { isAbsent: false, reason: "Sunday excluded from deductions" };
   }
@@ -97,7 +97,7 @@ export async function isTeacherAbsent(
     where: {
       teacherId: teacherId,
       status: "Approved",
-      requestedDates: dateStr,
+      requestedDate: dateStr,
     },
   });
 
@@ -134,7 +134,8 @@ export async function getAbsenceDeductionConfig() {
     },
   });
 
-  const effectiveMonths = effectiveMonthsConfig?.effectiveMonths?.split(",") || [];
+  const effectiveMonths =
+    effectiveMonthsConfig?.effectiveMonths?.split(",") || [];
   const excludeSundays = sundayConfig?.value === "true";
 
   return {
