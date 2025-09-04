@@ -131,6 +131,14 @@ export default function TeacherPermissions() {
         setAvailableTimeSlots([]);
         return;
       }
+      
+      // Validate date format
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) {
+        console.log('Invalid date format:', date);
+        setAvailableTimeSlots([]);
+        return;
+      }
       try {
         console.log('Fetching time slots for:', { date, userId: user.id });
         const res = await fetch(

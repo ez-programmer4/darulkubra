@@ -31,8 +31,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
     }
 
+    // Validate and parse date
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
+    }
+    
     // Get day name from date
-    const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const dayName = parsedDate.toLocaleDateString('en-US', { weekday: 'long' });
     
     // Find students who have classes on this day and generate time slots
     const studentsForDay = teacher.students.filter(student => {
