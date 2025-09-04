@@ -160,15 +160,13 @@ export default function TeacherPaymentsPage() {
       try {
         const [packageSalariesRes, packagesRes] = await Promise.all([
           fetch("/api/admin/package-salaries"),
-          fetch("/api/day-packages")
+          fetch("/api/admin/packages")
         ]);
         
         if (!packageSalariesRes.ok || !packagesRes.ok) throw new Error("Failed to fetch data");
         
         const packageSalariesData = await packageSalariesRes.json();
-        const packagesData = await packagesRes.json();
-        
-        const packages = Array.isArray(packagesData) ? packagesData.map((p: any) => p.name) : [];
+        const packages = await packagesRes.json();
         setAvailablePackages(packages);
         
         const salaries: Record<string, number> = {};
