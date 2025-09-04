@@ -136,15 +136,26 @@ export default function TeacherPaymentsPage() {
     });
   };
 
+  const [teacherPackageBreakdown, setTeacherPackageBreakdown] = useState<any>(null);
+
   const fetchBreakdown = useCallback(async (teacherId: string) => {
     setBreakdownLoading(true);
     setBreakdownError(null);
     try {
       const { from, to } = getMonthRange(selectedYear, selectedMonth);
-      const res = await fetch(`/api/admin/teacher-payments?teacherId=${teacherId}&from=${from.toISOString()}&to=${to.toISOString()}`);
-      if (!res.ok) throw new Error("Failed to fetch breakdown");
-      const data = await res.json();
+      const [breakdownRes, studentsRes] = await Promise.all([
+        fetch(`/api/admin/teacher-payments?teacherId=${teacherId}&from=${from.toISOString()}&to=${to.toISOString()}`),
+        fetch(`/api/admin/teacher-students/${teacherId}`)
+      ]);
+      
+      if (!breakdownRes.ok) throw new Error("Failed to fetch breakdown");
+      const data = await breakdownRes.json();
       setBreakdown(data);
+      
+      if (studentsRes.ok) {
+        const studentsData = await studentsRes.json();
+        setTeacherPackageBreakdown(studentsData);
+      }
     } catch (err: any) {
       setBreakdownError(err.message || "Failed to fetch breakdown");
       setBreakdown({ latenessRecords: [], absenceRecords: [], bonusRecords: [] });
@@ -430,51 +441,59 @@ export default function TeacherPaymentsPage() {
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
         {/* Header + Stats */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
+        <div className="bg-gradient-to-br from-slate-50 via-white to-blue-50 rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
           <div className="flex flex-col lg:flex-row lg:items-center gap-8 mb-8">
             <div className="flex items-center gap-6">
-              <div className="p-4 bg-black rounded-2xl shadow-lg">
+              <div className="p-4 bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl shadow-lg">
                 <FiDollarSign className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-2">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent mb-2">
                   Teacher Payments
                 </h1>
                 <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
-                  Manage teacher salary calculations and payment status
+                  Package-driven salary management system
                 </p>
               </div>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto w-full">
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-blue-200 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiUsers className="h-5 w-5 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-600">Teachers</span>
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <FiUsers className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <span className="text-xs font-semibold text-blue-700">Teachers</span>
                 </div>
-                <div className="text-2xl font-bold text-black">{monthSummary.totalTeachers}</div>
+                <div className="text-2xl font-bold text-blue-900">{monthSummary.totalTeachers}</div>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-green-200 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiCheckCircle className="h-5 w-5 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-600">Paid</span>
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <FiCheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                  <span className="text-xs font-semibold text-green-700">Paid</span>
                 </div>
-                <div className="text-2xl font-bold text-black">{monthSummary.totalPaid}</div>
+                <div className="text-2xl font-bold text-green-900">{monthSummary.totalPaid}</div>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-orange-200 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiXCircle className="h-5 w-5 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-600">Unpaid</span>
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <FiXCircle className="h-4 w-4 text-orange-600" />
+                  </div>
+                  <span className="text-xs font-semibold text-orange-700">Unpaid</span>
                 </div>
-                <div className="text-2xl font-bold text-black">{monthSummary.totalUnpaid}</div>
+                <div className="text-2xl font-bold text-orange-900">{monthSummary.totalUnpaid}</div>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-purple-200 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiDollarSign className="h-5 w-5 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-600">Total</span>
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <FiDollarSign className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <span className="text-xs font-semibold text-purple-700">Total</span>
                 </div>
-                <div className="text-2xl font-bold text-black truncate" title={currencyFormatter.format(monthSummary.totalSalary)}>
+                <div className="text-2xl font-bold text-purple-900 truncate" title={currencyFormatter.format(monthSummary.totalSalary)}>
                   {compactCurrencyFormatter.format(monthSummary.totalSalary)}
                 </div>
               </div>
@@ -565,103 +584,197 @@ export default function TeacherPaymentsPage() {
           </div>
         </div>
 
-        {/* Configuration Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Package Salary Config */}
-          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-black rounded-xl">
+        {/* Configuration Section */}
+        <div className="relative">
+          {/* Background decoration */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-purple-100/50 to-pink-100/50 rounded-3xl blur-3xl -z-10"></div>
+          
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-lg mb-4">
                 <FiDollarSign className="h-6 w-6 text-white" />
+                <span className="text-white font-bold text-lg">Salary Configuration</span>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-black">Package-Based Salaries</h2>
-                <p className="text-gray-600">Configure salary per student package</p>
-              </div>
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2">
+                Package & System Settings
+              </h2>
+              <p className="text-gray-600 text-lg">Configure package-based salaries and system preferences</p>
             </div>
-            <div className="space-y-4">
-              {availablePackages.map((packageName) => (
-                <div key={packageName} className="flex flex-col md:flex-row items-stretch md:items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                  <div className="md:w-32">
-                    <span className="text-sm font-semibold text-gray-700">{packageName}</span>
-                  </div>
-                  <input
-                    type="number"
-                    min={1}
-                    value={packageSalaryInputs[packageName] || packageSalaries[packageName] || "0"}
-                    onChange={(e) => setPackageSalaryInputs(prev => ({ ...prev, [packageName]: e.target.value }))}
-                    placeholder={String(packageSalaries[packageName] || 0)}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
-                    disabled={packageSalaryLoading}
-                  />
-                  <span className="text-black font-semibold">ETB</span>
-                  <button
-                    onClick={() => handleUpdatePackageSalary(packageName)}
-                    className={`bg-black hover:bg-gray-800 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 ${
-                      packageSalaryLoading ? "opacity-75" : ""
-                    }`}
-                    disabled={packageSalaryLoading}
-                  >
-                    {packageSalaryLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
-                    Update
-                  </button>
-                </div>
-              ))}
-            </div>
-            {packageSalaryError && <p className="text-sm text-red-600 mt-2">{packageSalaryError}</p>}
-            {packageSalarySuccess && <p className="text-sm text-green-600 mt-2">{packageSalarySuccess}</p>}
-          </div>
 
-          {/* Salary Visibility Config */}
-          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-black rounded-xl">
-                <FiInfo className="h-6 w-6 text-white" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Package Salary Config */}
+              <div className="relative group">
+                {/* Animated background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 via-indigo-400/20 to-purple-400/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                
+                <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-blue-200/50 p-6 hover:shadow-2xl transition-all duration-300">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl blur-sm"></div>
+                      <div className="relative p-3 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl shadow-lg">
+                        <FiDollarSign className="h-6 w-6 text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-blue-800 to-indigo-900 bg-clip-text text-transparent">Package-Based Salaries</h3>
+                      <p className="text-blue-700 text-sm">Configure salary per student package</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {availablePackages.map((packageName, index) => {
+                      const colors = [
+                        { bg: 'from-emerald-50 to-green-100', border: 'border-emerald-300', text: 'text-emerald-900', button: 'from-emerald-600 to-green-700', dot: 'from-emerald-400 to-green-500' },
+                        { bg: 'from-blue-50 to-indigo-100', border: 'border-blue-300', text: 'text-blue-900', button: 'from-blue-600 to-indigo-700', dot: 'from-blue-400 to-indigo-500' },
+                        { bg: 'from-purple-50 to-violet-100', border: 'border-purple-300', text: 'text-purple-900', button: 'from-purple-600 to-violet-700', dot: 'from-purple-400 to-violet-500' },
+                        { bg: 'from-orange-50 to-red-100', border: 'border-orange-300', text: 'text-orange-900', button: 'from-orange-600 to-red-700', dot: 'from-orange-400 to-red-500' },
+                        { bg: 'from-pink-50 to-rose-100', border: 'border-pink-300', text: 'text-pink-900', button: 'from-pink-600 to-rose-700', dot: 'from-pink-400 to-rose-500' }
+                      ];
+                      const color = colors[index % colors.length];
+                      return (
+                        <div key={packageName} className={`relative group/item overflow-hidden`}>
+                          {/* Animated background */}
+                          <div className={`absolute inset-0 bg-gradient-to-r ${color.bg} rounded-xl opacity-60 group-hover/item:opacity-80 transition-all duration-300`}></div>
+                          
+                          <div className={`relative flex flex-col md:flex-row items-stretch md:items-center gap-3 p-4 border ${color.border} rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 backdrop-blur-sm`}>
+                            <div className="md:w-32">
+                              <div className="flex items-center gap-3">
+                                <div className="relative">
+                                  <div className={`w-4 h-4 rounded-full bg-gradient-to-r ${color.dot} shadow-lg`}></div>
+                                  <div className={`absolute inset-0 w-4 h-4 rounded-full bg-gradient-to-r ${color.dot} animate-ping opacity-20`}></div>
+                                </div>
+                                <span className={`text-sm font-bold ${color.text}`}>{packageName}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex-1 relative">
+                              <input
+                                type="number"
+                                min={0}
+                                value={packageSalaryInputs[packageName] || packageSalaries[packageName] || "0"}
+                                onChange={(e) => setPackageSalaryInputs(prev => ({ ...prev, [packageName]: e.target.value }))}
+                                placeholder={String(packageSalaries[packageName] || 0)}
+                                className="w-full px-4 py-3 border border-white/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-gray-900 shadow-sm font-semibold"
+                                disabled={packageSalaryLoading}
+                              />
+                            </div>
+                            
+                            <span className="text-gray-700 font-semibold text-sm whitespace-nowrap">ETB per student</span>
+                            
+                            <button
+                              onClick={() => handleUpdatePackageSalary(packageName)}
+                              className={`relative overflow-hidden bg-gradient-to-r ${color.button} hover:shadow-xl text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 group/btn ${
+                                packageSalaryLoading ? "opacity-75" : ""
+                              }`}
+                              disabled={packageSalaryLoading}
+                            >
+                              <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-500"></div>
+                              {packageSalaryLoading ? <FiLoader className="animate-spin h-4 w-4 relative z-10" /> : <FiCheck className="h-4 w-4 relative z-10" />}
+                              <span className="relative z-10">Update</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Status Messages */}
+                  {(packageSalaryError || packageSalarySuccess) && (
+                    <div className="mt-4 space-y-2">
+                      {packageSalaryError && (
+                        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
+                          <FiXCircle className="h-4 w-4 text-red-500" />
+                          <p className="text-sm text-red-700 font-medium">{packageSalaryError}</p>
+                        </div>
+                      )}
+                      {packageSalarySuccess && (
+                        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">
+                          <FiCheckCircle className="h-4 w-4 text-green-500" />
+                          <p className="text-sm text-green-700 font-medium">{packageSalarySuccess}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-black">Teacher Salary Visibility</h2>
-                <p className="text-gray-600">Control teacher access to salary information</p>
+
+              {/* Salary Visibility Config */}
+              <div className="relative group">
+                {/* Animated background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-green-400/20 via-emerald-400/20 to-teal-400/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                
+                <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-green-200/50 p-6 hover:shadow-2xl transition-all duration-300">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-green-600 to-emerald-700 rounded-xl blur-sm"></div>
+                      <div className="relative p-3 bg-gradient-to-br from-green-600 to-emerald-700 rounded-xl shadow-lg">
+                        <FiInfo className="h-6 w-6 text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-green-800 to-emerald-900 bg-clip-text text-transparent">Teacher Salary Visibility</h3>
+                      <p className="text-green-700 text-sm">Control teacher access to salary information</p>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-50 to-emerald-100 rounded-xl opacity-60"></div>
+                    
+                    <div className="relative flex flex-col md:flex-row flex-wrap md:flex-nowrap items-stretch md:items-center gap-4 p-4 border border-green-200 rounded-xl backdrop-blur-sm">
+                      <label className="flex items-center gap-3 cursor-pointer w-full md:flex-1 group/label">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={teacherSalaryVisible}
+                            onChange={(e) => setTeacherSalaryVisible(e.target.checked)}
+                            className="w-5 h-5 rounded border-2 border-green-300 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all"
+                            disabled={salaryVisibilityLoading}
+                          />
+                          {teacherSalaryVisible && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <FiCheck className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-900 font-semibold group-hover/label:text-green-700 transition-colors">Allow teachers to see their salary</span>
+                          <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                            teacherSalaryVisible ? 'bg-green-500 shadow-lg shadow-green-500/50' : 'bg-gray-300'
+                          }`}></div>
+                        </div>
+                      </label>
+                      
+                      <button
+                        onClick={async () => {
+                          setSalaryVisibilityLoading(true);
+                          try {
+                            const res = await fetch("/api/admin/settings", {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                key: "teacher_salary_visible",
+                                value: teacherSalaryVisible.toString(),
+                              }),
+                            });
+                            if (res.ok) {
+                              toast({ title: "Success", description: "Salary visibility updated successfully!" });
+                            }
+                          } catch (error) {
+                            toast({ title: "Error", description: "Failed to update salary visibility", variant: "destructive" });
+                          } finally {
+                            setSalaryVisibilityLoading(false);
+                          }
+                        }}
+                        className={`relative overflow-hidden w-full md:w-auto bg-gradient-to-r from-green-600 to-emerald-700 hover:shadow-xl text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 group/btn ${
+                          salaryVisibilityLoading ? "opacity-75" : ""
+                        }`}
+                        disabled={salaryVisibilityLoading}
+                      >
+                        <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-500"></div>
+                        {salaryVisibilityLoading ? <FiLoader className="animate-spin h-4 w-4 relative z-10" /> : <FiCheck className="h-4 w-4 relative z-10" />}
+                        <span className="relative z-10">Update Settings</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col md:flex-row flex-wrap md:flex-nowrap items-stretch md:items-center gap-3 w-full">
-              <label className="flex items-center gap-2 cursor-pointer w-full md:flex-1">
-                <input
-                  type="checkbox"
-                  checked={teacherSalaryVisible}
-                  onChange={(e) => setTeacherSalaryVisible(e.target.checked)}
-                  className="rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
-                  disabled={salaryVisibilityLoading}
-                />
-                <span className="text-black font-semibold">Allow teachers to see their salary</span>
-              </label>
-              <button
-                onClick={async () => {
-                  setSalaryVisibilityLoading(true);
-                  try {
-                    const res = await fetch("/api/admin/settings", {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        key: "teacher_salary_visible",
-                        value: teacherSalaryVisible.toString(),
-                      }),
-                    });
-                    if (res.ok) {
-                      toast({ title: "Success", description: "Salary visibility updated successfully!" });
-                    }
-                  } catch (error) {
-                    toast({ title: "Error", description: "Failed to update salary visibility", variant: "destructive" });
-                  } finally {
-                    setSalaryVisibilityLoading(false);
-                  }
-                }}
-                className={`w-full md:w-auto bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 ${
-                  salaryVisibilityLoading ? "opacity-75" : ""
-                }`}
-                disabled={salaryVisibilityLoading}
-              >
-                {salaryVisibilityLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
-                Update
-              </button>
             </div>
           </div>
         </div>
@@ -1006,29 +1119,68 @@ export default function TeacherPaymentsPage() {
                 <h2 className="text-2xl font-bold text-black">Salary Review for {selectedTeacher.name}</h2>
               </div>
               
+              {/* Package Breakdown Section */}
+              {teacherPackageBreakdown && (
+                <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200">
+                  <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
+                    <FiDollarSign className="h-5 w-5" />
+                    Package-Based Salary Breakdown
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {teacherPackageBreakdown.packageBreakdown?.map((pkg: any, index: number) => {
+                      const colors = ['bg-emerald-100 text-emerald-800', 'bg-blue-100 text-blue-800', 'bg-purple-100 text-purple-800', 'bg-orange-100 text-orange-800'];
+                      return (
+                        <div key={pkg.packageName} className={`p-4 rounded-xl ${colors[index % colors.length]} border`}>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-bold">{pkg.packageName}</span>
+                            <span className="text-sm font-semibold">{pkg.count} students</span>
+                          </div>
+                          <div className="text-sm space-y-1">
+                            <div className="flex justify-between">
+                              <span>Rate per student:</span>
+                              <span className="font-semibold">{pkg.salaryPerStudent} ETB</span>
+                            </div>
+                            <div className="flex justify-between border-t pt-1">
+                              <span>Package total:</span>
+                              <span className="font-bold">{pkg.totalSalary} ETB</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="space-y-4">
                   {[
-                    { label: "Base Salary", value: `${selectedTeacher.baseSalary} ETB`, color: "gray" },
-                    { label: "# Students", value: selectedTeacher.numStudents || 0, color: "gray", badge: true },
-                    { label: "Lateness Deduction", value: `-${selectedTeacher.latenessDeduction} ETB`, color: "red", badge: true },
-                    { label: "Absence Deduction", value: `-${selectedTeacher.absenceDeduction} ETB`, color: "red", badge: true },
-                    { label: "Bonuses", value: `+${selectedTeacher.bonuses} ETB`, color: "green", badge: true },
-                    { label: "Total Salary", value: `${selectedTeacher.totalSalary} ETB`, color: "black", bold: true },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center gap-3">
-                      <span className="font-semibold text-gray-700">{item.label}:</span>
-                      {item.badge ? (
-                        <span className={`inline-block px-3 py-1 rounded-full bg-${item.color}-100 text-${item.color}-700 font-semibold text-sm`}>
-                          {item.value}
-                        </span>
-                      ) : (
-                        <span className={`font-${item.bold ? "bold" : "medium"} text-${item.color === "black" ? "black" : "gray-900"}`}>
-                          {item.value}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                    { label: "Base Salary", value: `${selectedTeacher.baseSalary} ETB`, color: "blue", icon: FiDollarSign },
+                    { label: "# Students", value: selectedTeacher.numStudents || 0, color: "gray", badge: true, icon: FiUsers },
+                    { label: "Lateness Deduction", value: `-${selectedTeacher.latenessDeduction} ETB`, color: "red", badge: true, icon: FiAlertTriangle },
+                    { label: "Absence Deduction", value: `-${selectedTeacher.absenceDeduction} ETB`, color: "red", badge: true, icon: FiXCircle },
+                    { label: "Bonuses", value: `+${selectedTeacher.bonuses} ETB`, color: "green", badge: true, icon: FiAward },
+                    { label: "Total Salary", value: `${selectedTeacher.totalSalary} ETB`, color: "purple", bold: true, icon: FiCheckCircle },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={item.label} className="flex items-center gap-3 p-3 bg-white rounded-xl border shadow-sm">
+                        <div className={`p-2 rounded-lg bg-${item.color}-100`}>
+                          <Icon className={`h-4 w-4 text-${item.color}-600`} />
+                        </div>
+                        <span className="font-semibold text-gray-700 flex-1">{item.label}:</span>
+                        {item.badge ? (
+                          <span className={`inline-block px-3 py-1 rounded-full bg-${item.color}-100 text-${item.color}-700 font-semibold text-sm`}>
+                            {item.value}
+                          </span>
+                        ) : (
+                          <span className={`font-${item.bold ? "bold" : "medium"} text-${item.color === "purple" ? "purple-900" : "gray-900"} text-lg`}>
+                            {item.value}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
