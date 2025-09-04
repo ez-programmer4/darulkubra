@@ -126,8 +126,9 @@ export default function TeacherPermissions() {
   // Fetch available time slots for selected date
   useEffect(() => {
     const fetchTimeSlots = async () => {
-      if (!date || !user?.id) {
-        console.log('Missing date or user ID for time slots:', { date, userId: user?.id });
+      if (!date || date.trim() === '' || !user?.id) {
+        // Clear time slots if no date selected
+        setAvailableTimeSlots([]);
         return;
       }
       try {
@@ -141,9 +142,11 @@ export default function TeacherPermissions() {
           setAvailableTimeSlots(data.timeSlots || []);
         } else {
           console.log('Time slots API error:', res.status, res.statusText);
+          setAvailableTimeSlots([]);
         }
       } catch (error) {
         console.error("Error fetching time slots:", error);
+        setAvailableTimeSlots([]);
       }
     };
     fetchTimeSlots();
