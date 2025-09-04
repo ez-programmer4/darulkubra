@@ -1102,20 +1102,7 @@ export default function AssignedStudents() {
 
                   {modal.type === "attendance" && (
                     <div className="space-y-6">
-                      {!zoomSent[modal.studentId!] && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-                          <div className="flex items-center gap-2 mb-2">
-                            <FiAlertTriangle className="h-4 w-4 text-yellow-600" />
-                            <span className="text-sm font-bold text-yellow-800">
-                              Zoom Link Required
-                            </span>
-                          </div>
-                          <p className="text-sm text-yellow-700">
-                            Please send the Zoom link first before marking
-                            attendance.
-                          </p>
-                        </div>
-                      )}
+
                       <div>
                         <label className="block text-sm font-bold text-gray-800 mb-3">
                           Attendance Status *
@@ -1239,8 +1226,7 @@ export default function AssignedStudents() {
                         onClick={() => saveAttendance(modal.studentId!)}
                         disabled={
                           !!sending[modal.studentId] ||
-                          !attend[modal.studentId]?.status ||
-                          !zoomSent[modal.studentId!]
+                          !attend[modal.studentId]?.status
                         }
                         className="w-full bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
                       >
