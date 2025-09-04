@@ -125,6 +125,7 @@ export default function TeacherPermissions() {
 
   // Fetch available time slots for selected date
   useEffect(() => {
+    console.log('useEffect triggered for time slots:', { date, userId: user?.id });
     const fetchTimeSlots = async () => {
       if (!date || date.trim() === '' || !user?.id) {
         // Clear time slots if no date selected
@@ -711,7 +712,10 @@ export default function TeacherPermissions() {
                         type="date"
                         required
                         value={date}
-                        onChange={(e) => setDate(e.target.value)}
+                        onChange={(e) => {
+                          console.log('Date input changed:', e.target.value);
+                          setDate(e.target.value);
+                        }}
                         min={new Date().toISOString().split("T")[0]}
                         className="border-gray-300 focus:ring-2 focus:ring-black focus:border-black bg-white shadow-sm transition-all duration-200 py-3"
                       />
