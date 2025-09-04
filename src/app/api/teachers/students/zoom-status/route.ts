@@ -29,6 +29,24 @@ export async function GET(req: NextRequest) {
     const todayStr = today.toISOString().split('T')[0];
     console.log('📅 Today:', todayStr, 'Teacher ID:', teacherId);
 
+    // First, let's see ALL zoom links for this teacher (for debugging)
+    const allZoomLinks = await prisma.wpos_zoom_links.findMany({
+      where: {
+        ustazid: teacherId,
+      },
+      select: {
+        studentid: true,
+        sent_time: true,
+        ustazid: true,
+      },
+      orderBy: {
+        sent_time: 'desc'
+      },
+      take: 10 // Last 10 records
+    });
+
+    console.log('🔍 ALL zoom links for teacher (last 10):', allZoomLinks);
+
     // Find zoom links sent today for this teacher's students
     const zoomLinks = await prisma.wpos_zoom_links.findMany({
       where: {
@@ -44,8 +62,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    console.log('🔗 Found zoom links:', zoomLinks.length);
-    console.log('📋 Zoom links details:', zoomLinks);
+    console.log('🔗 Found zoom links for TODAY:', zoomLinks.length);
+    console.log('📋 Today zoom links details:', zoomLinks);
 
     const sentToday = zoomLinks.map(link => link.studentid);
     console.log('✅ Student IDs with zoom sent today:', sentToday);
@@ -56,7 +74,12 @@ export async function GET(req: NextRequest) {
       debug: {
         teacherId,
         totalLinks: zoomLinks.length,
-        links: zoomLinks
+        todayLinks: zoomLinks,
+        allRecentLinks: allZoomLinks,
+        dateRange: {
+          from: todayStr + 'T00:00:00.000Z',
+          to: todayStr + 'T23:59:59.999Z'
+        }
       }
     };
 
