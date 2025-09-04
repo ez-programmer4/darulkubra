@@ -138,47 +138,46 @@ export default function AssignedStudents() {
     loadSurahs();
   }, []);
 
-  // Initialize zoom status from database only
-  useEffect(() => {
-    checkZoomStatus();
-  }, []);
+  // Disabled zoom status checking to prevent infinite refresh
+  // useEffect(() => {
+  //   checkZoomStatus();
+  // }, []);
 
-  // Refresh zoom status when groups are loaded
-  useEffect(() => {
-    if (groups.length > 0) {
-      checkZoomStatus();
-    }
-  }, [groups]);
+  // useEffect(() => {
+  //   if (groups.length > 0) {
+  //     checkZoomStatus();
+  //   }
+  // }, [groups]);
 
-  // Check zoom link status for today from database only
-  async function checkZoomStatus() {
-    try {
-      const res = await fetch("/api/teachers/students/zoom-status", {
-        credentials: "include",
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      });
+  // Disabled to prevent infinite refresh
+  // async function checkZoomStatus() {
+  //   try {
+  //     const res = await fetch("/api/teachers/students/zoom-status", {
+  //       credentials: "include",
+  //       cache: "no-store",
+  //       headers: {
+  //         "Cache-Control": "no-cache, no-store, must-revalidate",
+  //         Pragma: "no-cache",
+  //         Expires: "0",
+  //       },
+  //     });
 
-      if (res.ok) {
-        const data = await res.json();
-        const zoomStatus: Record<number, boolean> = {};
+  //     if (res.ok) {
+  //       const data = await res.json();
+  //       const zoomStatus: Record<number, boolean> = {};
 
-        if (data.sentToday && Array.isArray(data.sentToday)) {
-          data.sentToday.forEach((studentId: number) => {
-            zoomStatus[studentId] = true;
-          });
-        }
+  //       if (data.sentToday && Array.isArray(data.sentToday)) {
+  //         data.sentToday.forEach((studentId: number) => {
+  //           zoomStatus[studentId] = true;
+  //         });
+  //       }
 
-        setZoomSent(zoomStatus);
-      }
-    } catch (error) {
-      console.error("Failed to check zoom status:", error);
-    }
-  }
+  //       setZoomSent(zoomStatus);
+  //     }
+  //   } catch (error) {
+  //     console.error("Failed to check zoom status:", error);
+  //   }
+  // }
 
   async function loadSurahs() {
     setSurahs([
