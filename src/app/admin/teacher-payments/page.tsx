@@ -945,7 +945,7 @@ export default function TeacherPaymentsPage() {
                         body: JSON.stringify({
                           startDate: from.toISOString(),
                           endDate: to.toISOString(),
-                          includeDeductions: true
+                          teachersData: filteredTeachers
                         })
                       });
                       

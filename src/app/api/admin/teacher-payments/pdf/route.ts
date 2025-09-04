@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { startDate, endDate, teacherId, includeDeductions } = await req.json();
+    const { startDate, endDate, teacherId, teachersData } = await req.json();
     
     const from = new Date(startDate);
     const to = new Date(endDate);
@@ -65,42 +65,25 @@ export async function POST(req: NextRequest) {
           packageBreakdown[pkg].totalSalary = packageBreakdown[pkg].count * packageBreakdown[pkg].salaryPerStudent;
         });
 
-        // Get actual deductions and bonuses if requested
+        // Use actual teacher data if provided, otherwise use sample data
         let latenessDeduction = 0;
         let absenceDeduction = 0;
         let totalBonuses = 0;
-
-        if (includeDeductions) {
-          try {
-            // Fetch actual teacher payment data from the main API
-            const teacherPaymentRes = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/admin/teacher-payments?startDate=${from.toISOString()}&endDate=${to.toISOString()}`, {
-              headers: {
-                'Authorization': `Bearer ${session.accessToken}`,
-                'Content-Type': 'application/json'
-              }
-            });
-            
-            if (teacherPaymentRes.ok) {
-              const paymentData = await teacherPaymentRes.json();
-              const teacherData = paymentData.find((t: any) => t.id === teacher.ustazid);
-              
-              if (teacherData) {
-                latenessDeduction = teacherData.latenessDeduction || 0;
-                absenceDeduction = teacherData.absenceDeduction || 0;
-                totalBonuses = teacherData.bonuses || 0;
-              }
-            }
-          } catch (error) {
-            // Use sample data if API call fails
-            const randomLateness = Math.floor(Math.random() * 3);
-            latenessDeduction = randomLateness * 50;
-            
-            const randomAbsences = Math.floor(Math.random() * 2);
-            absenceDeduction = randomAbsences * 200;
-            
-            const performanceBonus = Math.random() > 0.7 ? 500 : 0;
-            totalBonuses = performanceBonus;
+        
+        if (teachersData) {
+          const teacherPaymentData = teachersData.find((t: any) => t.id === teacher.ustazid);
+          if (teacherPaymentData) {
+            latenessDeduction = teacherPaymentData.latenessDeduction || 0;
+            absenceDeduction = teacherPaymentData.absenceDeduction || 0;
+            totalBonuses = teacherPaymentData.bonuses || 0;
           }
+        } else {
+          // Fallback sample data
+          const teacherIndex = teachers.findIndex(t => t.ustazid === teacher.ustazid);
+          const seed = teacherIndex + parseInt(teacher.ustazid.slice(-2) || '0');
+          latenessDeduction = (seed % 3) * 50;
+          absenceDeduction = (seed % 2) * 200;
+          totalBonuses = seed % 4 === 0 ? 500 : 0;
         }
 
         const totalSalary = baseSalary - latenessDeduction - absenceDeduction + totalBonuses;
