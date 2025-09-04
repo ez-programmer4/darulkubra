@@ -77,6 +77,15 @@ function packageIncludesToday(pkg?: string): boolean {
   return false;
 }
 
+function convertTo12Hour(timeStr: string): string {
+  if (!timeStr || !timeStr.includes(':')) return timeStr;
+  const [hours, minutes] = timeStr.split(':');
+  const hour = parseInt(hours);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${minutes} ${ampm}`;
+}
+
 export default function AssignedStudents() {
   const { toast } = useToast();
   const [groups, setGroups] = useState<Group[]>([]);
@@ -127,7 +136,6 @@ export default function AssignedStudents() {
   useEffect(() => {
     refresh();
     loadSurahs();
-    checkZoomStatus();
   }, []);
 
   // Check zoom link status for today
@@ -287,7 +295,7 @@ export default function AssignedStudents() {
         (data.groups || []).forEach((g: Group) => (next[g.group] = true));
         setExpanded(next);
       }
-      // Also refresh zoom status
+      // Check zoom status after loading students
       await checkZoomStatus();
     } catch (e: any) {
       setError(e.message);
@@ -423,13 +431,8 @@ export default function AssignedStudents() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            attendance_status:
-              rec.status === "no class"
-                ? "No Class"
-                : rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
+            attendance_status: rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
             surah: rec.surah || undefined,
-            pages_read: rec.pages ? Number(rec.pages) : undefined,
-            level: rec.level || undefined,
             lesson: rec.lesson || undefined,
             notes: rec.notes || undefined,
           }),
@@ -584,6 +587,7 @@ export default function AssignedStudents() {
                   {now.toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
+                    hour12: true,
                   })}
                 </div>
               </div>
@@ -748,7 +752,7 @@ export default function AssignedStudents() {
                                     key={i}
                                     className="px-2 py-1 bg-gray-100 rounded-full text-xs font-semibold text-gray-800"
                                   >
-                                    {o.time_slot} ({o.daypackage})
+                                    {convertTo12Hour(o.time_slot)} ({o.daypackage})
                                   </span>
                                 ))
                               ) : (
@@ -880,7 +884,7 @@ export default function AssignedStudents() {
                                   ? s.occupied
                                       .map(
                                         (o) =>
-                                          `${o.time_slot} (${o.daypackage})`
+                                          `${convertTo12Hour(o.time_slot)} (${o.daypackage})`
                                       )
                                       .join(", ")
                                   : "No schedule"}
@@ -1097,7 +1101,6 @@ export default function AssignedStudents() {
                               "present",
                               "absent",
                               "permission",
-                              "no class",
                             ] as const
                           ).map((status) => {
                             const getStatusColor = (status: string) => {
@@ -1117,11 +1120,6 @@ export default function AssignedStudents() {
                                     status
                                     ? "bg-yellow-600 text-white border-yellow-600"
                                     : "border-yellow-300 text-yellow-700 hover:bg-yellow-50";
-                                case "no class":
-                                  return attend[modal.studentId!]?.status ===
-                                    status
-                                    ? "bg-gray-600 text-white border-gray-600"
-                                    : "border-gray-300 text-gray-700 hover:bg-gray-50";
                                 default:
                                   return "border-gray-300 text-gray-700 hover:bg-gray-50";
                               }
@@ -1140,88 +1138,64 @@ export default function AssignedStudents() {
                                   attend[modal.studentId!]?.status === status
                                 }
                               >
-                                {status === "no class"
-                                  ? "No Class"
-                                  : status.charAt(0).toUpperCase() +
-                                    status.slice(1)}
+                                {status.charAt(0).toUpperCase() +
+                                  status.slice(1)}
                               </button>
                             );
                           })}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-gray-800 mb-2">
-                            Level
-                          </label>
-                          <input
-                            placeholder="Juz 1, Grade 5, Beginner"
-                            value={attend[modal.studentId]?.level || ""}
-                            onChange={(e) =>
-                              updateAttend(modal.studentId!, {
-                                level: e.target.value,
-                              })
-                            }
-                            className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-500 text-base"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-gray-800 mb-2">
-                            Surah
-                          </label>
-                          <select
-                            value={attend[modal.studentId]?.surah || ""}
-                            onChange={(e) =>
-                              updateAttend(modal.studentId!, {
-                                surah: e.target.value,
-                              })
-                            }
-                            className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-base appearance-none"
-                          >
-                            <option value="">Select Surah</option>
-                            {surahs.map((surah) => (
-                              <option key={surah} value={surah}>
-                                {surah}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-gray-800 mb-2">
-                            Pages Read
-                          </label>
-                          <input
-                            type="number"
-                            placeholder="5"
-                            value={attend[modal.studentId]?.pages || ""}
-                            onChange={(e) =>
-                              updateAttend(modal.studentId!, {
-                                pages: e.target.value,
-                              })
-                            }
-                            className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-500 text-base"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-gray-800 mb-2">
-                            Lesson Topic
-                          </label>
-                          <input
-                            placeholder="Topic covered"
-                            value={attend[modal.studentId]?.lesson || ""}
-                            onChange={(e) =>
-                              updateAttend(modal.studentId!, {
-                                lesson: e.target.value,
-                              })
-                            }
-                            className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-500 text-base"
-                          />
-                        </div>
-                      </div>
+                      {(() => {
+                        const currentStudent = groups
+                          .flatMap(g => g.students)
+                          .find(s => s.id === modal.studentId);
+                        const isQaidah = currentStudent?.subject?.toLowerCase() === 'qaidah';
+                        
+                        return (
+                          <div>
+                            {isQaidah ? (
+                              <div>
+                                <label className="block text-sm font-bold text-gray-800 mb-2">
+                                  Lesson Topic
+                                </label>
+                                <input
+                                  placeholder="Topic covered"
+                                  value={attend[modal.studentId]?.lesson || ""}
+                                  onChange={(e) =>
+                                    updateAttend(modal.studentId!, {
+                                      lesson: e.target.value,
+                                    })
+                                  }
+                                  className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-500 text-base"
+                                />
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="block text-sm font-bold text-gray-800 mb-2">
+                                  Surah
+                                </label>
+                                <select
+                                  value={attend[modal.studentId]?.surah || ""}
+                                  onChange={(e) =>
+                                    updateAttend(modal.studentId!, {
+                                      surah: e.target.value,
+                                    })
+                                  }
+                                  className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-base appearance-none"
+                                >
+                                  <option value="">Select Surah</option>
+                                  {surahs.map((surah) => (
+                                    <option key={surah} value={surah}>
+                                      {surah}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       <div>
                         <label className="block text-sm font-bold text-gray-800 mb-2">

@@ -631,7 +631,13 @@ ${quality.examinerNotes || "No notes provided."}
                           </div>
                         </div>
                         <div className="text-indigo-700 font-bold">
-                          {c.time}
+                          {(() => {
+                            const [hours, minutes] = c.time.split(':');
+                            const hour = parseInt(hours);
+                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                            const displayHour = hour % 12 || 12;
+                            return `${displayHour}:${minutes} ${ampm}`;
+                          })()}
                         </div>
                       </div>
                     ))}

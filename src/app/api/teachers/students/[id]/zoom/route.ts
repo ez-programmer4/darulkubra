@@ -140,7 +140,7 @@ export async function POST(
     let notificationSent = false;
     let notificationError = null;
 
-    if (student.country == "USA") {
+    if (student.country === "USA") {
       // send email
       await fetch(`https://darulkubra.com/api/email`, {
         method: "POST",

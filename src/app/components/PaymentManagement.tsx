@@ -285,20 +285,28 @@ export default function PaymentManagement({
   // Debug logging for user role
   useEffect(() => {}, [user]);
 
-  // Generate available months (current and next 11 months)
+  // Generate available months (from student start date to 12 months in future)
   useEffect(() => {
+    if (!student?.startdate) return;
+    
     const months = [];
+    const startDate = new Date(student.startdate);
     const currentDate = new Date();
-    for (let i = 0; i < 12; i++) {
-      const monthDate = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth() + i,
-        1
-      );
+    
+    // Start from student's start month
+    const startMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    
+    // Go 12 months into the future from current date
+    const endMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 12, 1);
+    
+    let monthDate = new Date(startMonth);
+    while (monthDate <= endMonth) {
       months.push(format(monthDate, "yyyy-MM"));
+      monthDate.setMonth(monthDate.getMonth() + 1);
     }
+    
     setAvailableMonths(months);
-  }, []);
+  }, [student?.startdate]);
 
   // Calculate total amount when months change - only for unpaid months
   useEffect(() => {
@@ -523,21 +531,31 @@ export default function PaymentManagement({
         currentDate.getMonth() + 1
       ).padStart(2, "0")}`;
       
-      // Check if current month is already paid
+      // Find all unpaid months (including past months)
+      const unpaidMonths = getUnpaidMonthsBefore(currentMonth);
       const currentMonthStatus = getMonthPaymentStatus(currentMonth);
       
-      // Only select current month if it's not paid and amount > 0
-      const shouldSelectCurrentMonth = !currentMonthStatus.isPaid && currentMonthStatus.expectedAmount > 0;
-      
-      if (shouldSelectCurrentMonth) {
+      // If there are unpaid past months, select them
+      if (unpaidMonths.length > 0) {
+        setNewMonthlyPayment({
+          months: unpaidMonths.slice(0, 3), // Limit to first 3 unpaid months
+          amount: "",
+          calculatedAmount: unpaidMonths.slice(0, 3).reduce((sum, month) => {
+            const status = getMonthPaymentStatus(month);
+            return sum + status.shortfall;
+          }, 0),
+          paymentType: "full",
+        });
+      } else if (!currentMonthStatus.isPaid && currentMonthStatus.expectedAmount > 0) {
+        // If no unpaid past months, select current month if not paid
         setNewMonthlyPayment({
           months: [currentMonth],
-          amount: student.classfee.toString(),
+          amount: "",
           calculatedAmount: currentMonthStatus.shortfall,
           paymentType: "full",
         });
       } else {
-        // If current month is paid, start with empty selection
+        // If everything is paid, start with empty selection
         setNewMonthlyPayment({
           months: [],
           amount: "",
@@ -2448,31 +2466,41 @@ export default function PaymentManagement({
                         <div className="flex items-center gap-2 flex-wrap">
                           <button
                             type="button"
-                            className="text-xs px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 text-gray-700"
+                            className="text-xs px-2 py-1 rounded-lg border border-red-300 text-red-700 hover:bg-red-50"
                             onClick={() => {
-                              const selectable = availableMonths.filter(
+                              const unpaidMonths = availableMonths.filter(
                                 (month) => {
-                                  const selectedDate = new Date(month + "-01");
-                                  if (!student) return false;
-                                  const startDate = new Date(student.startdate);
-                                  const minMonth = `${startDate.getFullYear()}-${String(
-                                    startDate.getMonth() + 1
-                                  ).padStart(2, "0")}`;
-                                  const minDate = new Date(minMonth + "-01");
-                                  const disabled =
-                                    selectedDate < minDate ||
-                                    isMonthFullyCoveredByPrizes(month) ||
-                                    isMonthPaid(month);
-                                  return !disabled;
+                                  const monthStatus = getMonthPaymentStatus(month);
+                                  return monthStatus.shortfall > 0 && !isMonthFullyCoveredByPrizes(month) && !isMonthPaid(month);
                                 }
                               );
                               setNewMonthlyPayment((prev: any) => ({
                                 ...prev,
-                                months: selectable.sort(),
+                                months: unpaidMonths.sort(),
                               }));
                             }}
                           >
-                            Select all eligible
+                            All unpaid
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs px-2 py-1 rounded-lg border border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                            onClick={() => {
+                              const currentDate = new Date();
+                              const currentMonth = format(currentDate, "yyyy-MM");
+                              const overdueMonths = availableMonths.filter(
+                                (month) => {
+                                  const monthStatus = getMonthPaymentStatus(month);
+                                  return month < currentMonth && monthStatus.shortfall > 0 && !isMonthFullyCoveredByPrizes(month) && !isMonthPaid(month);
+                                }
+                              );
+                              setNewMonthlyPayment((prev: any) => ({
+                                ...prev,
+                                months: overdueMonths.sort(),
+                              }));
+                            }}
+                          >
+                            Overdue only
                           </button>
                           <button
                             type="button"
@@ -2491,19 +2519,12 @@ export default function PaymentManagement({
                             className="text-xs px-2 py-1 rounded-lg border border-green-300 text-green-700 hover:bg-green-50"
                             onClick={() => {
                               if (!student) return;
-                              // First eligible month from start date that is not paid or prize-covered
+                              const currentDate = new Date();
+                              const currentMonth = format(currentDate, "yyyy-MM");
+                              // Get next 3 unpaid months starting from current month
                               const eligible = availableMonths.filter((m) => {
-                                const startDate = new Date(student.startdate);
-                                const minMonth = `${startDate.getFullYear()}-${String(
-                                  startDate.getMonth() + 1
-                                ).padStart(2, "0")}`;
-                                const selectedDate = new Date(m + "-01");
-                                const minDate = new Date(minMonth + "-01");
-                                return (
-                                  selectedDate >= minDate &&
-                                  !isMonthPaid(m) &&
-                                  !isMonthFullyCoveredByPrizes(m)
-                                );
+                                const monthStatus = getMonthPaymentStatus(m);
+                                return m >= currentMonth && monthStatus.shortfall > 0 && !isMonthPaid(m) && !isMonthFullyCoveredByPrizes(m);
                               });
                               const next3 = eligible.slice(0, 3);
                               setNewMonthlyPayment((prev: any) => ({
@@ -2538,6 +2559,8 @@ export default function PaymentManagement({
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 p-3 border border-gray-300 rounded-xl bg-gray-50 max-h-56 overflow-y-auto">
                         {availableMonths.map((month) => {
                           const monthDate = new Date(month + "-01");
+                          const currentDate = new Date();
+                          const currentMonth = format(currentDate, "yyyy-MM");
                           const monthName = monthDate.toLocaleDateString(
                             "en-US",
                             { year: "numeric", month: "short" }
@@ -2546,17 +2569,11 @@ export default function PaymentManagement({
                             newMonthlyPayment.months?.includes(month) || false;
                           const paid = isMonthPaid(month);
                           const prize = isMonthFullyCoveredByPrizes(month);
-                          const isDisabled = student
-                            ? (() => {
-                                const startDate = new Date(student.startdate);
-                                const minMonth = `${startDate.getFullYear()}-${String(
-                                  startDate.getMonth() + 1
-                                ).padStart(2, "0")}`;
-                                const selectedDate = new Date(month + "-01");
-                                const minDate = new Date(minMonth + "-01");
-                                return selectedDate < minDate || prize || paid;
-                              })()
-                            : true;
+                          const isPastMonth = month < currentMonth;
+                          const isCurrentMonth = month === currentMonth;
+                          const isFutureMonth = month > currentMonth;
+                          const monthStatus = getMonthPaymentStatus(month);
+                          const isDisabled = prize || paid;
 
                           return (
                             <button
@@ -2579,11 +2596,21 @@ export default function PaymentManagement({
                                   ? "bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed"
                                   : isSelected
                                   ? "bg-green-50 border-green-300 ring-1 ring-green-300"
+                                  : isPastMonth && monthStatus.shortfall > 0
+                                  ? "bg-red-50 border-red-200 hover:bg-red-100"
+                                  : isCurrentMonth
+                                  ? "bg-blue-50 border-blue-200 hover:bg-blue-100"
                                   : "bg-white border-gray-200 hover:bg-gray-100"
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">
+                                <span className={`text-sm font-medium ${
+                                  isPastMonth && monthStatus.shortfall > 0 && !isDisabled
+                                    ? "text-red-700"
+                                    : isCurrentMonth && !isDisabled
+                                    ? "text-blue-700"
+                                    : ""
+                                }`}>
                                   {monthName}
                                 </span>
                                 {isSelected && !isDisabled && (
@@ -2592,37 +2619,63 @@ export default function PaymentManagement({
                                   </span>
                                 )}
                               </div>
-                              {(paid || prize) && (
-                                <div className="mt-1 flex items-center gap-1">
-                                  {paid && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
-                                      Paid
-                                    </span>
-                                  )}
-                                  {!paid && prize && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200">
-                                      Prize
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                              <div className="mt-1 flex items-center gap-1 flex-wrap">
+                                {isPastMonth && monthStatus.shortfall > 0 && !isDisabled && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">
+                                    Overdue
+                                  </span>
+                                )}
+                                {isCurrentMonth && !isDisabled && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">
+                                    Current
+                                  </span>
+                                )}
+                                {isFutureMonth && !isDisabled && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
+                                    Future
+                                  </span>
+                                )}
+                                {paid && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 border border-green-200">
+                                    Paid
+                                  </span>
+                                )}
+                                {!paid && prize && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200">
+                                    Prize
+                                  </span>
+                                )}
+                                {monthStatus.shortfall > 0 && !paid && !prize && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 border border-yellow-200">
+                                    ${monthStatus.shortfall.toFixed(0)}
+                                  </span>
+                                )}
+                              </div>
                             </button>
                           );
                         })}
                       </div>
 
-                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 flex-wrap">
                         <span className="inline-flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-sm bg-green-300 inline-block"></span>{" "}
+                          <span className="w-2 h-2 rounded-sm bg-green-300 inline-block"></span>
                           Selected
                         </span>
                         <span className="inline-flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-sm bg-purple-300 inline-block"></span>{" "}
-                          Prize Covered
+                          <span className="w-2 h-2 rounded-sm bg-red-300 inline-block"></span>
+                          Overdue
                         </span>
                         <span className="inline-flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-sm bg-gray-300 inline-block"></span>{" "}
-                          Paid/Disabled
+                          <span className="w-2 h-2 rounded-sm bg-blue-300 inline-block"></span>
+                          Current
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-sm bg-purple-300 inline-block"></span>
+                          Prize
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-sm bg-gray-300 inline-block"></span>
+                          Paid
                         </span>
                       </div>
 
@@ -2755,6 +2808,22 @@ export default function PaymentManagement({
                           </span>
                         </div>
                         <div className="flex justify-between items-center gap-2 min-w-0">
+                          <span className="text-sm text-gray-600">
+                            Selected Months
+                          </span>
+                          <span className="font-medium text-gray-900 truncate max-w-[60%] text-right">
+                            {newMonthlyPayment.months?.length || 0}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2 min-w-0">
+                          <span className="text-sm text-gray-600">
+                            Total Payment
+                          </span>
+                          <span className="font-medium text-blue-600 truncate max-w-[60%] text-right tabular-nums">
+                            ${newMonthlyPayment.calculatedAmount.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-600">Available Balance</span>
                             <div className="group relative">
@@ -2780,6 +2849,15 @@ export default function PaymentManagement({
                             <p className="text-xs text-red-600">
                               Payment amount (${newMonthlyPayment.calculatedAmount.toFixed(2)}) exceeds available balance (${calculateRemainingBalance().toFixed(2)}). Please add a deposit first.
                             </p>
+                            <button
+                              onClick={() => {
+                                setShowMonthlyModal(false);
+                                setShowDepositModal(true);
+                              }}
+                              className="mt-2 text-xs px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              Add Deposit
+                            </button>
                           </div>
                         )}
 
@@ -2817,7 +2895,11 @@ export default function PaymentManagement({
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="mt-1">•</span>
-                          <span>Previous months must be paid first</span>
+                          <span>You can pay past, current, and future months</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1">•</span>
+                          <span>Overdue months are highlighted in red</span>
                         </li>
                       </ul>
                     </div>
