@@ -739,6 +739,14 @@ model tarbiaAttendance {
   updatedAt      DateTime            @updatedAt
 }
 
+model PackageSalary {
+  id              Int      @id @default(autoincrement())
+  packageName     String   @unique
+  salaryPerStudent Decimal @db.Decimal(10,2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 enum role {
   manager
   teacher

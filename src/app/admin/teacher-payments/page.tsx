@@ -158,14 +158,14 @@ export default function TeacherPaymentsPage() {
       setPackageSalaryLoading(true);
       setPackageSalaryError(null);
       try {
-        const [settingsRes, packagesRes] = await Promise.all([
-          fetch("/api/admin/settings"),
+        const [packageSalariesRes, packagesRes] = await Promise.all([
+          fetch("/api/admin/package-salaries"),
           fetch("/api/day-packages")
         ]);
         
-        if (!settingsRes.ok || !packagesRes.ok) throw new Error("Failed to fetch data");
+        if (!packageSalariesRes.ok || !packagesRes.ok) throw new Error("Failed to fetch data");
         
-        const settingsData = await settingsRes.json();
+        const packageSalariesData = await packageSalariesRes.json();
         const packagesData = await packagesRes.json();
         
         const packages = Array.isArray(packagesData) ? packagesData.map((p: any) => p.name) : [];
@@ -175,8 +175,8 @@ export default function TeacherPaymentsPage() {
         const inputs: Record<string, string> = {};
         
         packages.forEach((pkg: string) => {
-          const setting = settingsData.settings?.find((s: any) => s.key === `package_salary_${pkg}`);
-          const value = setting?.value ? Number(setting.value) : 900;
+          const packageSalary = packageSalariesData.find((ps: any) => ps.packageName === pkg);
+          const value = packageSalary?.salaryPerStudent || 0;
           salaries[pkg] = value;
           inputs[pkg] = String(value);
         });
@@ -213,17 +213,17 @@ export default function TeacherPaymentsPage() {
     setPackageSalarySuccess(null);
     try {
       const value = Number(packageSalaryInputs[packageName]);
-      if (isNaN(value) || value <= 0) {
-        setPackageSalaryError("Please enter a valid positive number.");
+      if (isNaN(value) || value < 0) {
+        setPackageSalaryError("Please enter a valid number (0 or greater).");
         setPackageSalaryLoading(false);
         return;
       }
-      const res = await fetch("/api/admin/settings", {
-        method: "PUT",
+      const res = await fetch("/api/admin/package-salaries", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          key: `package_salary_${packageName}`,
-          value: String(value),
+          packageName,
+          salaryPerStudent: value,
         }),
       });
       if (!res.ok) throw new Error("Failed to update package salary");
@@ -589,9 +589,9 @@ export default function TeacherPaymentsPage() {
                   <input
                     type="number"
                     min={1}
-                    value={packageSalaryInputs[packageName] || packageSalaries[packageName] || "900"}
+                    value={packageSalaryInputs[packageName] || packageSalaries[packageName] || "0"}
                     onChange={(e) => setPackageSalaryInputs(prev => ({ ...prev, [packageName]: e.target.value }))}
-                    placeholder={String(packageSalaries[packageName] || 900)}
+                    placeholder={String(packageSalaries[packageName] || 0)}
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900"
                     disabled={packageSalaryLoading}
                   />

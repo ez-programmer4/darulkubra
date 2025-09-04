@@ -30,18 +30,24 @@ export async function GET(req: NextRequest) {
       const baseDeductionSetting = await prisma.setting.findUnique({
         where: { key: "lateness_base_deduction" },
       });
-      const baseDeductionAmount = baseDeductionSetting?.value ? parseFloat(baseDeductionSetting.value) : 30;
+      const baseDeductionAmount = baseDeductionSetting?.value
+        ? parseFloat(baseDeductionSetting.value)
+        : 30;
 
       // Fetch lateness deduction config from DB - no fallback tiers
       const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
         orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
       });
-      
+
       // Only use database configuration, no predefined tiers
       if (latenessConfigs.length === 0) {
-        return NextResponse.json({ latenessRecords: [], absenceRecords: [], bonusRecords: [] });
+        return NextResponse.json({
+          latenessRecords: [],
+          absenceRecords: [],
+          bonusRecords: [],
+        });
       }
-      
+
       const excusedThreshold = Math.min(
         ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
       );
@@ -77,16 +83,17 @@ export async function GET(req: NextRequest) {
           // Convert selectedTime (12h or 24h) to Date for the day
           function to24Hour(time12h: string) {
             if (!time12h) return "00:00";
-            
+
             // Handle AM/PM format
             if (time12h.includes("AM") || time12h.includes("PM")) {
               const [time, modifier] = time12h.split(" ");
               let [hours, minutes] = time.split(":");
               if (hours === "12") hours = modifier === "AM" ? "00" : "12";
-              else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
+              else if (modifier === "PM")
+                hours = String(parseInt(hours, 10) + 12);
               return `${hours.padStart(2, "0")}:${minutes}`;
             }
-            
+
             // Handle existing 24-hour format (HH:MM:SS or HH:MM)
             if (time12h.includes(":")) {
               const parts = time12h.split(":");
@@ -94,7 +101,7 @@ export async function GET(req: NextRequest) {
               const minutes = (parts[1] || "00").padStart(2, "0");
               return `${hours}:${minutes}`;
             }
-            
+
             return "00:00"; // fallback
           }
           const time24 = to24Hour(timeSlot);
@@ -235,33 +242,23 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Get student counts per teacher (active students only)
+    // Get students with their packages per teacher (active students only)
     const students = await prisma.wpos_wpdatatable_23.findMany({
-      select: { ustaz: true },
-      where: { status: { in: ["active", "Active"] } },
+      select: { ustaz: true, package: true },
+      where: { status: { in: ["active", "Active", "Not yet"] } },
     });
     const studentCountMap: Record<string, number> = {};
     for (const s of students) {
       if (!s.ustaz) continue;
       studentCountMap[s.ustaz] = (studentCountMap[s.ustaz] || 0) + 1;
     }
-    // Get package-based salary configuration
-    const packageSalaries = await prisma.setting.findMany({
-      where: {
-        key: {
-          startsWith: "package_salary_"
-        }
-      }
-    });
+    // Get package-based salary configuration from dedicated table
+    const packageSalaries = await prisma.packageSalary.findMany();
     
     const salaryMap: Record<string, number> = {};
-    packageSalaries.forEach(setting => {
-      const packageName = setting.key.replace('package_salary_', '');
-      salaryMap[packageName] = Number(setting.value) || 900;
+    packageSalaries.forEach((pkg) => {
+      salaryMap[pkg.packageName] = Number(pkg.salaryPerStudent);
     });
-    
-    // Default salary if no package found
-    const DEFAULT_SALARY = 900;
 
     // For each teacher, calculate deductions and bonuses
     // Helper to get all periods in the date range
@@ -288,29 +285,33 @@ export async function GET(req: NextRequest) {
         const baseDeductionSetting = await prisma.setting.findUnique({
           where: { key: "lateness_base_deduction" },
         });
-        const baseDeductionAmount = baseDeductionSetting?.value ? parseFloat(baseDeductionSetting.value) : 30;
+        const baseDeductionAmount = baseDeductionSetting?.value
+          ? parseFloat(baseDeductionSetting.value)
+          : 30;
 
         // Fetch lateness deduction config from DB - no fallback tiers
         const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
           orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
         });
-        
+
         // Only use database configuration, no predefined tiers
         if (latenessConfigs.length === 0) {
           // Return teacher with zero lateness deduction if no config
           // Calculate salary based on student packages
           const teacherStudents = await prisma.wpos_wpdatatable_23.findMany({
             where: { ustaz: t.ustazid, status: { in: ["active", "Active"] } },
-            select: { package: true }
+            select: { package: true },
           });
-          
+
           const baseSalary = teacherStudents.reduce((total, student) => {
-            const packageSalary = student.package ? salaryMap[student.package] || DEFAULT_SALARY : DEFAULT_SALARY;
-            return total + packageSalary;
+            if (!student.package || !salaryMap[student.package]) {
+              return total; // Skip students without valid package salary
+            }
+            return total + salaryMap[student.package];
           }, 0);
-          
+
           const numStudents = teacherStudents.length;
-          
+
           // Calculate absence deduction
           let absenceDeduction = 0;
           if (numStudents > 0) {
@@ -322,13 +323,16 @@ export async function GET(req: NextRequest) {
               ) {
                 continue;
               }
-              const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
+              const absenceResult = await isTeacherAbsent(
+                t.ustazid,
+                new Date(d)
+              );
               if (absenceResult.isAbsent) {
                 absenceDeduction += absenceConfig.deductionAmount;
               }
             }
           }
-          
+
           // Calculate bonuses
           const bonuses = await prisma.qualityassessment.aggregate({
             where: {
@@ -339,9 +343,9 @@ export async function GET(req: NextRequest) {
             _sum: { bonusAwarded: true },
           });
           const bonusAmount = bonuses._sum?.bonusAwarded ?? 0;
-          
+
           const totalSalary = baseSalary - absenceDeduction + bonusAmount;
-          
+
           // Fetch payment status
           let status: "Paid" | "Unpaid" = "Unpaid";
           if (periodsInRange.length > 0) {
@@ -357,7 +361,7 @@ export async function GET(req: NextRequest) {
             if (payment && payment.status)
               status = payment.status as "Paid" | "Unpaid";
           }
-          
+
           return {
             id: t.ustazid,
             name: t.ustazname,
@@ -370,7 +374,7 @@ export async function GET(req: NextRequest) {
             status,
           };
         }
-        
+
         const excusedThreshold = Math.min(
           ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
         );
@@ -394,18 +398,20 @@ export async function GET(req: NextRequest) {
           },
         });
         let latenessDeduction = 0;
-        
+
         // Calculate salary based on student packages
         const teacherStudents = await prisma.wpos_wpdatatable_23.findMany({
           where: { ustaz: t.ustazid, status: { in: ["active", "Active"] } },
-          select: { package: true }
+          select: { package: true },
         });
-        
+
         const baseSalary = teacherStudents.reduce((total, student) => {
-          const packageSalary = student.package ? salaryMap[student.package] || DEFAULT_SALARY : DEFAULT_SALARY;
-          return total + packageSalary;
+          if (!student.package || !salaryMap[student.package]) {
+            return total; // Skip students without valid package salary
+          }
+          return total + salaryMap[student.package];
         }, 0);
-        
+
         const numStudents = teacherStudents.length;
         for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
           const dateStr = format(d, "yyyy-MM-dd");
@@ -414,16 +420,17 @@ export async function GET(req: NextRequest) {
             if (!timeSlot) continue;
             function to24Hour(time12h: string) {
               if (!time12h) return "00:00";
-              
+
               // Handle AM/PM format
               if (time12h.includes("AM") || time12h.includes("PM")) {
                 const [time, modifier] = time12h.split(" ");
                 let [hours, minutes] = time.split(":");
                 if (hours === "12") hours = modifier === "AM" ? "00" : "12";
-                else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
+                else if (modifier === "PM")
+                  hours = String(parseInt(hours, 10) + 12);
                 return `${hours.padStart(2, "0")}:${minutes}`;
               }
-              
+
               // Handle existing 24-hour format (HH:MM:SS or HH:MM)
               if (time12h.includes(":")) {
                 const parts = time12h.split(":");
@@ -431,7 +438,7 @@ export async function GET(req: NextRequest) {
                 const minutes = (parts[1] || "00").padStart(2, "0");
                 return `${hours}:${minutes}`;
               }
-              
+
               return "00:00"; // fallback
             }
             const time24 = to24Hour(timeSlot);
