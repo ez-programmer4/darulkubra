@@ -138,9 +138,29 @@ export default function AssignedStudents() {
     loadSurahs();
   }, []);
 
+  // Load zoom status from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('zoomSentToday');
+    if (stored) {
+      try {
+        const { date, status } = JSON.parse(stored);
+        // Only use stored data if it's from today
+        if (date === new Date().toDateString()) {
+          setZoomSent(status);
+        } else {
+          localStorage.removeItem('zoomSentToday');
+        }
+      } catch (e) {
+        localStorage.removeItem('zoomSentToday');
+      }
+    }
+  }, []);
+
   // Check zoom status when component mounts and when groups change
   useEffect(() => {
-    checkZoomStatus();
+    if (groups.length > 0) {
+      checkZoomStatus();
+    }
   }, [groups]);
 
   // Check zoom link status for today
@@ -148,6 +168,7 @@ export default function AssignedStudents() {
     try {
       const res = await fetch("/api/teachers/students/zoom-status", {
         credentials: "include",
+        cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
@@ -156,6 +177,12 @@ export default function AssignedStudents() {
           zoomStatus[studentId] = true;
         });
         setZoomSent(zoomStatus);
+        
+        // Persist to localStorage to prevent loss on refresh
+        localStorage.setItem('zoomSentToday', JSON.stringify({
+          date: new Date().toDateString(),
+          status: zoomStatus
+        }));
       }
     } catch (error) {
       console.error("Failed to check zoom status:", error);
@@ -402,7 +429,15 @@ export default function AssignedStudents() {
         ...f,
         [studentId]: { link: "" },
       }));
-      setZoomSent((z) => ({ ...z, [studentId]: true }));
+      setZoomSent((z) => {
+        const newStatus = { ...z, [studentId]: true };
+        // Update localStorage
+        localStorage.setItem('zoomSentToday', JSON.stringify({
+          date: new Date().toDateString(),
+          status: newStatus
+        }));
+        return newStatus;
+      });
       setModal({ type: null, studentId: null });
     } catch (e: any) {
       console.error("Zoom sending error:", e);
