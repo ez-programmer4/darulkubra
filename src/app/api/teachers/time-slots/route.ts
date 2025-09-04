@@ -71,8 +71,6 @@ export async function GET(req: NextRequest) {
       .map(ot => ot.time_slot)
       .filter((slot, index, arr) => arr.indexOf(slot) === index); // Remove duplicates
 
-    const timeSlots = occupiedTimes.map(ot => ot.time_slot);
-
     return NextResponse.json({ timeSlots });
   } catch (error) {
     console.error("Error fetching time slots:", error);
