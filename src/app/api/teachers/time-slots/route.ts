@@ -17,16 +17,59 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Date and teacherId required" }, { status: 400 });
     }
 
-    // Get teacher's occupied time slots for the specific date
+    // Get teacher's students and their day packages to determine time slots
+    const teacher = await prisma.wpos_wpdatatable_24.findUnique({
+      where: { ustazid: teacherId },
+      include: {
+        students: {
+          where: { status: { in: ["active", "Active"] } },
+          select: {
+            wdt_ID: true,
+            name: true,
+            daypackages: true
+          }
+        }
+      }
+    });
+
+    if (!teacher) {
+      return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
+    }
+
+    // Get day name from date
+    const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    
+    // Find students who have classes on this day
+    const studentsForDay = teacher.students.filter(student => {
+      if (!student.daypackages) return false;
+      return student.daypackages.includes('All days') || student.daypackages.includes(dayName);
+    });
+
+    // Get occupied time slots for these students on this day
     const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
       where: {
         ustaz_id: teacherId,
-        daypackage: date
+        student_id: { in: studentsForDay.map(s => s.wdt_ID) }
       },
       select: {
-        time_slot: true
+        time_slot: true,
+        student: {
+          select: {
+            name: true,
+            daypackages: true
+          }
+        }
       }
     });
+
+    // Filter time slots for the specific day
+    const timeSlots = occupiedTimes
+      .filter(ot => {
+        const studentDayPackages = ot.student.daypackages;
+        return studentDayPackages && (studentDayPackages.includes('All days') || studentDayPackages.includes(dayName));
+      })
+      .map(ot => ot.time_slot)
+      .filter((slot, index, arr) => arr.indexOf(slot) === index); // Remove duplicates
 
     const timeSlots = occupiedTimes.map(ot => ot.time_slot);
 

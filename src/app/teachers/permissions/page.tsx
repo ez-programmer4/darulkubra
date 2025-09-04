@@ -126,14 +126,21 @@ export default function TeacherPermissions() {
   // Fetch available time slots for selected date
   useEffect(() => {
     const fetchTimeSlots = async () => {
-      if (!date || !user?.id) return;
+      if (!date || !user?.id) {
+        console.log('Missing date or user ID for time slots:', { date, userId: user?.id });
+        return;
+      }
       try {
+        console.log('Fetching time slots for:', { date, userId: user.id });
         const res = await fetch(
           `/api/teachers/time-slots?date=${date}&teacherId=${user.id}`
         );
         if (res.ok) {
           const data = await res.json();
+          console.log('Time slots response:', data);
           setAvailableTimeSlots(data.timeSlots || []);
+        } else {
+          console.log('Time slots API error:', res.status, res.statusText);
         }
       } catch (error) {
         console.error("Error fetching time slots:", error);
@@ -151,10 +158,11 @@ export default function TeacherPermissions() {
         });
         if (res.ok) {
           const data = await res.json();
+          console.log('Permission reasons response:', data);
           if (data.reasons && Array.isArray(data.reasons) && data.reasons.length > 0) {
             setPermissionReasons(data.reasons);
           } else {
-            // Fallback only if no reasons found in database
+            console.log('No reasons found in database, using fallback');
             setPermissionReasons([
               "Sick Leave",
               "Personal Emergency",
@@ -164,7 +172,7 @@ export default function TeacherPermissions() {
             ]);
           }
         } else {
-          // Fallback for API error
+          console.log('API error, using fallback reasons');
           setPermissionReasons([
             "Sick Leave",
             "Personal Emergency",
