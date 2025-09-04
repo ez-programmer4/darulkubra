@@ -138,6 +138,11 @@ export default function AssignedStudents() {
     loadSurahs();
   }, []);
 
+  // Check zoom status when component mounts and when groups change
+  useEffect(() => {
+    checkZoomStatus();
+  }, [groups]);
+
   // Check zoom link status for today
   async function checkZoomStatus() {
     try {
@@ -295,8 +300,6 @@ export default function AssignedStudents() {
         (data.groups || []).forEach((g: Group) => (next[g.group] = true));
         setExpanded(next);
       }
-      // Check zoom status after loading students
-      await checkZoomStatus();
     } catch (e: any) {
       setError(e.message);
       toast({
