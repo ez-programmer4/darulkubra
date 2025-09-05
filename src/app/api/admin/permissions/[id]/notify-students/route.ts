@@ -137,7 +137,7 @@ export async function POST(
       });
       
       // Normalize selected time slots for comparison
-      const normalizedSelectedSlots = selectedTimeSlots.map(slot => normalizeTimeSlot(slot));
+      const normalizedSelectedSlots = selectedTimeSlots.map((slot: string) => normalizeTimeSlot(slot));
       
       // Filter students who have classes matching the selected time slots
       const affectedStudentIds = new Set();
@@ -146,7 +146,7 @@ export async function POST(
         const studentDayPackages = ot.student.daypackages;
         
         // Check if this time slot matches any selected slot and student has class on this day
-        const slotMatches = normalizedSelectedSlots.some(selectedSlot => 
+        const slotMatches = normalizedSelectedSlots.some((selectedSlot: string) => 
           normalizedDbSlot === selectedSlot || 
           normalizedDbSlot.includes(selectedSlot) ||
           selectedSlot.includes(normalizedDbSlot)
