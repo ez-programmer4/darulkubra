@@ -343,17 +343,24 @@ export default function AdminPermissionsPage() {
                   onClick={() => {
                     const headers = [
                       "Teacher",
-                      "Dates",
+                      "Date",
                       "Category",
                       "Details",
+                      "Time Slots",
                       "Submitted",
                       "Status",
                     ];
                     const rows = filteredRequests.map((req) => [
                       req.teacher?.ustazname || req.teacherId,
-                      dayjs(req.requestedDates).format("MMM D, YYYY"),
+                      dayjs(req.requestedDate).format("MMM D, YYYY"),
                       req.reasonCategory,
                       req.reasonDetails,
+                      req.timeSlots ? (() => {
+                        try {
+                          const slots = JSON.parse(req.timeSlots);
+                          return slots.includes('Whole Day') ? 'Whole Day' : `${slots.length} Time Slots`;
+                        } catch { return 'N/A'; }
+                      })() : 'N/A',
                       dayjs(req.createdAt).fromNow(),
                       req.status,
                     ]);
@@ -477,7 +484,23 @@ export default function AdminPermissionsPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-gray-700">
-                            {dayjs(req.requestedDates).format("MMM D, YYYY")}
+                            <div>
+                              <div className="font-medium">{dayjs(req.requestedDate).format("MMM D, YYYY")}</div>
+                              {req.timeSlots && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {(() => {
+                                    try {
+                                      const slots = JSON.parse(req.timeSlots);
+                                      return slots.includes('Whole Day') 
+                                        ? '🚫 Whole Day Absence'
+                                        : `⏰ ${slots.length} Time Slot${slots.length > 1 ? 's' : ''}`;
+                                    } catch {
+                                      return 'Time slots unavailable';
+                                    }
+                                  })()} 
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 text-gray-700">
                             {req.reasonCategory}
@@ -643,7 +666,7 @@ export default function AdminPermissionsPage() {
                     </div>
                     <div className="bg-white rounded-xl p-4 border border-gray-200">
                       <p className="text-sm font-medium text-gray-600 mb-1">Absence Date</p>
-                      <p className="text-black font-semibold">{dayjs(selected?.requestedDates).format("dddd, MMMM D, YYYY")}</p>
+                      <p className="text-black font-semibold">{dayjs(selected?.requestedDate).format("dddd, MMMM D, YYYY")}</p>
                     </div>
                     <div className="bg-white rounded-xl p-4 border border-gray-200">
                       <p className="text-sm font-medium text-gray-600 mb-1">Reason Category</p>
@@ -654,6 +677,49 @@ export default function AdminPermissionsPage() {
                       <p className="text-black font-semibold">{selected?.createdAt ? dayjs(selected.createdAt).format("MMM D, YYYY [at] h:mm A") : "-"}</p>
                     </div>
                   </div>
+                  
+                  {/* Time Slots Information */}
+                  {selected?.timeSlots && (
+                    <div className="mt-4 bg-blue-50 rounded-xl p-4 border border-blue-200">
+                      <p className="text-sm font-medium text-blue-700 mb-2 flex items-center gap-2">
+                        ⏰ Requested Time Slots
+                      </p>
+                      {(() => {
+                        try {
+                          const slots = JSON.parse(selected.timeSlots);
+                          if (slots.includes('Whole Day')) {
+                            return (
+                              <div className="bg-red-100 border border-red-200 rounded-lg p-3">
+                                <p className="text-red-800 font-semibold flex items-center gap-2">
+                                  🚫 Whole Day Absence Request
+                                </p>
+                                <p className="text-red-600 text-sm mt-1">
+                                  Teacher requested permission for the entire day
+                                </p>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div className="space-y-2">
+                                <p className="text-blue-600 text-sm">
+                                  Specific time slots ({slots.length} selected):
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {slots.map((slot: string, idx: number) => (
+                                    <span key={idx} className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                                      {slot}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+                        } catch {
+                          return <p className="text-gray-500 text-sm">Time slot information unavailable</p>;
+                        }
+                      })()}
+                    </div>
+                  )}
                   
                   {selected?.reasonDetails && (
                     <div className="mt-4 bg-white rounded-xl p-4 border border-gray-200">
@@ -765,7 +831,8 @@ export default function AdminPermissionsPage() {
                                   status: form.status,
                                   reviewNotes: form.reviewNotes,
                                   teacherName: selected.teacher?.ustazname || selected.teacherId,
-                                  requestDate: selected.requestedDates,
+                                  requestDate: selected.requestedDate,
+                                  timeSlots: selected.timeSlots,
                                 }),
                               }
                             );
@@ -826,8 +893,9 @@ export default function AdminPermissionsPage() {
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
                                   teacherName: selected.teacher?.ustazname || selected.teacherId,
-                                  absenceDate: selected.requestedDates,
+                                  absenceDate: selected.requestedDate,
                                   reason: selected.reasonCategory,
+                                  timeSlots: selected.timeSlots,
                                 }),
                               }
                             );
