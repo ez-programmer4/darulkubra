@@ -707,17 +707,6 @@ export default function TeacherPermissions() {
                         <FiCalendar className="h-4 w-4" />
                         Date of Absence
                       </Label>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          const testDate = '2025-01-20';
-                          console.log('Setting test date:', testDate);
-                          setDate(testDate);
-                        }}
-                        className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
-                      >
-                        Test Date
-                      </button>
                       <Input
                         id="date"
                         type="date"
@@ -763,36 +752,140 @@ export default function TeacherPermissions() {
                   </div>
 
                   {/* Time Slot Selection */}
-                  {date && availableTimeSlots.length > 0 && (
-                    <div className="space-y-3">
-                      <Label className="text-sm font-semibold text-black flex items-center gap-2">
-                        <FiCalendar className="h-4 w-4" />
-                        Select Time Slots for {date}
-                      </Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {availableTimeSlots.map((timeSlot) => (
-                          <button
-                            key={timeSlot}
-                            type="button"
-                            onClick={() => handleTimeSlotToggle(timeSlot)}
-                            className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
-                              selectedTimeSlots.includes(timeSlot)
-                                ? "border-blue-500 bg-blue-50 text-blue-700"
-                                : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-                            }`}
-                          >
-                            {timeSlot}
-                          </button>
-                        ))}
+                  {date && (
+                    availableTimeSlots.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+                        <Label className="text-lg font-bold text-blue-900 flex items-center gap-2 mb-2">
+                          <FiCalendar className="h-5 w-5" />
+                          📅 Select Your Class Time Slots for {dayjs(date).format('dddd, MMMM D, YYYY')}
+                        </Label>
+                        <p className="text-sm text-blue-700 mb-4">
+                          ⏰ Choose the specific 30-minute time slots you need permission for. You can select multiple slots.
+                        </p>
+                        
+                        {/* Group time slots by time of day */}
+                        {(() => {
+                          const morningSlots = availableTimeSlots.filter(slot => slot.includes('AM') && !slot.includes('12:'));
+                          const afternoonSlots = availableTimeSlots.filter(slot => slot.includes('PM') && (slot.includes('12:') || slot.includes('01:') || slot.includes('02:') || slot.includes('03:') || slot.includes('04:') || slot.includes('05:')));
+                          const eveningSlots = availableTimeSlots.filter(slot => slot.includes('PM') && !afternoonSlots.includes(slot));
+                          
+                          return (
+                            <div className="space-y-4">
+                              {morningSlots.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                    🌅 Morning Classes (6:00 AM - 11:59 AM)
+                                  </h4>
+                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                    {morningSlots.map((timeSlot) => (
+                                      <button
+                                        key={timeSlot}
+                                        type="button"
+                                        onClick={() => handleTimeSlotToggle(timeSlot)}
+                                        className={`p-3 rounded-lg border-2 text-xs font-medium transition-all hover:scale-105 ${
+                                          selectedTimeSlots.includes(timeSlot)
+                                            ? "border-green-500 bg-green-50 text-green-800 shadow-md"
+                                            : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
+                                        }`}
+                                      >
+                                        {timeSlot}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {afternoonSlots.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                    ☀️ Afternoon Classes (12:00 PM - 6:59 PM)
+                                  </h4>
+                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                    {afternoonSlots.map((timeSlot) => (
+                                      <button
+                                        key={timeSlot}
+                                        type="button"
+                                        onClick={() => handleTimeSlotToggle(timeSlot)}
+                                        className={`p-3 rounded-lg border-2 text-xs font-medium transition-all hover:scale-105 ${
+                                          selectedTimeSlots.includes(timeSlot)
+                                            ? "border-green-500 bg-green-50 text-green-800 shadow-md"
+                                            : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
+                                        }`}
+                                      >
+                                        {timeSlot}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {eveningSlots.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                    🌙 Evening Classes (7:00 PM - 11:00 PM)
+                                  </h4>
+                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                    {eveningSlots.map((timeSlot) => (
+                                      <button
+                                        key={timeSlot}
+                                        type="button"
+                                        onClick={() => handleTimeSlotToggle(timeSlot)}
+                                        className={`p-3 rounded-lg border-2 text-xs font-medium transition-all hover:scale-105 ${
+                                          selectedTimeSlots.includes(timeSlot)
+                                            ? "border-green-500 bg-green-50 text-green-800 shadow-md"
+                                            : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
+                                        }`}
+                                      >
+                                        {timeSlot}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        
+                        {selectedTimeSlots.length > 0 && (
+                          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <h4 className="text-sm font-semibold text-green-800 mb-2 flex items-center gap-2">
+                              ✅ Selected Time Slots ({selectedTimeSlots.length})
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedTimeSlots.map((slot) => (
+                                <span key={slot} className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                                  {slot}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTimeSlotToggle(slot)}
+                                    className="ml-1 text-green-600 hover:text-green-800"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {selectedTimeSlots.length === 0 && (
+                          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p className="text-sm text-yellow-800 flex items-center gap-2">
+                              ⚠️ Please select at least one time slot to continue with your permission request.
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      {selectedTimeSlots.length > 0 && (
-                        <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                          <p className="text-sm text-blue-700">
-                            Selected: {selectedTimeSlots.join(", ")}
-                          </p>
-                        </div>
-                      )}
                     </div>
+                    ) : date && (
+                      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="text-sm text-gray-600 flex items-center gap-2">
+                          📅 No class schedule found for {dayjs(date).format('dddd, MMMM D, YYYY')}. 
+                          You may not have any students assigned for this day.
+                        </p>
+                      </div>
+                    )
                   )}
 
                   <div className="space-y-3">

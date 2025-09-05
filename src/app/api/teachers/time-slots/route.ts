@@ -48,20 +48,82 @@ export async function GET(req: NextRequest) {
       return student.daypackages.includes('All days') || student.daypackages.includes(dayName);
     });
 
-    // Generate time slots based on students (simple approach)
+    // Generate comprehensive 30-minute time slots for the entire day
     const timeSlots: string[] = [];
-    studentsForDay.forEach((student, index) => {
-      // Generate time slots based on student ID pattern
-      const baseHour = 8 + (student.wdt_ID % 10); // Start from 8 AM, vary by student ID
-      const timeSlot = `${baseHour.toString().padStart(2, '0')}:00 - ${(baseHour + 1).toString().padStart(2, '0')}:00`;
-      if (!timeSlots.includes(timeSlot)) {
-        timeSlots.push(timeSlot);
+    
+    if (studentsForDay.length > 0) {
+      // Early Morning (6:00 AM - 8:00 AM)
+      const earlyMorningSlots = [
+        '06:00 AM - 06:30 AM',
+        '06:30 AM - 07:00 AM',
+        '07:00 AM - 07:30 AM',
+        '07:30 AM - 08:00 AM'
+      ];
+      
+      // Morning (8:00 AM - 12:00 PM)
+      const morningSlots = [
+        '08:00 AM - 08:30 AM',
+        '08:30 AM - 09:00 AM',
+        '09:00 AM - 09:30 AM',
+        '09:30 AM - 10:00 AM',
+        '10:00 AM - 10:30 AM',
+        '10:30 AM - 11:00 AM',
+        '11:00 AM - 11:30 AM',
+        '11:30 AM - 12:00 PM'
+      ];
+      
+      // Afternoon (2:00 PM - 6:00 PM)
+      const afternoonSlots = [
+        '02:00 PM - 02:30 PM',
+        '02:30 PM - 03:00 PM',
+        '03:00 PM - 03:30 PM',
+        '03:30 PM - 04:00 PM',
+        '04:00 PM - 04:30 PM',
+        '04:30 PM - 05:00 PM',
+        '05:00 PM - 05:30 PM',
+        '05:30 PM - 06:00 PM'
+      ];
+      
+      // Evening (7:00 PM - 11:00 PM)
+      const eveningSlots = [
+        '07:00 PM - 07:30 PM',
+        '07:30 PM - 08:00 PM',
+        '08:00 PM - 08:30 PM',
+        '08:30 PM - 09:00 PM',
+        '09:00 PM - 09:30 PM',
+        '09:30 PM - 10:00 PM',
+        '10:00 PM - 10:30 PM',
+        '10:30 PM - 11:00 PM'
+      ];
+      
+      // Add all available time slots based on student count
+      const studentCount = studentsForDay.length;
+      
+      // Always include morning and afternoon slots
+      timeSlots.push(...morningSlots);
+      timeSlots.push(...afternoonSlots);
+      
+      // Add early morning for teachers with many students
+      if (studentCount >= 3) {
+        timeSlots.unshift(...earlyMorningSlots);
       }
-    });
-
-    // If no specific time slots, provide default ones
-    if (timeSlots.length === 0 && studentsForDay.length > 0) {
-      timeSlots.push('09:00 - 10:00', '10:00 - 11:00', '14:00 - 15:00', '15:00 - 16:00');
+      
+      // Add evening slots for active teachers
+      if (studentCount >= 2) {
+        timeSlots.push(...eveningSlots);
+      }
+      
+    } else {
+      // Default comprehensive schedule for teachers without specific student assignments
+      timeSlots.push(
+        '08:00 AM - 08:30 AM', '08:30 AM - 09:00 AM',
+        '09:00 AM - 09:30 AM', '09:30 AM - 10:00 AM',
+        '10:00 AM - 10:30 AM', '10:30 AM - 11:00 AM',
+        '02:00 PM - 02:30 PM', '02:30 PM - 03:00 PM',
+        '03:00 PM - 03:30 PM', '03:30 PM - 04:00 PM',
+        '07:00 PM - 07:30 PM', '07:30 PM - 08:00 PM',
+        '08:00 PM - 08:30 PM', '08:30 PM - 09:00 PM'
+      );
     }
 
     return NextResponse.json({ timeSlots });
