@@ -1609,31 +1609,67 @@ export default function TeacherPaymentsPage() {
                           No absence records.
                         </div>
                       ) : (
-                        <ul className="mb-6 space-y-2">
-                          {breakdown.absenceRecords.map((r: any) => (
-                            <li key={r.id} className="flex items-center gap-3">
-                              <span className="font-mono text-sm text-gray-600">
-                                {new Date(r.classDate).toLocaleDateString()}
-                              </span>
-                              <span
-                                className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
-                                  r.permitted
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-red-100 text-red-700"
-                                }`}
-                              >
-                                {r.permitted ? "Permitted" : "Unpermitted"}
-                              </span>
-                              <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs">
-                                -{r.deductionApplied} ETB
-                              </span>
-                              {r.reviewNotes && (
-                                <span className="text-sm text-gray-600">
-                                  ({r.reviewNotes})
-                                </span>
-                              )}
-                            </li>
-                          ))}
+                        <ul className="mb-6 space-y-3">
+                          {breakdown.absenceRecords.map((r: any) => {
+                            let timeSlotsInfo = "Full Day";
+                            let slotsCount = 0;
+                            if (r.timeSlots) {
+                              try {
+                                const slots = JSON.parse(r.timeSlots);
+                                if (slots.includes('Whole Day')) {
+                                  timeSlotsInfo = "🚫 Whole Day";
+                                } else {
+                                  slotsCount = slots.length;
+                                  timeSlotsInfo = `⏰ ${slotsCount} Time Slot${slotsCount > 1 ? 's' : ''}`;
+                                }
+                              } catch {}
+                            }
+                            
+                            return (
+                              <li key={r.id} className="bg-white p-3 rounded-lg border border-gray-200">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span className="font-mono text-sm text-gray-600">
+                                    {new Date(r.classDate).toLocaleDateString()}
+                                  </span>
+                                  <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-semibold text-xs">
+                                    {timeSlotsInfo}
+                                  </span>
+                                  <span
+                                    className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
+                                      r.permitted
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-red-100 text-red-700"
+                                    }`}
+                                  >
+                                    {r.permitted ? "Permitted" : "Unpermitted"}
+                                  </span>
+                                  <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs">
+                                    -{r.deductionApplied} ETB
+                                  </span>
+                                </div>
+                                {r.timeSlots && (() => {
+                                  try {
+                                    const slots = JSON.parse(r.timeSlots);
+                                    if (!slots.includes('Whole Day') && slots.length > 0) {
+                                      return (
+                                        <div className="text-xs text-gray-600 ml-2">
+                                          <span className="font-medium">Affected slots: </span>
+                                          {slots.slice(0, 3).join(', ')}
+                                          {slots.length > 3 && ` +${slots.length - 3} more`}
+                                        </div>
+                                      );
+                                    }
+                                  } catch {}
+                                  return null;
+                                })()}
+                                {r.reviewNotes && (
+                                  <div className="text-xs text-gray-500 mt-1 ml-2">
+                                    Note: {r.reviewNotes}
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
                         </ul>
                       )}
 

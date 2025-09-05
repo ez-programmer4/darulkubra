@@ -21,10 +21,11 @@ interface AbsenceRecord {
   id: number;
   teacherId: string;
   classDate: string;
+  timeSlots?: string; // JSON string of affected time slots
   permitted: boolean;
   deductionApplied: number;
   wpos_wpdatatable_24: { ustazname: string };
-  permissionrequest?: { reasonCategory: string };
+  permissionrequest?: { reasonCategory: string; timeSlots?: string };
 }
 
 interface ConfigResponse {
@@ -54,6 +55,22 @@ export default function AbsenceManagement() {
   const [deductionAmount, setDeductionAmount] = useState("50");
   const [effectiveMonths, setEffectiveMonths] = useState<string[]>([]);
   const [excludeSundays, setExcludeSundays] = useState(true);
+
+  const loadAbsences = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/absences");
+      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+      const data = await res.json();
+      setAbsences(data || []);
+    } catch (error) {
+      console.error("Failed to load absences:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load absence records",
+        variant: "destructive",
+      });
+    }
+  }, []);
 
   const loadConfig = useCallback(async () => {
     setLoading(true);
@@ -125,14 +142,24 @@ export default function AbsenceManagement() {
     }
 
     const csv = [
-      ["Teacher", "Date", "Status", "Deduction", "Reason"],
-      ...absences.map((a) => [
-        a.wpos_wpdatatable_24.ustazname,
-        new Date(a.classDate).toLocaleDateString(),
-        a.permitted ? "Permitted" : "Unpermitted",
-        `${a.deductionApplied} ETB`,
-        a.permissionrequest?.reasonCategory || "No permission",
-      ]),
+      ["Teacher", "Date", "Time Slots", "Status", "Deduction", "Reason"],
+      ...absences.map((a) => {
+        let timeSlotsInfo = "Full Day";
+        if (a.timeSlots) {
+          try {
+            const slots = JSON.parse(a.timeSlots);
+            timeSlotsInfo = slots.includes('Whole Day') ? 'Whole Day' : `${slots.length} slots`;
+          } catch {}
+        }
+        return [
+          a.wpos_wpdatatable_24.ustazname,
+          new Date(a.classDate).toLocaleDateString(),
+          timeSlotsInfo,
+          a.permitted ? "Permitted" : "Unpermitted",
+          `${a.deductionApplied} ETB`,
+          a.permissionrequest?.reasonCategory || "No permission",
+        ];
+      }),
     ]
       .map((row) => row.join(","))
       .join("\n");
@@ -156,7 +183,8 @@ export default function AbsenceManagement() {
 
   useEffect(() => {
     loadConfig();
-  }, [loadConfig]);
+    loadAbsences();
+  }, [loadConfig, loadAbsences]);
 
   if (loading) {
     return (
@@ -448,6 +476,125 @@ export default function AbsenceManagement() {
                 {effectiveMonths.length === 0 ? "Inactive" : `${effectiveMonths.length} Months`}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Absence Records */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+          <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-black rounded-xl">
+                <FiUsers className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-black">Absence Records</h2>
+                <p className="text-gray-600">Recent teacher absence records with time slot details</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6 sm:p-8 lg:p-10">
+            {absences.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
+                  <FiUsers className="h-16 w-16 text-gray-500" />
+                </div>
+                <h3 className="text-3xl font-bold text-black mb-4">No Absence Records</h3>
+                <p className="text-gray-600 text-xl">No absence records found for the current period.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                        Teacher
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                        Time Slots
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                        Deduction
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                        Reason
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {absences.slice(0, 20).map((absence, index) => {
+                      let timeSlotsDisplay = "Full Day";
+                      let slotsCount = 0;
+                      if (absence.timeSlots) {
+                        try {
+                          const slots = JSON.parse(absence.timeSlots);
+                          if (slots.includes('Whole Day')) {
+                            timeSlotsDisplay = "🚫 Whole Day";
+                          } else {
+                            slotsCount = slots.length;
+                            timeSlotsDisplay = `⏰ ${slotsCount} Time Slot${slotsCount > 1 ? 's' : ''}`;
+                          }
+                        } catch {}
+                      }
+                      
+                      return (
+                        <tr
+                          key={absence.id}
+                          className={`hover:bg-gray-50 transition-all duration-200 ${
+                            index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }`}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">
+                                {absence.wpos_wpdatatable_24.ustazname
+                                  .split(" ")
+                                  .map((n: string) => n[0])
+                                  .join("")}
+                              </div>
+                              <span className="font-semibold text-black">
+                                {absence.wpos_wpdatatable_24.ustazname}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {new Date(absence.classDate).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {timeSlotsDisplay}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                absence.permitted
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {absence.permitted ? "✅ Permitted" : "❌ Unpermitted"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-gray-700 font-semibold">
+                            {absence.deductionApplied} ETB
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {absence.permissionrequest?.reasonCategory || "No permission"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>

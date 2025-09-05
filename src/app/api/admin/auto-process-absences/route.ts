@@ -96,6 +96,36 @@ export async function GET() {
         });
 
         if (zoomLinks.length === 0) {
+          // Get teacher's time slots for this day
+          const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+            where: {
+              ustaz_id: teacher.ustazid
+            },
+            include: {
+              student: {
+                select: {
+                  daypackages: true
+                }
+              }
+            }
+          });
+
+          // Filter for this specific day
+          const dayTimeSlots = occupiedTimes.filter(ot => {
+            const studentDayPackages = ot.student.daypackages;
+            return studentDayPackages && (
+              studentDayPackages.includes('All days') || 
+              studentDayPackages.includes(dayName)
+            );
+          });
+
+          if (dayTimeSlots.length === 0) {
+            continue; // No classes scheduled for this day
+          }
+
+          // Get unique time slots
+          const timeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
+          
           // Check permission
           const permission = await prisma.permissionrequest.findFirst({
             where: {
@@ -104,46 +134,67 @@ export async function GET() {
             }
           });
 
-          const isPermitted = permission?.status === "Approved";
-          const deduction = isPermitted ? 0 : deductionAmount;
-
-          // Create absence record
-          await prisma.absencerecord.create({
-            data: {
-              teacherId: teacher.ustazid,
-              classDate: checkDate,
-              permitted: isPermitted,
-              permissionRequestId: permission?.id || null,
-              deductionApplied: deduction,
-              reviewedByManager: false
-            }
-          });
-
-          // Update salary
-          const monthKey = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}`;
+          let isPermitted = false;
+          let affectedSlots = timeSlots;
           
-          await prisma.teachersalarypayment.upsert({
-            where: {
-              teacherId_period: {
-                teacherId: teacher.ustazid,
-                period: monthKey
+          if (permission?.status === "Approved" && permission.timeSlots) {
+            try {
+              const permissionSlots = JSON.parse(permission.timeSlots);
+              if (permissionSlots.includes('Whole Day')) {
+                isPermitted = true;
+                affectedSlots = [];
+              } else {
+                // Only count slots not covered by permission
+                affectedSlots = timeSlots.filter(slot => !permissionSlots.includes(slot));
+                isPermitted = affectedSlots.length === 0;
               }
-            },
-            create: {
-              teacherId: teacher.ustazid,
-              period: monthKey,
-              status: "pending",
-              totalSalary: 0,
-              latenessDeduction: 0,
-              absenceDeduction: deduction,
-              bonuses: 0
-            },
-            update: {
-              absenceDeduction: { increment: deduction }
-            }
-          });
+            } catch {}
+          }
 
-          processedCount++;
+          if (affectedSlots.length > 0) {
+            // Calculate deduction based on affected time slots
+            const slotDeduction = Math.round(deductionAmount / timeSlots.length);
+            const totalDeduction = slotDeduction * affectedSlots.length;
+
+            // Create absence record
+            await prisma.absencerecord.create({
+              data: {
+                teacherId: teacher.ustazid,
+                classDate: checkDate,
+                timeSlots: JSON.stringify(affectedSlots),
+                permitted: isPermitted,
+                permissionRequestId: permission?.id || null,
+                deductionApplied: totalDeduction,
+                reviewedByManager: false
+              }
+            });
+
+            // Update salary
+            const monthKey = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}`;
+            
+            await prisma.teachersalarypayment.upsert({
+              where: {
+                teacherId_period: {
+                  teacherId: teacher.ustazid,
+                  period: monthKey
+                }
+              },
+              create: {
+                teacherId: teacher.ustazid,
+                period: monthKey,
+                status: "pending",
+                totalSalary: 0,
+                latenessDeduction: 0,
+                absenceDeduction: totalDeduction,
+                bonuses: 0
+              },
+              update: {
+                absenceDeduction: { increment: totalDeduction }
+              }
+            });
+
+            processedCount++;
+          }
         }
       }
     }

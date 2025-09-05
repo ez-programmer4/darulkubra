@@ -78,19 +78,54 @@ async function processAbsences(targetDate: Date) {
       continue; // Teacher had an approved permission request
     }
 
-    // 3d. Create Absence Record
+    // 3d. Get teacher's time slots for this day
+    const dayName = format(targetDate, "EEEE");
+    const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+      where: {
+        ustaz_id: teacher.ustazid
+      },
+      include: {
+        student: {
+          select: {
+            daypackages: true
+          }
+        }
+      }
+    });
 
+    // Filter for this specific day
+    const dayTimeSlots = occupiedTimes.filter(ot => {
+      const studentDayPackages = ot.student.daypackages;
+      return studentDayPackages && (
+        studentDayPackages.includes('All days') || 
+        studentDayPackages.includes(dayName)
+      );
+    });
+
+    if (dayTimeSlots.length === 0) {
+      continue; // No classes scheduled for this day
+    }
+
+    // Get unique time slots
+    const timeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
+    
+    // Calculate deduction based on number of time slots
+    const slotDeduction = Math.round(deductionAmount / timeSlots.length);
+    const totalDeduction = slotDeduction * timeSlots.length;
+
+    // Create Absence Record with time slot information
     await prisma.absencerecord.create({
       data: {
         teacherId: teacher.ustazid,
         classDate: targetDate,
+        timeSlots: JSON.stringify(timeSlots),
         permitted: false,
-        deductionApplied: deductionAmount,
+        deductionApplied: totalDeduction,
         reviewedByManager: true, // System-generated
         reviewNotes: `System-generated: No attendance submitted and no approved permission found for ${format(
           targetDate,
           "yyyy-MM-dd"
-        )}.`,
+        )}. Affected time slots: ${timeSlots.length}`,
       },
     });
   }
