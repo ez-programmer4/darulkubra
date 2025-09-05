@@ -66,7 +66,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { status, reviewNotes, teacherName, requestDate } = await req.json();
+    const { status, reviewNotes, teacherName, requestDate, timeSlots } = await req.json();
     const permissionId = parseInt(params.id);
 
     // Get permission request details
@@ -107,10 +107,22 @@ export async function POST(
         day: "numeric",
       });
 
-      // Simplified SMS message for testing
+      // Enhanced SMS message with time slot information
+      let timeSlotInfo = "";
+      if (timeSlots) {
+        try {
+          const slots = JSON.parse(timeSlots);
+          if (slots.includes('Whole Day')) {
+            timeSlotInfo = " (Whole Day)";
+          } else if (slots.length > 0) {
+            timeSlotInfo = ` (${slots.length} time slot${slots.length > 1 ? 's' : ''})`;
+          }
+        } catch {}
+      }
+      
       let smsMessage = `Dear ${
         teacher.ustazname || "Teacher"
-      }, your permission request for ${dateFormatted} has been ${statusText}. ${
+      }, your permission request for ${dateFormatted}${timeSlotInfo} has been ${statusText}. ${
         reviewNotes ? `Notes: ${reviewNotes}` : ""
       } - Darul Kubra Admin`;
 
