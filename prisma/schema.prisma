@@ -216,6 +216,7 @@ model absencerecord {
   id                        Int                  @id @default(autoincrement())
   teacherId                 String
   classDate                 DateTime
+  timeSlots                 String?              // JSON string of affected time slots
   permitted                 Boolean
   permissionRequestId       Int?
   deductionApplied          Float
