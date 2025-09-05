@@ -61,6 +61,7 @@ export default function TeacherPermissions() {
   const [showForm, setShowForm] = useState(true);
   const [date, setDate] = useState("");
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
+  const [isWholeDaySelected, setIsWholeDaySelected] = useState(false);
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
   const [reason, setReason] = useState("");
   const [details, setDetails] = useState("");
@@ -363,11 +364,22 @@ export default function TeacherPermissions() {
   };
 
   const handleTimeSlotToggle = (timeSlot: string) => {
-    setSelectedTimeSlots((prev) =>
-      prev.includes(timeSlot)
-        ? prev.filter((slot) => slot !== timeSlot)
-        : [...prev, timeSlot]
-    );
+    if (timeSlot === 'Whole Day') {
+      if (isWholeDaySelected) {
+        setIsWholeDaySelected(false);
+        setSelectedTimeSlots([]);
+      } else {
+        setIsWholeDaySelected(true);
+        setSelectedTimeSlots(['Whole Day']);
+      }
+    } else {
+      setIsWholeDaySelected(false);
+      setSelectedTimeSlots((prev) =>
+        prev.includes(timeSlot)
+          ? prev.filter((slot) => slot !== timeSlot && slot !== 'Whole Day')
+          : [...prev.filter(slot => slot !== 'Whole Day'), timeSlot]
+      );
+    }
   };
 
   // Summary
@@ -758,94 +770,59 @@ export default function TeacherPermissions() {
                       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
                         <Label className="text-lg font-bold text-blue-900 flex items-center gap-2 mb-2">
                           <FiCalendar className="h-5 w-5" />
-                          📅 Select Your Class Time Slots for {dayjs(date).format('dddd, MMMM D, YYYY')}
+                          📅 Your Class Schedule for {dayjs(date).format('dddd, MMMM D, YYYY')}
                         </Label>
                         <p className="text-sm text-blue-700 mb-4">
-                          ⏰ Choose the specific 30-minute time slots you need permission for. You can select multiple slots.
+                          ⏰ Select "Whole Day" for full day absence, or choose specific time slots from your actual class schedule.
                         </p>
                         
-                        {/* Group time slots by time of day */}
-                        {(() => {
-                          const morningSlots = availableTimeSlots.filter(slot => slot.includes('AM') && !slot.includes('12:'));
-                          const afternoonSlots = availableTimeSlots.filter(slot => slot.includes('PM') && (slot.includes('12:') || slot.includes('01:') || slot.includes('02:') || slot.includes('03:') || slot.includes('04:') || slot.includes('05:')));
-                          const eveningSlots = availableTimeSlots.filter(slot => slot.includes('PM') && !afternoonSlots.includes(slot));
+                        <div className="space-y-4">
+                          {/* Whole Day Option */}
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                              📅 Full Day Absence
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={() => handleTimeSlotToggle('Whole Day')}
+                              className={`p-4 rounded-lg border-2 text-sm font-bold transition-all hover:scale-105 w-full ${
+                                isWholeDaySelected
+                                  ? "border-red-500 bg-red-50 text-red-800 shadow-md"
+                                  : "border-gray-300 bg-white text-gray-700 hover:border-red-400 hover:bg-red-50"
+                              }`}
+                            >
+                              🚫 Whole Day - Complete Absence
+                            </button>
+                          </div>
                           
-                          return (
-                            <div className="space-y-4">
-                              {morningSlots.length > 0 && (
-                                <div>
-                                  <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                    🌅 Morning Classes (6:00 AM - 11:59 AM)
-                                  </h4>
-                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                    {morningSlots.map((timeSlot) => (
-                                      <button
-                                        key={timeSlot}
-                                        type="button"
-                                        onClick={() => handleTimeSlotToggle(timeSlot)}
-                                        className={`p-3 rounded-lg border-2 text-xs font-medium transition-all hover:scale-105 ${
-                                          selectedTimeSlots.includes(timeSlot)
-                                            ? "border-green-500 bg-green-50 text-green-800 shadow-md"
-                                            : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
-                                        }`}
-                                      >
-                                        {timeSlot}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {afternoonSlots.length > 0 && (
-                                <div>
-                                  <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                    ☀️ Afternoon Classes (12:00 PM - 6:59 PM)
-                                  </h4>
-                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                    {afternoonSlots.map((timeSlot) => (
-                                      <button
-                                        key={timeSlot}
-                                        type="button"
-                                        onClick={() => handleTimeSlotToggle(timeSlot)}
-                                        className={`p-3 rounded-lg border-2 text-xs font-medium transition-all hover:scale-105 ${
-                                          selectedTimeSlots.includes(timeSlot)
-                                            ? "border-green-500 bg-green-50 text-green-800 shadow-md"
-                                            : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
-                                        }`}
-                                      >
-                                        {timeSlot}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {eveningSlots.length > 0 && (
-                                <div>
-                                  <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                    🌙 Evening Classes (7:00 PM - 11:00 PM)
-                                  </h4>
-                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                    {eveningSlots.map((timeSlot) => (
-                                      <button
-                                        key={timeSlot}
-                                        type="button"
-                                        onClick={() => handleTimeSlotToggle(timeSlot)}
-                                        className={`p-3 rounded-lg border-2 text-xs font-medium transition-all hover:scale-105 ${
-                                          selectedTimeSlots.includes(timeSlot)
-                                            ? "border-green-500 bg-green-50 text-green-800 shadow-md"
-                                            : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
-                                        }`}
-                                      >
-                                        {timeSlot}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
+                          {/* Individual Time Slots */}
+                          {availableTimeSlots.filter(slot => slot !== 'Whole Day').length > 0 && (
+                            <div>
+                              <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                ⏰ Your Actual Class Schedule
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {availableTimeSlots.filter(slot => slot !== 'Whole Day').map((timeSlot) => (
+                                  <button
+                                    key={timeSlot}
+                                    type="button"
+                                    onClick={() => handleTimeSlotToggle(timeSlot)}
+                                    disabled={isWholeDaySelected}
+                                    className={`p-3 rounded-lg border-2 text-sm font-medium transition-all hover:scale-105 ${
+                                      selectedTimeSlots.includes(timeSlot)
+                                        ? "border-green-500 bg-green-50 text-green-800 shadow-md"
+                                        : isWholeDaySelected
+                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                                        : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
+                                    }`}
+                                  >
+                                    {timeSlot}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                          );
-                        })()}
+                          )}
+                        </div>
                         
                         {selectedTimeSlots.length > 0 && (
                           <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">

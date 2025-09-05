@@ -19,20 +19,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Date and teacherId required" }, { status: 400 });
     }
 
-    // Get teacher's students for the selected date
-    const teacher = await prisma.wpos_wpdatatable_24.findUnique({
-      where: { ustazid: teacherId },
-      include: {
-        students: {
-          where: { status: { in: ["active", "Active"] } }
-        }
-      }
-    });
-
-    if (!teacher) {
-      return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
-    }
-
     // Validate and parse date
     const parsedDate = new Date(date);
     if (isNaN(parsedDate.getTime())) {
@@ -42,91 +28,59 @@ export async function GET(req: NextRequest) {
     // Get day name from date
     const dayName = parsedDate.toLocaleDateString('en-US', { weekday: 'long' });
     
-    // Find students who have classes on this day and generate time slots
-    const studentsForDay = teacher.students.filter(student => {
-      if (!student.daypackages) return false;
-      return student.daypackages.includes('All days') || student.daypackages.includes(dayName);
+    // Get teacher's actual occupied time slots from the database
+    const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+      where: {
+        ustaz_id: teacherId
+      },
+      include: {
+        student: {
+          select: {
+            name: true,
+            daypackages: true
+          }
+        }
+      }
     });
 
-    // Generate comprehensive 30-minute time slots for the entire day
-    const timeSlots: string[] = [];
-    
-    if (studentsForDay.length > 0) {
-      // Early Morning (6:00 AM - 8:00 AM)
-      const earlyMorningSlots = [
-        '06:00 AM - 06:30 AM',
-        '06:30 AM - 07:00 AM',
-        '07:00 AM - 07:30 AM',
-        '07:30 AM - 08:00 AM'
-      ];
-      
-      // Morning (8:00 AM - 12:00 PM)
-      const morningSlots = [
-        '08:00 AM - 08:30 AM',
-        '08:30 AM - 09:00 AM',
-        '09:00 AM - 09:30 AM',
-        '09:30 AM - 10:00 AM',
-        '10:00 AM - 10:30 AM',
-        '10:30 AM - 11:00 AM',
-        '11:00 AM - 11:30 AM',
-        '11:30 AM - 12:00 PM'
-      ];
-      
-      // Afternoon (2:00 PM - 6:00 PM)
-      const afternoonSlots = [
-        '02:00 PM - 02:30 PM',
-        '02:30 PM - 03:00 PM',
-        '03:00 PM - 03:30 PM',
-        '03:30 PM - 04:00 PM',
-        '04:00 PM - 04:30 PM',
-        '04:30 PM - 05:00 PM',
-        '05:00 PM - 05:30 PM',
-        '05:30 PM - 06:00 PM'
-      ];
-      
-      // Evening (7:00 PM - 11:00 PM)
-      const eveningSlots = [
-        '07:00 PM - 07:30 PM',
-        '07:30 PM - 08:00 PM',
-        '08:00 PM - 08:30 PM',
-        '08:30 PM - 09:00 PM',
-        '09:00 PM - 09:30 PM',
-        '09:30 PM - 10:00 PM',
-        '10:00 PM - 10:30 PM',
-        '10:30 PM - 11:00 PM'
-      ];
-      
-      // Add all available time slots based on student count
-      const studentCount = studentsForDay.length;
-      
-      // Always include morning and afternoon slots
-      timeSlots.push(...morningSlots);
-      timeSlots.push(...afternoonSlots);
-      
-      // Add early morning for teachers with many students
-      if (studentCount >= 3) {
-        timeSlots.unshift(...earlyMorningSlots);
-      }
-      
-      // Add evening slots for active teachers
-      if (studentCount >= 2) {
-        timeSlots.push(...eveningSlots);
-      }
-      
-    } else {
-      // Default comprehensive schedule for teachers without specific student assignments
-      timeSlots.push(
-        '08:00 AM - 08:30 AM', '08:30 AM - 09:00 AM',
-        '09:00 AM - 09:30 AM', '09:30 AM - 10:00 AM',
-        '10:00 AM - 10:30 AM', '10:30 AM - 11:00 AM',
-        '02:00 PM - 02:30 PM', '02:30 PM - 03:00 PM',
-        '03:00 PM - 03:30 PM', '03:30 PM - 04:00 PM',
-        '07:00 PM - 07:30 PM', '07:30 PM - 08:00 PM',
-        '08:00 PM - 08:30 PM', '08:30 PM - 09:00 PM'
+    // Filter occupied times for the selected day
+    const dayTimeSlots = occupiedTimes.filter(ot => {
+      const studentDayPackages = ot.student.daypackages;
+      return studentDayPackages && (
+        studentDayPackages.includes('All days') || 
+        studentDayPackages.includes(dayName)
       );
-    }
+    });
 
-    return NextResponse.json({ timeSlots });
+    // Extract unique time slots and format them properly
+    const timeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))]
+      .sort()
+      .map(slot => {
+        // Convert 24-hour format to 12-hour format if needed
+        if (slot.includes(':') && !slot.includes('AM') && !slot.includes('PM')) {
+          const [start, end] = slot.split(' - ');
+          const formatTime = (time: string) => {
+            const [hour, minute] = time.split(':');
+            const h = parseInt(hour);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+            return `${displayHour}:${minute} ${ampm}`;
+          };
+          return `${formatTime(start)} - ${formatTime(end)}`;
+        }
+        return slot;
+      });
+
+    // Always add "Whole Day" option
+    const finalTimeSlots = ['Whole Day', ...timeSlots];
+
+    return NextResponse.json({ 
+      timeSlots: finalTimeSlots,
+      actualSchedule: dayTimeSlots.map(ot => ({
+        timeSlot: ot.time_slot,
+        studentName: ot.student.name
+      }))
+    });
   } catch (error) {
     console.error("Error fetching time slots:", error);
     return NextResponse.json({ error: "Failed to fetch time slots" }, { status: 500 });
