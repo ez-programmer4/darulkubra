@@ -43,7 +43,8 @@ export async function GET(req: NextRequest) {
       status: permission.status,
       reasonCategory: permission.reasonCategory,
       reasonDetails: permission.reasonDetails,
-      requestedDates: permission.requestedDates,
+      requestedDate: permission.requestedDate,
+      timeSlots: permission.timeSlots,
       date: permission.createdAt?.toISOString().split("T")[0],
       createdAt: permission.createdAt?.toISOString(),
     }));
