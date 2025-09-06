@@ -216,7 +216,7 @@ model absencerecord {
   id                        Int                  @id @default(autoincrement())
   teacherId                 String
   classDate                 DateTime
-  timeSlots                 String?              // JSON string of affected time slots
+  timeSlots                 String? // JSON string of affected time slots
   permitted                 Boolean
   permissionRequestId       Int?
   deductionApplied          Float
@@ -345,17 +345,20 @@ model deductionbonusconfig {
 }
 
 model latenessdeductionconfig {
-  id                        Int                  @id @default(autoincrement())
-  excusedThreshold          Int
-  tier                      Int
-  startMinute               Int
-  endMinute                 Int
-  deductionPercent          Float
-  isGlobal                  Boolean              @default(true)
-  teacherId                 String?
-  createdAt                 DateTime             @default(now())
-  updatedAt                 DateTime
-  adminId                   String?
+  id               Int      @id @default(autoincrement())
+  excusedThreshold Int
+  tier             Int
+  startMinute      Int
+  endMinute        Int
+  deductionPercent Float
+  isGlobal         Boolean  @default(true)
+  teacherId        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime
+  adminId          String?
+
+  baseDeductionAmount Decimal @default(30.00)
+
   wpos_wpdatatable_28Wdt_ID Int?
   admin                     admin?               @relation(fields: [adminId], references: [id], map: "LatenessDeductionConfig_admin_fkey")
   wpos_wpdatatable_24       wpos_wpdatatable_24? @relation(fields: [teacherId], references: [ustazid], map: "LatenessDeductionConfig_teacherId_fkey")
@@ -427,8 +430,8 @@ model permissionreason {
 model permissionrequest {
   id                        Int                  @id @default(autoincrement())
   teacherId                 String
-  requestedDate             String               // Single date
-  timeSlots                 String               // JSON array of time slots
+  requestedDate             String // Single date
+  timeSlots                 String // JSON array of time slots
   reasonCategory            String
   reasonDetails             String
   supportingDocs            String?
@@ -742,11 +745,11 @@ model tarbiaAttendance {
 }
 
 model PackageSalary {
-  id              Int      @id @default(autoincrement())
-  packageName     String   @unique
-  salaryPerStudent Decimal @db.Decimal(10,2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               Int      @id @default(autoincrement())
+  packageName      String   @unique
+  salaryPerStudent Decimal  @db.Decimal(10, 2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 enum role {

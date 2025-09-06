@@ -27,10 +27,12 @@ export async function GET(req: NextRequest) {
       const fromDate = new Date(from);
       const toDate = new Date(to);
       // Get base deduction amount from lateness config
-      const latenessConfig = await prisma.latenessdeductionconfig.findFirst({
-        select: { baseDeductionAmount: true }
-      });
-      const baseDeductionAmount = latenessConfig?.baseDeductionAmount || 30;
+      try {
+        const latenessConfig = await prisma.latenessdeductionconfig.findFirst();
+        const baseDeductionAmount = (latenessConfig as any)?.baseDeductionAmount || 30;
+      } catch (error) {
+        const baseDeductionAmount = 30;
+      }
 
       // Fetch lateness deduction config from DB - no fallback tiers
       const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
@@ -323,10 +325,13 @@ export async function GET(req: NextRequest) {
       teachers.map(async (t) => {
         // Calculate lateness deduction on-the-fly
         // Get base deduction amount from lateness config
-        const latenessConfig = await prisma.latenessdeductionconfig.findFirst({
-          select: { baseDeductionAmount: true }
-        });
-        const baseDeductionAmount = latenessConfig?.baseDeductionAmount || 30;
+        let baseDeductionAmount = 30;
+        try {
+          const latenessConfig = await prisma.latenessdeductionconfig.findFirst();
+          baseDeductionAmount = (latenessConfig as any)?.baseDeductionAmount || 30;
+        } catch (error) {
+          baseDeductionAmount = 30;
+        }
 
         // Fetch lateness deduction config from DB - no fallback tiers
         const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
