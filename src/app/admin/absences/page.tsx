@@ -15,6 +15,7 @@ import {
   FiUsers,
   FiClock,
   FiLoader,
+  FiInfo,
 } from "react-icons/fi";
 
 interface AbsenceRecord {
@@ -24,6 +25,9 @@ interface AbsenceRecord {
   timeSlots?: string; // JSON string of affected time slots
   permitted: boolean;
   deductionApplied: number;
+  reviewedByManager: boolean;
+  reviewNotes?: string;
+  createdAt: string;
   wpos_wpdatatable_24: { ustazname: string };
   permissionrequest?: { reasonCategory: string; timeSlots?: string };
 }
@@ -103,13 +107,21 @@ export default function AbsenceManagement() {
   const saveConfig = async () => {
     setLoading(true);
     try {
-      if (parseFloat(deductionAmount) <= 0 || parseFloat(deductionPerTimeSlot) <= 0) {
+      if (
+        parseFloat(deductionAmount) <= 0 ||
+        parseFloat(deductionPerTimeSlot) <= 0
+      ) {
         throw new Error("Deduction amounts must be positive");
       }
       const res = await fetch("/api/admin/absence-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deductionAmount, deductionPerTimeSlot, effectiveMonths, excludeSundays }),
+        body: JSON.stringify({
+          deductionAmount,
+          deductionPerTimeSlot,
+          effectiveMonths,
+          excludeSundays,
+        }),
       });
 
       if (!res.ok) {
@@ -151,7 +163,9 @@ export default function AbsenceManagement() {
         if (a.timeSlots) {
           try {
             const slots = JSON.parse(a.timeSlots);
-            timeSlotsInfo = slots.includes('Whole Day') ? 'Whole Day' : `${slots.length} slots`;
+            timeSlotsInfo = slots.includes("Whole Day")
+              ? "Whole Day"
+              : `${slots.length} slots`;
           } catch {}
         }
         return [
@@ -180,9 +194,14 @@ export default function AbsenceManagement() {
     });
   };
 
-  const totalDeductions = absences.reduce((sum, a) => sum + a.deductionApplied, 0);
+  const totalDeductions = absences.reduce(
+    (sum, a) => sum + a.deductionApplied,
+    0
+  );
   const currentMonth = new Date().getMonth() + 1;
-  const isCurrentMonthEffective = effectiveMonths.length > 0 && effectiveMonths.includes(currentMonth.toString());
+  const isCurrentMonthEffective =
+    effectiveMonths.length > 0 &&
+    effectiveMonths.includes(currentMonth.toString());
 
   useEffect(() => {
     loadConfig();
@@ -193,8 +212,12 @@ export default function AbsenceManagement() {
     return (
       <div className="text-center py-12">
         <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
-        <p className="text-black font-medium text-lg">Loading absence management...</p>
-        <p className="text-gray-500 text-sm mt-2">Please wait while we fetch the data</p>
+        <p className="text-black font-medium text-lg">
+          Loading absence management...
+        </p>
+        <p className="text-gray-500 text-sm mt-2">
+          Please wait while we fetch the data
+        </p>
       </div>
     );
   }
@@ -224,23 +247,35 @@ export default function AbsenceManagement() {
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiUsers className="h-5 w-5 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-600">Records</span>
+                  <span className="text-xs font-semibold text-gray-600">
+                    Records
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-black">{absences.length}</div>
+                <div className="text-2xl font-bold text-black">
+                  {absences.length}
+                </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiDollarSign className="h-5 w-5 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-600">Deductions</span>
+                  <span className="text-xs font-semibold text-gray-600">
+                    Deductions
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-black">{totalDeductions} ETB</div>
+                <div className="text-2xl font-bold text-black">
+                  {totalDeductions} ETB
+                </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiClock className="h-5 w-5 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-600">Rate</span>
+                  <span className="text-xs font-semibold text-gray-600">
+                    Rate
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-black">{deductionPerTimeSlot} ETB</div>
+                <div className="text-2xl font-bold text-black">
+                  {deductionPerTimeSlot} ETB
+                </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
@@ -249,7 +284,9 @@ export default function AbsenceManagement() {
                   ) : (
                     <FiXCircle className="h-5 w-5 text-gray-600" />
                   )}
-                  <span className="text-xs font-semibold text-gray-600">Status</span>
+                  <span className="text-xs font-semibold text-gray-600">
+                    Status
+                  </span>
                 </div>
                 <div className="text-2xl font-bold text-black">
                   {isCurrentMonthEffective ? "Active" : "Inactive"}
@@ -262,9 +299,16 @@ export default function AbsenceManagement() {
           <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
               <div className="text-sm text-gray-600">
-                Current Month: {new Date().toLocaleDateString("en-US", { month: "long" })} - 
-                <span className={`ml-2 font-semibold ${isCurrentMonthEffective ? "text-green-600" : "text-red-600"}`}>
-                  {isCurrentMonthEffective ? "Deductions Active" : "Deductions Inactive"}
+                Current Month:{" "}
+                {new Date().toLocaleDateString("en-US", { month: "long" })} -
+                <span
+                  className={`ml-2 font-semibold ${
+                    isCurrentMonthEffective ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {isCurrentMonthEffective
+                    ? "Deductions Active"
+                    : "Deductions Inactive"}
                 </span>
               </div>
               <button
@@ -287,8 +331,12 @@ export default function AbsenceManagement() {
                 <FiSettings className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-black">Deduction Configuration</h2>
-                <p className="text-gray-600">Configure absence deduction settings</p>
+                <h2 className="text-2xl font-bold text-black">
+                  Deduction Configuration
+                </h2>
+                <p className="text-gray-600">
+                  Configure absence deduction settings
+                </p>
               </div>
             </div>
           </div>
@@ -309,7 +357,9 @@ export default function AbsenceManagement() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
                   disabled={loading}
                 />
-                <p className="text-xs text-gray-500 mt-2">Applied when teacher is absent for the entire day</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Applied when teacher is absent for the entire day
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-bold text-black mb-3">
@@ -324,18 +374,26 @@ export default function AbsenceManagement() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
                   disabled={loading}
                 />
-                <p className="text-xs text-gray-500 mt-2">Applied per missed time slot (30-minute periods)</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Applied per missed time slot (30-minute periods)
+                </p>
               </div>
               <div className="flex items-center justify-center">
                 <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 text-center w-full">
-                  <p className="text-sm font-medium text-gray-600 mb-3">Deduction Rates</p>
+                  <p className="text-sm font-medium text-gray-600 mb-3">
+                    Deduction Rates
+                  </p>
                   <div className="space-y-2">
                     <div className="bg-white rounded-lg p-3 border">
-                      <div className="text-lg font-bold text-black">{deductionAmount} ETB</div>
+                      <div className="text-lg font-bold text-black">
+                        {deductionAmount} ETB
+                      </div>
                       <p className="text-xs text-gray-500">Whole Day</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 border">
-                      <div className="text-lg font-bold text-black">{deductionPerTimeSlot} ETB</div>
+                      <div className="text-lg font-bold text-black">
+                        {deductionPerTimeSlot} ETB
+                      </div>
                       <p className="text-xs text-gray-500">Per Time Slot</p>
                     </div>
                   </div>
@@ -367,7 +425,9 @@ export default function AbsenceManagement() {
                         if (e.target.checked) {
                           setEffectiveMonths([...effectiveMonths, month.value]);
                         } else {
-                          setEffectiveMonths(effectiveMonths.filter((m) => m !== month.value));
+                          setEffectiveMonths(
+                            effectiveMonths.filter((m) => m !== month.value)
+                          );
                         }
                       }}
                       disabled={loading}
@@ -377,7 +437,8 @@ export default function AbsenceManagement() {
                 ))}
               </div>
               <p className="text-sm text-gray-500 mt-3">
-                Select months when deductions should be applied. No selection means deductions are inactive.
+                Select months when deductions should be applied. No selection
+                means deductions are inactive.
               </p>
             </div>
 
@@ -401,7 +462,8 @@ export default function AbsenceManagement() {
                       Exclude Sundays from absence deductions
                     </span>
                     <p className="text-xs text-gray-500 mt-1">
-                      When enabled, no deductions will be applied for Sunday absences as there are no scheduled classes
+                      When enabled, no deductions will be applied for Sunday
+                      absences as there are no scheduled classes
                     </p>
                   </div>
                 </label>
@@ -457,7 +519,11 @@ export default function AbsenceManagement() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
               <div className="flex items-center gap-4 mb-4">
-                <div className={`p-3 rounded-xl ${isCurrentMonthEffective ? "bg-green-100" : "bg-red-100"}`}>
+                <div
+                  className={`p-3 rounded-xl ${
+                    isCurrentMonthEffective ? "bg-green-100" : "bg-red-100"
+                  }`}
+                >
                   {isCurrentMonthEffective ? (
                     <FiCheckCircle className="h-6 w-6 text-green-600" />
                   ) : (
@@ -465,14 +531,22 @@ export default function AbsenceManagement() {
                   )}
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-black">Current Month</h3>
+                  <h3 className="text-xl font-bold text-black">
+                    Current Month
+                  </h3>
                   <p className="text-gray-600">
                     {new Date().toLocaleDateString("en-US", { month: "long" })}
                   </p>
                 </div>
               </div>
-              <div className={`text-sm font-semibold ${isCurrentMonthEffective ? "text-green-600" : "text-red-600"}`}>
-                {isCurrentMonthEffective ? "Deductions Active" : "Deductions Inactive"}
+              <div
+                className={`text-sm font-semibold ${
+                  isCurrentMonthEffective ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {isCurrentMonthEffective
+                  ? "Deductions Active"
+                  : "Deductions Inactive"}
               </div>
             </div>
 
@@ -482,11 +556,15 @@ export default function AbsenceManagement() {
                   <FiDollarSign className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-black">Deduction Rate</h3>
+                  <h3 className="text-xl font-bold text-black">
+                    Deduction Rate
+                  </h3>
                   <p className="text-gray-600">Per absence</p>
                 </div>
               </div>
-              <div className="text-2xl font-bold text-black">{deductionAmount} ETB</div>
+              <div className="text-2xl font-bold text-black">
+                {deductionAmount} ETB
+              </div>
             </div>
 
             <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
@@ -495,12 +573,172 @@ export default function AbsenceManagement() {
                   <FiClock className="h-6 w-6 text-purple-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-black">Effective Months</h3>
+                  <h3 className="text-xl font-bold text-black">
+                    Effective Months
+                  </h3>
                   <p className="text-gray-600">Active periods</p>
                 </div>
               </div>
               <div className="text-2xl font-bold text-black">
-                {effectiveMonths.length === 0 ? "Inactive" : `${effectiveMonths.length} Months`}
+                {effectiveMonths.length === 0
+                  ? "Inactive"
+                  : `${effectiveMonths.length} Months`}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Deduction Rules Explanation */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-blue-600 rounded-xl">
+              <FiInfo className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-black">
+                Absence Deduction Rules
+              </h2>
+              <p className="text-gray-600">
+                How and when absence deductions are calculated
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Deduction Logic */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
+              <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
+                <FiDollarSign className="h-5 w-5" />
+                Calculation Method
+              </h3>
+              <div className="space-y-4">
+                <div className="bg-white rounded-lg p-4 border border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-2">
+                    🚫 Whole Day Absence
+                  </h4>
+                  <p className="text-sm text-blue-700 mb-2">
+                    When teacher is absent for entire day or requests "Whole
+                    Day" permission
+                  </p>
+                  <div className="bg-blue-100 rounded-lg p-3">
+                    <code className="text-blue-900 font-mono text-sm">
+                      Deduction = {deductionAmount} ETB (Fixed Rate)
+                    </code>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg p-4 border border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-2">
+                    ⏰ Time Slot Absence
+                  </h4>
+                  <p className="text-sm text-blue-700 mb-2">
+                    When teacher misses specific time slots (30-min periods)
+                  </p>
+                  <div className="bg-blue-100 rounded-lg p-3">
+                    <code className="text-blue-900 font-mono text-sm">
+                      Deduction = {deductionPerTimeSlot} ETB × Number of Missed
+                      Slots
+                    </code>
+                  </div>
+                  <div className="mt-2 text-xs text-blue-600">
+                    <strong>Example:</strong> 3 missed slots ={" "}
+                    {deductionPerTimeSlot} × 3 ={" "}
+                    {parseInt(deductionPerTimeSlot) * 3} ETB
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* When Deductions Apply */}
+            <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-2xl p-6 border border-red-200">
+              <h3 className="text-lg font-bold text-red-900 mb-4 flex items-center gap-2">
+                <FiClock className="h-5 w-5" />
+                When Deductions Apply
+              </h3>
+              <div className="space-y-3">
+                <div className="bg-white rounded-lg p-3 border border-red-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span className="font-semibold text-red-800 text-sm">
+                      No Attendance Submitted
+                    </span>
+                  </div>
+                  <p className="text-xs text-red-700 ml-4">
+                    Teacher didn't submit attendance for scheduled classes
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-lg p-3 border border-red-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span className="font-semibold text-red-800 text-sm">
+                      No Approved Permission
+                    </span>
+                  </div>
+                  <p className="text-xs text-red-700 ml-4">
+                    No permission request or request was declined
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-lg p-3 border border-red-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span className="font-semibold text-red-800 text-sm">
+                      Partial Permission Coverage
+                    </span>
+                  </div>
+                  <p className="text-xs text-red-700 ml-4">
+                    Permission covers some but not all missed time slots
+                  </p>
+                </div>
+
+                <div className="bg-green-50 rounded-lg p-3 border border-green-200 mt-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="font-semibold text-green-800 text-sm">
+                      No Deduction When
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-700 ml-4">
+                    Approved permission covers all missed time slots
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Processing Schedule */}
+          <div className="mt-6 bg-gray-50 rounded-2xl p-6 border border-gray-200">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <FiRefreshCw className="h-5 w-5" />
+              Automatic Processing Schedule
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <h4 className="font-semibold text-gray-800 mb-2">
+                  📅 Daily Processing
+                </h4>
+                <p className="text-sm text-gray-600">
+                  System checks for missing attendance every day at midnight
+                </p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <h4 className="font-semibold text-gray-800 mb-2">
+                  🔍 Detection Method
+                </h4>
+                <p className="text-sm text-gray-600">
+                  Compares teacher schedule with submitted attendance and
+                  permissions
+                </p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <h4 className="font-semibold text-gray-800 mb-2">
+                  💰 Salary Impact
+                </h4>
+                <p className="text-sm text-gray-600">
+                  Deductions automatically applied to monthly salary
+                  calculations
+                </p>
               </div>
             </div>
           </div>
@@ -514,20 +752,28 @@ export default function AbsenceManagement() {
                 <FiUsers className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-black">Absence Records</h2>
-                <p className="text-gray-600">Recent teacher absence records with time slot details</p>
+                <h2 className="text-2xl font-bold text-black">
+                  Detailed Absence Records
+                </h2>
+                <p className="text-gray-600">
+                  Complete absence history with deduction breakdowns
+                </p>
               </div>
             </div>
           </div>
-          
+
           <div className="p-6 sm:p-8 lg:p-10">
             {absences.length === 0 ? (
               <div className="text-center py-12">
                 <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
                   <FiUsers className="h-16 w-16 text-gray-500" />
                 </div>
-                <h3 className="text-3xl font-bold text-black mb-4">No Absence Records</h3>
-                <p className="text-gray-600 text-xl">No absence records found for the current period.</p>
+                <h3 className="text-3xl font-bold text-black mb-4">
+                  No Absence Records
+                </h3>
+                <p className="text-gray-600 text-xl">
+                  No absence records found for the current period.
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -544,13 +790,13 @@ export default function AbsenceManagement() {
                         Time Slots
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
+                        Deduction Calculation
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
                         Status
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
-                        Deduction
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
-                        Reason
+                        Detection Method
                       </th>
                     </tr>
                   </thead>
@@ -558,18 +804,30 @@ export default function AbsenceManagement() {
                     {absences.slice(0, 20).map((absence, index) => {
                       let timeSlotsDisplay = "Full Day";
                       let slotsCount = 0;
+                      let calculationDisplay = "";
+                      let isWholeDay = false;
+
                       if (absence.timeSlots) {
                         try {
                           const slots = JSON.parse(absence.timeSlots);
-                          if (slots.includes('Whole Day')) {
+                          if (slots.includes("Whole Day")) {
                             timeSlotsDisplay = "🚫 Whole Day";
+                            calculationDisplay = `${deductionAmount} ETB (Fixed Rate)`;
+                            isWholeDay = true;
                           } else {
                             slotsCount = slots.length;
-                            timeSlotsDisplay = `⏰ ${slotsCount} Time Slot${slotsCount > 1 ? 's' : ''}`;
+                            timeSlotsDisplay = `⏰ ${slotsCount} Time Slot${
+                              slotsCount > 1 ? "s" : ""
+                            }`;
+                            calculationDisplay = `${deductionPerTimeSlot} ETB × ${slotsCount} = ${absence.deductionApplied} ETB`;
                           }
-                        } catch {}
+                        } catch {
+                          calculationDisplay = `${absence.deductionApplied} ETB (Legacy)`;
+                        }
+                      } else {
+                        calculationDisplay = `${absence.deductionApplied} ETB (Legacy)`;
                       }
-                      
+
                       return (
                         <tr
                           key={absence.id}
@@ -585,35 +843,111 @@ export default function AbsenceManagement() {
                                   .map((n: string) => n[0])
                                   .join("")}
                               </div>
-                              <span className="font-semibold text-black">
-                                {absence.wpos_wpdatatable_24.ustazname}
-                              </span>
+                              <div>
+                                <div className="font-semibold text-black">
+                                  {absence.wpos_wpdatatable_24.ustazname}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Detected:{" "}
+                                  {new Date(
+                                    absence.createdAt
+                                  ).toLocaleDateString()}
+                                </div>
+                              </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-gray-700">
-                            {new Date(absence.classDate).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 text-gray-700">
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {timeSlotsDisplay}
-                            </span>
+                          <td className="px-6 py-4">
+                            <div className="text-gray-700 font-medium">
+                              {new Date(absence.classDate).toLocaleDateString()}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(absence.classDate).toLocaleDateString(
+                                "en-US",
+                                { weekday: "long" }
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4">
-                            <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                                absence.permitted
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {absence.permitted ? "✅ Permitted" : "❌ Unpermitted"}
-                            </span>
+                            <div className="space-y-1">
+                              <span
+                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                  isWholeDay
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-blue-100 text-blue-800"
+                                }`}
+                              >
+                                {timeSlotsDisplay}
+                              </span>
+                              {absence.timeSlots &&
+                                !isWholeDay &&
+                                (() => {
+                                  try {
+                                    const slots = JSON.parse(absence.timeSlots);
+                                    return (
+                                      <div className="text-xs text-gray-500">
+                                        {slots.slice(0, 2).join(", ")}
+                                        {slots.length > 2 &&
+                                          ` +${slots.length - 2} more`}
+                                      </div>
+                                    );
+                                  } catch {
+                                    return null;
+                                  }
+                                })()}
+                            </div>
                           </td>
-                          <td className="px-6 py-4 text-gray-700 font-semibold">
-                            {absence.deductionApplied} ETB
+                          <td className="px-6 py-4">
+                            <div className="space-y-1">
+                              <div className="font-semibold text-gray-900">
+                                {absence.deductionApplied} ETB
+                              </div>
+                              <div className="text-xs text-gray-500 font-mono">
+                                {calculationDisplay}
+                              </div>
+                            </div>
                           </td>
-                          <td className="px-6 py-4 text-gray-700">
-                            {absence.permissionrequest?.reasonCategory || "No permission"}
+                          <td className="px-6 py-4">
+                            <div className="space-y-1">
+                              <span
+                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                  absence.permitted
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {absence.permitted
+                                  ? "✅ Permitted"
+                                  : "❌ Unpermitted"}
+                              </span>
+                              {absence.permissionrequest?.reasonCategory && (
+                                <div className="text-xs text-gray-500">
+                                  {absence.permissionrequest.reasonCategory}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="space-y-1">
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  absence.reviewedByManager
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                                }`}
+                              >
+                                {absence.reviewedByManager
+                                  ? "🤖 Auto-Detected"
+                                  : "👁️ Manual Review"}
+                              </span>
+                              {absence.reviewNotes && (
+                                <div
+                                  className="text-xs text-gray-500 max-w-xs truncate"
+                                  title={absence.reviewNotes}
+                                >
+                                  {absence.reviewNotes}
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );

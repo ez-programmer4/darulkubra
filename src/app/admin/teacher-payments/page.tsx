@@ -1600,9 +1600,23 @@ export default function TeacherPaymentsPage() {
                         </ul>
                       )}
 
-                      <div className="mb-4 font-semibold text-black flex items-center gap-2">
-                        <FiAlertTriangle className="text-yellow-500 h-5 w-5" />{" "}
-                        Absence Records
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <FiAlertTriangle className="text-yellow-500 h-5 w-5" />
+                            <span className="font-semibold text-black">Absence Records</span>
+                          </div>
+                          {breakdown.absenceRecords?.length > 0 && (
+                            <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-200">
+                              <div className="text-sm font-semibold text-red-800">
+                                Total Deduction: {breakdown.absenceRecords.reduce((sum: number, r: any) => sum + r.deductionApplied, 0)} ETB
+                              </div>
+                              <div className="text-xs text-red-600">
+                                {breakdown.absenceRecords.length} absence record{breakdown.absenceRecords.length > 1 ? 's' : ''}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       {breakdown.absenceRecords?.length === 0 ? (
                         <div className="text-gray-500 mb-4">
@@ -1626,47 +1640,101 @@ export default function TeacherPaymentsPage() {
                             }
                             
                             return (
-                              <li key={r.id} className="bg-white p-3 rounded-lg border border-gray-200">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <span className="font-mono text-sm text-gray-600">
-                                    {new Date(r.classDate).toLocaleDateString()}
-                                  </span>
-                                  <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-semibold text-xs">
-                                    {timeSlotsInfo}
-                                  </span>
-                                  <span
-                                    className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
-                                      r.permitted
-                                        ? "bg-green-100 text-green-700"
-                                        : "bg-red-100 text-red-700"
-                                    }`}
-                                  >
-                                    {r.permitted ? "Permitted" : "Unpermitted"}
-                                  </span>
-                                  <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs">
-                                    -{r.deductionApplied} ETB
-                                  </span>
-                                </div>
-                                {r.timeSlots && (() => {
-                                  try {
-                                    const slots = JSON.parse(r.timeSlots);
-                                    if (!slots.includes('Whole Day') && slots.length > 0) {
-                                      return (
-                                        <div className="text-xs text-gray-600 ml-2">
-                                          <span className="font-medium">Affected slots: </span>
-                                          {slots.slice(0, 3).join(', ')}
-                                          {slots.length > 3 && ` +${slots.length - 3} more`}
-                                        </div>
-                                      );
-                                    }
-                                  } catch {}
-                                  return null;
-                                })()}
-                                {r.reviewNotes && (
-                                  <div className="text-xs text-gray-500 mt-1 ml-2">
-                                    Note: {r.reviewNotes}
+                              <li key={r.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-all">
+                                <div className="flex flex-col space-y-3">
+                                  {/* Header Row */}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <span className="font-mono text-sm font-semibold text-gray-800">
+                                        {new Date(r.classDate).toLocaleDateString()}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(r.classDate).toLocaleDateString('en-US', { weekday: 'long' })}
+                                      </span>
+                                    </div>
+                                    <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-bold text-sm">
+                                      -{r.deductionApplied} ETB
+                                    </span>
                                   </div>
-                                )}
+                                  
+                                  {/* Time Slots & Status Row */}
+                                  <div className="flex items-center gap-3 flex-wrap">
+                                    <span className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
+                                      timeSlotsInfo.includes('Whole Day') ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      {timeSlotsInfo}
+                                    </span>
+                                    <span
+                                      className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
+                                        r.permitted
+                                          ? "bg-green-100 text-green-700"
+                                          : "bg-red-100 text-red-700"
+                                      }`}
+                                    >
+                                      {r.permitted ? "✅ Permitted" : "❌ Unpermitted"}
+                                    </span>
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                      r.reviewedByManager ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                      {r.reviewedByManager ? '🤖 Auto-Detected' : '👁️ Manual Review'}
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Calculation Details */}
+                                  {(() => {
+                                    let calculationDisplay = "";
+                                    if (r.timeSlots) {
+                                      try {
+                                        const slots = JSON.parse(r.timeSlots);
+                                        if (slots.includes('Whole Day')) {
+                                          calculationDisplay = `Whole Day Deduction: ${r.deductionApplied} ETB (Fixed Rate)`;
+                                        } else {
+                                          const perSlotRate = Math.round(r.deductionApplied / slots.length);
+                                          calculationDisplay = `Time Slot Deduction: ${perSlotRate} ETB × ${slots.length} slots = ${r.deductionApplied} ETB`;
+                                        }
+                                      } catch {
+                                        calculationDisplay = `Legacy Calculation: ${r.deductionApplied} ETB`;
+                                      }
+                                    } else {
+                                      calculationDisplay = `Legacy Calculation: ${r.deductionApplied} ETB`;
+                                    }
+                                    
+                                    return (
+                                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                        <div className="text-xs font-mono text-gray-700 mb-2">
+                                          {calculationDisplay}
+                                        </div>
+                                        {r.timeSlots && (() => {
+                                          try {
+                                            const slots = JSON.parse(r.timeSlots);
+                                            if (!slots.includes('Whole Day') && slots.length > 0) {
+                                              return (
+                                                <div className="text-xs text-gray-600">
+                                                  <span className="font-medium">Affected time slots: </span>
+                                                  <span className="font-mono">
+                                                    {slots.slice(0, 2).join(', ')}
+                                                    {slots.length > 2 && ` +${slots.length - 2} more`}
+                                                  </span>
+                                                </div>
+                                              );
+                                            }
+                                          } catch {}
+                                          return null;
+                                        })()}
+                                      </div>
+                                    );
+                                  })()}
+                                  
+                                  {/* Review Notes */}
+                                  {r.reviewNotes && (
+                                    <div className="bg-yellow-50 rounded-lg p-2 border border-yellow-200">
+                                      <div className="text-xs text-yellow-800">
+                                        <span className="font-medium">Admin Note: </span>
+                                        {r.reviewNotes}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                               </li>
                             );
                           })}

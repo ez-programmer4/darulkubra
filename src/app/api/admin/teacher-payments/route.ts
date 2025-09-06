@@ -170,6 +170,14 @@ export async function GET(req: NextRequest) {
             teacherId,
             classDate: { gte: fromDate, lte: toDate },
           },
+          include: {
+            permissionrequest: {
+              select: {
+                reasonCategory: true,
+                timeSlots: true
+              }
+            }
+          },
           orderBy: { classDate: "asc" },
         });
         bonusRecords = await prisma.bonusrecord.findMany({
@@ -204,15 +212,50 @@ export async function GET(req: NextRequest) {
         if (existingAbsenceDates.has(dateKey)) continue;
         const res = await isTeacherAbsent(teacherId as string, new Date(d));
         if (res.isAbsent) {
+          // Calculate time-slot based deduction for computed absences
+          const timeSlotDeductionConfig = await prisma.deductionbonusconfig.findFirst({
+            where: { configType: "absence", key: "deduction_per_time_slot" },
+          });
+          const deductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
+          
+          // Get teacher's time slots for this day
+          const dayName = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
+          const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+            where: { ustaz_id: teacherId as string },
+            include: {
+              student: {
+                select: { daypackages: true }
+              }
+            }
+          });
+          
+          const dayTimeSlots = occupiedTimes.filter(ot => {
+            const studentDayPackages = ot.student.daypackages;
+            return studentDayPackages && (
+              studentDayPackages.includes('All days') || 
+              studentDayPackages.includes(dayName)
+            );
+          });
+          
+          let calculatedDeduction = absenceDeductionAmount;
+          let timeSlots = null;
+          
+          if (dayTimeSlots.length > 0) {
+            const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
+            calculatedDeduction = deductionPerTimeSlot * uniqueTimeSlots.length;
+            timeSlots = JSON.stringify(uniqueTimeSlots);
+          }
+          
           computedAbsences.push({
             id: 0,
             teacherId,
             classDate: new Date(d),
+            timeSlots,
             permitted: false,
             permissionRequestId: null,
-            deductionApplied: absenceDeductionAmount,
-            reviewedByManager: false,
-            reviewNotes: "Auto-detected absence (no record)",
+            deductionApplied: calculatedDeduction,
+            reviewedByManager: true,
+            reviewNotes: `Auto-detected absence - ${dayTimeSlots.length > 0 ? `${dayTimeSlots.length} time slots` : 'whole day'}`,
           });
         }
       }
@@ -486,10 +529,15 @@ export async function GET(req: NextRequest) {
             latenessDeduction += deductionApplied;
           }
         }
-        // Absence deduction: calculate automatically using centralized logic
+        // Enhanced absence deduction with time slot support
         let absenceDeduction = 0;
-        // Skip absence calculation if teacher has no students
         if (numStudents > 0) {
+          // Get time slot deduction config
+          const timeSlotDeductionConfig = await prisma.deductionbonusconfig.findFirst({
+            where: { configType: "absence", key: "deduction_per_time_slot" },
+          });
+          const deductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
+          
           for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
             const monthNumber = String(d.getMonth() + 1);
             if (
@@ -498,9 +546,54 @@ export async function GET(req: NextRequest) {
             ) {
               continue;
             }
-            const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
-            if (absenceResult.isAbsent) {
-              absenceDeduction += absenceConfig.deductionAmount;
+            
+            // Check for existing absence record first
+            const existingAbsence = await prisma.absencerecord.findFirst({
+              where: {
+                teacherId: t.ustazid,
+                classDate: {
+                  gte: new Date(d.getFullYear(), d.getMonth(), d.getDate()),
+                  lt: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
+                }
+              }
+            });
+            
+            if (existingAbsence) {
+              // Use existing calculated deduction
+              absenceDeduction += existingAbsence.deductionApplied;
+            } else {
+              // Calculate new absence if detected
+              const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
+              if (absenceResult.isAbsent) {
+                // Get teacher's time slots for this day to calculate proper deduction
+                const dayName = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
+                const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+                  where: { ustaz_id: t.ustazid },
+                  include: {
+                    student: {
+                      select: { daypackages: true }
+                    }
+                  }
+                });
+                
+                const dayTimeSlots = occupiedTimes.filter(ot => {
+                  const studentDayPackages = ot.student.daypackages;
+                  return studentDayPackages && (
+                    studentDayPackages.includes('All days') || 
+                    studentDayPackages.includes(dayName)
+                  );
+                });
+                
+                if (dayTimeSlots.length > 0) {
+                  const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
+                  // Calculate deduction based on number of time slots
+                  const dailyDeduction = deductionPerTimeSlot * uniqueTimeSlots.length;
+                  absenceDeduction += dailyDeduction;
+                } else {
+                  // Fallback to whole day deduction if no time slots found
+                  absenceDeduction += absenceConfig.deductionAmount;
+                }
+              }
             }
           }
         }
