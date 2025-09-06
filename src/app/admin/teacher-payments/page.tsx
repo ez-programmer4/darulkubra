@@ -1089,6 +1089,49 @@ export default function TeacherPaymentsPage() {
                         <FiAward className="h-4 w-4" />
                         Analytics Report
                       </button>
+                      
+                      <button
+                        onClick={async () => {
+                          setShowReportOptions(false);
+                          try {
+                            const { from, to } = getMonthRange(selectedYear, selectedMonth);
+                            const response = await fetch('/api/admin/teacher-payments/financial', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                startDate: from.toISOString(),
+                                endDate: to.toISOString(),
+                                teachersData: filteredTeachers
+                              })
+                            });
+                            
+                            if (response.ok) {
+                              const html = await response.text();
+                              const newWindow = window.open('', '_blank');
+                              if (newWindow) {
+                                newWindow.document.write(html);
+                                newWindow.document.close();
+                              }
+                              toast({
+                                title: "Success",
+                                description: "Financial board report generated successfully!"
+                              });
+                            } else {
+                              throw new Error('Failed to generate financial report');
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to generate financial report",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                      >
+                        <FiDollarSign className="h-4 w-4" />
+                        Financial Board Report
+                      </button>
                     </div>
                   )}
                 </div>

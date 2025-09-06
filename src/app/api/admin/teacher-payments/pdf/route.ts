@@ -198,17 +198,115 @@ export async function POST(req: NextRequest) {
             border-left: 4px solid #667eea;
         }
         .breakdown-item {
-            background: white;
-            margin: 10px 0;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 3px solid #28a745;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            margin: 15px 0;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #28a745;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+        .breakdown-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
         }
         .breakdown-item.deduction {
             border-left-color: #dc3545;
+            background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 20%, #ffffff 100%);
         }
         .breakdown-item.bonus {
             border-left-color: #ffc107;
+            background: linear-gradient(135deg, #fffbf0 0%, #fef5e7 20%, #ffffff 100%);
+        }
+        .breakdown-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .breakdown-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .breakdown-total {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .record-item {
+            background: #ffffff;
+            margin: 8px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+        .record-item:hover {
+            background: #f8f9fa;
+            border-color: #667eea;
+        }
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .record-date {
+            font-weight: bold;
+            color: #495057;
+            font-size: 0.95em;
+        }
+        .record-amount {
+            background: #dc3545;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 0.85em;
+        }
+        .record-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .detail-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-lateness { background: #fff3cd; color: #856404; }
+        .badge-tier { background: #cce5ff; color: #004085; }
+        .badge-student { background: #d4edda; color: #155724; }
+        .badge-permitted { background: #d1ecf1; color: #0c5460; }
+        .badge-unpermitted { background: #f8d7da; color: #721c24; }
+        .calculation-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+        .time-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 8px;
+            font-size: 0.8em;
+            color: #6c757d;
         }
         .package-breakdown {
             display: grid;
@@ -328,59 +426,165 @@ export async function POST(req: NextRequest) {
                                     
                                     ${teacher.breakdown.latenessRecords?.length > 0 ? `
                                     <div class="breakdown-item deduction">
-                                        <h5>⏰ Lateness Records (${teacher.breakdown.latenessRecords.length} incidents)</h5>
+                                        <div class="breakdown-header">
+                                            <div class="breakdown-title">
+                                                ⏰ Lateness Records
+                                                <span style="font-size: 0.8em; color: #6c757d;">(${teacher.breakdown.latenessRecords.length} incidents)</span>
+                                            </div>
+                                            <div class="breakdown-total">
+                                                -${teacher.breakdown.latenessRecords.reduce((sum: number, r: any) => sum + r.deductionApplied, 0)} ETB
+                                            </div>
+                                        </div>
                                         ${teacher.breakdown.latenessRecords.map((record: any) => `
-                                            <div style="margin: 8px 0; padding: 8px; background: #fff3cd; border-radius: 4px;">
-                                                📅 ${new Date(record.classDate).toLocaleDateString()} - 
-                                                👤 ${record.studentName || 'N/A'} - 
-                                                ⏱️ ${record.latenessMinutes} min late - 
-                                                💰 ${record.deductionApplied} ETB (${record.deductionTier})
+                                            <div class="record-item">
+                                                <div class="record-header">
+                                                    <div class="record-date">
+                                                        📅 ${new Date(record.classDate).toLocaleDateString()}
+                                                        <span style="font-size: 0.8em; color: #6c757d; margin-left: 8px;">
+                                                            ${new Date(record.classDate).toLocaleDateString('en-US', { weekday: 'long' })}
+                                                        </span>
+                                                    </div>
+                                                    <div class="record-amount">-${record.deductionApplied} ETB</div>
+                                                </div>
+                                                <div class="record-details">
+                                                    <span class="detail-badge badge-lateness">⏱️ ${record.latenessMinutes} min late</span>
+                                                    <span class="detail-badge badge-tier">📊 ${record.deductionTier}</span>
+                                                    ${record.studentName ? `<span class="detail-badge badge-student">👤 ${record.studentName}</span>` : ''}
+                                                </div>
+                                                ${record.scheduledTime && record.actualStartTime ? `
+                                                <div class="calculation-box">
+                                                    <div style="font-weight: bold; margin-bottom: 8px;">⚙️ Calculation Details</div>
+                                                    <div>Base Amount × Tier Percentage = ${record.deductionApplied} ETB</div>
+                                                    <div class="time-info">
+                                                        <div><strong>Scheduled:</strong> ${new Date(record.scheduledTime).toLocaleTimeString()}</div>
+                                                        <div><strong>Actual Start:</strong> ${new Date(record.actualStartTime).toLocaleTimeString()}</div>
+                                                    </div>
+                                                </div>
+                                                ` : ''}
                                             </div>
                                         `).join('')}
-                                        <strong>Total Lateness Deduction: ${teacher.breakdown.latenessRecords.reduce((sum: number, r: any) => sum + r.deductionApplied, 0)} ETB</strong>
                                     </div>
                                     ` : ''}
                                     
                                     ${teacher.breakdown.absenceRecords?.length > 0 ? `
                                     <div class="breakdown-item deduction">
-                                        <h5>🚫 Absence Records (${teacher.breakdown.absenceRecords.length} days)</h5>
+                                        <div class="breakdown-header">
+                                            <div class="breakdown-title">
+                                                🚫 Absence Records
+                                                <span style="font-size: 0.8em; color: #6c757d;">(${teacher.breakdown.absenceRecords.length} days)</span>
+                                            </div>
+                                            <div class="breakdown-total">
+                                                -${teacher.breakdown.absenceRecords.reduce((sum: number, r: any) => sum + r.deductionApplied, 0)} ETB
+                                            </div>
+                                        </div>
                                         ${teacher.breakdown.absenceRecords.map((record: any) => {
                                             let timeSlotsInfo = 'Full Day';
+                                            let slotsCount = 0;
                                             if (record.timeSlots) {
                                                 try {
                                                     const slots = JSON.parse(record.timeSlots);
                                                     if (slots.includes('Whole Day')) {
-                                                        timeSlotsInfo = 'Whole Day';
+                                                        timeSlotsInfo = '🚫 Whole Day';
                                                     } else {
-                                                        timeSlotsInfo = `${slots.length} Time Slots`;
+                                                        slotsCount = slots.length;
+                                                        timeSlotsInfo = `⏰ ${slotsCount} Time Slot${slotsCount > 1 ? 's' : ''}`;
                                                     }
                                                 } catch {}
                                             }
                                             return `
-                                            <div style="margin: 8px 0; padding: 8px; background: #f8d7da; border-radius: 4px;">
-                                                📅 ${new Date(record.classDate).toLocaleDateString()} - 
-                                                ⏰ ${timeSlotsInfo} - 
-                                                ${record.permitted ? '✅ Permitted' : '❌ Unpermitted'} - 
-                                                💰 ${record.deductionApplied} ETB
-                                                ${record.reviewNotes ? `<br><small>📝 ${record.reviewNotes}</small>` : ''}
+                                            <div class="record-item">
+                                                <div class="record-header">
+                                                    <div class="record-date">
+                                                        📅 ${new Date(record.classDate).toLocaleDateString()}
+                                                        <span style="font-size: 0.8em; color: #6c757d; margin-left: 8px;">
+                                                            ${new Date(record.classDate).toLocaleDateString('en-US', { weekday: 'long' })}
+                                                        </span>
+                                                    </div>
+                                                    <div class="record-amount">-${record.deductionApplied} ETB</div>
+                                                </div>
+                                                <div class="record-details">
+                                                    <span class="detail-badge ${timeSlotsInfo.includes('Whole Day') ? 'badge-unpermitted' : 'badge-lateness'}">${timeSlotsInfo}</span>
+                                                    <span class="detail-badge ${record.permitted ? 'badge-permitted' : 'badge-unpermitted'}">
+                                                        ${record.permitted ? '✅ Permitted' : '❌ Unpermitted'}
+                                                    </span>
+                                                    <span class="detail-badge badge-tier">
+                                                        ${record.reviewedByManager ? '🤖 Auto-Detected' : '👁️ Manual Review'}
+                                                    </span>
+                                                </div>
+                                                ${(() => {
+                                                    let calculationDisplay = "";
+                                                    if (record.timeSlots) {
+                                                        try {
+                                                            const slots = JSON.parse(record.timeSlots);
+                                                            if (slots.includes('Whole Day')) {
+                                                                calculationDisplay = `Whole Day Deduction: ${record.deductionApplied} ETB (Fixed Rate)`;
+                                                            } else {
+                                                                const perSlotRate = Math.round(record.deductionApplied / slots.length);
+                                                                calculationDisplay = `Time Slot Deduction: ${perSlotRate} ETB × ${slots.length} slots = ${record.deductionApplied} ETB`;
+                                                            }
+                                                        } catch {
+                                                            calculationDisplay = `Legacy Calculation: ${record.deductionApplied} ETB`;
+                                                        }
+                                                    } else {
+                                                        calculationDisplay = `Legacy Calculation: ${record.deductionApplied} ETB`;
+                                                    }
+                                                    return `
+                                                    <div class="calculation-box">
+                                                        <div style="font-weight: bold; margin-bottom: 8px;">⚙️ Calculation Details</div>
+                                                        <div>${calculationDisplay}</div>
+                                                        ${record.timeSlots && (() => {
+                                                            try {
+                                                                const slots = JSON.parse(record.timeSlots);
+                                                                if (!slots.includes('Whole Day') && slots.length > 0) {
+                                                                    return `
+                                                                    <div style="margin-top: 8px; font-size: 0.9em; color: #6c757d;">
+                                                                        <strong>Affected time slots:</strong> ${slots.slice(0, 2).join(', ')}${slots.length > 2 ? ` +${slots.length - 2} more` : ''}
+                                                                    </div>
+                                                                    `;
+                                                                }
+                                                            } catch {}
+                                                            return '';
+                                                        })()}
+                                                    </div>
+                                                    `;
+                                                })()}
+                                                ${record.reviewNotes ? `
+                                                <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 10px; margin-top: 10px;">
+                                                    <div style="font-size: 0.85em; color: #856404;">
+                                                        <strong>📝 Admin Note:</strong> ${record.reviewNotes}
+                                                    </div>
+                                                </div>
+                                                ` : ''}
                                             </div>
                                             `;
                                         }).join('')}
-                                        <strong>Total Absence Deduction: ${teacher.breakdown.absenceRecords.reduce((sum: number, r: any) => sum + r.deductionApplied, 0)} ETB</strong>
                                     </div>
                                     ` : ''}
                                     
                                     ${teacher.breakdown.bonusRecords?.length > 0 ? `
                                     <div class="breakdown-item bonus">
-                                        <h5>🏆 Bonus Records (${teacher.breakdown.bonusRecords.length} awards)</h5>
+                                        <div class="breakdown-header">
+                                            <div class="breakdown-title">
+                                                🏆 Bonus Records
+                                                <span style="font-size: 0.8em; color: #6c757d;">(${teacher.breakdown.bonusRecords.length} awards)</span>
+                                            </div>
+                                            <div class="breakdown-total" style="background: #28a745;">
+                                                +${teacher.breakdown.bonusRecords.reduce((sum: number, r: any) => sum + r.amount, 0)} ETB
+                                            </div>
+                                        </div>
                                         ${teacher.breakdown.bonusRecords.map((record: any) => `
-                                            <div style="margin: 8px 0; padding: 8px; background: #d4edda; border-radius: 4px;">
-                                                📅 ${new Date(record.createdAt).toLocaleDateString()} - 
-                                                💰 +${record.amount} ETB - 
-                                                📝 ${record.reason}
+                                            <div class="record-item">
+                                                <div class="record-header">
+                                                    <div class="record-date">
+                                                        📅 ${new Date(record.createdAt).toLocaleDateString()}
+                                                    </div>
+                                                    <div class="record-amount" style="background: #28a745;">+${record.amount} ETB</div>
+                                                </div>
+                                                <div style="margin-top: 8px; padding: 10px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #28a745;">
+                                                    <div style="font-weight: 600; color: #495057;">📝 ${record.reason}</div>
+                                                </div>
                                             </div>
                                         `).join('')}
-                                        <strong>Total Bonuses: ${teacher.breakdown.bonusRecords.reduce((sum: number, r: any) => sum + r.amount, 0)} ETB</strong>
                                     </div>
                                     ` : ''}
                                 </div>
