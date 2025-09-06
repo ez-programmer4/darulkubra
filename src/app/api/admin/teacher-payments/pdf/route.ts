@@ -555,6 +555,13 @@ export async function POST(req: NextRequest) {
                                                     </div>
                                                 </div>
                                                 ` : ''}
+                                                ${record.deductionApplied === 0 && record.reviewNotes?.includes('System Issue') ? `
+                                                <div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 6px; padding: 8px; margin-top: 8px;">
+                                                    <div style="font-size: 0.8em; color: #0c5460; font-weight: 600;">
+                                                        ✅ ADJUSTED: Deduction waived due to system issue
+                                                    </div>
+                                                </div>
+                                                ` : ''}
                                             </div>
                                             `;
                                         }).join('')}

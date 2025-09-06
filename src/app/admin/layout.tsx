@@ -52,6 +52,11 @@ const navItems = [
     icon: FileText,
   },
   { href: "/admin/settings", label: "Settings", icon: Settings },
+  {
+    href: "/admin/deduction-adjustments",
+    label: "Deduction Adjustment",
+    icon: Calendar,
+  },
 ];
 
 const SidebarContent = () => {

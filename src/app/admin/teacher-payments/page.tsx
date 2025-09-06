@@ -804,6 +804,48 @@ export default function TeacherPaymentsPage() {
                 </div>
               </div>
 
+              {/* System Issue Management */}
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-400/20 via-red-400/20 to-pink-400/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+
+                <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-orange-200/50 p-6 hover:shadow-2xl transition-all duration-300">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-orange-600 to-red-700 rounded-xl blur-sm"></div>
+                      <div className="relative p-3 bg-gradient-to-br from-orange-600 to-red-700 rounded-xl shadow-lg">
+                        <FiAlertTriangle className="h-6 w-6 text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-orange-800 to-red-900 bg-clip-text text-transparent">
+                        System Issue Management
+                      </h3>
+                      <p className="text-orange-700 text-sm">
+                        Handle deductions affected by system problems
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                      onClick={() => window.open('/admin/system-incidents', '_blank')}
+                      className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
+                    >
+                      <FiAlertTriangle className="h-4 w-4" />
+                      Manage System Incidents
+                    </button>
+                    
+                    <button
+                      onClick={() => window.open('/admin/deduction-adjustments', '_blank')}
+                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
+                    >
+                      <FiX className="h-4 w-4" />
+                      Adjust Deductions
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Salary Visibility Config */}
               <div className="relative group">
                 {/* Animated background */}
