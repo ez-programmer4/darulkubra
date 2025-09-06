@@ -139,14 +139,41 @@ export default function LatenessDeductionConfigManager() {
   }
 
   return (
-    <section className="mb-10 bg-white rounded-xl shadow p-6 border-l-4 border-blue-500">
-      <h2 className="text-2xl font-bold text-blue-800 mb-4 flex items-center gap-2">
-        <FiClock /> Lateness Deduction Rules
-      </h2>
-      <p className="mb-6 text-gray-600 text-sm">
-        Configure lateness deduction tiers and excused thresholds. These rules
-        determine how much is deducted from the daily rate based on lateness.
-      </p>
+    <section className="mb-10">
+      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200 mb-6">
+        <h2 className="text-2xl font-bold text-purple-900 mb-4 flex items-center gap-2">
+          <FiClock className="h-6 w-6" /> Unlimited Deduction Tiers
+        </h2>
+        <p className="text-purple-700 text-sm mb-4">
+          Create unlimited custom deduction tiers with flexible minute ranges and percentage-based calculations. No more hardcoded limits!
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg p-4 border border-purple-200">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="font-semibold text-green-800 text-sm">✅ Unlimited Tiers</span>
+            </div>
+            <p className="text-xs text-green-700">Add as many deduction tiers as needed</p>
+          </div>
+          
+          <div className="bg-white rounded-lg p-4 border border-purple-200">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span className="font-semibold text-blue-800 text-sm">🎯 Percentage Based</span>
+            </div>
+            <p className="text-xs text-blue-700">Set deduction as % of base amount</p>
+          </div>
+          
+          <div className="bg-white rounded-lg p-4 border border-purple-200">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <span className="font-semibold text-orange-800 text-sm">⚡ Real-time</span>
+            </div>
+            <p className="text-xs text-orange-700">Changes apply immediately</p>
+          </div>
+        </div>
+      </div>
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded flex items-center gap-2">
           <FiX /> {error}
@@ -157,126 +184,164 @@ export default function LatenessDeductionConfigManager() {
           <FiCheck /> {success}
         </div>
       )}
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 mb-8">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <FiPlus className="h-5 w-5" />
+          {editingId ? 'Edit Deduction Tier' : 'Add New Deduction Tier'}
+        </h3>
+        
       <form
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
       >
-        <div className="space-y-3">
-          <label className="block text-sm font-semibold text-gray-700">
-            Excused Lateness Threshold (min)
-            <input
-              type="number"
-              name="excusedThreshold"
-              min={0}
-              value={form.excusedThreshold}
-              onChange={handleInputChange}
-              className="mt-1 w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-              required
-            />
-          </label>
-          <label className="block text-sm font-semibold text-gray-700">
-            Tier
-            <input
-              type="number"
-              name="tier"
-              min={1}
-              value={form.tier}
-              onChange={handleInputChange}
-              className="mt-1 w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-              required
-            />
-          </label>
-          <label className="block text-sm font-semibold text-gray-700">
-            Start Minute (inclusive)
-            <input
-              type="number"
-              name="startMinute"
-              min={0}
-              value={form.startMinute}
-              onChange={handleInputChange}
-              className="mt-1 w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-              required
-            />
-          </label>
-          <label className="block text-sm font-semibold text-gray-700">
-            End Minute (inclusive)
-            <input
-              type="number"
-              name="endMinute"
-              min={0}
-              value={form.endMinute}
-              onChange={handleInputChange}
-              className="mt-1 w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-              required
-            />
-          </label>
-        </div>
-        <div className="space-y-3">
-          <label className="block text-sm font-semibold text-gray-700">
-            Deduction Percentage (%)
-            <input
-              type="number"
-              name="deductionPercent"
-              min={0}
-              max={100}
-              value={form.deductionPercent}
-              onChange={handleInputChange}
-              className="mt-1 w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-              required
-            />
-          </label>
-          <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
-            Global Rule
-            <input
-              type="checkbox"
-              name="isGlobal"
-              checked={form.isGlobal}
-              onChange={handleInputChange}
-              className="ml-2 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <span className="text-xs text-gray-500">
-              (If unchecked, applies to a specific teacher)
-            </span>
-          </label>
-          {!form.isGlobal && (
-            <label className="block text-sm font-semibold text-gray-700">
-              Teacher ID
+        <div className="space-y-4">
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <h4 className="font-semibold text-blue-900 mb-3">Basic Configuration</h4>
+            
+            <label className="block text-sm font-bold text-blue-800 mb-3">
+              Grace Period (minutes)
               <input
-                type="text"
-                name="teacherId"
-                value={form.teacherId}
+                type="number"
+                name="excusedThreshold"
+                min={0}
+                max={60}
+                value={form.excusedThreshold}
                 onChange={handleInputChange}
-                className="mt-1 w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                className="mt-1 w-full border-2 border-blue-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                required
               />
+              <span className="text-xs text-blue-600 mt-1 block">Lateness under this threshold is excused</span>
             </label>
-          )}
-          <div className="flex gap-3 mt-4">
+            
+            <label className="block text-sm font-bold text-blue-800">
+              Tier Number
+              <input
+                type="number"
+                name="tier"
+                min={1}
+                value={form.tier}
+                onChange={handleInputChange}
+                className="mt-1 w-full border-2 border-blue-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                required
+              />
+              <span className="text-xs text-blue-600 mt-1 block">Tier ordering (1, 2, 3, etc.)</span>
+            </label>
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+            <h4 className="font-semibold text-green-900 mb-3">Time Range</h4>
+            
+            <label className="block text-sm font-bold text-green-800 mb-3">
+              Start Minute (inclusive)
+              <input
+                type="number"
+                name="startMinute"
+                min={0}
+                value={form.startMinute}
+                onChange={handleInputChange}
+                className="mt-1 w-full border-2 border-green-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                required
+              />
+              <span className="text-xs text-green-600 mt-1 block">Minimum lateness for this tier</span>
+            </label>
+            
+            <label className="block text-sm font-bold text-green-800">
+              End Minute (inclusive)
+              <input
+                type="number"
+                name="endMinute"
+                min={0}
+                value={form.endMinute}
+                onChange={handleInputChange}
+                className="mt-1 w-full border-2 border-green-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                required
+              />
+              <span className="text-xs text-green-600 mt-1 block">Maximum lateness for this tier (use 999 for unlimited)</span>
+            </label>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+            <h4 className="font-semibold text-purple-900 mb-3">Deduction & Scope</h4>
+            
+            <label className="block text-sm font-bold text-purple-800 mb-3">
+              Deduction Percentage (%)
+              <input
+                type="number"
+                name="deductionPercent"
+                min={0}
+                max={200}
+                step="0.1"
+                value={form.deductionPercent}
+                onChange={handleInputChange}
+                className="mt-1 w-full border-2 border-purple-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                required
+              />
+              <span className="text-xs text-purple-600 mt-1 block">Percentage of base deduction amount (can exceed 100%)</span>
+            </label>
+            
+            <div className="bg-white rounded-lg p-3 border border-purple-200">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="isGlobal"
+                  checked={form.isGlobal}
+                  onChange={handleInputChange}
+                  className="h-5 w-5 text-purple-600 border-purple-300 rounded focus:ring-purple-500"
+                />
+                <div>
+                  <span className="text-sm font-semibold text-purple-800">Global Rule</span>
+                  <p className="text-xs text-purple-600">Apply to all teachers (uncheck for specific teacher)</p>
+                </div>
+              </label>
+            </div>
+            
+            {!form.isGlobal && (
+              <label className="block text-sm font-bold text-purple-800 mt-3">
+                Teacher ID
+                <input
+                  type="text"
+                  name="teacherId"
+                  value={form.teacherId}
+                  onChange={handleInputChange}
+                  className="mt-1 w-full border-2 border-purple-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                  placeholder="Enter specific teacher ID"
+                />
+                <span className="text-xs text-purple-600 mt-1 block">Leave empty for global rule</span>
+              </label>
+            )}
+          </div>
+          
+          <div className="flex gap-3 mt-6">
             <button
               type="submit"
-              className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={submitting}
             >
               {submitting ? (
-                <FiLoader className="animate-spin" />
+                <FiLoader className="animate-spin h-5 w-5" />
               ) : editingId ? (
-                <FiEdit />
+                <FiEdit className="h-5 w-5" />
               ) : (
-                <FiPlus />
-              )}{" "}
-              {editingId ? "Update Rule" : "Add Rule"}
+                <FiPlus className="h-5 w-5" />
+              )}
+              {editingId ? "Update Tier" : "Add Tier"}
             </button>
             {editingId && (
               <button
                 type="button"
                 onClick={cancelEdit}
-                className="flex items-center gap-2 px-5 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold shadow hover:bg-gray-300 transition-colors"
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold shadow hover:bg-gray-300 transition-all hover:scale-105"
               >
-                <FiX /> Cancel
+                <FiX className="h-5 w-5" /> Cancel
               </button>
             )}
           </div>
         </div>
       </form>
+      </div>
       <div className="overflow-x-auto rounded-lg shadow border border-gray-200">
         <table className="min-w-full text-sm divide-y divide-gray-200">
           <thead className="bg-blue-50">

@@ -1458,6 +1458,8 @@ export default function TeacherPaymentsPage() {
                       color: "red",
                       badge: true,
                       icon: FiAlertTriangle,
+                      detail: breakdown.latenessRecords?.length > 0 ? `${breakdown.latenessRecords.length} incident${breakdown.latenessRecords.length > 1 ? 's' : ''}` : undefined,
+                      detail: breakdown.latenessRecords?.length > 0 ? `${breakdown.latenessRecords.length} incident${breakdown.latenessRecords.length > 1 ? 's' : ''}` : undefined,
                     },
                     {
                       label: "Absence Deduction",
@@ -1500,17 +1502,24 @@ export default function TeacherPaymentsPage() {
                             {item.value}
                           </span>
                         ) : (
-                          <span
-                            className={`font-${
-                              item.bold ? "bold" : "medium"
-                            } text-${
-                              item.color === "purple"
-                                ? "purple-900"
-                                : "gray-900"
-                            } text-lg`}
-                          >
-                            {item.value}
-                          </span>
+                          <div className="text-right">
+                            <span
+                              className={`font-${
+                                item.bold ? "bold" : "medium"
+                              } text-${
+                                item.color === "purple"
+                                  ? "purple-900"
+                                  : "gray-900"
+                              } text-lg block`}
+                            >
+                              {item.value}
+                            </span>
+                            {item.detail && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {item.detail}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     );
@@ -1571,30 +1580,82 @@ export default function TeacherPaymentsPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="mb-4 font-semibold text-black flex items-center gap-2">
-                        <FiAlertTriangle className="text-red-500 h-5 w-5" />{" "}
-                        Lateness Records
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <FiAlertTriangle className="text-red-500 h-5 w-5" />
+                            <span className="font-semibold text-black">Lateness Records</span>
+                          </div>
+                          {breakdown.latenessRecords?.length > 0 && (
+                            <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-200">
+                              <div className="text-sm font-semibold text-red-800">
+                                Total Deduction: {breakdown.latenessRecords.reduce((sum: number, r: any) => sum + r.deductionApplied, 0)} ETB
+                              </div>
+                              <div className="text-xs text-red-600">
+                                {breakdown.latenessRecords.length} lateness record{breakdown.latenessRecords.length > 1 ? 's' : ''}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       {breakdown.latenessRecords?.length === 0 ? (
                         <div className="text-gray-500 mb-4">
                           No lateness records.
                         </div>
                       ) : (
-                        <ul className="mb-6 space-y-2">
+                        <ul className="mb-6 space-y-3">
                           {breakdown.latenessRecords.map((r: any) => (
-                            <li key={r.id} className="flex items-center gap-3">
-                              <span className="font-mono text-sm text-gray-600">
-                                {new Date(r.classDate).toLocaleDateString()}
-                              </span>
-                              <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs">
-                                {r.latenessMinutes} min late
-                              </span>
-                              <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs">
-                                -{r.deductionApplied} ETB
-                              </span>
-                              <span className="text-sm text-gray-600">
-                                ({r.deductionTier})
-                              </span>
+                            <li key={r.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-all">
+                              <div className="flex flex-col space-y-3">
+                                {/* Header Row */}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <span className="font-mono text-sm font-semibold text-gray-800">
+                                      {new Date(r.classDate).toLocaleDateString()}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(r.classDate).toLocaleDateString('en-US', { weekday: 'long' })}
+                                    </span>
+                                  </div>
+                                  <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-bold text-sm">
+                                    -{r.deductionApplied} ETB
+                                  </span>
+                                </div>
+                                
+                                {/* Lateness Details */}
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <span className="inline-block px-3 py-1 rounded-full bg-orange-100 text-orange-800 font-semibold text-xs">
+                                    ⏰ {r.latenessMinutes} minutes late
+                                  </span>
+                                  <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-semibold text-xs">
+                                    📊 {r.deductionTier}
+                                  </span>
+                                  {r.studentName && (
+                                    <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-800 font-semibold text-xs">
+                                      👤 {r.studentName}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {/* Calculation Details */}
+                                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                  <div className="text-xs font-mono text-gray-700 mb-2">
+                                    Calculation: Base Amount × Tier Percentage = {r.deductionApplied} ETB
+                                  </div>
+                                  {r.scheduledTime && r.actualStartTime && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
+                                      <div>
+                                        <span className="font-medium">Scheduled: </span>
+                                        <span className="font-mono">{new Date(r.scheduledTime).toLocaleTimeString()}</span>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium">Actual Start: </span>
+                                        <span className="font-mono">{new Date(r.actualStartTime).toLocaleTimeString()}</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </li>
                           ))}
                         </ul>
