@@ -28,9 +28,17 @@ export async function POST(req: NextRequest) {
     }
     const body = await req.json();
     const { isUnlimited, ...configData } = body;
+    
+    // Get current base deduction amount from existing configs or use default
+    const existingConfig = await prisma.latenessdeductionconfig.findFirst({
+      select: { baseDeductionAmount: true }
+    });
+    const baseAmount = existingConfig?.baseDeductionAmount || 30;
+    
     const config = await prisma.latenessdeductionconfig.create({
       data: {
         ...configData,
+        baseDeductionAmount: baseAmount,
         updatedAt: new Date(),
       },
     });

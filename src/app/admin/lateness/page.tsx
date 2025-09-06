@@ -135,11 +135,10 @@ export default function AdminLatenessAnalyticsPage() {
 
     const fetchBaseDeduction = async () => {
       try {
-        const res = await fetch("/api/admin/settings?key=lateness_base_deduction");
+        const res = await fetch("/api/admin/lateness-deduction-config/base");
         if (res.ok) {
           const data = await res.json();
-          const setting = data.settings?.find((s: any) => s.key === "lateness_base_deduction");
-          setBaseDeductionAmount(parseFloat(setting?.value) || 30);
+          setBaseDeductionAmount(data.baseDeductionAmount || 30);
         }
       } catch (err) {
         setBaseDeductionAmount(30);
@@ -351,12 +350,11 @@ export default function AdminLatenessAnalyticsPage() {
   const saveBaseDeduction = async () => {
     setSavingBaseDeduction(true);
     try {
-      const res = await fetch("/api/admin/settings", {
+      const res = await fetch("/api/admin/lateness-deduction-config/base", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          key: "lateness_base_deduction",
-          value: baseDeductionAmount.toString(),
+          baseDeductionAmount,
         }),
       });
       if (!res.ok) throw new Error("Failed to save base deduction amount");
