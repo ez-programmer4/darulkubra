@@ -27,9 +27,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const body = await req.json();
+    const { isUnlimited, ...configData } = body;
     const config = await prisma.latenessdeductionconfig.create({
       data: {
-        ...body,
+        ...configData,
         updatedAt: new Date(),
       },
     });
@@ -51,10 +52,11 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     if (!body.id)
       return NextResponse.json({ error: "ID required" }, { status: 400 });
+    const { isUnlimited, ...configData } = body;
     const config = await prisma.latenessdeductionconfig.update({
       where: { id: body.id },
       data: {
-        ...body,
+        ...configData,
         updatedAt: new Date(),
       },
     });
