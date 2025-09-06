@@ -102,6 +102,7 @@ export default function TeacherPaymentsPage() {
     "name"
   );
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [showReportOptions, setShowReportOptions] = useState(false);
 
   const months = [
     { value: "1", label: "January" },
@@ -334,6 +335,15 @@ export default function TeacherPaymentsPage() {
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter, selectedMonth, selectedYear]);
+
+  // Close report options when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setShowReportOptions(false);
+    if (showReportOptions) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showReportOptions]);
 
   function exportToCSV(data: TeacherPayment[], filename: string) {
     if (!data || data.length === 0) {
@@ -935,47 +945,153 @@ export default function TeacherPaymentsPage() {
                   <FiDownload className="h-4 w-4" />
                   Export CSV
                 </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      const { from, to } = getMonthRange(selectedYear, selectedMonth);
-                      const response = await fetch('/api/admin/teacher-payments/pdf', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          startDate: from.toISOString(),
-                          endDate: to.toISOString(),
-                          teachersData: filteredTeachers
-                        })
-                      });
+                <div className="relative">
+                  <button
+                    onClick={() => setShowReportOptions(!showReportOptions)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
+                  >
+                    <FiDownload className="h-4 w-4" />
+                    Generate Report
+                    <FiChevronDown className={`h-4 w-4 transition-transform ${showReportOptions ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {showReportOptions && (
+                    <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50 min-w-[200px]">
+                      <button
+                        onClick={async () => {
+                          setShowReportOptions(false);
+                          try {
+                            const { from, to } = getMonthRange(selectedYear, selectedMonth);
+                            const response = await fetch('/api/admin/teacher-payments/pdf', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                startDate: from.toISOString(),
+                                endDate: to.toISOString(),
+                                teachersData: filteredTeachers,
+                                includeDetails: false
+                              })
+                            });
+                            
+                            if (response.ok) {
+                              const html = await response.text();
+                              const newWindow = window.open('', '_blank');
+                              if (newWindow) {
+                                newWindow.document.write(html);
+                                newWindow.document.close();
+                              }
+                              toast({
+                                title: "Success",
+                                description: "Summary report generated successfully!"
+                              });
+                            } else {
+                              throw new Error('Failed to generate report');
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to generate summary report",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                      >
+                        <FiUsers className="h-4 w-4" />
+                        Summary Report
+                      </button>
                       
-                      if (response.ok) {
-                        const html = await response.text();
-                        const newWindow = window.open('', '_blank');
-                        if (newWindow) {
-                          newWindow.document.write(html);
-                          newWindow.document.close();
-                        }
-                        toast({
-                          title: "Success",
-                          description: "Professional report generated successfully!"
-                        });
-                      } else {
-                        throw new Error('Failed to generate report');
-                      }
-                    } catch (error) {
-                      toast({
-                        title: "Error",
-                        description: "Failed to generate PDF report",
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
-                >
-                  <FiDownload className="h-4 w-4" />
-                  Generate Report
-                </button>
+                      <button
+                        onClick={async () => {
+                          setShowReportOptions(false);
+                          try {
+                            const { from, to } = getMonthRange(selectedYear, selectedMonth);
+                            const response = await fetch('/api/admin/teacher-payments/pdf', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                startDate: from.toISOString(),
+                                endDate: to.toISOString(),
+                                teachersData: filteredTeachers,
+                                includeDetails: true
+                              })
+                            });
+                            
+                            if (response.ok) {
+                              const html = await response.text();
+                              const newWindow = window.open('', '_blank');
+                              if (newWindow) {
+                                newWindow.document.write(html);
+                                newWindow.document.close();
+                              }
+                              toast({
+                                title: "Success",
+                                description: "Detailed report generated successfully!"
+                              });
+                            } else {
+                              throw new Error('Failed to generate report');
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to generate detailed report",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                      >
+                        <FiInfo className="h-4 w-4" />
+                        Detailed Report
+                      </button>
+                      
+                      <div className="border-t border-gray-200 my-1"></div>
+                      
+                      <button
+                        onClick={async () => {
+                          setShowReportOptions(false);
+                          try {
+                            const { from, to } = getMonthRange(selectedYear, selectedMonth);
+                            const response = await fetch('/api/admin/teacher-payments/analytics', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                startDate: from.toISOString(),
+                                endDate: to.toISOString(),
+                                teachersData: filteredTeachers
+                              })
+                            });
+                            
+                            if (response.ok) {
+                              const html = await response.text();
+                              const newWindow = window.open('', '_blank');
+                              if (newWindow) {
+                                newWindow.document.write(html);
+                                newWindow.document.close();
+                              }
+                              toast({
+                                title: "Success",
+                                description: "Analytics report generated successfully!"
+                              });
+                            } else {
+                              throw new Error('Failed to generate analytics');
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to generate analytics report",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                      >
+                        <FiAward className="h-4 w-4" />
+                        Analytics Report
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

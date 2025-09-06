@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { startDate, endDate, teachersData } = await req.json();
+    const { startDate, endDate, teachersData, includeDetails = false } = await req.json();
     
     const fromDate = new Date(startDate);
     const toDate = new Date(endDate);
@@ -23,12 +23,38 @@ export async function POST(req: NextRequest) {
     const totalSalary = teachersData.reduce((sum: number, t: any) => sum + t.totalSalary, 0);
     const totalStudents = teachersData.reduce((sum: number, t: any) => sum + (t.numStudents || 0), 0);
 
+    // Fetch detailed breakdown for each teacher if requested
+    let detailedData = teachersData;
+    if (includeDetails) {
+      const { prisma } = require("@/lib/prisma");
+      
+      detailedData = await Promise.all(teachersData.map(async (teacher: any) => {
+        try {
+          // Fetch detailed breakdown
+          const breakdownRes = await fetch(`${req.nextUrl.origin}/api/admin/teacher-payments?teacherId=${teacher.id}&from=${startDate}&to=${endDate}`);
+          const breakdown = breakdownRes.ok ? await breakdownRes.json() : { latenessRecords: [], absenceRecords: [], bonusRecords: [] };
+          
+          // Fetch student package breakdown
+          const studentsRes = await fetch(`${req.nextUrl.origin}/api/admin/teacher-students/${teacher.id}`);
+          const studentData = studentsRes.ok ? await studentsRes.json() : null;
+          
+          return {
+            ...teacher,
+            breakdown,
+            studentData
+          };
+        } catch (error) {
+          return teacher;
+        }
+      }));
+    }
+
     const html = `
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Teacher Payment Report - ${monthYear}</title>
+    <title>${includeDetails ? 'Detailed ' : ''}Teacher Payment Report - ${monthYear}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -164,6 +190,38 @@ export async function POST(req: NextRequest) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
         }
+        .details-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .breakdown-item {
+            background: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #28a745;
+        }
+        .breakdown-item.deduction {
+            border-left-color: #dc3545;
+        }
+        .breakdown-item.bonus {
+            border-left-color: #ffc107;
+        }
+        .package-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .package-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
     </style>
 </head>
 <body>
@@ -171,8 +229,9 @@ export async function POST(req: NextRequest) {
     
     <div class="container">
         <div class="header">
-            <h1>📊 Teacher Payment Report</h1>
+            <h1>📊 ${includeDetails ? 'Detailed ' : ''}Teacher Payment Report</h1>
             <p>${monthYear} • Generated on ${new Date().toLocaleDateString()}</p>
+            ${includeDetails ? '<p style="font-size: 0.9em; opacity: 0.8;">📋 Includes comprehensive breakdown of all deductions, bonuses, and package details</p>' : ''}
         </div>
 
         <div class="summary">
@@ -217,7 +276,7 @@ export async function POST(req: NextRequest) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${teachersData.map((teacher: any) => `
+                    ${detailedData.map((teacher: any) => `
                         <tr>
                             <td><strong>${teacher.name}</strong></td>
                             <td class="number">
@@ -249,6 +308,85 @@ export async function POST(req: NextRequest) {
                                 </span>
                             </td>
                         </tr>
+                        ${includeDetails && teacher.breakdown ? `
+                        <tr>
+                            <td colspan="8">
+                                <div class="details-section">
+                                    <h4>📋 Detailed Breakdown for ${teacher.name}</h4>
+                                    
+                                    ${teacher.studentData?.packageBreakdown ? `
+                                    <div class="package-breakdown">
+                                        <h5>📦 Package Distribution:</h5>
+                                        ${teacher.studentData.packageBreakdown.map((pkg: any) => `
+                                            <div class="package-card">
+                                                <strong>${pkg.packageName}</strong><br>
+                                                ${pkg.count} students × ${pkg.salaryPerStudent} ETB = <strong>${pkg.totalSalary} ETB</strong>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    ` : ''}
+                                    
+                                    ${teacher.breakdown.latenessRecords?.length > 0 ? `
+                                    <div class="breakdown-item deduction">
+                                        <h5>⏰ Lateness Records (${teacher.breakdown.latenessRecords.length} incidents)</h5>
+                                        ${teacher.breakdown.latenessRecords.map((record: any) => `
+                                            <div style="margin: 8px 0; padding: 8px; background: #fff3cd; border-radius: 4px;">
+                                                📅 ${new Date(record.classDate).toLocaleDateString()} - 
+                                                👤 ${record.studentName || 'N/A'} - 
+                                                ⏱️ ${record.latenessMinutes} min late - 
+                                                💰 ${record.deductionApplied} ETB (${record.deductionTier})
+                                            </div>
+                                        `).join('')}
+                                        <strong>Total Lateness Deduction: ${teacher.breakdown.latenessRecords.reduce((sum: number, r: any) => sum + r.deductionApplied, 0)} ETB</strong>
+                                    </div>
+                                    ` : ''}
+                                    
+                                    ${teacher.breakdown.absenceRecords?.length > 0 ? `
+                                    <div class="breakdown-item deduction">
+                                        <h5>🚫 Absence Records (${teacher.breakdown.absenceRecords.length} days)</h5>
+                                        ${teacher.breakdown.absenceRecords.map((record: any) => {
+                                            let timeSlotsInfo = 'Full Day';
+                                            if (record.timeSlots) {
+                                                try {
+                                                    const slots = JSON.parse(record.timeSlots);
+                                                    if (slots.includes('Whole Day')) {
+                                                        timeSlotsInfo = 'Whole Day';
+                                                    } else {
+                                                        timeSlotsInfo = `${slots.length} Time Slots`;
+                                                    }
+                                                } catch {}
+                                            }
+                                            return `
+                                            <div style="margin: 8px 0; padding: 8px; background: #f8d7da; border-radius: 4px;">
+                                                📅 ${new Date(record.classDate).toLocaleDateString()} - 
+                                                ⏰ ${timeSlotsInfo} - 
+                                                ${record.permitted ? '✅ Permitted' : '❌ Unpermitted'} - 
+                                                💰 ${record.deductionApplied} ETB
+                                                ${record.reviewNotes ? `<br><small>📝 ${record.reviewNotes}</small>` : ''}
+                                            </div>
+                                            `;
+                                        }).join('')}
+                                        <strong>Total Absence Deduction: ${teacher.breakdown.absenceRecords.reduce((sum: number, r: any) => sum + r.deductionApplied, 0)} ETB</strong>
+                                    </div>
+                                    ` : ''}
+                                    
+                                    ${teacher.breakdown.bonusRecords?.length > 0 ? `
+                                    <div class="breakdown-item bonus">
+                                        <h5>🏆 Bonus Records (${teacher.breakdown.bonusRecords.length} awards)</h5>
+                                        ${teacher.breakdown.bonusRecords.map((record: any) => `
+                                            <div style="margin: 8px 0; padding: 8px; background: #d4edda; border-radius: 4px;">
+                                                📅 ${new Date(record.createdAt).toLocaleDateString()} - 
+                                                💰 +${record.amount} ETB - 
+                                                📝 ${record.reason}
+                                            </div>
+                                        `).join('')}
+                                        <strong>Total Bonuses: ${teacher.breakdown.bonusRecords.reduce((sum: number, r: any) => sum + r.amount, 0)} ETB</strong>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </td>
+                        </tr>
+                        ` : ''}
                     `).join('')}
                 </tbody>
             </table>
@@ -257,6 +395,7 @@ export async function POST(req: NextRequest) {
         <div class="footer">
             <p><strong>DarulKubra Academy</strong> • Teacher Payment Management System</p>
             <p>Report generated automatically on ${new Date().toLocaleString()}</p>
+            ${includeDetails ? '<p style="margin-top: 10px; font-size: 0.9em; color: #28a745;">✅ This detailed report includes comprehensive breakdown of all salary components</p>' : ''}
             <p style="margin-top: 10px; font-size: 0.9em;">
                 📧 For questions about this report, contact the administration team
             </p>
