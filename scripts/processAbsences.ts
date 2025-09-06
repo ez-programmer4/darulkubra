@@ -109,9 +109,17 @@ async function processAbsences(targetDate: Date) {
     // Get unique time slots
     const timeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
     
-    // Calculate deduction based on number of time slots
-    const slotDeduction = Math.round(deductionAmount / timeSlots.length);
-    const totalDeduction = slotDeduction * timeSlots.length;
+    // Get per-time-slot deduction configuration
+    const timeSlotDeductionConfig = await prisma.deductionbonusconfig.findFirst({
+      where: {
+        configType: "absence",
+        key: "deduction_per_time_slot",
+      },
+    });
+    const deductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
+    
+    // Calculate total deduction based on number of time slots
+    const totalDeduction = deductionPerTimeSlot * timeSlots.length;
 
     // Create Absence Record with time slot information
     await prisma.absencerecord.create({

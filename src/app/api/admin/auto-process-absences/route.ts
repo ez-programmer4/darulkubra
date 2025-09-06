@@ -152,9 +152,17 @@ export async function GET() {
           }
 
           if (affectedSlots.length > 0) {
+            // Get per-time-slot deduction configuration
+            const timeSlotDeductionConfig = await prisma.deductionbonusconfig.findFirst({
+              where: {
+                configType: "absence",
+                key: "deduction_per_time_slot",
+              },
+            });
+            const deductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
+            
             // Calculate deduction based on affected time slots
-            const slotDeduction = Math.round(deductionAmount / timeSlots.length);
-            const totalDeduction = slotDeduction * affectedSlots.length;
+            const totalDeduction = deductionPerTimeSlot * affectedSlots.length;
 
             // Create absence record
             await prisma.absencerecord.create({

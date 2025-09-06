@@ -30,6 +30,7 @@ interface AbsenceRecord {
 
 interface ConfigResponse {
   deductionAmount: string;
+  deductionPerTimeSlot: string;
   effectiveMonths: string[];
   excludeSundays?: boolean;
 }
@@ -53,6 +54,7 @@ export default function AbsenceManagement() {
   const [absences, setAbsences] = useState<AbsenceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deductionAmount, setDeductionAmount] = useState("50");
+  const [deductionPerTimeSlot, setDeductionPerTimeSlot] = useState("25");
   const [effectiveMonths, setEffectiveMonths] = useState<string[]>([]);
   const [excludeSundays, setExcludeSundays] = useState(true);
 
@@ -79,6 +81,7 @@ export default function AbsenceManagement() {
       if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
       const data: ConfigResponse = await res.json();
       setDeductionAmount(data.deductionAmount || "50");
+      setDeductionPerTimeSlot(data.deductionPerTimeSlot || "25");
       setEffectiveMonths(data.effectiveMonths || []);
       setExcludeSundays(data.excludeSundays ?? true);
       toast({
@@ -100,13 +103,13 @@ export default function AbsenceManagement() {
   const saveConfig = async () => {
     setLoading(true);
     try {
-      if (parseFloat(deductionAmount) <= 0) {
-        throw new Error("Deduction amount must be positive");
+      if (parseFloat(deductionAmount) <= 0 || parseFloat(deductionPerTimeSlot) <= 0) {
+        throw new Error("Deduction amounts must be positive");
       }
       const res = await fetch("/api/admin/absence-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deductionAmount, effectiveMonths, excludeSundays }),
+        body: JSON.stringify({ deductionAmount, deductionPerTimeSlot, effectiveMonths, excludeSundays }),
       });
 
       if (!res.ok) {
@@ -237,7 +240,7 @@ export default function AbsenceManagement() {
                   <FiClock className="h-5 w-5 text-gray-600" />
                   <span className="text-xs font-semibold text-gray-600">Rate</span>
                 </div>
-                <div className="text-2xl font-bold text-black">{deductionAmount} ETB</div>
+                <div className="text-2xl font-bold text-black">{deductionPerTimeSlot} ETB</div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
@@ -291,12 +294,12 @@ export default function AbsenceManagement() {
           </div>
 
           <div className="p-6 sm:p-8 lg:p-10 space-y-8">
-            {/* Deduction Amount */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Deduction Configuration */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div>
                 <label className="block text-sm font-bold text-black mb-3">
                   <FiDollarSign className="inline h-4 w-4 mr-2" />
-                  Deduction Amount (ETB)
+                  Whole Day Deduction (ETB)
                 </label>
                 <input
                   type="number"
@@ -306,12 +309,36 @@ export default function AbsenceManagement() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
                   disabled={loading}
                 />
+                <p className="text-xs text-gray-500 mt-2">Applied when teacher is absent for the entire day</p>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-black mb-3">
+                  <FiClock className="inline h-4 w-4 mr-2" />
+                  Per Time Slot Deduction (ETB)
+                </label>
+                <input
+                  type="number"
+                  value={deductionPerTimeSlot}
+                  onChange={(e) => setDeductionPerTimeSlot(e.target.value)}
+                  placeholder="25"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
+                  disabled={loading}
+                />
+                <p className="text-xs text-gray-500 mt-2">Applied per missed time slot (30-minute periods)</p>
               </div>
               <div className="flex items-center justify-center">
-                <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 text-center">
-                  <p className="text-sm font-medium text-gray-600 mb-2">Current Rate</p>
-                  <div className="text-3xl font-bold text-black">{deductionAmount} ETB</div>
-                  <p className="text-sm text-gray-500 mt-1">Per absence</p>
+                <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 text-center w-full">
+                  <p className="text-sm font-medium text-gray-600 mb-3">Deduction Rates</p>
+                  <div className="space-y-2">
+                    <div className="bg-white rounded-lg p-3 border">
+                      <div className="text-lg font-bold text-black">{deductionAmount} ETB</div>
+                      <p className="text-xs text-gray-500">Whole Day</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 border">
+                      <div className="text-lg font-bold text-black">{deductionPerTimeSlot} ETB</div>
+                      <p className="text-xs text-gray-500">Per Time Slot</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

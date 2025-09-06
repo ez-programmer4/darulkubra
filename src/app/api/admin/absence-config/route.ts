@@ -16,6 +16,9 @@ export async function GET(req: NextRequest) {
     const deductionConfig = await prisma.deductionbonusconfig.findFirst({
       where: { configType: "absence", key: "unpermitted_absence_deduction" },
     });
+    const timeSlotDeductionConfig = await prisma.deductionbonusconfig.findFirst({
+      where: { configType: "absence", key: "deduction_per_time_slot" },
+    });
     const monthsConfig = await prisma.deductionbonusconfig.findFirst({
       where: {
         configType: "absence",
@@ -30,12 +33,13 @@ export async function GET(req: NextRequest) {
     });
 
     const deductionAmount = deductionConfig?.value ?? "50";
+    const deductionPerTimeSlot = timeSlotDeductionConfig?.value ?? "25";
     const effectiveMonths = monthsConfig?.effectiveMonths
       ? monthsConfig.effectiveMonths.split(",")
       : [];
     const excludeSundays = sundayConfig?.value === "true";
 
-    return NextResponse.json({ deductionAmount, effectiveMonths, excludeSundays });
+    return NextResponse.json({ deductionAmount, deductionPerTimeSlot, effectiveMonths, excludeSundays });
   } catch (error) {
     return NextResponse.json(
       { error: "Internal Server Error" },
@@ -56,6 +60,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const deductionAmount: string = String(body.deductionAmount ?? "50");
+    const deductionPerTimeSlot: string = String(body.deductionPerTimeSlot ?? "25");
     const effectiveMonths: string[] = Array.isArray(body.effectiveMonths)
       ? body.effectiveMonths
       : [];
@@ -77,6 +82,26 @@ export async function POST(req: NextRequest) {
           configType: "absence",
           key: "unpermitted_absence_deduction",
           value: deductionAmount,
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    // Handle per-time-slot deduction config
+    const existingTimeSlotConfig = await prisma.deductionbonusconfig.findFirst({
+      where: { configType: "absence", key: "deduction_per_time_slot" },
+    });
+    if (existingTimeSlotConfig) {
+      await prisma.deductionbonusconfig.update({
+        where: { id: existingTimeSlotConfig.id },
+        data: { value: deductionPerTimeSlot, updatedAt: new Date() },
+      });
+    } else {
+      await prisma.deductionbonusconfig.create({
+        data: {
+          configType: "absence",
+          key: "deduction_per_time_slot",
+          value: deductionPerTimeSlot,
           updatedAt: new Date(),
         },
       });
