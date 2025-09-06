@@ -18,6 +18,11 @@ import {
   FiAlertCircle,
   FiX,
   FiSearch,
+  FiDollarSign,
+  FiTrendingUp,
+  FiCheckCircle,
+  FiSettings,
+  FiInfo,
 } from "react-icons/fi";
 import {
   LineChart,
@@ -522,7 +527,7 @@ export default function AdminLatenessAnalyticsPage() {
               </p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Base Configuration */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
@@ -530,7 +535,7 @@ export default function AdminLatenessAnalyticsPage() {
                 <FiDollarSign className="h-5 w-5" />
                 Base Configuration
               </h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-bold text-blue-800 mb-2">
@@ -551,7 +556,7 @@ export default function AdminLatenessAnalyticsPage() {
                     This is the maximum deduction amount (100% tier)
                   </p>
                 </div>
-                
+
                 <button
                   onClick={saveBaseDeduction}
                   disabled={savingBaseDeduction}
@@ -571,45 +576,48 @@ export default function AdminLatenessAnalyticsPage() {
                 </button>
               </div>
             </div>
-            
+
             {/* Calculation Examples */}
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
               <h3 className="text-lg font-bold text-green-900 mb-4 flex items-center gap-2">
                 <FiTrendingUp className="h-5 w-5" />
                 Calculation Examples
               </h3>
-              
+
               <div className="space-y-3">
                 <div className="bg-white rounded-lg p-3 border border-green-200">
                   <div className="text-sm font-semibold text-green-800 mb-1">
                     Example Tier: 5-15 minutes @ 25%
                   </div>
                   <div className="text-xs text-green-700">
-                    Deduction = {baseDeductionAmount} × 0.25 = {(baseDeductionAmount * 0.25).toFixed(2)} ETB
+                    Deduction = {baseDeductionAmount} × 0.25 ={" "}
+                    {(baseDeductionAmount * 0.25).toFixed(2)} ETB
                   </div>
                 </div>
-                
+
                 <div className="bg-white rounded-lg p-3 border border-green-200">
                   <div className="text-sm font-semibold text-green-800 mb-1">
                     Example Tier: 16-30 minutes @ 50%
                   </div>
                   <div className="text-xs text-green-700">
-                    Deduction = {baseDeductionAmount} × 0.50 = {(baseDeductionAmount * 0.50).toFixed(2)} ETB
+                    Deduction = {baseDeductionAmount} × 0.50 ={" "}
+                    {(baseDeductionAmount * 0.5).toFixed(2)} ETB
                   </div>
                 </div>
-                
+
                 <div className="bg-white rounded-lg p-3 border border-green-200">
                   <div className="text-sm font-semibold text-green-800 mb-1">
                     Example Tier: 31+ minutes @ 100%
                   </div>
                   <div className="text-xs text-green-700">
-                    Deduction = {baseDeductionAmount} × 1.00 = {baseDeductionAmount.toFixed(2)} ETB
+                    Deduction = {baseDeductionAmount} × 1.00 ={" "}
+                    {baseDeductionAmount.toFixed(2)} ETB
                   </div>
                 </div>
-                
+
                 <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200 mt-4">
                   <div className="text-xs text-yellow-800">
-                    <strong>Note:</strong> Configure unlimited tiers below with custom minute ranges and percentages
+                    <strong>💡 Tip:</strong> For "30+ minutes" tiers, use start=31 and end=999 to cover all lateness above 30 minutes
                   </div>
                 </div>
               </div>
@@ -634,65 +642,89 @@ export default function AdminLatenessAnalyticsPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="p-6 sm:p-8 lg:p-10">
             <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200 mb-6">
               <h3 className="text-lg font-bold text-purple-900 mb-4 flex items-center gap-2">
                 <FiInfo className="h-5 w-5" />
                 System Features
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="bg-white rounded-lg p-4 border border-purple-200">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">Unlimited Tiers</span>
+                    <span className="font-semibold text-purple-800 text-sm">
+                      Unlimited Tiers
+                    </span>
                   </div>
-                  <p className="text-xs text-purple-700">Create as many deduction tiers as needed</p>
+                  <p className="text-xs text-purple-700">
+                    Create as many deduction tiers as needed
+                  </p>
                 </div>
-                
+
                 <div className="bg-white rounded-lg p-4 border border-purple-200">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">Flexible Ranges</span>
+                    <span className="font-semibold text-purple-800 text-sm">
+                      Flexible Ranges
+                    </span>
                   </div>
-                  <p className="text-xs text-purple-700">Custom minute ranges for each tier</p>
+                  <p className="text-xs text-purple-700">
+                    Custom minute ranges for each tier
+                  </p>
                 </div>
-                
+
                 <div className="bg-white rounded-lg p-4 border border-purple-200">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">Percentage Based</span>
+                    <span className="font-semibold text-purple-800 text-sm">
+                      Percentage Based
+                    </span>
                   </div>
-                  <p className="text-xs text-purple-700">Set deduction as % of base amount</p>
+                  <p className="text-xs text-purple-700">
+                    Set deduction as % of base amount
+                  </p>
                 </div>
-                
+
                 <div className="bg-white rounded-lg p-4 border border-purple-200">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">Grace Period</span>
+                    <span className="font-semibold text-purple-800 text-sm">
+                      Grace Period
+                    </span>
                   </div>
-                  <p className="text-xs text-purple-700">Configurable excused threshold</p>
+                  <p className="text-xs text-purple-700">
+                    Configurable excused threshold
+                  </p>
                 </div>
-                
+
                 <div className="bg-white rounded-lg p-4 border border-purple-200">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">Real-time Updates</span>
+                    <span className="font-semibold text-purple-800 text-sm">
+                      Real-time Updates
+                    </span>
                   </div>
-                  <p className="text-xs text-purple-700">Changes apply immediately</p>
+                  <p className="text-xs text-purple-700">
+                    Changes apply immediately
+                  </p>
                 </div>
-                
+
                 <div className="bg-white rounded-lg p-4 border border-purple-200">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">No Hardcoded Limits</span>
+                    <span className="font-semibold text-purple-800 text-sm">
+                      No Hardcoded Limits
+                    </span>
                   </div>
-                  <p className="text-xs text-purple-700">Completely configurable system</p>
+                  <p className="text-xs text-purple-700">
+                    Completely configurable system
+                  </p>
                 </div>
               </div>
             </div>
-            
+
             <LatenessDeductionConfigManager />
           </div>
         </div>

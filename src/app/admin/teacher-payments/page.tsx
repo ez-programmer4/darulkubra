@@ -1459,7 +1459,6 @@ export default function TeacherPaymentsPage() {
                       badge: true,
                       icon: FiAlertTriangle,
                       detail: breakdown.latenessRecords?.length > 0 ? `${breakdown.latenessRecords.length} incident${breakdown.latenessRecords.length > 1 ? 's' : ''}` : undefined,
-                      detail: breakdown.latenessRecords?.length > 0 ? `${breakdown.latenessRecords.length} incident${breakdown.latenessRecords.length > 1 ? 's' : ''}` : undefined,
                     },
                     {
                       label: "Absence Deduction",
@@ -1514,9 +1513,9 @@ export default function TeacherPaymentsPage() {
                             >
                               {item.value}
                             </span>
-                            {item.detail && (
+                            {(item as any).detail && (
                               <div className="text-xs text-gray-500 mt-1">
-                                {item.detail}
+                                {(item as any).detail}
                               </div>
                             )}
                           </div>

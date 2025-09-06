@@ -27,6 +27,7 @@ export default function LatenessDeductionConfigManager() {
     deductionPercent: 10,
     isGlobal: true,
     teacherId: "",
+    isUnlimited: false,
   });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
@@ -77,6 +78,7 @@ export default function LatenessDeductionConfigManager() {
       deductionPercent: 10,
       isGlobal: true,
       teacherId: "",
+      isUnlimited: false,
     });
   }
 
@@ -112,6 +114,7 @@ export default function LatenessDeductionConfigManager() {
         deductionPercent: 10,
         isGlobal: true,
         teacherId: "",
+        isUnlimited: false,
       });
       fetchConfigs();
     } catch (e: any) {
@@ -247,19 +250,50 @@ export default function LatenessDeductionConfigManager() {
               <span className="text-xs text-green-600 mt-1 block">Minimum lateness for this tier</span>
             </label>
             
-            <label className="block text-sm font-bold text-green-800">
-              End Minute (inclusive)
-              <input
-                type="number"
-                name="endMinute"
-                min={0}
-                value={form.endMinute}
-                onChange={handleInputChange}
-                className="mt-1 w-full border-2 border-green-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
-                required
-              />
-              <span className="text-xs text-green-600 mt-1 block">Maximum lateness for this tier (use 999 for unlimited)</span>
-            </label>
+            <div>
+              <label className="block text-sm font-bold text-green-800 mb-2">
+                End Minute (inclusive)
+              </label>
+              <div className="space-y-3">
+                <input
+                  type="number"
+                  name="endMinute"
+                  min={0}
+                  value={form.isUnlimited ? "" : form.endMinute}
+                  onChange={handleInputChange}
+                  disabled={form.isUnlimited}
+                  className={`w-full border-2 border-green-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white ${
+                    form.isUnlimited ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  placeholder={form.isUnlimited ? "Unlimited" : "Enter end minute"}
+                />
+                <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="isUnlimited"
+                      checked={form.isUnlimited}
+                      onChange={(e) => {
+                        const isChecked = e.target.checked;
+                        setForm((prev: any) => ({
+                          ...prev,
+                          isUnlimited: isChecked,
+                          endMinute: isChecked ? 999 : prev.endMinute
+                        }));
+                      }}
+                      className="h-4 w-4 text-green-600 border-green-300 rounded focus:ring-green-500"
+                    />
+                    <div>
+                      <span className="text-sm font-semibold text-green-800">🚀 Unlimited Tier</span>
+                      <p className="text-xs text-green-700">Covers all lateness above start minute (e.g., "30+ minutes")</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              <span className="text-xs text-green-600 mt-1 block">
+                💡 For "30+ minutes" tier: set start=31 and check "Unlimited Tier"
+              </span>
+            </div>
           </div>
         </div>
         <div className="space-y-4">
@@ -377,7 +411,9 @@ export default function LatenessDeductionConfigManager() {
                 </td>
                 <td className="px-4 py-2">{c.excusedThreshold}</td>
                 <td className="px-4 py-2">{c.startMinute}</td>
-                <td className="px-4 py-2">{c.endMinute}</td>
+                <td className="px-4 py-2">
+                  {c.endMinute >= 999 ? `${c.startMinute}+` : c.endMinute}
+                </td>
                 <td className="px-4 py-2 font-bold text-blue-700">
                   {c.deductionPercent}%
                 </td>
