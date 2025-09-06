@@ -322,7 +322,7 @@ export async function GET(req: NextRequest) {
     // Fetch absence config once
     const absenceConfig = await getAbsenceDeductionConfig();
 
-    const results = await Promise.all(
+    const results = (await Promise.all(
       teachers.map(async (t) => {
         // Calculate lateness deduction on-the-fly
         // Get base deduction amount from lateness config
@@ -455,6 +455,16 @@ export async function GET(req: NextRequest) {
         }, 0);
 
         const numStudents = teacherStudents.length;
+        
+        // Skip teachers with 0 students
+        if (numStudents === 0) {
+          return null;
+        }
+        
+        // Skip teachers with 0 students
+        if (numStudents === 0) {
+          return null;
+        }
         for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
           const dateStr = format(d, "yyyy-MM-dd");
           for (const student of students) {
@@ -635,7 +645,7 @@ export async function GET(req: NextRequest) {
           status,
         };
       })
-    );
+    )).filter(Boolean);
     return NextResponse.json(results);
   } catch (error: any) {
     return NextResponse.json(
