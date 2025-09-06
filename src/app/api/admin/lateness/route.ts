@@ -25,11 +25,11 @@ export async function GET(req: NextRequest) {
   const controllerFilter = searchParams.get("controllerId") || "";
   const teacherFilter = searchParams.get("teacherId") || ""; // may be id or name
 
-  // Get base deduction amount from settings
-  const baseDeductionSetting = await prisma.setting.findUnique({
-    where: { key: "lateness_base_deduction" },
+  // Get base deduction amount from lateness config
+  const latenessConfig = await prisma.latenessdeductionconfig.findFirst({
+    select: { baseDeductionAmount: true }
   });
-  const baseDeductionAmount = baseDeductionSetting?.value ? parseFloat(baseDeductionSetting.value) : 30;
+  const baseDeductionAmount = Number(latenessConfig?.baseDeductionAmount) || 30;
 
   // Fetch lateness deduction config from DB - no fallback tiers
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({

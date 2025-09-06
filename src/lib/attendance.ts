@@ -87,6 +87,12 @@ export async function calculateLatenessAndDeduction({
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
   });
+  
+  // Get base deduction amount from lateness config
+  const baseDeductionAmount = latenessConfigs.length > 0 
+    ? Number(latenessConfigs[0].baseDeductionAmount) || 30
+    : 30;
+  
   let excusedThreshold = 3;
   let tiers: Array<{ start: number; end: number; percent: number }> = [
     { start: 4, end: 7, percent: 10 },
@@ -151,14 +157,14 @@ export async function calculateLatenessAndDeduction({
         let foundTier = false;
         for (const [i, tier] of tiers.entries()) {
           if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {
-            deductionApplied = 30 * (tier.percent / 100); // 30 ETB daily rate
+            deductionApplied = baseDeductionAmount * (tier.percent / 100);
             deductionTier = `Tier ${i + 1}`;
             foundTier = true;
             break;
           }
         }
         if (!foundTier && latenessMinutes > maxTierEnd) {
-          deductionApplied = 30; // Full daily rate
+          deductionApplied = baseDeductionAmount;
           deductionTier = "> Max Tier";
         }
       }
