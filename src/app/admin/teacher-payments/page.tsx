@@ -836,11 +836,21 @@ export default function TeacherPaymentsPage() {
                     </button>
                     
                     <button
-                      onClick={() => window.open('/admin/deduction-adjustments', '_blank')}
+                      onClick={() => {
+                        const adjustmentWindow = window.open('/admin/deduction-adjustments', '_blank', 'width=1200,height=800');
+                        // Listen for window close to refresh data
+                        const checkClosed = setInterval(() => {
+                          if (adjustmentWindow?.closed) {
+                            clearInterval(checkClosed);
+                            // Refresh teacher payments data
+                            window.location.reload();
+                          }
+                        }, 1000);
+                      }}
                       className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
                     >
-                      <FiX className="h-4 w-4" />
-                      Adjust Deductions
+                      <FiAlertTriangle className="h-4 w-4" />
+                      💰 Adjust Salary Deductions
                     </button>
                   </div>
                 </div>

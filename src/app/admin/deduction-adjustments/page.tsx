@@ -18,6 +18,7 @@ export default function DeductionAdjustmentsPage() {
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [previewData, setPreviewData] = useState<any[]>([]);
+  const [previewSummary, setPreviewSummary] = useState<any>({});
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
@@ -60,13 +61,14 @@ export default function DeductionAdjustmentsPage() {
   const previewAdjustments = async () => {
     if (!dateRange.startDate || !dateRange.endDate || selectedTeachers.length === 0) {
       toast({
-        title: "Error",
-        description: "Please select date range and teachers",
+        title: "❌ Missing Information",
+        description: "Please select date range and at least one teacher",
         variant: "destructive"
       });
       return;
     }
 
+    setLoading(true);
     try {
       const res = await fetch("/api/admin/deduction-adjustments/preview", {
         method: "POST",
@@ -81,15 +83,34 @@ export default function DeductionAdjustmentsPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setPreviewData(data.records);
+        setPreviewData(data.records || []);
+        setPreviewSummary(data.summary || {});
         setShowPreview(true);
+        
+        if (data.records?.length > 0) {
+          toast({
+            title: "📋 Preview Ready",
+            description: `Found ${data.records.length} deduction records totaling ${data.summary?.totalAmount || 0} ETB`
+          });
+        } else {
+          toast({
+            title: "ℹ️ No Records Found",
+            description: "No deduction records match your criteria. This may be normal."
+          });
+        }
+      } else {
+        throw new Error('Failed to fetch preview');
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Failed to preview adjustments",
+        title: "❌ Preview Failed",
+        description: error.message || "Failed to preview adjustments",
         variant: "destructive"
       });
+      setPreviewData([]);
+      setShowPreview(false);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -139,11 +160,22 @@ export default function DeductionAdjustmentsPage() {
           title: "Success",
           description: `${data.message}. Please refresh teacher payments to see changes.`
         });
+        // Reset form
         setSelectedTeachers([]);
         setReason("");
         setDateRange({ startDate: "", endDate: "" });
         setPreviewData([]);
+        setPreviewSummary({});
         setShowPreview(false);
+        setSelectedTimeSlots([]);
+        
+        // Show success message with integration info
+        setTimeout(() => {
+          toast({
+            title: "✅ Integration Complete",
+            description: "Teacher payment calculations have been updated. Changes are now visible in the Teacher Payments page."
+          });
+        }, 1000);
       } else {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to adjust deductions");
@@ -305,80 +337,189 @@ export default function DeductionAdjustmentsPage() {
             </div>
           </div>
 
-          <div className="flex gap-4 mb-6">
-            <button
-              onClick={previewAdjustments}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 disabled:opacity-50"
-            >
-              <FiSearch className="h-4 w-4" />
-              Preview Adjustments
-            </button>
+          {/* Action Buttons */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <FiAlertTriangle className="h-5 w-5 text-yellow-600" />
+              <h3 className="font-bold text-yellow-800">⚠️ CRITICAL: Salary Adjustment Process</h3>
+            </div>
+            <p className="text-yellow-700 mb-4">
+              This will permanently modify teacher salary calculations. Please review carefully before proceeding.
+            </p>
             
-            <button
-              onClick={handleAdjustment}
-              disabled={loading || previewData.length === 0}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 disabled:opacity-50"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-              ) : (
-                <FiCheck className="h-4 w-4" />
-              )}
-              Apply Adjustments
-            </button>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button
+                onClick={previewAdjustments}
+                disabled={loading || !dateRange.startDate || !dateRange.endDate || selectedTeachers.length === 0}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FiSearch className="h-4 w-4" />
+                1. Preview Records
+              </button>
+              
+              <button
+                onClick={handleAdjustment}
+                disabled={loading || previewData.length === 0 || !reason.trim()}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                ) : (
+                  <FiCheck className="h-4 w-4" />
+                )}
+                2. Apply Changes
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (window.opener) {
+                    window.opener.location.reload();
+                  }
+                  window.close();
+                }}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
+              >
+                <FiX className="h-4 w-4" />
+                3. Close & Refresh
+              </button>
+            </div>
             
-            <button
-              onClick={() => {
-                if (window.opener) {
-                  window.opener.location.reload();
-                }
-                window.close();
-              }}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
-            >
-              <FiX className="h-4 w-4" />
-              Close & Refresh
-            </button>
+            {previewData.length === 0 && showPreview && (
+              <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded-lg">
+                <p className="text-green-800 font-medium">✅ No deduction records found for adjustment. This is normal if no deductions exist for the selected criteria.</p>
+              </div>
+            )}
           </div>
 
           {/* Preview Section */}
           {showPreview && (
-            <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Preview: {previewData.length} records will be adjusted
-              </h3>
+            <div className="bg-white rounded-xl p-6 border-2 border-blue-200 shadow-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FiSearch className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    📋 Preview Results: {previewData.length} records found
+                  </h3>
+                  <p className="text-gray-600">These deductions will be set to 0 ETB (waived)</p>
+                </div>
+              </div>
               
               {previewData.length > 0 ? (
-                <div className="max-h-60 overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-200">
-                        <th className="text-left p-2">Teacher</th>
-                        <th className="text-left p-2">Date</th>
-                        <th className="text-left p-2">Type</th>
-                        <th className="text-right p-2">Current Deduction</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewData.slice(0, 10).map((record, index) => (
-                        <tr key={index} className="border-b">
-                          <td className="p-2">{record.teacherName}</td>
-                          <td className="p-2">{new Date(record.date).toLocaleDateString()}</td>
-                          <td className="p-2">{record.type}</td>
-                          <td className="p-2 text-right font-mono">{record.deduction} ETB</td>
+                <>
+                  <div className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-200 rounded-xl p-6 mb-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <FiAlertTriangle className="h-5 w-5 text-red-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-red-800 text-lg">📊 Financial Impact Analysis</h4>
+                        <p className="text-red-600 text-sm">Actual deduction amounts from database records</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                      <div className="text-center bg-white rounded-lg p-3 border border-red-100">
+                        <div className="font-bold text-xl text-red-700">{previewSummary.totalRecords || previewData.length}</div>
+                        <div className="text-red-600 font-medium">Deduction Records</div>
+                      </div>
+                      <div className="text-center bg-white rounded-lg p-3 border border-red-100">
+                        <div className="font-bold text-xl text-red-700">
+                          {previewSummary.totalTeachers || [...new Set(previewData.map(r => r.teacherName))].length}
+                        </div>
+                        <div className="text-red-600 font-medium">Affected Teachers</div>
+                      </div>
+                      <div className="text-center bg-white rounded-lg p-3 border border-orange-100">
+                        <div className="font-bold text-xl text-orange-700">
+                          {previewSummary.totalLatenessAmount || 0} ETB
+                        </div>
+                        <div className="text-orange-600 font-medium">Lateness Deductions</div>
+                      </div>
+                      <div className="text-center bg-white rounded-lg p-3 border border-red-100">
+                        <div className="font-bold text-xl text-red-700">
+                          {previewSummary.totalAbsenceAmount || 0} ETB
+                        </div>
+                        <div className="text-red-600 font-medium">Absence Deductions</div>
+                      </div>
+                      <div className="text-center bg-green-50 rounded-lg p-3 border-2 border-green-200">
+                        <div className="font-bold text-2xl text-green-700">
+                          +{previewSummary.totalAmount || previewData.reduce((sum, r) => sum + (r.deduction || 0), 0)} ETB
+                        </div>
+                        <div className="text-green-600 font-bold">💰 SALARY INCREASE</div>
+                      </div>
+                    </div>
+                    
+                    {previewSummary.teacherBreakdown && previewSummary.teacherBreakdown.length > 0 && (
+                      <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                        <h5 className="font-bold text-gray-800 mb-3">👥 Per-Teacher Impact:</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-32 overflow-y-auto">
+                          {previewSummary.teacherBreakdown.map((teacher: any, index: number) => (
+                            <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
+                              <span className="font-medium truncate">{teacher.teacherName}</span>
+                              <span className="font-bold text-green-600">+{teacher.totalDeduction} ETB</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100 sticky top-0">
+                        <tr>
+                          <th className="text-left p-3 font-bold">Teacher</th>
+                          <th className="text-left p-3 font-bold">Date</th>
+                          <th className="text-left p-3 font-bold">Type</th>
+                          <th className="text-right p-3 font-bold">Deduction to Waive</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {previewData.map((record, index) => (
+                          <tr key={index} className="border-b hover:bg-gray-50">
+                            <td className="p-3 font-medium">{record.teacherName}</td>
+                            <td className="p-3">{new Date(record.date).toLocaleDateString()}</td>
+                            <td className="p-3">
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                record.type === 'Lateness' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                {record.type}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <div className="font-mono font-bold">
+                                <span className="text-red-600">-{record.deduction} ETB</span>
+                                <span className="text-gray-400 mx-2">→</span>
+                                <span className="text-green-600">0 ETB</span>
+                              </div>
+                              <div className="text-xs text-green-600 font-medium">+{record.deduction} ETB to salary</div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
                   {previewData.length > 10 && (
-                    <p className="text-center text-gray-500 mt-2">
-                      ... and {previewData.length - 10} more records
+                    <p className="text-center text-gray-500 mt-3 font-medium">
+                      Showing all {previewData.length} records
                     </p>
                   )}
-                </div>
+                </>
               ) : (
-                <p className="text-gray-600">No deduction records found for the selected criteria.</p>
+                <div className="text-center py-8">
+                  <div className="p-4 bg-green-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <FiCheck className="h-8 w-8 text-green-600" />
+                  </div>
+                  <h4 className="text-lg font-bold text-gray-900 mb-2">No Records Found</h4>
+                  <p className="text-gray-600">No deduction records match your criteria. This could mean:</p>
+                  <ul className="text-sm text-gray-500 mt-2 space-y-1">
+                    <li>• No deductions exist for the selected date range</li>
+                    <li>• Selected teachers had no deductions</li>
+                    <li>• Deductions were already adjusted previously</li>
+                  </ul>
+                </div>
               )}
             </div>
           )}

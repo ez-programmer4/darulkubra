@@ -14,6 +14,8 @@ export async function POST(req: NextRequest) {
     const { startDate, endDate } = dateRange;
 
     let records: any[] = [];
+    let totalLatenessAmount = 0;
+    let totalAbsenceAmount = 0;
 
     if (adjustmentType === 'waive_lateness') {
       const latenessRecords = await prisma.latenessrecord.findMany({
@@ -29,17 +31,25 @@ export async function POST(req: NextRequest) {
           wpos_wpdatatable_24: {
             select: { ustazname: true }
           }
-        }
+        },
+        orderBy: [{ classDate: 'desc' }, { teacherId: 'asc' }]
       });
 
-      records = latenessRecords.map(record => ({
-        id: record.id,
-        teacherName: record.wpos_wpdatatable_24?.ustazname || 'Unknown',
-        date: record.classDate,
-        type: 'Lateness',
-        deduction: record.deductionApplied,
-        details: `${record.latenessMinutes} min late - ${record.deductionTier}`
-      }));
+      records = latenessRecords.map(record => {
+        totalLatenessAmount += Number(record.deductionApplied);
+        return {
+          id: record.id,
+          teacherId: record.teacherId,
+          teacherName: record.wpos_wpdatatable_24?.ustazname || 'Unknown Teacher',
+          date: record.classDate,
+          type: 'Lateness',
+          deduction: Number(record.deductionApplied),
+          originalAmount: Number(record.deductionApplied),
+          details: `${record.latenessMinutes} min late - ${record.deductionTier}`,
+          scheduledTime: record.scheduledTime,
+          actualTime: record.actualStartTime
+        };
+      });
     }
 
     if (adjustmentType === 'waive_absence') {
@@ -56,20 +66,54 @@ export async function POST(req: NextRequest) {
           wpos_wpdatatable_24: {
             select: { ustazname: true }
           }
-        }
+        },
+        orderBy: [{ classDate: 'desc' }, { teacherId: 'asc' }]
       });
 
-      records = absenceRecords.map(record => ({
-        id: record.id,
-        teacherName: record.wpos_wpdatatable_24?.ustazname || 'Unknown',
-        date: record.classDate,
-        type: 'Absence',
-        deduction: record.deductionApplied,
-        details: record.timeSlots || 'Full day'
-      }));
+      records = absenceRecords.map(record => {
+        totalAbsenceAmount += Number(record.deductionApplied);
+        return {
+          id: record.id,
+          teacherId: record.teacherId,
+          teacherName: record.wpos_wpdatatable_24?.ustazname || 'Unknown Teacher',
+          date: record.classDate,
+          type: 'Absence',
+          deduction: Number(record.deductionApplied),
+          originalAmount: Number(record.deductionApplied),
+          details: record.timeSlots || 'Full day absence',
+          permitted: record.permitted,
+          reviewNotes: record.reviewNotes
+        };
+      });
     }
 
-    return NextResponse.json({ records });
+    // Group records by teacher for better analysis
+    const teacherSummary = records.reduce((acc, record) => {
+      if (!acc[record.teacherId]) {
+        acc[record.teacherId] = {
+          teacherName: record.teacherName,
+          totalDeduction: 0,
+          recordCount: 0,
+          records: []
+        };
+      }
+      acc[record.teacherId].totalDeduction += record.deduction;
+      acc[record.teacherId].recordCount += 1;
+      acc[record.teacherId].records.push(record);
+      return acc;
+    }, {});
+
+    return NextResponse.json({ 
+      records,
+      summary: {
+        totalRecords: records.length,
+        totalTeachers: Object.keys(teacherSummary).length,
+        totalLatenessAmount,
+        totalAbsenceAmount,
+        totalAmount: totalLatenessAmount + totalAbsenceAmount,
+        teacherBreakdown: Object.values(teacherSummary)
+      }
+    });
   } catch (error: any) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

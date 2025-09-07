@@ -9,20 +9,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get unique time slots from occupied times
-    const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
-      select: {
-        time_slot: true,
-      },
-      distinct: ["time_slot"],
-    });
+    // Return common time slots
+    const commonTimeSlots = [
+      "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
+      "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM",
+      "6:00 PM", "7:00 PM", "8:00 PM", "9:00 PM"
+    ];
 
-    const slots = occupiedTimes
-      .map((slot) => slot.time_slot)
-      .filter(Boolean)
-      .sort();
-
-    return NextResponse.json(slots || []);
+    return NextResponse.json(commonTimeSlots);
   } catch (error: any) {
     return NextResponse.json(
       { error: "Internal server error" },
