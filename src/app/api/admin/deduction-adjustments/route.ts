@@ -32,68 +32,218 @@ export async function POST(req: NextRequest) {
       await prisma.$transaction(async (tx) => {
         
         if (adjustmentType === 'waive_lateness') {
-          const latenessRecords = await tx.latenessrecord.findMany({
-            where: {
-              teacherId: { in: teacherIds },
-              classDate: {
-                gte: new Date(startDate),
-                lte: new Date(endDate)
-              },
-              deductionApplied: { gt: 0 }
-            }
-          });
-
-          if (latenessRecords.length === 0) {
-            throw new Error('No lateness records found with deductions for the specified criteria');
-          }
-
-          for (const record of latenessRecords) {
-            const originalAmount = Number(record.deductionApplied);
-            latenessAmount += originalAmount;
-            totalDeductionWaived += originalAmount;
-            affectedTeachers.add(record.teacherId);
+          // Create waiver records for the date range to exclude from future calculations
+          for (const teacherId of teacherIds) {
+            // Calculate what would be waived (same logic as preview)
+            const latenessConfig = await tx.latenessdeductionconfig.findFirst();
+            const baseDeductionAmount = Number(latenessConfig?.baseDeductionAmount) || 30;
             
-            await tx.latenessrecord.update({
-              where: { id: record.id },
-              data: {
-                deductionApplied: 0,
-                deductionTier: `WAIVED (${originalAmount} ETB): ${reason} | ${record.deductionTier}`
-              }
+            const latenessConfigs = await tx.latenessdeductionconfig.findMany({
+              orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
             });
-            adjustedRecords++;
+            
+            if (latenessConfigs.length > 0) {
+              const excusedThreshold = Math.min(...latenessConfigs.map((c) => c.excusedThreshold ?? 0));
+              const tiers = latenessConfigs.map((c) => ({
+                start: c.startMinute,
+                end: c.endMinute,
+                percent: c.deductionPercent,
+              }));
+              const maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
+              
+              const students = await tx.wpos_wpdatatable_23.findMany({
+                where: { ustaz: teacherId },
+                include: {
+                  zoom_links: true,
+                  occupiedTimes: { select: { time_slot: true } },
+                },
+              });
+              
+              for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toISOString().split('T')[0];
+                
+                for (const student of students) {
+                  const timeSlot = student.occupiedTimes?.[0]?.time_slot;
+                  if (!timeSlot) continue;
+                  
+                  // Same calculation logic as preview
+                  function to24Hour(time12h: string) {
+                    if (!time12h) return "00:00";
+                    if (time12h.includes("AM") || time12h.includes("PM")) {
+                      const [time, modifier] = time12h.split(" ");
+                      let [hours, minutes] = time.split(":");
+                      if (hours === "12") hours = modifier === "AM" ? "00" : "12";
+                      else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
+                      return `${hours.padStart(2, "0")}:${minutes}`;
+                    }
+                    if (time12h.includes(":")) {
+                      const parts = time12h.split(":");
+                      const hours = parts[0].padStart(2, "0");
+                      const minutes = (parts[1] || "00").padStart(2, "0");
+                      return `${hours}:${minutes}`;
+                    }
+                    return "00:00";
+                  }
+                  
+                  const time24 = to24Hour(timeSlot);
+                  const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
+                  
+                  const sentTimes = (student.zoom_links || [])
+                    .filter(zl => zl.sent_time && zl.sent_time.toISOString().split('T')[0] === dateStr)
+                    .map(zl => zl.sent_time)
+                    .sort((a, b) => a!.getTime() - b!.getTime());
+                  
+                  const actualStartTime = sentTimes.length > 0 ? sentTimes[0] : null;
+                  if (!actualStartTime) continue;
+                  
+                  const latenessMinutes = Math.max(0, Math.round((actualStartTime.getTime() - scheduledTime.getTime()) / 60000));
+                  
+                  let deductionApplied = 0;
+                  let deductionTier = "Excused";
+                  
+                  if (latenessMinutes > excusedThreshold) {
+                    let foundTier = false;
+                    for (const [i, tier] of tiers.entries()) {
+                      if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {
+                        deductionApplied = baseDeductionAmount * (tier.percent / 100);
+                        deductionTier = `Tier ${i + 1}`;
+                        foundTier = true;
+                        break;
+                      }
+                    }
+                    if (!foundTier && latenessMinutes > maxTierEnd) {
+                      deductionApplied = baseDeductionAmount;
+                      deductionTier = "> Max Tier";
+                    }
+                  }
+                  
+                  if (deductionApplied > 0) {
+                    // Create or update lateness record with waived status
+                    await tx.latenessrecord.upsert({
+                      where: {
+                        teacherId_classDate_scheduledTime: {
+                          teacherId,
+                          classDate: scheduledTime,
+                          scheduledTime
+                        }
+                      },
+                      update: {
+                        deductionApplied: 0,
+                        deductionTier: `WAIVED: ${reason} | Original: ${deductionApplied} ETB`
+                      },
+                      create: {
+                        teacherId,
+                        classDate: scheduledTime,
+                        scheduledTime,
+                        actualStartTime,
+                        latenessMinutes,
+                        deductionApplied: 0,
+                        deductionTier: `WAIVED: ${reason} | Would be: ${deductionApplied} ETB`
+                      }
+                    });
+                    
+                    latenessAmount += deductionApplied;
+                    totalDeductionWaived += deductionApplied;
+                    affectedTeachers.add(teacherId);
+                    adjustedRecords++;
+                  }
+                }
+              }
+            }
           }
         }
 
         if (adjustmentType === 'waive_absence') {
-          const absenceRecords = await tx.absencerecord.findMany({
-            where: {
-              teacherId: { in: teacherIds },
-              classDate: {
-                gte: new Date(startDate),
-                lte: new Date(endDate)
-              },
-              deductionApplied: { gt: 0 }
-            }
+          // Import absence detection function
+          const { isTeacherAbsent, getAbsenceDeductionConfig } = require('@/lib/absence-utils');
+          const absenceConfig = await getAbsenceDeductionConfig();
+          
+          const timeSlotDeductionConfig = await tx.deductionbonusconfig.findFirst({
+            where: { configType: "absence", key: "deduction_per_time_slot" },
           });
-
-          if (absenceRecords.length === 0) {
-            throw new Error('No absence records found with deductions for the specified criteria');
-          }
-
-          for (const record of absenceRecords) {
-            const originalAmount = Number(record.deductionApplied);
-            absenceAmount += originalAmount;
-            totalDeductionWaived += originalAmount;
-            affectedTeachers.add(record.teacherId);
-            
-            await tx.absencerecord.update({
-              where: { id: record.id },
-              data: {
-                deductionApplied: 0,
-                reviewNotes: `SALARY ADJUSTMENT - WAIVED ${originalAmount} ETB: ${reason} | Processed: ${adjustmentTimestamp.toISOString()} | Original Notes: ${record.reviewNotes || 'None'}`
+          const deductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
+          
+          for (const teacherId of teacherIds) {
+            for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
+              const monthNumber = String(d.getMonth() + 1);
+              if (absenceConfig.effectiveMonths.length > 0 && !absenceConfig.effectiveMonths.includes(monthNumber)) {
+                continue;
               }
-            });
-            adjustedRecords++;
+              
+              let deductionAmount = 0;
+              let timeSlots = null;
+              
+              // Check for existing absence record first
+              const existingAbsence = await tx.absencerecord.findFirst({
+                where: {
+                  teacherId,
+                  classDate: {
+                    gte: new Date(d.getFullYear(), d.getMonth(), d.getDate()),
+                    lt: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
+                  }
+                }
+              });
+              
+              if (existingAbsence && existingAbsence.deductionApplied > 0) {
+                // Waive existing record
+                deductionAmount = existingAbsence.deductionApplied;
+                await tx.absencerecord.update({
+                  where: { id: existingAbsence.id },
+                  data: {
+                    deductionApplied: 0,
+                    reviewNotes: `WAIVED: ${reason} | Original: ${deductionAmount} ETB | ${existingAbsence.reviewNotes || ''}`
+                  }
+                });
+              } else {
+                // Check for auto-detected absence and create waiver record
+                const absenceResult = await isTeacherAbsent(teacherId, new Date(d));
+                if (absenceResult.isAbsent) {
+                  const dayName = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
+                  const occupiedTimes = await tx.wpos_ustaz_occupied_times.findMany({
+                    where: { ustaz_id: teacherId },
+                    include: {
+                      student: { select: { daypackages: true } }
+                    }
+                  });
+                  
+                  const dayTimeSlots = occupiedTimes.filter(ot => {
+                    const studentDayPackages = ot.student.daypackages;
+                    return studentDayPackages && (
+                      studentDayPackages.includes('All days') || 
+                      studentDayPackages.includes(dayName)
+                    );
+                  });
+                  
+                  if (dayTimeSlots.length > 0) {
+                    const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
+                    deductionAmount = deductionPerTimeSlot * uniqueTimeSlots.length;
+                    timeSlots = JSON.stringify(uniqueTimeSlots);
+                  } else {
+                    deductionAmount = absenceConfig.deductionAmount;
+                  }
+                  
+                  // Create waiver record
+                  await tx.absencerecord.create({
+                    data: {
+                      teacherId,
+                      classDate: new Date(d),
+                      timeSlots,
+                      permitted: true, // Mark as permitted since it's waived
+                      deductionApplied: 0,
+                      reviewedByManager: true,
+                      reviewNotes: `WAIVED: ${reason} | Would be: ${deductionAmount} ETB | Auto-detected absence`
+                    }
+                  });
+                }
+              }
+              
+              if (deductionAmount > 0) {
+                absenceAmount += deductionAmount;
+                totalDeductionWaived += deductionAmount;
+                affectedTeachers.add(teacherId);
+                adjustedRecords++;
+              }
+            }
           }
         }
 
