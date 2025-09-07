@@ -118,29 +118,36 @@ export async function POST(req: NextRequest) {
                   }
                   
                   if (deductionApplied > 0) {
-                    // Create or update lateness record with waived status
-                    await tx.latenessrecord.upsert({
+                    // Check if record exists, then create or update
+                    const existingRecord = await tx.latenessrecord.findFirst({
                       where: {
-                        teacherId_classDate_scheduledTime: {
-                          teacherId,
-                          classDate: scheduledTime,
-                          scheduledTime
-                        }
-                      },
-                      update: {
-                        deductionApplied: 0,
-                        deductionTier: `WAIVED: ${reason} | Original: ${deductionApplied} ETB`
-                      },
-                      create: {
                         teacherId,
                         classDate: scheduledTime,
-                        scheduledTime,
-                        actualStartTime,
-                        latenessMinutes,
-                        deductionApplied: 0,
-                        deductionTier: `WAIVED: ${reason} | Would be: ${deductionApplied} ETB`
+                        scheduledTime
                       }
                     });
+                    
+                    if (existingRecord) {
+                      await tx.latenessrecord.update({
+                        where: { id: existingRecord.id },
+                        data: {
+                          deductionApplied: 0,
+                          deductionTier: `WAIVED: ${reason} | Original: ${deductionApplied} ETB`
+                        }
+                      });
+                    } else {
+                      await tx.latenessrecord.create({
+                        data: {
+                          teacherId,
+                          classDate: scheduledTime,
+                          scheduledTime,
+                          actualStartTime,
+                          latenessMinutes,
+                          deductionApplied: 0,
+                          deductionTier: `WAIVED: ${reason} | Would be: ${deductionApplied} ETB`
+                        }
+                      });
+                    }
                     
                     latenessAmount += deductionApplied;
                     totalDeductionWaived += deductionApplied;
