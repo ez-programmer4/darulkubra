@@ -40,15 +40,9 @@ export async function POST(req: NextRequest) {
                 lte: new Date(endDate)
               },
               deductionApplied: { gt: 0 }
-            },
-            include: {
-              wpos_wpdatatable_24: {
-                select: { ustazname: true }
-              }
             }
           });
 
-          // Validate records exist before processing
           if (latenessRecords.length === 0) {
             throw new Error('No lateness records found with deductions for the specified criteria');
           }
@@ -66,8 +60,8 @@ export async function POST(req: NextRequest) {
                 deductionTier: `WAIVED (${originalAmount} ETB): ${reason} | ${record.deductionTier}`
               }
             });
+            adjustedRecords++;
           }
-          adjustedRecords += latenessRecords.length;
         }
 
         if (adjustmentType === 'waive_absence') {
@@ -79,15 +73,9 @@ export async function POST(req: NextRequest) {
                 lte: new Date(endDate)
               },
               deductionApplied: { gt: 0 }
-            },
-            include: {
-              wpos_wpdatatable_24: {
-                select: { ustazname: true }
-              }
             }
           });
 
-          // Validate records exist before processing
           if (absenceRecords.length === 0) {
             throw new Error('No absence records found with deductions for the specified criteria');
           }
@@ -105,8 +93,8 @@ export async function POST(req: NextRequest) {
                 reviewNotes: `SALARY ADJUSTMENT - WAIVED ${originalAmount} ETB: ${reason} | Processed: ${adjustmentTimestamp.toISOString()} | Original Notes: ${record.reviewNotes || 'None'}`
               }
             });
+            adjustedRecords++;
           }
-          adjustedRecords += absenceRecords.length;
         }
 
         // Validate that adjustments were made

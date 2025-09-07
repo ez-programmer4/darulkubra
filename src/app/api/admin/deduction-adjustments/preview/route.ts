@@ -103,6 +103,16 @@ export async function POST(req: NextRequest) {
       return acc;
     }, {});
 
+    console.log('Preview Debug:', {
+      adjustmentType,
+      teacherIds,
+      dateRange: { startDate, endDate },
+      recordsFound: records.length,
+      totalLatenessAmount,
+      totalAbsenceAmount,
+      totalAmount: totalLatenessAmount + totalAbsenceAmount
+    });
+
     return NextResponse.json({ 
       records,
       summary: {
@@ -112,6 +122,10 @@ export async function POST(req: NextRequest) {
         totalAbsenceAmount,
         totalAmount: totalLatenessAmount + totalAbsenceAmount,
         teacherBreakdown: Object.values(teacherSummary)
+      },
+      debug: {
+        searchCriteria: { adjustmentType, teacherIds, dateRange: { startDate, endDate } },
+        tablesChecked: ['latenessrecord', 'absencerecord']
       }
     });
   } catch (error: any) {
