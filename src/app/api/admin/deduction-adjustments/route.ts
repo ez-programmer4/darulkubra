@@ -154,12 +154,40 @@ export async function POST(req: NextRequest) {
           throw new Error('No deduction records were found to adjust. Please verify your selection criteria.');
         }
 
-        // Simple audit log to avoid column errors
+        // Create deduction waiver tracking record
+        await tx.setting.upsert({
+          where: { key: `deduction_waiver_${adjustmentType}_${startDate}_${endDate}` },
+          update: {
+            value: JSON.stringify({
+              teacherIds,
+              reason,
+              adjustedAt: adjustmentTimestamp.toISOString(),
+              adminId,
+              recordsAffected: adjustedRecords,
+              totalAmountWaived: totalDeductionWaived
+            })
+          },
+          create: {
+            key: `deduction_waiver_${adjustmentType}_${startDate}_${endDate}`,
+            value: JSON.stringify({
+              teacherIds,
+              reason,
+              adjustedAt: adjustmentTimestamp.toISOString(),
+              adminId,
+              recordsAffected: adjustedRecords,
+              totalAmountWaived: totalDeductionWaived
+            }),
+            updatedAt: adjustmentTimestamp
+          }
+        });
+        
+        // Simple audit log
         try {
           await tx.auditlog.create({
             data: {
               actionType: 'salary_deduction_waiver',
               adminId: adminId || null,
+              targetId: null,
               details: `Waived ${adjustedRecords} deductions totaling ${totalDeductionWaived} ETB. Reason: ${reason}`
             }
           });

@@ -517,7 +517,7 @@ export async function GET(req: NextRequest) {
                 (actualStartTime.getTime() - scheduledTime.getTime()) / 60000
               )
             );
-            // Deduction logic
+            // Deduction logic with waiver check
             let deductionApplied = 0;
             if (latenessMinutes > excusedThreshold) {
               let foundTier = false;
@@ -533,6 +533,13 @@ export async function GET(req: NextRequest) {
               }
               if (!foundTier && latenessMinutes > maxTierEnd) {
                 deductionApplied = baseDeductionAmount;
+              }
+              
+              // Check for waiver
+              const { isDeductionWaived } = await import('@/lib/deduction-waivers');
+              const isWaived = await isDeductionWaived(t.ustazid, new Date(d), 'lateness');
+              if (isWaived) {
+                deductionApplied = 0;
               }
             }
             latenessDeduction += deductionApplied;
@@ -568,39 +575,51 @@ export async function GET(req: NextRequest) {
             });
             
             if (existingAbsence) {
-              // Use existing calculated deduction
-              absenceDeduction += existingAbsence.deductionApplied;
+              // Check for waiver before applying existing deduction
+              const { isDeductionWaived } = await import('@/lib/deduction-waivers');
+              const isWaived = await isDeductionWaived(t.ustazid, new Date(d), 'absence');
+              
+              if (!isWaived) {
+                // Use existing calculated deduction
+                absenceDeduction += existingAbsence.deductionApplied;
+              }
             } else {
               // Calculate new absence if detected
               const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
               if (absenceResult.isAbsent) {
-                // Get teacher's time slots for this day to calculate proper deduction
-                const dayName = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
-                const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
-                  where: { ustaz_id: t.ustazid },
-                  include: {
-                    student: {
-                      select: { daypackages: true }
+                // Check for waiver first
+                const { isDeductionWaived } = await import('@/lib/deduction-waivers');
+                const isWaived = await isDeductionWaived(t.ustazid, new Date(d), 'absence');
+                
+                if (!isWaived) {
+                  // Get teacher's time slots for this day to calculate proper deduction
+                  const dayName = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
+                  const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+                    where: { ustaz_id: t.ustazid },
+                    include: {
+                      student: {
+                        select: { daypackages: true }
+                      }
                     }
+                  });
+                  
+                  const dayTimeSlots = occupiedTimes.filter(ot => {
+                    const studentDayPackages = ot.student.daypackages;
+                    return studentDayPackages && (
+                      studentDayPackages.includes('All days') || 
+                      studentDayPackages.includes(dayName)
+                    );
+                  });
+                  
+                  if (dayTimeSlots.length > 0) {
+                    const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
+                    // Calculate deduction based on number of time slots
+                    const dailyDeduction = deductionPerTimeSlot * uniqueTimeSlots.length;
+                    absenceDeduction += dailyDeduction;
+                  } else {
+                    // Fallback to whole day deduction if no time slots found
+                    absenceDeduction += absenceConfig.deductionAmount;
                   }
-                });
-                
-                const dayTimeSlots = occupiedTimes.filter(ot => {
-                  const studentDayPackages = ot.student.daypackages;
-                  return studentDayPackages && (
-                    studentDayPackages.includes('All days') || 
-                    studentDayPackages.includes(dayName)
-                  );
-                });
-                
-                if (dayTimeSlots.length > 0) {
-                  const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
-                  // Calculate deduction based on number of time slots
-                  const dailyDeduction = deductionPerTimeSlot * uniqueTimeSlots.length;
-                  absenceDeduction += dailyDeduction;
-                } else {
-                  // Fallback to whole day deduction if no time slots found
-                  absenceDeduction += absenceConfig.deductionAmount;
                 }
               }
             }

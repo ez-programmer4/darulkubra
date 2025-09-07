@@ -169,13 +169,21 @@ export default function DeductionAdjustmentsPage() {
         setShowPreview(false);
         setSelectedTimeSlots([]);
         
-        // Show success message with integration info
+        // Show detailed success message
         setTimeout(() => {
           toast({
-            title: "✅ Integration Complete",
-            description: "Teacher payment calculations have been updated. Changes are now visible in the Teacher Payments page."
+            title: "✅ Salary Adjustment Completed Successfully!",
+            description: `📊 ${data.recordsAffected} deduction records waived | 💰 ${data.financialImpact?.totalAmountWaived || 0} ETB returned to teacher salaries | 🔄 Teacher Payment page will show updated amounts immediately`
           });
         }, 1000);
+        
+        // Show integration instructions
+        setTimeout(() => {
+          toast({
+            title: "🔄 Next Steps",
+            description: "1. Close this window 2. Refresh Teacher Payments page 3. Verify salary increases 4. Check reports for updated amounts"
+          });
+        }, 3000);
       } else {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to adjust deductions");
@@ -338,14 +346,51 @@ export default function DeductionAdjustmentsPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <FiAlertTriangle className="h-5 w-5 text-yellow-600" />
-              <h3 className="font-bold text-yellow-800">⚠️ CRITICAL: Salary Adjustment Process</h3>
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <FiAlertTriangle className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-yellow-800 text-lg">⚠️ CRITICAL: Salary Deduction Adjustment</h3>
+                <p className="text-yellow-600 text-sm">System Issue Compensation Process</p>
+              </div>
             </div>
-            <p className="text-yellow-700 mb-4">
-              This will permanently modify teacher salary calculations. Please review carefully before proceeding.
-            </p>
+            
+            <div className="bg-white rounded-lg p-4 mb-4 border border-yellow-200">
+              <h4 className="font-bold text-gray-800 mb-3">📝 How This Works:</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <h5 className="font-semibold text-gray-700 mb-2">🔍 Detection Process:</h5>
+                  <ul className="text-gray-600 space-y-1">
+                    <li>• Scans zoom link send times for lateness</li>
+                    <li>• Detects absence patterns automatically</li>
+                    <li>• Calculates actual deduction amounts</li>
+                    <li>• Shows real financial impact</li>
+                  </ul>
+                </div>
+                <div>
+                  <h5 className="font-semibold text-gray-700 mb-2">🔄 Integration Process:</h5>
+                  <ul className="text-gray-600 space-y-1">
+                    <li>• Creates waiver records in database</li>
+                    <li>• Teacher payment system reads waivers</li>
+                    <li>• Deductions automatically set to 0 ETB</li>
+                    <li>• Salaries increase immediately</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h4 className="font-bold text-red-800 mb-2">❗ Important Notes:</h4>
+              <ul className="text-red-700 text-sm space-y-1">
+                <li>• This permanently modifies salary calculations for the selected period</li>
+                <li>• Changes appear immediately in Teacher Payments page</li>
+                <li>• All reports will reflect the adjusted amounts</li>
+                <li>• Complete audit trail is maintained for compliance</li>
+                <li>• Action cannot be undone - use with caution</li>
+              </ul>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button
@@ -372,21 +417,47 @@ export default function DeductionAdjustmentsPage() {
               
               <button
                 onClick={() => {
-                  if (window.opener) {
-                    window.opener.location.reload();
+                  // Show final confirmation
+                  const confirmed = window.confirm(
+                    "Adjustment completed! This will:\n\n" +
+                    "✅ Refresh the Teacher Payments page\n" +
+                    "✅ Show updated salary amounts\n" +
+                    "✅ Reflect changes in all reports\n\n" +
+                    "Click OK to close and refresh."
+                  );
+                  
+                  if (confirmed) {
+                    if (window.opener) {
+                      window.opener.location.reload();
+                    }
+                    window.close();
                   }
-                  window.close();
                 }}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
               >
-                <FiX className="h-4 w-4" />
-                3. Close & Refresh
+                <FiCheck className="h-4 w-4" />
+                3. Complete & Refresh Teacher Payments
               </button>
             </div>
             
             {previewData.length === 0 && showPreview && (
-              <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded-lg">
-                <p className="text-green-800 font-medium">✅ No deduction records found for adjustment. This is normal if no deductions exist for the selected criteria.</p>
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <FiInfo className="h-4 w-4 text-blue-600" />
+                  <span className="font-bold text-blue-800">No Deductions Found</span>
+                </div>
+                <p className="text-blue-700 text-sm mb-3">
+                  No deduction records were found for the selected criteria. This could mean:
+                </p>
+                <ul className="text-blue-600 text-sm space-y-1 ml-4">
+                  <li>• No teachers were late or absent during this period</li>
+                  <li>• Selected teachers had no deductions in the date range</li>
+                  <li>• Deductions may have been waived previously</li>
+                  <li>• System may not have detected any issues during this time</li>
+                </ul>
+                <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-800">
+                  💡 <strong>Tip:</strong> Try different date ranges or check the Teacher Payments page to verify if deductions exist.
+                </div>
               </div>
             )}
           </div>
