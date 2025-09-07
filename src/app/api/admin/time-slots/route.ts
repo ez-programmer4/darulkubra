@@ -10,20 +10,23 @@ export async function GET(req: NextRequest) {
     }
 
     // Get unique time slots from occupied times
-    const timeSlots = await prisma.wpos_wpdatatable_26.findMany({
+    const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
       select: {
-        time_slot: true
+        time_slot: true,
       },
-      distinct: ['time_slot']
+      distinct: ["time_slot"],
     });
 
-    const slots = timeSlots
-      .map(slot => slot.time_slot)
+    const slots = occupiedTimes
+      .map((slot) => slot.time_slot)
       .filter(Boolean)
       .sort();
 
-    return NextResponse.json(slots);
+    return NextResponse.json(slots || []);
   } catch (error: any) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
