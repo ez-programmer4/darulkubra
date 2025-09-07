@@ -11,11 +11,11 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { 
-      adjustmentType, // 'waive_lateness', 'waive_absence', 'partial_adjustment'
+      adjustmentType,
       dateRange, 
       teacherIds, 
-      reason, 
-      adjustmentAmount 
+      timeSlots,
+      reason
     } = body;
 
     const { startDate, endDate } = dateRange;
@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
               adjustmentType,
               teacherIds,
               dateRange: { startDate, endDate },
+              timeSlots,
               reason,
               recordsAffected: adjustedRecords
             })
