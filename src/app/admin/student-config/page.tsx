@@ -20,8 +20,9 @@ export default function StudentConfigPage() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [editType, setEditType] = useState<string>("");
   const [newStatus, setNewStatus] = useState("");
   const [newPackage, setNewPackage] = useState("");
   const [newSubject, setNewSubject] = useState("");
@@ -137,6 +138,67 @@ export default function StudentConfigPage() {
     }
   };
 
+  const startEdit = (id: string, name: string, type: string) => {
+    setEditingId(id);
+    setEditValue(name);
+    setEditType(type);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditValue("");
+    setEditType("");
+  };
+
+  const saveEdit = async () => {
+    if (!editValue.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/student-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          type: editType, 
+          id: editingId, 
+          name: editValue.trim(), 
+          action: "update" 
+        }),
+      });
+
+      if (res.ok) {
+        toast({
+          title: "Success",
+          description: `${editType} updated successfully`,
+        });
+        cancelEdit();
+        fetchConfigurations();
+      } else {
+        const errorData = await res.json();
+        toast({
+          title: "Error",
+          description: errorData.error || "Failed to update item",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update item",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const ConfigSection = ({
     title,
     icon: Icon,
@@ -167,16 +229,21 @@ export default function StudentConfigPage() {
             type="text"
             value={type === "status" ? newStatus : type === "package" ? newPackage : newSubject}
             onChange={(e) => {
-              if (type === "status") setNewStatus(e.target.value);
-              else if (type === "package") setNewPackage(e.target.value);
-              else if (type === "subject") setNewSubject(e.target.value);
+              const value = e.target.value;
+              // Allow only one character input at a time for better UX
+              if (type === "status") setNewStatus(value);
+              else if (type === "package") setNewPackage(value);
+              else if (type === "subject") setNewSubject(value);
             }}
             placeholder={`Add new ${type}...`}
             className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
                 const value = type === "status" ? newStatus : type === "package" ? newPackage : newSubject;
-                addItem(type, value);
+                if (value.trim()) {
+                  addItem(type, value);
+                }
               }
             }}
           />
@@ -193,7 +260,7 @@ export default function StudentConfigPage() {
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-1">
-          Press Enter or click Add to create a new {type}
+          Press Enter or click Add to create • Use Escape to cancel edit
         </p>
       </div>
 
@@ -203,16 +270,57 @@ export default function StudentConfigPage() {
             key={item.id}
             className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <span className="font-medium text-gray-900 text-sm">
-              {item.name}
-            </span>
-            <button
-              onClick={() => deleteItem(type, item.id)}
-              disabled={loading}
-              className="text-red-500 hover:text-red-700 p-1.5 rounded-lg transition-colors disabled:opacity-50 hover:bg-red-50"
-            >
-              <FiTrash2 className="h-4 w-4" />
-            </button>
+            {editingId === item.id ? (
+              <div className="flex items-center gap-2 flex-1">
+                <input
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveEdit();
+                    if (e.key === "Escape") cancelEdit();
+                  }}
+                  autoFocus
+                />
+                <button
+                  onClick={saveEdit}
+                  disabled={loading}
+                  className="text-green-600 hover:text-green-700 p-1 rounded transition-colors disabled:opacity-50"
+                >
+                  <FiSave className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={cancelEdit}
+                  disabled={loading}
+                  className="text-gray-500 hover:text-gray-700 p-1 rounded transition-colors disabled:opacity-50"
+                >
+                  <FiX className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <span className="font-medium text-gray-900 text-sm flex-1">
+                  {item.name}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => startEdit(item.id, item.name, type)}
+                    disabled={loading}
+                    className="text-blue-500 hover:text-blue-700 p-1.5 rounded-lg transition-colors disabled:opacity-50 hover:bg-blue-50"
+                  >
+                    <FiEdit3 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => deleteItem(type, item.id)}
+                    disabled={loading}
+                    className="text-red-500 hover:text-red-700 p-1.5 rounded-lg transition-colors disabled:opacity-50 hover:bg-red-50"
+                  >
+                    <FiTrash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         ))}
         {items.length === 0 && (
@@ -227,18 +335,28 @@ export default function StudentConfigPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="p-3 bg-blue-600 rounded-xl">
-            <FiSettings className="h-8 w-8 text-white" />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-600 rounded-xl">
+              <FiSettings className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Student Configuration
+              </h1>
+              <p className="text-gray-600">
+                Manage student statuses, packages, and subjects
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Student Configuration
-            </h1>
-            <p className="text-gray-600">
-              Manage student statuses, packages, and subjects
-            </p>
-          </div>
+          <button
+            onClick={fetchConfigurations}
+            disabled={loading || initializing}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <FiRefreshCw className={`h-4 w-4 ${(loading || initializing) ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
