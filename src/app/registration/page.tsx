@@ -228,7 +228,7 @@ function RegistrationContent() {
     const fetchConfigurations = async () => {
       setLoadingConfigs(true);
       try {
-        const res = await fetch('/api/admin/student-config');
+        const res = await fetch('/api/student-configs');
         if (res.ok) {
           const data = await res.json();
           setStudentConfigs({

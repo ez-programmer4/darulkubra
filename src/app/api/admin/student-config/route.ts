@@ -2,6 +2,45 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
 
+async function initializeDefaultData() {
+  try {
+    const [statusCount, packageCount, subjectCount] = await Promise.all([
+      prisma.studentStatus.count(),
+      prisma.studentPackage.count(),
+      prisma.studentSubject.count()
+    ]);
+
+    if (statusCount === 0) {
+      const defaultStatuses = ["Active", "Inactive", "Not yet", "Leave", "Completed"];
+      await Promise.all(
+        defaultStatuses.map(status => 
+          prisma.studentStatus.create({ data: { name: status } })
+        )
+      );
+    }
+
+    if (packageCount === 0) {
+      const defaultPackages = ["0 Fee", "3 days", "5 days", "Europe"];
+      await Promise.all(
+        defaultPackages.map(pkg => 
+          prisma.studentPackage.create({ data: { name: pkg } })
+        )
+      );
+    }
+
+    if (subjectCount === 0) {
+      const defaultSubjects = ["Qaidah", "Nethor", "Hifz", "Kitab"];
+      await Promise.all(
+        defaultSubjects.map(subject => 
+          prisma.studentSubject.create({ data: { name: subject } })
+        )
+      );
+    }
+  } catch (error) {
+    console.error('Error initializing default data:', error);
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -11,6 +50,9 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     const type = url.searchParams.get("type");
+
+    // Initialize default data if tables are empty
+    await initializeDefaultData();
 
     if (type === "statuses") {
       const statuses = await prisma.studentStatus.findMany({
@@ -61,31 +103,26 @@ export async function POST(req: NextRequest) {
 
     // Initialize default data if action is 'init'
     if (action === "init") {
-      const defaultStatuses = ["Active", "Inactive", "Not yet", "Graduated", "Suspended"];
-      const defaultPackages = ["Basic", "Standard", "Premium", "VIP", "Custom"];
-      const defaultSubjects = ["Quran", "Arabic", "Islamic Studies", "Tajweed", "Hadith"];
+      const defaultStatuses = ["Active", "Inactive", "Not yet", "Leave", "Completed"];
+      const defaultPackages = ["0 Fee", "3 days", "5 days", "Europe"];
+      const defaultSubjects = ["Qaidah", "Nethor", "Hifz", "Kitab"];
+
+      // Clear existing data and recreate
+      await Promise.all([
+        prisma.studentStatus.deleteMany({}),
+        prisma.studentPackage.deleteMany({}),
+        prisma.studentSubject.deleteMany({})
+      ]);
 
       await Promise.all([
         ...defaultStatuses.map(status => 
-          prisma.studentStatus.upsert({
-            where: { name: status },
-            update: {},
-            create: { name: status }
-          })
+          prisma.studentStatus.create({ data: { name: status } })
         ),
         ...defaultPackages.map(pkg => 
-          prisma.studentPackage.upsert({
-            where: { name: pkg },
-            update: {},
-            create: { name: pkg }
-          })
+          prisma.studentPackage.create({ data: { name: pkg } })
         ),
         ...defaultSubjects.map(subject => 
-          prisma.studentSubject.upsert({
-            where: { name: subject },
-            update: {},
-            create: { name: subject }
-          })
+          prisma.studentSubject.create({ data: { name: subject } })
         )
       ]);
 
@@ -93,18 +130,42 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "add") {
-      // Check for duplicates
+      // Check for duplicates (case-insensitive)
       let exists = false;
       if (type === "status") {
-        exists = !!(await prisma.studentStatus.findUnique({ where: { name } }));
+        const existing = await prisma.studentStatus.findMany({
+          where: {
+            name: {
+              mode: 'insensitive',
+              equals: name
+            }
+          }
+        });
+        exists = existing.length > 0;
       } else if (type === "package") {
-        exists = !!(await prisma.studentPackage.findUnique({ where: { name } }));
+        const existing = await prisma.studentPackage.findMany({
+          where: {
+            name: {
+              mode: 'insensitive',
+              equals: name
+            }
+          }
+        });
+        exists = existing.length > 0;
       } else if (type === "subject") {
-        exists = !!(await prisma.studentSubject.findUnique({ where: { name } }));
+        const existing = await prisma.studentSubject.findMany({
+          where: {
+            name: {
+              mode: 'insensitive',
+              equals: name
+            }
+          }
+        });
+        exists = existing.length > 0;
       }
 
       if (exists) {
-        return NextResponse.json({ error: "Item already exists" }, { status: 400 });
+        return NextResponse.json({ error: `${name} already exists` }, { status: 400 });
       }
 
       let result;
