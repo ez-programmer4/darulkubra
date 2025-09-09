@@ -37,6 +37,7 @@ import {
 } from "@/utils/timeUtils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getAllStudentConfigurations } from "@/lib/student-config";
 
 interface FormData {
   fullName?: string;
@@ -156,6 +157,14 @@ function RegistrationContent() {
   >([]);
   const [loadingControllers, setLoadingControllers] = useState(false);
   const [controllersError, setControllersError] = useState<string | null>(null);
+  
+  // Dynamic student configurations
+  const [studentConfigs, setStudentConfigs] = useState<{
+    statuses: string[];
+    packages: string[];
+    subjects: string[];
+  }>({ statuses: [], packages: [], subjects: [] });
+  const [loadingConfigs, setLoadingConfigs] = useState(true);
 
   // --- ENHANCEMENT: Confirmation modal for unsaved changes ---
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -213,6 +222,43 @@ function RegistrationContent() {
       );
     }
   }, [errors]);
+
+  // Fetch dynamic student configurations
+  useEffect(() => {
+    const fetchConfigurations = async () => {
+      setLoadingConfigs(true);
+      try {
+        const res = await fetch('/api/admin/student-config');
+        if (res.ok) {
+          const data = await res.json();
+          setStudentConfigs({
+            statuses: data.statuses?.map((s: any) => s.name) || ['Active', 'Inactive', 'Not yet'],
+            packages: data.packages?.map((p: any) => p.name) || ['Basic', 'Premium', 'Advanced'],
+            subjects: data.subjects?.map((s: any) => s.name) || ['Quran', 'Arabic', 'Islamic Studies']
+          });
+        } else {
+          // Fallback to defaults
+          setStudentConfigs({
+            statuses: ['Active', 'Inactive', 'Not yet', 'Leave', 'Completed'],
+            packages: ['0 Fee', '3 days', '5 days', 'Europe'],
+            subjects: ['Qaidah', 'Nethor', 'Hifz', 'Kitab']
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch student configurations:', error);
+        // Fallback to defaults
+        setStudentConfigs({
+          statuses: ['Active', 'Inactive', 'Not yet', 'Leave', 'Completed'],
+          packages: ['0 Fee', '3 days', '5 days', 'Europe'],
+          subjects: ['Qaidah', 'Nethor', 'Hifz', 'Kitab']
+        });
+      } finally {
+        setLoadingConfigs(false);
+      }
+    };
+    
+    fetchConfigurations();
+  }, []);
 
   useEffect(() => {
     const fetchCountries = async () => {
@@ -1764,15 +1810,21 @@ function RegistrationContent() {
                       </label>
                       <select
                         {...register("package", {
-                          required: "Region is required",
+                          required: "Package is required",
                         })}
-                        className="w-full px-5 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm hover:border-teal-300"
+                        className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm hover:border-teal-300 ${
+                          errors.package ? "border-red-500" : "border-gray-200"
+                        } ${loadingConfigs ? "bg-gray-50" : ""}`}
+                        disabled={loadingConfigs}
                       >
-                        <option value="">Select package</option>
-                        <option value="0 Fee">0 Fee</option>
-                        <option value="3 days">3 days</option>
-                        <option value="5 days">5 days</option>
-                        <option value="europe">Europe</option>
+                        <option value="">
+                          {loadingConfigs ? "Loading packages..." : "Select package"}
+                        </option>
+                        {studentConfigs.packages.map((pkg, index) => (
+                          <option key={index} value={pkg}>
+                            {pkg}
+                          </option>
+                        ))}
                       </select>
                       {errors.package && (
                         <p className="mt-1 text-xs text-red-600 font-medium">
@@ -1789,32 +1841,22 @@ function RegistrationContent() {
                       <select
                         {...register("status", {
                           required: "Status is required",
-                          validate: (value) =>
-                            [
-                              "active",
-                              "leave",
-                              "remadan leave",
-                              "not yet",
-                              "fresh",
-                              "not succeed",
-                              "completed",
-                            ].includes(value?.toLowerCase() || "") ||
-                            "Status must be Active, Leave, Remadan leave, Not yet, Fresh, Not Succeed, or Completed",
                         })}
                         className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
                           errors.status
                             ? "border-red-500"
                             : "border-gray-200 hover:border-teal-300"
-                        }`}
+                        } ${loadingConfigs ? "bg-gray-50" : ""}`}
+                        disabled={loadingConfigs}
                       >
-                        <option value="">Select status</option>
-                        <option value="active">Active</option>
-                        <option value="leave">Leave</option>
-                        <option value="remadan leave">Remadan leave</option>
-                        <option value="Not yet">Not yet</option>
-                        <option value="fresh">Fresh</option>
-                        <option value="Not Succeed">Not Succeed</option>
-                        <option value="Completed">Completed</option>
+                        <option value="">
+                          {loadingConfigs ? "Loading statuses..." : "Select status"}
+                        </option>
+                        {studentConfigs.statuses.map((status, index) => (
+                          <option key={index} value={status.toLowerCase()}>
+                            {status}
+                          </option>
+                        ))}
                       </select>
                       {errors.status && (
                         <p className="mt-1 text-xs text-red-600 font-medium">
@@ -1836,13 +1878,17 @@ function RegistrationContent() {
                           errors.subject
                             ? "border-red-500"
                             : "border-gray-200 hover:border-teal-300"
-                        }`}
+                        } ${loadingConfigs ? "bg-gray-50" : ""}`}
+                        disabled={loadingConfigs}
                       >
-                        <option value="">Select subject</option>
-                        <option value="Qaidah">Qaidah</option>
-                        <option value="Nethor">Nethor</option>
-                        <option value="Hifz">Hifz</option>
-                        <option value="Kitab">Kitab</option>
+                        <option value="">
+                          {loadingConfigs ? "Loading subjects..." : "Select subject"}
+                        </option>
+                        {studentConfigs.subjects.map((subject, index) => (
+                          <option key={index} value={subject}>
+                            {subject}
+                          </option>
+                        ))}
                       </select>
                       {errors.subject && (
                         <p className="mt-1 text-xs text-red-600 font-medium">

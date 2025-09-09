@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FiPlus, FiTrash2, FiSettings, FiUsers, FiPackage, FiBook } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiSettings, FiUsers, FiPackage, FiBook, FiRefreshCw, FiEdit3, FiSave, FiX } from "react-icons/fi";
 import { toast } from "@/components/ui/use-toast";
 
 export default function StudentConfigPage() {
@@ -8,6 +8,9 @@ export default function StudentConfigPage() {
   const [packages, setPackages] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
   const [newItems, setNewItems] = useState({
     status: "",
     package: "",
@@ -16,7 +19,24 @@ export default function StudentConfigPage() {
 
   useEffect(() => {
     fetchConfigurations();
+    initializeDefaults();
   }, []);
+
+  const initializeDefaults = async () => {
+    setInitializing(true);
+    try {
+      await fetch("/api/admin/student-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "init" })
+      });
+      fetchConfigurations();
+    } catch (error) {
+      console.error("Failed to initialize defaults");
+    } finally {
+      setInitializing(false);
+    }
+  };
 
   const fetchConfigurations = async () => {
     try {
@@ -116,23 +136,26 @@ export default function StudentConfigPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 mb-4">
-        <input
-          type="text"
-          value={newItems[type as keyof typeof newItems]}
-          onChange={(e) => setNewItems(prev => ({ ...prev, [type as keyof typeof newItems]: e.target.value }))}
-          placeholder={`Add new ${type}`}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          onKeyPress={(e) => e.key === "Enter" && addItem(type, newItems[type])}
-        />
-        <button
-          onClick={() => addItem(type, newItems[type])}
-          disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 flex items-center gap-2 disabled:opacity-50"
-        >
-          <FiPlus className="h-4 w-4" />
-          Add
-        </button>
+      <div className="bg-gray-50 rounded-lg p-4 mb-4">
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text"
+            value={newItems[type as keyof typeof newItems]}
+            onChange={(e) => setNewItems(prev => ({ ...prev, [type as keyof typeof newItems]: e.target.value }))}
+            placeholder={`Add new ${type}...`}
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            onKeyPress={(e) => e.key === "Enter" && addItem(type, newItems[type])}
+          />
+          <button
+            onClick={() => addItem(type, newItems[type])}
+            disabled={loading || !newItems[type as keyof typeof newItems].trim()}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all hover:scale-105 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FiPlus className="h-4 w-4" />
+            Add {type}
+          </button>
+        </div>
+        <p className="text-xs text-gray-500">Press Enter or click Add to create a new {type}</p>
       </div>
 
       <div className="space-y-2 max-h-60 overflow-y-auto">
