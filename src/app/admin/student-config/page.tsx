@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
   FiPlus,
-  FiTrash2,
   FiSettings,
   FiUsers,
   FiPackage,
@@ -157,43 +156,7 @@ export default function StudentConfigPage() {
     }
   };
 
-  const deleteItem = async (type: string, id: string) => {
-    if (!confirm("Are you sure you want to delete this item?")) return;
 
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/student-config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, id, action: "delete" }),
-      });
-
-      if (res.ok) {
-        toast({
-          title: "Success",
-          description: `${
-            type.charAt(0).toUpperCase() + type.slice(1)
-          } deleted successfully`,
-        });
-        fetchConfigurations();
-      } else {
-        const errorData = await res.json();
-        toast({
-          title: "Error",
-          description: errorData.error || "Failed to delete item",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete item",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const startEdit = (id: string, name: string, type: string) => {
     setEditingId(id);
@@ -274,6 +237,38 @@ export default function StudentConfigPage() {
     );
   };
 
+  const AddItemInput = ({ type }: { type: "status" | "package" | "subject" }) => {
+    const [inputValue, setInputValue] = useState("");
+    
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (inputValue.trim()) {
+        addItem(type, inputValue);
+        setInputValue("");
+      }
+    };
+    
+    return (
+      <form onSubmit={handleSubmit} className="flex gap-2 mb-2">
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder={`Add new ${type}...`}
+          className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+        />
+        <button
+          type="submit"
+          disabled={loading || !inputValue.trim()}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        >
+          <FiPlus className="h-4 w-4" />
+          Add
+        </button>
+      </form>
+    );
+  };
+
   const ConfigSection = ({
     title,
     icon: Icon,
@@ -313,58 +308,7 @@ export default function StudentConfigPage() {
       {expandedSections[type] && (
         <>
           <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const value =
-                  type === "status"
-                    ? newStatus
-                    : type === "package"
-                    ? newPackage
-                    : newSubject;
-                if (value.trim()) {
-                  addItem(type, value);
-                }
-              }}
-              className="flex gap-2 mb-2"
-            >
-              <input
-                // ref={inputRefs[type]}
-                type="text"
-                value={
-                  type === "status"
-                    ? newStatus
-                    : type === "package"
-                    ? newPackage
-                    : newSubject
-                }
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (type === "status") setNewStatus(value);
-                  else if (type === "package") setNewPackage(value);
-                  else if (type === "subject") setNewSubject(value);
-                }}
-                placeholder={`Add new ${type}...`}
-                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-              />
-              <button
-                type="submit"
-                disabled={
-                  loading ||
-                  !(
-                    type === "status"
-                      ? newStatus
-                      : type === "package"
-                      ? newPackage
-                      : newSubject
-                  ).trim()
-                }
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-              >
-                <FiPlus className="h-4 w-4" />
-                Add
-              </button>
-            </form>
+            <AddItemInput type={type} />
             <p className="text-xs text-gray-500 mt-1">
               Press Enter or click Add to create • Use Escape to cancel edit
             </p>
@@ -432,22 +376,13 @@ export default function StudentConfigPage() {
                     <span className="font-medium text-gray-900 text-sm flex-1">
                       {item.name}
                     </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => startEdit(item.id, item.name, type)}
-                        disabled={loading}
-                        className="text-blue-500 hover:text-blue-700 p-1.5 rounded-lg transition-colors disabled:opacity-50 hover:bg-blue-50"
-                      >
-                        <FiEdit3 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => deleteItem(type, item.id)}
-                        disabled={loading}
-                        className="text-red-500 hover:text-red-700 p-1.5 rounded-lg transition-colors disabled:opacity-50 hover:bg-red-50"
-                      >
-                        <FiTrash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => startEdit(item.id, item.name, type)}
+                      disabled={loading}
+                      className="text-blue-500 hover:text-blue-700 p-1.5 rounded-lg transition-colors disabled:opacity-50 hover:bg-blue-50"
+                    >
+                      <FiEdit3 className="h-4 w-4" />
+                    </button>
                   </>
                 )}
               </div>
@@ -540,6 +475,7 @@ export default function StudentConfigPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className={activeTab !== "status" ? "hidden md:block" : ""}>
             <ConfigSection
+              key="status-section"
               title="Student Statuses"
               icon={FiUsers}
               items={statuses}
@@ -550,6 +486,7 @@ export default function StudentConfigPage() {
 
           <div className={activeTab !== "package" ? "hidden md:block" : ""}>
             <ConfigSection
+              key="package-section"
               title="Student Packages"
               icon={FiPackage}
               items={packages}
@@ -560,6 +497,7 @@ export default function StudentConfigPage() {
 
           <div className={activeTab !== "subject" ? "hidden md:block" : ""}>
             <ConfigSection
+              key="subject-section"
               title="Student Subjects"
               icon={FiBook}
               items={subjects}
