@@ -320,7 +320,18 @@ export default function StudentConfigPage() {
       {expandedSections[type] && (
         <>
           <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
-            <div className="flex gap-2 mb-2">
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const value =
+                type === "status"
+                  ? newStatus
+                  : type === "package"
+                  ? newPackage
+                  : newSubject;
+              if (value.trim()) {
+                addItem(type, value);
+              }
+            }} className="flex gap-2 mb-2">
               <input
                 ref={inputRefs[type]}
                 type="text"
@@ -332,6 +343,7 @@ export default function StudentConfigPage() {
                     : newSubject
                 }
                 onChange={(e) => {
+                  e.stopPropagation();
                   const value = e.target.value;
                   if (type === "status") setNewStatus(value);
                   else if (type === "package") setNewPackage(value);
@@ -339,31 +351,10 @@ export default function StudentConfigPage() {
                 }}
                 placeholder={`Add new ${type}...`}
                 className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    const value =
-                      type === "status"
-                        ? newStatus
-                        : type === "package"
-                        ? newPackage
-                        : newSubject;
-                    if (value.trim()) {
-                      addItem(type, value);
-                    }
-                  }
-                }}
+                onFocus={(e) => e.stopPropagation()}
               />
               <button
-                onClick={() => {
-                  const value =
-                    type === "status"
-                      ? newStatus
-                      : type === "package"
-                      ? newPackage
-                      : newSubject;
-                  addItem(type, value);
-                }}
+                type="submit"
                 disabled={
                   loading ||
                   !(
@@ -379,7 +370,7 @@ export default function StudentConfigPage() {
                 <FiPlus className="h-4 w-4" />
                 Add
               </button>
-            </div>
+            </form>
             <p className="text-xs text-gray-500 mt-1">
               Press Enter or click Add to create • Use Escape to cancel edit
             </p>
@@ -392,9 +383,11 @@ export default function StudentConfigPage() {
                 type="text"
                 placeholder={`Search ${type}...`}
                 value={searchTerm[type as keyof typeof searchTerm]}
-                onChange={(e) =>
-                  setSearchTerm({ ...searchTerm, [type]: e.target.value })
-                }
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setSearchTerm({ ...searchTerm, [type]: e.target.value });
+                }}
+                onFocus={(e) => e.stopPropagation()}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
@@ -411,12 +404,23 @@ export default function StudentConfigPage() {
                     <input
                       type="text"
                       value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setEditValue(e.target.value);
+                      }}
                       className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") saveEdit();
-                        if (e.key === "Escape") cancelEdit();
+                        e.stopPropagation();
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          saveEdit();
+                        }
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          cancelEdit();
+                        }
                       }}
+                      onFocus={(e) => e.stopPropagation()}
                       autoFocus
                     />
                     <button
