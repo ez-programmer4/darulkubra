@@ -167,11 +167,11 @@ export default function StudentConfigPage() {
             placeholder={`Add new ${type}...`}
             className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
             onKeyPress={(e) =>
-              e.key === "Enter" && addItem(type, newItems[type])
+              e.key === "Enter" && addItem(type, newItems[type as keyof typeof newItems])
             }
           />
           <button
-            onClick={() => addItem(type, newItems[type])}
+            onClick={() => addItem(type, newItems[type as keyof typeof newItems])}
             disabled={
               loading || !newItems[type as keyof typeof newItems].trim()
             }
