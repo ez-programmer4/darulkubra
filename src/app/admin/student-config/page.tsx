@@ -98,7 +98,13 @@ export default function StudentConfigPage() {
     }
   };
 
-  const ConfigSection = ({ title, icon: Icon, items, type, color }: any) => (
+  const ConfigSection = ({ title, icon: Icon, items, type, color }: {
+    title: string;
+    icon: any;
+    items: any[];
+    type: 'status' | 'package' | 'subject';
+    color: string;
+  }) => (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className={`p-3 ${color} rounded-xl`}>
@@ -113,8 +119,8 @@ export default function StudentConfigPage() {
       <div className="flex gap-2 mb-4">
         <input
           type="text"
-          value={newItems[type]}
-          onChange={(e) => setNewItems(prev => ({ ...prev, [type]: e.target.value }))}
+          value={newItems[type as keyof typeof newItems]}
+          onChange={(e) => setNewItems(prev => ({ ...prev, [type as keyof typeof newItems]: e.target.value }))}
           placeholder={`Add new ${type}`}
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           onKeyPress={(e) => e.key === "Enter" && addItem(type, newItems[type])}
