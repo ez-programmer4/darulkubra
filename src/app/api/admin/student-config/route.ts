@@ -14,7 +14,6 @@ export async function GET(req: NextRequest) {
 
     if (type === "statuses") {
       const statuses = await prisma.studentStatus.findMany({
-        where: { isActive: true },
         orderBy: { name: "asc" },
       });
       return NextResponse.json(statuses);
@@ -22,7 +21,6 @@ export async function GET(req: NextRequest) {
 
     if (type === "packages") {
       const packages = await prisma.studentPackage.findMany({
-        where: { isActive: true },
         orderBy: { name: "asc" },
       });
       return NextResponse.json(packages);
@@ -30,7 +28,6 @@ export async function GET(req: NextRequest) {
 
     if (type === "subjects") {
       const subjects = await prisma.studentSubject.findMany({
-        where: { isActive: true },
         orderBy: { name: "asc" },
       });
       return NextResponse.json(subjects);
@@ -39,15 +36,12 @@ export async function GET(req: NextRequest) {
     // Return all configurations
     const [statuses, packages, subjects] = await Promise.all([
       prisma.studentStatus.findMany({
-        where: { isActive: true },
         orderBy: { name: "asc" },
       }),
       prisma.studentPackage.findMany({
-        where: { isActive: true },
         orderBy: { name: "asc" },
       }),
       prisma.studentSubject.findMany({
-        where: { isActive: true },
         orderBy: { name: "asc" },
       }),
     ]);
@@ -78,6 +72,7 @@ export async function POST(req: NextRequest) {
         "Leave",
         "Completed",
         "Not succeed",
+        "Ramadan Leave",
       ];
       const defaultPackages = ["0 Fee", "3 days", "5 days", "Europe"];
       const defaultSubjects = ["Qaidah", "Nethor", "Hifz", "Kitab"];

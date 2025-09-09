@@ -157,7 +157,7 @@ function RegistrationContent() {
   >([]);
   const [loadingControllers, setLoadingControllers] = useState(false);
   const [controllersError, setControllersError] = useState<string | null>(null);
-  
+
   // Dynamic student configurations
   const [studentConfigs, setStudentConfigs] = useState<{
     statuses: string[];
@@ -228,35 +228,30 @@ function RegistrationContent() {
     const fetchConfigurations = async () => {
       setLoadingConfigs(true);
       try {
-        const res = await fetch('/api/student-configs');
+        const res = await fetch("/api/student-configs");
         if (res.ok) {
           const data = await res.json();
-          setStudentConfigs({
-            statuses: data.statuses?.map((s: any) => s.name) || ['Active', 'Inactive', 'Not yet'],
-            packages: data.packages?.map((p: any) => p.name) || ['Basic', 'Premium', 'Advanced'],
-            subjects: data.subjects?.map((s: any) => s.name) || ['Quran', 'Arabic', 'Islamic Studies']
-          });
         } else {
           // Fallback to defaults
           setStudentConfigs({
-            statuses: ['Active', 'Inactive', 'Not yet', 'Leave', 'Completed'],
-            packages: ['0 Fee', '3 days', '5 days', 'Europe'],
-            subjects: ['Qaidah', 'Nethor', 'Hifz', 'Kitab']
+            statuses: ["Active", "Inactive", "Not yet", "Leave", "Completed"],
+            packages: ["0 Fee", "3 days", "5 days", "Europe"],
+            subjects: ["Qaidah", "Nethor", "Hifz", "Kitab"],
           });
         }
       } catch (error) {
-        console.error('Failed to fetch student configurations:', error);
+        console.error("Failed to fetch student configurations:", error);
         // Fallback to defaults
         setStudentConfigs({
-          statuses: ['Active', 'Inactive', 'Not yet', 'Leave', 'Completed'],
-          packages: ['0 Fee', '3 days', '5 days', 'Europe'],
-          subjects: ['Qaidah', 'Nethor', 'Hifz', 'Kitab']
+          statuses: ["Active", "Inactive", "Not yet", "Leave", "Completed"],
+          packages: ["0 Fee", "3 days", "5 days", "Europe"],
+          subjects: ["Qaidah", "Nethor", "Hifz", "Kitab"],
         });
       } finally {
         setLoadingConfigs(false);
       }
     };
-    
+
     fetchConfigurations();
   }, []);
 
@@ -1818,7 +1813,9 @@ function RegistrationContent() {
                         disabled={loadingConfigs}
                       >
                         <option value="">
-                          {loadingConfigs ? "Loading packages..." : "Select package"}
+                          {loadingConfigs
+                            ? "Loading packages..."
+                            : "Select package"}
                         </option>
                         {studentConfigs.packages.map((pkg, index) => (
                           <option key={index} value={pkg}>
@@ -1850,7 +1847,9 @@ function RegistrationContent() {
                         disabled={loadingConfigs}
                       >
                         <option value="">
-                          {loadingConfigs ? "Loading statuses..." : "Select status"}
+                          {loadingConfigs
+                            ? "Loading statuses..."
+                            : "Select status"}
                         </option>
                         {studentConfigs.statuses.map((status, index) => (
                           <option key={index} value={status.toLowerCase()}>
@@ -1882,7 +1881,9 @@ function RegistrationContent() {
                         disabled={loadingConfigs}
                       >
                         <option value="">
-                          {loadingConfigs ? "Loading subjects..." : "Select subject"}
+                          {loadingConfigs
+                            ? "Loading subjects..."
+                            : "Select subject"}
                         </option>
                         {studentConfigs.subjects.map((subject, index) => (
                           <option key={index} value={subject}>

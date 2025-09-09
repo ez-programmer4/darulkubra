@@ -6,17 +6,14 @@ export async function GET(req: NextRequest) {
     // Public endpoint - no authentication required for reading configurations
     const [statuses, packages, subjects] = await Promise.all([
       prisma.studentStatus.findMany({ 
-        where: { isActive: true }, 
         orderBy: { name: 'asc' },
         select: { id: true, name: true }
       }),
       prisma.studentPackage.findMany({ 
-        where: { isActive: true }, 
         orderBy: { name: 'asc' },
         select: { id: true, name: true }
       }),
       prisma.studentSubject.findMany({ 
-        where: { isActive: true }, 
         orderBy: { name: 'asc' },
         select: { id: true, name: true }
       })
