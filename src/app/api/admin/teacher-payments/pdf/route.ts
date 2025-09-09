@@ -34,8 +34,10 @@ export async function POST(req: NextRequest) {
           const breakdownRes = await fetch(`${req.nextUrl.origin}/api/admin/teacher-payments?teacherId=${teacher.id}&from=${startDate}&to=${endDate}`);
           const breakdown = breakdownRes.ok ? await breakdownRes.json() : { latenessRecords: [], absenceRecords: [], bonusRecords: [] };
           
-          // Fetch student package breakdown
-          const studentsRes = await fetch(`${req.nextUrl.origin}/api/admin/teacher-students/${teacher.id}`);
+          // Fetch student package breakdown with daily data
+          const month = fromDate.getMonth() + 1;
+          const year = fromDate.getFullYear();
+          const studentsRes = await fetch(`${req.nextUrl.origin}/api/admin/teacher-students/${teacher.id}?month=${month}&year=${year}`);
           const studentData = studentsRes.ok ? await studentsRes.json() : null;
           
           return {
@@ -310,7 +312,7 @@ export async function POST(req: NextRequest) {
         }
         .package-breakdown {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 15px;
             margin: 15px 0;
         }
@@ -319,6 +321,41 @@ export async function POST(req: NextRequest) {
             padding: 15px;
             border-radius: 8px;
             border: 1px solid #dee2e6;
+            transition: all 0.2s ease;
+        }
+        .package-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .daily-summary {
+            background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+            border: 2px solid #28a745;
+        }
+        .daily-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            text-align: center;
+        }
+        .daily-stat {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .daily-stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .daily-stat-label {
+            font-size: 0.8em;
+            color: #6c757d;
+            text-transform: uppercase;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -413,14 +450,76 @@ export async function POST(req: NextRequest) {
                                     <h4>📋 Detailed Breakdown for ${teacher.name}</h4>
                                     
                                     ${teacher.studentData?.packageBreakdown ? `
-                                    <div class="package-breakdown">
-                                        <h5>📦 Package Distribution:</h5>
-                                        ${teacher.studentData.packageBreakdown.map((pkg: any) => `
-                                            <div class="package-card">
-                                                <strong>${pkg.packageName}</strong><br>
-                                                ${pkg.count} students × ${pkg.salaryPerStudent} ETB = <strong>${pkg.totalSalary} ETB</strong>
+                                    <div class="breakdown-item">
+                                        <div class="breakdown-header">
+                                            <div class="breakdown-title">
+                                                📅 Daily Attendance Payment Breakdown
+                                                <span style="font-size: 0.8em; color: #6c757d;">(${teacher.studentData.workingDays} working days)</span>
                                             </div>
-                                        `).join('')}
+                                            <div class="breakdown-total" style="background: #28a745;">
+                                                ${teacher.studentData.totalEarnedSalary} ETB earned
+                                            </div>
+                                        </div>
+                                        
+                                        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; text-align: center;">
+                                                <div>
+                                                    <div style="font-size: 1.2em; font-weight: bold; color: #28a745;">${teacher.studentData.totalTeachingDays}</div>
+                                                    <div style="font-size: 0.8em; color: #6c757d;">Days Taught</div>
+                                                </div>
+                                                <div>
+                                                    <div style="font-size: 1.2em; font-weight: bold; color: #6c757d;">${teacher.studentData.totalPossibleDays}</div>
+                                                    <div style="font-size: 0.8em; color: #6c757d;">Possible Days</div>
+                                                </div>
+                                                <div>
+                                                    <div style="font-size: 1.2em; font-weight: bold; color: #007bff;">${teacher.studentData.attendanceRate}</div>
+                                                    <div style="font-size: 0.8em; color: #6c757d;">Attendance Rate</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="package-breakdown">
+                                            <h5>📦 Package-wise Daily Breakdown:</h5>
+                                            ${teacher.studentData.packageBreakdown.map((pkg: any) => `
+                                                <div class="package-card" style="border-left: 4px solid #28a745;">
+                                                    <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
+                                                        <strong>${pkg.packageName}</strong>
+                                                        <span style="background: #e8f5e8; padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold;">${pkg.count} students</span>
+                                                    </div>
+                                                    <div style="font-size: 0.9em; color: #6c757d; margin-bottom: 8px;">
+                                                        Monthly Rate: <strong>${pkg.salaryPerStudent} ETB</strong> ÷ ${teacher.studentData.workingDays} working days = <strong>${pkg.dailySalary?.toFixed(2)} ETB/day</strong>
+                                                    </div>
+                                                    <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+                                                        <div>Teaching Days: <strong>${pkg.totalTeachingDays}/${pkg.totalPossibleDays}</strong></div>
+                                                        <div>Earned: <strong>${pkg.totalSalary?.toFixed(2)} ETB</strong></div>
+                                                    </div>
+                                                    
+                                                    ${pkg.students?.length > 0 ? `
+                                                    <div style="margin-top: 10px;">
+                                                        <div style="font-size: 0.85em; font-weight: bold; margin-bottom: 5px;">Student Details:</div>
+                                                        ${pkg.students.map((student: any) => `
+                                                            <div style="background: #ffffff; border: 1px solid #dee2e6; padding: 8px; border-radius: 4px; margin: 4px 0; font-size: 0.8em;">
+                                                                <div style="display: flex; justify-content: between; align-items: center;">
+                                                                    <span><strong>${student.name}</strong></span>
+                                                                    <span style="color: #28a745; font-weight: bold;">${student.teachingDays} days → ${student.earnedSalary} ETB</span>
+                                                                </div>
+                                                            </div>
+                                                        `).join('')}
+                                                    </div>
+                                                    ` : ''}
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                        
+                                        <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 12px; margin-top: 15px;">
+                                            <div style="font-size: 0.85em; color: #856404;">
+                                                <strong>💡 How Daily Payment Works:</strong><br>
+                                                • Teacher earns daily rate when Zoom link is sent to student<br>
+                                                • Monthly salary is divided by working days (${teacher.studentData.workingDays} days this month)<br>
+                                                • Mid-month changes are handled automatically<br>
+                                                • ${teacher.studentData.workingDays < teacher.studentData.daysInMonth ? 'Sundays excluded from calculation' : 'All days included in calculation'}
+                                            </div>
+                                        </div>
                                     </div>
                                     ` : ''}
                                     

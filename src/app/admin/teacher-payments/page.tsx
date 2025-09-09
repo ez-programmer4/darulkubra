@@ -88,6 +88,8 @@ export default function TeacherPaymentsPage() {
   const [availablePackages, setAvailablePackages] = useState<string[]>([]);
   const [teacherSalaryVisible, setTeacherSalaryVisible] = useState(true);
   const [salaryVisibilityLoading, setSalaryVisibilityLoading] = useState(false);
+  const [includeSundays, setIncludeSundays] = useState(false); // Default: exclude Sundays
+  const [sundayLoading, setSundayLoading] = useState(false);
   const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(
     new Set()
   );
@@ -178,7 +180,7 @@ export default function TeacherPaymentsPage() {
           fetch(
             `/api/admin/teacher-payments?teacherId=${teacherId}&from=${from.toISOString()}&to=${to.toISOString()}`
           ),
-          fetch(`/api/admin/teacher-students/${teacherId}`),
+          fetch(`/api/admin/teacher-students/${teacherId}?month=${selectedMonth}&year=${selectedYear}`),
         ]);
 
         if (!breakdownRes.ok) throw new Error("Failed to fetch breakdown");
@@ -248,13 +250,17 @@ export default function TeacherPaymentsPage() {
         const res = await fetch("/api/admin/settings");
         if (res.ok) {
           const data = await res.json();
-          const setting = data.settings?.find(
+          const visibilitySetting = data.settings?.find(
             (s: any) => s.key === "teacher_salary_visible"
           );
-          setTeacherSalaryVisible(setting?.value === "true");
+          const sundaySetting = data.settings?.find(
+            (s: any) => s.key === "include_sundays_in_salary"
+          );
+          setTeacherSalaryVisible(visibilitySetting?.value === "true");
+          setIncludeSundays(sundaySetting?.value === "true" || false); // Default: exclude
         }
       } catch (error) {
-        console.error("Failed to fetch salary visibility setting:", error);
+        console.error("Failed to fetch settings:", error);
       }
     }
 
@@ -527,7 +533,7 @@ export default function TeacherPaymentsPage() {
                   Teacher Payments
                 </h1>
                 <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
-                  Package-driven salary management system
+                  Daily-based salary system with Zoom link tracking
                 </p>
               </div>
             </div>
@@ -713,13 +719,28 @@ export default function TeacherPaymentsPage() {
                     </div>
                     <div>
                       <h3 className="text-xl font-bold bg-gradient-to-r from-blue-800 to-indigo-900 bg-clip-text text-transparent">
-                        Package-Based Salaries
+                        Daily-Based Salary System
                       </h3>
                       <p className="text-blue-700 text-sm">
-                        Configure salary per student package
+                        Teachers earn daily salary when sending Zoom links
                       </p>
                     </div>
                   </div>
+                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                    <h4 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
+                      <FiInfo className="h-4 w-4" />
+                      How Daily Calculation Works
+                    </h4>
+                    <ul className="text-blue-700 text-sm space-y-1">
+                      <li>• Monthly package salary ÷ Working days = Daily rate</li>
+                      <li>• Teacher earns daily rate when Zoom link is sent {!includeSundays && "(excludes Sundays)"}</li>
+                      <li>• Mid-month student changes are handled automatically</li>
+                      <li>• Teacher replacements get fair pro-rated payments</li>
+                      <li>• Working days ensure full monthly salary when all days taught</li>
+                      <li>• Deduction adjustments are automatically integrated</li>
+                    </ul>
+                  </div>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
                     {availablePackages.map((packageName, index) => {
                       return (
@@ -804,6 +825,107 @@ export default function TeacherPaymentsPage() {
                 </div>
               </div>
 
+              {/* Working Days Configuration */}
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-400/20 via-blue-400/20 to-cyan-400/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+
+                <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-indigo-200/50 p-6 hover:shadow-2xl transition-all duration-300">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-xl blur-sm"></div>
+                      <div className="relative p-3 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-xl shadow-lg">
+                        <FiCalendar className="h-6 w-6 text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-indigo-800 to-blue-900 bg-clip-text text-transparent">
+                        Working Days Configuration
+                      </h3>
+                      <p className="text-indigo-700 text-sm">
+                        Control which days count for salary calculation
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 to-blue-100 rounded-xl opacity-60"></div>
+
+                    <div className="relative flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 border border-indigo-200 rounded-xl backdrop-blur-sm">
+                      <label className="flex items-center gap-3 cursor-pointer w-full md:flex-1 group/label">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={includeSundays}
+                            onChange={(e) => setIncludeSundays(e.target.checked)}
+                            className="w-5 h-5 rounded border-2 border-indigo-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all"
+                            disabled={sundayLoading}
+                          />
+                          {includeSundays && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <FiCheck className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-indigo-900 font-semibold group-hover/label:text-indigo-700 transition-colors">
+                            Include Sundays in salary calculation
+                          </span>
+                          <div
+                            className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                              includeSundays
+                                ? "bg-indigo-500 shadow-lg shadow-indigo-500/50"
+                                : "bg-gray-300"
+                            }`}
+                          ></div>
+                        </div>
+                      </label>
+
+                      <button
+                        onClick={async () => {
+                          setSundayLoading(true);
+                          try {
+                            const res = await fetch("/api/admin/settings", {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                key: "include_sundays_in_salary",
+                                value: includeSundays.toString(),
+                              }),
+                            });
+                            if (res.ok) {
+                              toast({
+                                title: "Success",
+                                description: "Working days configuration updated!",
+                              });
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to update configuration",
+                              variant: "destructive",
+                            });
+                          } finally {
+                            setSundayLoading(false);
+                          }
+                        }}
+                        className={`relative overflow-hidden w-full md:w-auto bg-gradient-to-r from-indigo-600 to-blue-700 hover:shadow-xl text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 group/btn ${
+                          sundayLoading ? "opacity-75" : ""
+                        }`}
+                        disabled={sundayLoading}
+                      >
+                        <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-500"></div>
+                        {sundayLoading ? (
+                          <FiLoader className="animate-spin h-4 w-4 relative z-10" />
+                        ) : (
+                          <FiCheck className="h-4 w-4 relative z-10" />
+                        )}
+                        <span className="relative z-10">Update Settings</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* System Issue Management */}
               <div className="relative group">
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-400/20 via-red-400/20 to-pink-400/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
@@ -842,8 +964,12 @@ export default function TeacherPaymentsPage() {
                         const checkClosed = setInterval(() => {
                           if (adjustmentWindow?.closed) {
                             clearInterval(checkClosed);
-                            // Refresh teacher payments data
-                            window.location.reload();
+                            // Refresh teacher payments data to reflect adjustments
+                            fetchConfigurations();
+                            toast({
+                              title: "Data Refreshed",
+                              description: "Teacher payments updated with latest adjustments",
+                            });
                           }
                         }, 1000);
                       }}
@@ -1078,7 +1204,7 @@ export default function TeacherPaymentsPage() {
                               }
                               toast({
                                 title: "Success",
-                                description: "Detailed report generated successfully!"
+                                description: "Detailed report with daily breakdown generated!"
                               });
                             } else {
                               throw new Error('Failed to generate report');
@@ -1093,8 +1219,53 @@ export default function TeacherPaymentsPage() {
                         }}
                         className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700"
                       >
-                        <FiInfo className="h-4 w-4" />
-                        Detailed Report
+                        <FiCalendar className="h-4 w-4" />
+                        Daily Attendance Report
+                      </button>
+                      
+                      <button
+                        onClick={async () => {
+                          setShowReportOptions(false);
+                          try {
+                            const { from, to } = getMonthRange(selectedYear, selectedMonth);
+                            const response = await fetch('/api/admin/teacher-payments/pdf', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                startDate: from.toISOString(),
+                                endDate: to.toISOString(),
+                                teachersData: filteredTeachers,
+                                includeDetails: true,
+                                reportType: 'deductions_only'
+                              })
+                            });
+                            
+                            if (response.ok) {
+                              const html = await response.text();
+                              const newWindow = window.open('', '_blank');
+                              if (newWindow) {
+                                newWindow.document.write(html);
+                                newWindow.document.close();
+                              }
+                              toast({
+                                title: "Success",
+                                description: "Deductions & adjustments report generated!"
+                              });
+                            } else {
+                              throw new Error('Failed to generate report');
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to generate deductions report",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                      >
+                        <FiAlertTriangle className="h-4 w-4" />
+                        Deductions & Adjustments Report
                       </button>
                       
                       <div className="border-t border-gray-200 my-1"></div>
@@ -1755,9 +1926,18 @@ export default function TeacherPaymentsPage() {
                       {salaryStatus[selectedTeacher.id] || "Unpaid"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <FiInfo className="text-gray-500 h-5 w-5" />
-                    Salary calculated based on student packages.
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <FiCalendar className="text-gray-500 h-5 w-5" />
+                      Salary calculated daily based on Zoom link activity.
+                    </div>
+                    {teacherPackageBreakdown && (
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium">Month:</span> {months.find(m => m.value === String(selectedMonth))?.label} {selectedYear} 
+                        <span className="ml-4 font-medium">Total Days:</span> {teacherPackageBreakdown.daysInMonth}
+                        <span className="ml-4 font-medium">Working Days:</span> {teacherPackageBreakdown.workingDays} {!includeSundays && "(excludes Sundays)"}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

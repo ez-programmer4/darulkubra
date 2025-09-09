@@ -301,16 +301,6 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Get students with their packages per teacher (active students only)
-    const students = await prisma.wpos_wpdatatable_23.findMany({
-      select: { ustaz: true, package: true },
-      where: { status: { in: ["active", "Active", "Not yet"] } },
-    });
-    const studentCountMap: Record<string, number> = {};
-    for (const s of students) {
-      if (!s.ustaz) continue;
-      studentCountMap[s.ustaz] = (studentCountMap[s.ustaz] || 0) + 1;
-    }
     // Get package-based salary configuration from dedicated table
     const packageSalaries = await prisma.packageSalary.findMany();
     
@@ -318,6 +308,23 @@ export async function GET(req: NextRequest) {
     packageSalaries.forEach((pkg) => {
       salaryMap[pkg.packageName] = Number(pkg.salaryPerStudent);
     });
+
+    // Get working days configuration (default: exclude Sundays)
+    const workingDaysConfig = await prisma.setting.findUnique({
+      where: { key: "include_sundays_in_salary" }
+    });
+    const includeSundays = workingDaysConfig?.value === "true" || false;
+    
+    // Calculate working days in the selected month
+    const daysInMonth = new Date(from.getFullYear(), from.getMonth() + 1, 0).getDate();
+    let workingDays = 0;
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(from.getFullYear(), from.getMonth(), day);
+      // Include/exclude Sundays based on configuration
+      if (includeSundays || date.getDay() !== 0) {
+        workingDays++;
+      }
+    }
 
     // For each teacher, calculate deductions and bonuses
     // Helper to get all periods in the date range
@@ -354,20 +361,109 @@ export async function GET(req: NextRequest) {
         // Only use database configuration, no predefined tiers
         if (latenessConfigs.length === 0) {
           // Return teacher with zero lateness deduction if no config
-          // Calculate salary based on student packages
-          const teacherStudents = await prisma.wpos_wpdatatable_23.findMany({
+          // Get current and historical students for this teacher
+          const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
             where: { ustaz: t.ustazid, status: { in: ["active", "Active"] } },
-            select: { package: true },
+            select: { 
+              wdt_ID: true,
+              package: true,
+              zoom_links: {
+                where: {
+                  sent_time: {
+                    gte: from,
+                    lte: to
+                  }
+                },
+                select: {
+                  sent_time: true
+                }
+              }
+            },
+          });
+          
+          // Get historical assignments
+          const historicalAssignments = await prisma.teacherAssignmentHistory.findMany({
+            where: {
+              teacherId: t.ustazid,
+              OR: [
+                {
+                  startDate: { lte: to },
+                  endDate: { gte: from }
+                },
+                {
+                  startDate: { lte: to },
+                  endDate: null
+                }
+              ]
+            },
+            include: {
+              student: {
+                select: {
+                  wdt_ID: true,
+                  package: true,
+                  zoom_links: {
+                    where: {
+                      sent_time: {
+                        gte: from,
+                        lte: to
+                      }
+                    },
+                    select: {
+                      sent_time: true
+                    }
+                  }
+                }
+              }
+            }
+          });
+          
+          // Combine students
+          const allStudentIds = new Set();
+          const teacherStudents = [];
+          
+          currentStudents.forEach(student => {
+            allStudentIds.add(student.wdt_ID);
+            teacherStudents.push(student);
+          });
+          
+          historicalAssignments.forEach(assignment => {
+            if (!allStudentIds.has(assignment.studentId)) {
+              allStudentIds.add(assignment.studentId);
+              teacherStudents.push({
+                wdt_ID: assignment.studentId,
+                package: assignment.packageName || assignment.student.package,
+                zoom_links: assignment.student.zoom_links
+              });
+            }
           });
 
-          const baseSalary = teacherStudents.reduce((total, student) => {
-            if (!student.package || !salaryMap[student.package]) {
-              return total; // Skip students without valid package salary
-            }
-            return total + salaryMap[student.package];
-          }, 0);
-
           const numStudents = teacherStudents.length;
+          
+          // Calculate daily-based salary
+          let baseSalary = 0;
+          
+          for (const student of teacherStudents) {
+            if (!student.package || !salaryMap[student.package]) continue;
+            
+            const packageSalary = salaryMap[student.package];
+            const dailySalary = packageSalary / workingDays;
+            
+            // Count working days where zoom link was sent for this student
+            const sentDates = new Set();
+            student.zoom_links.forEach(link => {
+              if (link.sent_time) {
+                const linkDate = new Date(link.sent_time);
+                // Count based on configuration
+                if (includeSundays || linkDate.getDay() !== 0) {
+                  const dateStr = link.sent_time.toISOString().split('T')[0];
+                  sentDates.add(dateStr);
+                }
+              }
+            });
+            
+            // Add earned salary based on actual teaching days
+            baseSalary += dailySalary * sentDates.size;
+          }
 
           // Calculate absence deduction
           let absenceDeduction = 0;
@@ -456,20 +552,144 @@ export async function GET(req: NextRequest) {
         });
         let latenessDeduction = 0;
 
-        // Calculate salary based on student packages
-        const teacherStudents = await prisma.wpos_wpdatatable_23.findMany({
+        // Get current students
+        const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
           where: { ustaz: t.ustazid, status: { in: ["active", "Active"] } },
-          select: { package: true },
+          select: { 
+            wdt_ID: true,
+            package: true,
+            zoom_links: {
+              where: {
+                sent_time: {
+                  gte: from,
+                  lte: to
+                }
+              },
+              select: {
+                sent_time: true
+              }
+            }
+          },
+        });
+        
+        // Get historical assignments for this teacher in the period
+        const historicalAssignments = await prisma.teacherAssignmentHistory.findMany({
+          where: {
+            teacherId: t.ustazid,
+            OR: [
+              {
+                startDate: { lte: to },
+                endDate: { gte: from }
+              },
+              {
+                startDate: { lte: to },
+                endDate: null
+              }
+            ]
+          },
+          include: {
+            student: {
+              select: {
+                wdt_ID: true,
+                package: true,
+                zoom_links: {
+                  where: {
+                    sent_time: {
+                      gte: from,
+                      lte: to
+                    }
+                  },
+                  select: {
+                    sent_time: true
+                  }
+                }
+              }
+            }
+          }
+        });
+        
+        // Combine current and historical students
+        const allStudentIds = new Set();
+        const teacherStudents = [];
+        
+        // Add current students
+        currentStudents.forEach(student => {
+          allStudentIds.add(student.wdt_ID);
+          teacherStudents.push(student);
+        });
+        
+        // Add historical students not already included
+        historicalAssignments.forEach(assignment => {
+          if (!allStudentIds.has(assignment.studentId)) {
+            allStudentIds.add(assignment.studentId);
+            teacherStudents.push({
+              wdt_ID: assignment.studentId,
+              package: assignment.packageName || assignment.student.package,
+              zoom_links: assignment.student.zoom_links
+            });
+          }
         });
 
-        const baseSalary = teacherStudents.reduce((total, student) => {
-          if (!student.package || !salaryMap[student.package]) {
-            return total; // Skip students without valid package salary
-          }
-          return total + salaryMap[student.package];
-        }, 0);
-
         const numStudents = teacherStudents.length;
+        
+        // Calculate daily-based salary
+        let baseSalary = 0;
+        
+        // Get ALL zoom links for this teacher in the period (including from students no longer assigned)
+        const teacherZoomLinks = await prisma.wpos_zoom_links.findMany({
+          where: {
+            ustazid: t.ustazid,
+            sent_time: {
+              gte: from,
+              lte: to
+            }
+          },
+          include: {
+            wpos_wpdatatable_23: {
+              select: {
+                wdt_ID: true,
+                package: true,
+                name: true
+              }
+            }
+          }
+        });
+        
+        // Group by student and calculate daily earnings
+        const studentEarnings = new Map();
+        
+        for (const link of teacherZoomLinks) {
+          if (!link.sent_time || !link.wpos_wpdatatable_23) continue;
+          
+          const student = link.wpos_wpdatatable_23;
+          const packageName = student.package;
+          const packageSalary = salaryMap[packageName] || 0;
+          const dailySalary = packageSalary / workingDays;
+          
+          const linkDate = new Date(link.sent_time);
+          // Count based on configuration
+          if (includeSundays || linkDate.getDay() !== 0) {
+            const dateStr = link.sent_time.toISOString().split('T')[0];
+            const studentKey = `${student.wdt_ID}_${packageName}`;
+            
+            if (!studentEarnings.has(studentKey)) {
+              studentEarnings.set(studentKey, {
+                studentId: student.wdt_ID,
+                packageName,
+                dailySalary,
+                teachingDates: new Set()
+              });
+            }
+            
+            studentEarnings.get(studentKey).teachingDates.add(dateStr);
+          }
+        }
+        
+        // Calculate total salary from historical zoom links
+        baseSalary = 0;
+        for (const earning of studentEarnings.values()) {
+          baseSalary += earning.dailySalary * earning.teachingDates.size;
+        }
         
         // Skip teachers with 0 students
         if (numStudents === 0) {
@@ -551,10 +771,14 @@ export async function GET(req: NextRequest) {
               }
               
               // Check for waiver
-              const { isDeductionWaived } = await import('@/lib/deduction-waivers');
-              const isWaived = await isDeductionWaived(t.ustazid, new Date(d), 'lateness');
-              if (isWaived) {
-                deductionApplied = 0;
+              try {
+                const { isDeductionWaived } = await import('@/lib/deduction-waivers');
+                const isWaived = await isDeductionWaived(t.ustazid, new Date(d), 'lateness');
+                if (isWaived) {
+                  deductionApplied = 0;
+                }
+              } catch (error) {
+                console.error('Error checking lateness waiver:', error);
               }
             }
             latenessDeduction += deductionApplied;
@@ -591,11 +815,17 @@ export async function GET(req: NextRequest) {
             
             if (existingAbsence) {
               // Check for waiver before applying existing deduction
-              const { isDeductionWaived } = await import('@/lib/deduction-waivers');
-              const isWaived = await isDeductionWaived(t.ustazid, new Date(d), 'absence');
-              
-              if (!isWaived) {
-                // Use existing calculated deduction
+              try {
+                const { isDeductionWaived } = await import('@/lib/deduction-waivers');
+                const isWaived = await isDeductionWaived(t.ustazid, new Date(d), 'absence');
+                
+                if (!isWaived) {
+                  // Use existing calculated deduction
+                  absenceDeduction += existingAbsence.deductionApplied;
+                }
+              } catch (error) {
+                console.error('Error checking absence waiver:', error);
+                // Apply deduction if waiver check fails
                 absenceDeduction += existingAbsence.deductionApplied;
               }
             } else {
@@ -603,10 +833,11 @@ export async function GET(req: NextRequest) {
               const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
               if (absenceResult.isAbsent) {
                 // Check for waiver first
-                const { isDeductionWaived } = await import('@/lib/deduction-waivers');
-                const isWaived = await isDeductionWaived(t.ustazid, new Date(d), 'absence');
-                
-                if (!isWaived) {
+                try {
+                  const { isDeductionWaived } = await import('@/lib/deduction-waivers');
+                  const isWaived = await isDeductionWaived(t.ustazid, new Date(d), 'absence');
+                  
+                  if (!isWaived) {
                   // Get teacher's time slots for this day to calculate proper deduction
                   const dayName = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
                   const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
@@ -633,6 +864,35 @@ export async function GET(req: NextRequest) {
                     absenceDeduction += dailyDeduction;
                   } else {
                     // Fallback to whole day deduction if no time slots found
+                    absenceDeduction += absenceConfig.deductionAmount;
+                  }
+                  }
+                } catch (error) {
+                  console.error('Error checking absence waiver:', error);
+                  // Apply deduction if waiver check fails
+                  const dayName = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
+                  const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+                    where: { ustaz_id: t.ustazid },
+                    include: {
+                      student: {
+                        select: { daypackages: true }
+                      }
+                    }
+                  });
+                  
+                  const dayTimeSlots = occupiedTimes.filter(ot => {
+                    const studentDayPackages = ot.student.daypackages;
+                    return studentDayPackages && (
+                      studentDayPackages.includes('All days') || 
+                      studentDayPackages.includes(dayName)
+                    );
+                  });
+                  
+                  if (dayTimeSlots.length > 0) {
+                    const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
+                    const dailyDeduction = deductionPerTimeSlot * uniqueTimeSlots.length;
+                    absenceDeduction += dailyDeduction;
+                  } else {
                     absenceDeduction += absenceConfig.deductionAmount;
                   }
                 }
