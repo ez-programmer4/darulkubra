@@ -1,50 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-async function initializeDefaultData() {
-  try {
-    const [statusCount, packageCount, subjectCount] = await Promise.all([
-      prisma.studentStatus.count(),
-      prisma.studentPackage.count(),
-      prisma.studentSubject.count()
-    ]);
-
-    if (statusCount === 0) {
-      const defaultStatuses = ["Active", "Inactive", "Not yet", "Leave", "Completed"];
-      await Promise.all(
-        defaultStatuses.map(status => 
-          prisma.studentStatus.create({ data: { name: status } })
-        )
-      );
-    }
-
-    if (packageCount === 0) {
-      const defaultPackages = ["0 Fee", "3 days", "5 days", "Europe"];
-      await Promise.all(
-        defaultPackages.map(pkg => 
-          prisma.studentPackage.create({ data: { name: pkg } })
-        )
-      );
-    }
-
-    if (subjectCount === 0) {
-      const defaultSubjects = ["Qaidah", "Nethor", "Hifz", "Kitab"];
-      await Promise.all(
-        defaultSubjects.map(subject => 
-          prisma.studentSubject.create({ data: { name: subject } })
-        )
-      );
-    }
-  } catch (error) {
-    console.error('Error initializing default data:', error);
-  }
-}
-
 export async function GET(req: NextRequest) {
   try {
-    // Initialize default data if tables are empty
-    await initializeDefaultData();
-    
     // Public endpoint - no authentication required for reading configurations
     const [statuses, packages, subjects] = await Promise.all([
       prisma.studentStatus.findMany({ 
