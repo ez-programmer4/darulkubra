@@ -381,68 +381,12 @@ export async function GET(req: NextRequest) {
             },
           });
           
-          // Get historical assignments
-          const historicalAssignments = await prisma.teacherAssignmentHistory.findMany({
-            where: {
-              teacherId: t.ustazid,
-              OR: [
-                {
-                  startDate: { lte: to },
-                  endDate: { gte: from }
-                },
-                {
-                  startDate: { lte: to },
-                  endDate: null
-                }
-              ]
-            },
-            include: {
-              student: {
-                select: {
-                  wdt_ID: true,
-                  package: true,
-                  zoom_links: {
-                    where: {
-                      sent_time: {
-                        gte: from,
-                        lte: to
-                      }
-                    },
-                    select: {
-                      sent_time: true
-                    }
-                  }
-                }
-              }
-            }
-          });
-          
-          // Combine students
-          const allStudentIds = new Set();
-          const teacherStudents = [];
-          
-          currentStudents.forEach(student => {
-            allStudentIds.add(student.wdt_ID);
-            teacherStudents.push(student);
-          });
-          
-          historicalAssignments.forEach(assignment => {
-            if (!allStudentIds.has(assignment.studentId)) {
-              allStudentIds.add(assignment.studentId);
-              teacherStudents.push({
-                wdt_ID: assignment.studentId,
-                package: assignment.packageName || assignment.student.package,
-                zoom_links: assignment.student.zoom_links
-              });
-            }
-          });
-
-          const numStudents = teacherStudents.length;
+          const numStudents = currentStudents.length;
           
           // Calculate daily-based salary
           let baseSalary = 0;
           
-          for (const student of teacherStudents) {
+          for (const student of currentStudents) {
             if (!student.package || !salaryMap[student.package]) continue;
             
             const packageSalary = salaryMap[student.package];
@@ -572,65 +516,7 @@ export async function GET(req: NextRequest) {
           },
         });
         
-        // Get historical assignments for this teacher in the period
-        const historicalAssignments = await prisma.teacherAssignmentHistory.findMany({
-          where: {
-            teacherId: t.ustazid,
-            OR: [
-              {
-                startDate: { lte: to },
-                endDate: { gte: from }
-              },
-              {
-                startDate: { lte: to },
-                endDate: null
-              }
-            ]
-          },
-          include: {
-            student: {
-              select: {
-                wdt_ID: true,
-                package: true,
-                zoom_links: {
-                  where: {
-                    sent_time: {
-                      gte: from,
-                      lte: to
-                    }
-                  },
-                  select: {
-                    sent_time: true
-                  }
-                }
-              }
-            }
-          }
-        });
-        
-        // Combine current and historical students
-        const allStudentIds = new Set();
-        const teacherStudents = [];
-        
-        // Add current students
-        currentStudents.forEach(student => {
-          allStudentIds.add(student.wdt_ID);
-          teacherStudents.push(student);
-        });
-        
-        // Add historical students not already included
-        historicalAssignments.forEach(assignment => {
-          if (!allStudentIds.has(assignment.studentId)) {
-            allStudentIds.add(assignment.studentId);
-            teacherStudents.push({
-              wdt_ID: assignment.studentId,
-              package: assignment.packageName || assignment.student.package,
-              zoom_links: assignment.student.zoom_links
-            });
-          }
-        });
-
-        const numStudents = teacherStudents.length;
+        const numStudents = currentStudents.length;
         
         // Calculate daily-based salary
         let baseSalary = 0;
@@ -663,6 +549,7 @@ export async function GET(req: NextRequest) {
           
           const student = link.wpos_wpdatatable_23;
           const packageName = student.package;
+          if (!packageName) continue;
           const packageSalary = salaryMap[packageName] || 0;
           const dailySalary = packageSalary / workingDays;
           

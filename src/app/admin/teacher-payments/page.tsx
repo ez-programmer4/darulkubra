@@ -965,7 +965,7 @@ export default function TeacherPaymentsPage() {
                           if (adjustmentWindow?.closed) {
                             clearInterval(checkClosed);
                             // Refresh teacher payments data to reflect adjustments
-                            fetchConfigurations();
+                            window.location.reload();
                             toast({
                               title: "Data Refreshed",
                               description: "Teacher payments updated with latest adjustments",
