@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   FiPlus,
   FiTrash2,
@@ -11,6 +11,8 @@ import {
   FiEdit3,
   FiSave,
   FiX,
+  FiSearch,
+  FiInfo,
 } from "react-icons/fi";
 import { toast } from "@/components/ui/use-toast";
 
@@ -26,11 +28,31 @@ export default function StudentConfigPage() {
   const [newStatus, setNewStatus] = useState("");
   const [newPackage, setNewPackage] = useState("");
   const [newSubject, setNewSubject] = useState("");
+  const [searchTerm, setSearchTerm] = useState({
+    status: "",
+    package: "",
+    subject: "",
+  });
+  const [activeTab, setActiveTab] = useState<"status" | "package" | "subject">(
+    "status"
+  );
+  const inputRefs = {
+    status: useRef<HTMLInputElement>(null),
+    package: useRef<HTMLInputElement>(null),
+    subject: useRef<HTMLInputElement>(null),
+  };
 
   useEffect(() => {
     fetchConfigurations();
     initializeDefaults();
   }, []);
+
+  useEffect(() => {
+    // Focus on the active tab's input when tab changes
+    if (inputRefs[activeTab].current) {
+      inputRefs[activeTab].current?.focus();
+    }
+  }, [activeTab]);
 
   const initializeDefaults = async () => {
     setInitializing(true);
@@ -165,11 +187,11 @@ export default function StudentConfigPage() {
       const res = await fetch("/api/admin/student-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          type: editType, 
-          id: editingId, 
-          name: editValue.trim(), 
-          action: "update" 
+        body: JSON.stringify({
+          type: editType,
+          id: editingId,
+          name: editValue.trim(),
+          action: "update",
         }),
       });
 
@@ -199,6 +221,60 @@ export default function StudentConfigPage() {
     }
   };
 
+  const handleInputChange = (type: string, value: string) => {
+    // Allow only one character at a time
+    if (value.length <= 1) {
+      if (type === "status") setNewStatus(value);
+      else if (type === "package") setNewPackage(value);
+      else if (type === "subject") setNewSubject(value);
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent, type: string) => {
+    // Prevent multiple characters on fast typing
+    if (e.key.length === 1 && e.key !== " ") {
+      e.preventDefault();
+      const currentValue =
+        type === "status"
+          ? newStatus
+          : type === "package"
+          ? newPackage
+          : newSubject;
+      if (currentValue.length === 0) {
+        handleInputChange(type, e.key);
+      }
+    }
+
+    // Handle backspace
+    if (e.key === "Backspace") {
+      if (type === "status") setNewStatus("");
+      else if (type === "package") setNewPackage("");
+      else if (type === "subject") setNewSubject("");
+    }
+
+    // Handle enter to submit
+    if (e.key === "Enter") {
+      const value =
+        type === "status"
+          ? newStatus
+          : type === "package"
+          ? newPackage
+          : newSubject;
+      if (value.trim()) {
+        addItem(type, value);
+      }
+    }
+  };
+
+  const filteredItems = (items: any[], type: string) => {
+    if (!searchTerm[type as keyof typeof searchTerm]) return items;
+    return items.filter((item) =>
+      item.name
+        .toLowerCase()
+        .includes(searchTerm[type as keyof typeof searchTerm].toLowerCase())
+    );
+  };
+
   const ConfigSection = ({
     title,
     icon: Icon,
@@ -225,34 +301,47 @@ export default function StudentConfigPage() {
 
       <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
         <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            value={type === "status" ? newStatus : type === "package" ? newPackage : newSubject}
-            onChange={(e) => {
-              const value = e.target.value;
-              // Allow only one character input at a time for better UX
-              if (type === "status") setNewStatus(value);
-              else if (type === "package") setNewPackage(value);
-              else if (type === "subject") setNewSubject(value);
-            }}
-            placeholder={`Add new ${type}...`}
-            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                const value = type === "status" ? newStatus : type === "package" ? newPackage : newSubject;
-                if (value.trim()) {
-                  addItem(type, value);
-                }
+          <div className="relative flex-1">
+            <input
+              ref={inputRefs[type]}
+              type="text"
+              value={
+                type === "status"
+                  ? newStatus
+                  : type === "package"
+                  ? newPackage
+                  : newSubject
               }
-            }}
-          />
+              onChange={(e) => handleInputChange(type, e.target.value)}
+              onKeyDown={(e) => handleInputKeyDown(e, type)}
+              placeholder={`Add new ${type}...`}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+              maxLength={1}
+            />
+            <div className="absolute right-3 top-2.5 text-xs text-gray-400 bg-gray-100 px-1 rounded">
+              1 char
+            </div>
+          </div>
           <button
             onClick={() => {
-              const value = type === "status" ? newStatus : type === "package" ? newPackage : newSubject;
+              const value =
+                type === "status"
+                  ? newStatus
+                  : type === "package"
+                  ? newPackage
+                  : newSubject;
               addItem(type, value);
             }}
-            disabled={loading || !(type === "status" ? newStatus : type === "package" ? newPackage : newSubject).trim()}
+            disabled={
+              loading ||
+              !(
+                type === "status"
+                  ? newStatus
+                  : type === "package"
+                  ? newPackage
+                  : newSubject
+              ).trim()
+            }
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             <FiPlus className="h-4 w-4" />
@@ -260,12 +349,27 @@ export default function StudentConfigPage() {
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-1">
-          Press Enter or click Add to create • Use Escape to cancel edit
+          Type one character and click Add • Press Enter to submit
         </p>
       </div>
 
+      <div className="mb-3">
+        <div className="relative">
+          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <input
+            type="text"
+            placeholder={`Search ${type}...`}
+            value={searchTerm[type as keyof typeof searchTerm]}
+            onChange={(e) =>
+              setSearchTerm({ ...searchTerm, [type]: e.target.value })
+            }
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+          />
+        </div>
+      </div>
+
       <div className="space-y-2 max-h-60 overflow-y-auto">
-        {items.map((item: any) => (
+        {filteredItems(items, type).map((item: any) => (
           <div
             key={item.id}
             className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -323,10 +427,16 @@ export default function StudentConfigPage() {
             )}
           </div>
         ))}
-        {items.length === 0 && (
-          <div className="text-center py-8 text-gray-500 text-sm">
-            No {title.toLowerCase()} configured yet
+        {filteredItems(items, type).length === 0 && items.length > 0 ? (
+          <div className="text-center py-4 text-gray-500 text-sm">
+            No {type} found matching your search
           </div>
+        ) : (
+          items.length === 0 && (
+            <div className="text-center py-8 text-gray-500 text-sm">
+              No {title.toLowerCase()} configured yet
+            </div>
+          )
         )}
       </div>
     </div>
@@ -349,56 +459,92 @@ export default function StudentConfigPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={fetchConfigurations}
-            disabled={loading || initializing}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <FiRefreshCw className={`h-4 w-4 ${(loading || initializing) ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={initializeDefaults}
+              disabled={initializing}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <FiRefreshCw
+                className={`h-4 w-4 ${initializing ? "animate-spin" : ""}`}
+              />
+              Reset Defaults
+            </button>
+            <button
+              onClick={fetchConfigurations}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <FiRefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex mb-6 bg-white rounded-lg p-1 shadow-sm border border-gray-200 w-fit">
+          {[
+            { id: "status", label: "Statuses", icon: FiUsers },
+            { id: "package", label: "Packages", icon: FiPackage },
+            { id: "subject", label: "Subjects", icon: FiBook },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() =>
+                  setActiveTab(tab.id as "status" | "package" | "subject")
+                }
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  activeTab === tab.id
+                    ? "bg-blue-100 text-blue-700"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <ConfigSection
-            title="Student Statuses"
-            icon={FiUsers}
-            items={statuses}
-            type="status"
-            color="bg-green-500"
-          />
+          <div className={activeTab !== "status" ? "hidden md:block" : ""}>
+            <ConfigSection
+              title="Student Statuses"
+              icon={FiUsers}
+              items={statuses}
+              type="status"
+              color="bg-green-500"
+            />
+          </div>
 
-          <ConfigSection
-            title="Student Packages"
-            icon={FiPackage}
-            items={packages}
-            type="package"
-            color="bg-purple-500"
-          />
+          <div className={activeTab !== "package" ? "hidden md:block" : ""}>
+            <ConfigSection
+              title="Student Packages"
+              icon={FiPackage}
+              items={packages}
+              type="package"
+              color="bg-purple-500"
+            />
+          </div>
 
-          <ConfigSection
-            title="Student Subjects"
-            icon={FiBook}
-            items={subjects}
-            type="subject"
-            color="bg-indigo-500"
-          />
+          <div className={activeTab !== "subject" ? "hidden md:block" : ""}>
+            <ConfigSection
+              title="Student Subjects"
+              icon={FiBook}
+              items={subjects}
+              type="subject"
+              color="bg-indigo-500"
+            />
+          </div>
         </div>
 
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
           <h4 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                clipRule="evenodd"
-              />
-            </svg>
+            <FiInfo className="h-5 w-5" />
             Important Notes
           </h4>
           <ul className="text-blue-700 text-sm space-y-1.5">
@@ -421,6 +567,12 @@ export default function StudentConfigPage() {
               <span className="text-blue-500 mt-0.5">•</span>
               <span>
                 These configurations are used across the entire system
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-500 mt-0.5">•</span>
+              <span>
+                Inputs are limited to one character for better data consistency
               </span>
             </li>
           </ul>
