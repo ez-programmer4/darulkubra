@@ -230,6 +230,11 @@ function RegistrationContent() {
         const res = await fetch("/api/student-configs");
         if (res.ok) {
           const data = await res.json();
+          setStudentConfigs({
+            statuses: data.statuses?.map((s: any) => s.name) || [],
+            packages: data.packages?.map((p: any) => p.name) || [],
+            subjects: data.subjects?.map((s: any) => s.name) || []
+          });
         } else {
           // Fallback to defaults
           setStudentConfigs({
