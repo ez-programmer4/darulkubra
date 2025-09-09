@@ -53,13 +53,6 @@ export default function StudentConfigPage() {
     fetchConfigurations();
   }, []);
 
-  useEffect(() => {
-    // Focus on the active tab's input when tab changes
-    if (inputRefs[activeTab].current) {
-      inputRefs[activeTab].current?.focus();
-    }
-  }, [activeTab]);
-
   const fetchConfigurations = async () => {
     setLoading(true);
     try {
@@ -320,18 +313,21 @@ export default function StudentConfigPage() {
       {expandedSections[type] && (
         <>
           <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const value =
-                type === "status"
-                  ? newStatus
-                  : type === "package"
-                  ? newPackage
-                  : newSubject;
-              if (value.trim()) {
-                addItem(type, value);
-              }
-            }} className="flex gap-2 mb-2">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const value =
+                  type === "status"
+                    ? newStatus
+                    : type === "package"
+                    ? newPackage
+                    : newSubject;
+                if (value.trim()) {
+                  addItem(type, value);
+                }
+              }}
+              className="flex gap-2 mb-2"
+            >
               <input
                 ref={inputRefs[type]}
                 type="text"
@@ -343,7 +339,6 @@ export default function StudentConfigPage() {
                     : newSubject
                 }
                 onChange={(e) => {
-                  e.stopPropagation();
                   const value = e.target.value;
                   if (type === "status") setNewStatus(value);
                   else if (type === "package") setNewPackage(value);
@@ -351,7 +346,6 @@ export default function StudentConfigPage() {
                 }}
                 placeholder={`Add new ${type}...`}
                 className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-                onFocus={(e) => e.stopPropagation()}
               />
               <button
                 type="submit"
@@ -384,10 +378,8 @@ export default function StudentConfigPage() {
                 placeholder={`Search ${type}...`}
                 value={searchTerm[type as keyof typeof searchTerm]}
                 onChange={(e) => {
-                  e.stopPropagation();
                   setSearchTerm({ ...searchTerm, [type]: e.target.value });
                 }}
-                onFocus={(e) => e.stopPropagation()}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
@@ -405,12 +397,10 @@ export default function StudentConfigPage() {
                       type="text"
                       value={editValue}
                       onChange={(e) => {
-                        e.stopPropagation();
                         setEditValue(e.target.value);
                       }}
                       className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       onKeyDown={(e) => {
-                        e.stopPropagation();
                         if (e.key === "Enter") {
                           e.preventDefault();
                           saveEdit();
@@ -420,7 +410,6 @@ export default function StudentConfigPage() {
                           cancelEdit();
                         }
                       }}
-                      onFocus={(e) => e.stopPropagation()}
                       autoFocus
                     />
                     <button
