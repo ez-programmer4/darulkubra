@@ -13,6 +13,8 @@ import {
   FiX,
   FiSearch,
   FiInfo,
+  FiChevronDown,
+  FiChevronUp,
 } from "react-icons/fi";
 import { toast } from "@/components/ui/use-toast";
 
@@ -36,6 +38,11 @@ export default function StudentConfigPage() {
   const [activeTab, setActiveTab] = useState<"status" | "package" | "subject">(
     "status"
   );
+  const [expandedSections, setExpandedSections] = useState({
+    status: true,
+    package: true,
+    subject: true,
+  });
   const inputRefs = {
     status: useRef<HTMLInputElement>(null),
     package: useRef<HTMLInputElement>(null),
@@ -44,7 +51,6 @@ export default function StudentConfigPage() {
 
   useEffect(() => {
     fetchConfigurations();
-    initializeDefaults();
   }, []);
 
   useEffect(() => {
@@ -54,23 +60,8 @@ export default function StudentConfigPage() {
     }
   }, [activeTab]);
 
-  const initializeDefaults = async () => {
-    setInitializing(true);
-    try {
-      await fetch("/api/admin/student-config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "init" }),
-      });
-      fetchConfigurations();
-    } catch (error) {
-      console.error("Failed to initialize defaults");
-    } finally {
-      setInitializing(false);
-    }
-  };
-
   const fetchConfigurations = async () => {
+    setLoading(true);
     try {
       const res = await fetch("/api/admin/student-config");
       if (res.ok) {
@@ -81,6 +72,46 @@ export default function StudentConfigPage() {
       }
     } catch (error) {
       console.error("Failed to fetch configurations");
+      toast({
+        title: "Error",
+        description: "Failed to fetch configurations",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const initializeDefaults = async () => {
+    if (!confirm("This will reset all configurations to default. Continue?"))
+      return;
+
+    setInitializing(true);
+    try {
+      const res = await fetch("/api/admin/student-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "init" }),
+      });
+
+      if (res.ok) {
+        toast({
+          title: "Success",
+          description: "Defaults initialized successfully",
+        });
+        fetchConfigurations();
+      } else {
+        throw new Error("Failed to initialize defaults");
+      }
+    } catch (error) {
+      console.error("Failed to initialize defaults");
+      toast({
+        title: "Error",
+        description: "Failed to initialize defaults",
+        variant: "destructive",
+      });
+    } finally {
+      setInitializing(false);
     }
   };
 
@@ -105,7 +136,9 @@ export default function StudentConfigPage() {
       if (res.ok) {
         toast({
           title: "Success",
-          description: `${type} added successfully`,
+          description: `${
+            type.charAt(0).toUpperCase() + type.slice(1)
+          } added successfully`,
         });
         // Clear the specific input
         if (type === "status") setNewStatus("");
@@ -145,9 +178,18 @@ export default function StudentConfigPage() {
       if (res.ok) {
         toast({
           title: "Success",
-          description: `${type} deleted successfully`,
+          description: `${
+            type.charAt(0).toUpperCase() + type.slice(1)
+          } deleted successfully`,
         });
         fetchConfigurations();
+      } else {
+        const errorData = await res.json();
+        toast({
+          title: "Error",
+          description: errorData.error || "Failed to delete item",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       toast({
@@ -198,7 +240,9 @@ export default function StudentConfigPage() {
       if (res.ok) {
         toast({
           title: "Success",
-          description: `${editType} updated successfully`,
+          description: `${
+            editType.charAt(0).toUpperCase() + editType.slice(1)
+          } updated successfully`,
         });
         cancelEdit();
         fetchConfigurations();
@@ -221,49 +265,11 @@ export default function StudentConfigPage() {
     }
   };
 
-  const handleInputChange = (type: string, value: string) => {
-    // Allow only one character at a time
-    if (value.length <= 1) {
-      if (type === "status") setNewStatus(value);
-      else if (type === "package") setNewPackage(value);
-      else if (type === "subject") setNewSubject(value);
-    }
-  };
-
-  const handleInputKeyDown = (e: React.KeyboardEvent, type: string) => {
-    // Prevent multiple characters on fast typing
-    if (e.key.length === 1 && e.key !== " ") {
-      e.preventDefault();
-      const currentValue =
-        type === "status"
-          ? newStatus
-          : type === "package"
-          ? newPackage
-          : newSubject;
-      if (currentValue.length === 0) {
-        handleInputChange(type, e.key);
-      }
-    }
-
-    // Handle backspace
-    if (e.key === "Backspace") {
-      if (type === "status") setNewStatus("");
-      else if (type === "package") setNewPackage("");
-      else if (type === "subject") setNewSubject("");
-    }
-
-    // Handle enter to submit
-    if (e.key === "Enter") {
-      const value =
-        type === "status"
-          ? newStatus
-          : type === "package"
-          ? newPackage
-          : newSubject;
-      if (value.trim()) {
-        addItem(type, value);
-      }
-    }
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
   };
 
   const filteredItems = (items: any[], type: string) => {
@@ -289,163 +295,191 @@ export default function StudentConfigPage() {
     color: string;
   }) => (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transition-all hover:shadow-md">
-      <div className="flex items-center gap-3 mb-6">
-        <div className={`p-3 ${color} rounded-xl`}>
-          <Icon className="h-6 w-6 text-white" />
+      <div
+        className="flex items-center justify-between gap-3 mb-6 cursor-pointer"
+        onClick={() => toggleSection(type)}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`p-3 ${color} rounded-xl`}>
+            <Icon className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+            <p className="text-gray-600 text-sm">{items.length} items</p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-xl font-bold text-gray-900">{title}</h3>
-          <p className="text-gray-600 text-sm">Manage {title.toLowerCase()}</p>
-        </div>
+        <button className="text-gray-500 hover:text-gray-700">
+          {expandedSections[type] ? (
+            <FiChevronUp className="h-5 w-5" />
+          ) : (
+            <FiChevronDown className="h-5 w-5" />
+          )}
+        </button>
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
-        <div className="flex gap-2 mb-2">
-          <div className="relative flex-1">
-            <input
-              ref={inputRefs[type]}
-              type="text"
-              value={
-                type === "status"
-                  ? newStatus
-                  : type === "package"
-                  ? newPackage
-                  : newSubject
-              }
-              onChange={(e) => handleInputChange(type, e.target.value)}
-              onKeyDown={(e) => handleInputKeyDown(e, type)}
-              placeholder={`Add new ${type}...`}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-              maxLength={1}
-            />
-            <div className="absolute right-3 top-2.5 text-xs text-gray-400 bg-gray-100 px-1 rounded">
-              1 char
+      {expandedSections[type] && (
+        <>
+          <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
+            <div className="flex gap-2 mb-2">
+              <input
+                ref={inputRefs[type]}
+                type="text"
+                value={
+                  type === "status"
+                    ? newStatus
+                    : type === "package"
+                    ? newPackage
+                    : newSubject
+                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (type === "status") setNewStatus(value);
+                  else if (type === "package") setNewPackage(value);
+                  else if (type === "subject") setNewSubject(value);
+                }}
+                placeholder={`Add new ${type}...`}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    const value =
+                      type === "status"
+                        ? newStatus
+                        : type === "package"
+                        ? newPackage
+                        : newSubject;
+                    if (value.trim()) {
+                      addItem(type, value);
+                    }
+                  }
+                }}
+              />
+              <button
+                onClick={() => {
+                  const value =
+                    type === "status"
+                      ? newStatus
+                      : type === "package"
+                      ? newPackage
+                      : newSubject;
+                  addItem(type, value);
+                }}
+                disabled={
+                  loading ||
+                  !(
+                    type === "status"
+                      ? newStatus
+                      : type === "package"
+                      ? newPackage
+                      : newSubject
+                  ).trim()
+                }
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                <FiPlus className="h-4 w-4" />
+                Add
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Press Enter or click Add to create • Use Escape to cancel edit
+            </p>
+          </div>
+
+          <div className="mb-3">
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder={`Search ${type}...`}
+                value={searchTerm[type as keyof typeof searchTerm]}
+                onChange={(e) =>
+                  setSearchTerm({ ...searchTerm, [type]: e.target.value })
+                }
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
             </div>
           </div>
-          <button
-            onClick={() => {
-              const value =
-                type === "status"
-                  ? newStatus
-                  : type === "package"
-                  ? newPackage
-                  : newSubject;
-              addItem(type, value);
-            }}
-            disabled={
-              loading ||
-              !(
-                type === "status"
-                  ? newStatus
-                  : type === "package"
-                  ? newPackage
-                  : newSubject
-              ).trim()
-            }
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
-            <FiPlus className="h-4 w-4" />
-            Add
-          </button>
-        </div>
-        <p className="text-xs text-gray-500 mt-1">
-          Type one character and click Add • Press Enter to submit
-        </p>
-      </div>
 
-      <div className="mb-3">
-        <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <input
-            type="text"
-            placeholder={`Search ${type}...`}
-            value={searchTerm[type as keyof typeof searchTerm]}
-            onChange={(e) =>
-              setSearchTerm({ ...searchTerm, [type]: e.target.value })
-            }
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2 max-h-60 overflow-y-auto">
-        {filteredItems(items, type).map((item: any) => (
-          <div
-            key={item.id}
-            className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            {editingId === item.id ? (
-              <div className="flex items-center gap-2 flex-1">
-                <input
-                  type="text"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") saveEdit();
-                    if (e.key === "Escape") cancelEdit();
-                  }}
-                  autoFocus
-                />
-                <button
-                  onClick={saveEdit}
-                  disabled={loading}
-                  className="text-green-600 hover:text-green-700 p-1 rounded transition-colors disabled:opacity-50"
-                >
-                  <FiSave className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={cancelEdit}
-                  disabled={loading}
-                  className="text-gray-500 hover:text-gray-700 p-1 rounded transition-colors disabled:opacity-50"
-                >
-                  <FiX className="h-4 w-4" />
-                </button>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {filteredItems(items, type).map((item: any) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                {editingId === item.id ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <input
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveEdit();
+                        if (e.key === "Escape") cancelEdit();
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      onClick={saveEdit}
+                      disabled={loading}
+                      className="text-green-600 hover:text-green-700 p-1 rounded transition-colors disabled:opacity-50"
+                    >
+                      <FiSave className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      disabled={loading}
+                      className="text-gray-500 hover:text-gray-700 p-1 rounded transition-colors disabled:opacity-50"
+                    >
+                      <FiX className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="font-medium text-gray-900 text-sm flex-1">
+                      {item.name}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => startEdit(item.id, item.name, type)}
+                        disabled={loading}
+                        className="text-blue-500 hover:text-blue-700 p-1.5 rounded-lg transition-colors disabled:opacity-50 hover:bg-blue-50"
+                      >
+                        <FiEdit3 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => deleteItem(type, item.id)}
+                        disabled={loading}
+                        className="text-red-500 hover:text-red-700 p-1.5 rounded-lg transition-colors disabled:opacity-50 hover:bg-red-50"
+                      >
+                        <FiTrash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+            {filteredItems(items, type).length === 0 && items.length > 0 ? (
+              <div className="text-center py-4 text-gray-500 text-sm">
+                No {type} found matching your search
               </div>
             ) : (
-              <>
-                <span className="font-medium text-gray-900 text-sm flex-1">
-                  {item.name}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => startEdit(item.id, item.name, type)}
-                    disabled={loading}
-                    className="text-blue-500 hover:text-blue-700 p-1.5 rounded-lg transition-colors disabled:opacity-50 hover:bg-blue-50"
-                  >
-                    <FiEdit3 className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => deleteItem(type, item.id)}
-                    disabled={loading}
-                    className="text-red-500 hover:text-red-700 p-1.5 rounded-lg transition-colors disabled:opacity-50 hover:bg-red-50"
-                  >
-                    <FiTrash2 className="h-4 w-4" />
-                  </button>
+              items.length === 0 && (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  No {title.toLowerCase()} configured yet
                 </div>
-              </>
+              )
             )}
           </div>
-        ))}
-        {filteredItems(items, type).length === 0 && items.length > 0 ? (
-          <div className="text-center py-4 text-gray-500 text-sm">
-            No {type} found matching your search
-          </div>
-        ) : (
-          items.length === 0 && (
-            <div className="text-center py-8 text-gray-500 text-sm">
-              No {title.toLowerCase()} configured yet
-            </div>
-          )
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-blue-600 rounded-xl">
               <FiSettings className="h-8 w-8 text-white" />
@@ -459,11 +493,11 @@ export default function StudentConfigPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={initializeDefaults}
               disabled={initializing}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 text-sm"
             >
               <FiRefreshCw
                 className={`h-4 w-4 ${initializing ? "animate-spin" : ""}`}
@@ -473,7 +507,7 @@ export default function StudentConfigPage() {
             <button
               onClick={fetchConfigurations}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors disabled:opacity-50 text-sm"
             >
               <FiRefreshCw
                 className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
@@ -483,8 +517,8 @@ export default function StudentConfigPage() {
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex mb-6 bg-white rounded-lg p-1 shadow-sm border border-gray-200 w-fit">
+        {/* Tab Navigation for mobile */}
+        <div className="flex mb-6 bg-white rounded-lg p-1 shadow-sm border border-gray-200 w-full md:hidden">
           {[
             { id: "status", label: "Statuses", icon: FiUsers },
             { id: "package", label: "Packages", icon: FiPackage },
@@ -497,14 +531,14 @@ export default function StudentConfigPage() {
                 onClick={() =>
                   setActiveTab(tab.id as "status" | "package" | "subject")
                 }
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all flex-1 ${
                   activeTab === tab.id
                     ? "bg-blue-100 text-blue-700"
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
                 <Icon className="h-4 w-4" />
-                {tab.label}
+                <span className="hidden xs:inline">{tab.label}</span>
               </button>
             );
           })}
@@ -571,9 +605,7 @@ export default function StudentConfigPage() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-blue-500 mt-0.5">•</span>
-              <span>
-                Inputs are limited to one character for better data consistency
-              </span>
+              <span>Click on section headers to expand/collapse</span>
             </li>
           </ul>
         </div>
