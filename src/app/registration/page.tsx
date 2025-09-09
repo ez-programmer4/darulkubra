@@ -37,7 +37,6 @@ import {
 } from "@/utils/timeUtils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getAllStudentConfigurations } from "@/lib/student-config";
 
 interface FormData {
   fullName?: string;
