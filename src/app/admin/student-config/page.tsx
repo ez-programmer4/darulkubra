@@ -329,7 +329,7 @@ export default function StudentConfigPage() {
               className="flex gap-2 mb-2"
             >
               <input
-                ref={inputRefs[type]}
+                // ref={inputRefs[type]}
                 type="text"
                 value={
                   type === "status"
