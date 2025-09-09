@@ -57,6 +57,11 @@ const navItems = [
     label: "Deduction Adjustment",
     icon: Calendar,
   },
+  {
+    href: "/admin/student-config",
+    label: "Student Configuration",
+    icon: Settings,
+  },
 ];
 
 const SidebarContent = () => {
