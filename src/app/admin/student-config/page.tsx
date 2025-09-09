@@ -22,11 +22,9 @@ export default function StudentConfigPage() {
   const [initializing, setInitializing] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [newItems, setNewItems] = useState({
-    status: "",
-    package: "",
-    subject: "",
-  });
+  const [newStatus, setNewStatus] = useState("");
+  const [newPackage, setNewPackage] = useState("");
+  const [newSubject, setNewSubject] = useState("");
 
   useEffect(() => {
     fetchConfigurations();
@@ -86,8 +84,18 @@ export default function StudentConfigPage() {
           title: "Success",
           description: `${type} added successfully`,
         });
-        setNewItems((prev) => ({ ...prev, [type]: "" }));
+        // Clear the specific input
+        if (type === "status") setNewStatus("");
+        else if (type === "package") setNewPackage("");
+        else if (type === "subject") setNewSubject("");
         fetchConfigurations();
+      } else {
+        const errorData = await res.json();
+        toast({
+          title: "Error",
+          description: errorData.error || "Failed to add item",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       toast({
@@ -157,24 +165,27 @@ export default function StudentConfigPage() {
         <div className="flex gap-2 mb-2">
           <input
             type="text"
-            value={newItems[type as keyof typeof newItems]}
-            onChange={(e) =>
-              setNewItems((prev) => ({
-                ...prev,
-                [type as keyof typeof newItems]: e.target.value,
-              }))
-            }
+            value={type === "status" ? newStatus : type === "package" ? newPackage : newSubject}
+            onChange={(e) => {
+              if (type === "status") setNewStatus(e.target.value);
+              else if (type === "package") setNewPackage(e.target.value);
+              else if (type === "subject") setNewSubject(e.target.value);
+            }}
             placeholder={`Add new ${type}...`}
             className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-            onKeyPress={(e) =>
-              e.key === "Enter" && addItem(type, newItems[type as keyof typeof newItems])
-            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const value = type === "status" ? newStatus : type === "package" ? newPackage : newSubject;
+                addItem(type, value);
+              }
+            }}
           />
           <button
-            onClick={() => addItem(type, newItems[type as keyof typeof newItems])}
-            disabled={
-              loading || !newItems[type as keyof typeof newItems].trim()
-            }
+            onClick={() => {
+              const value = type === "status" ? newStatus : type === "package" ? newPackage : newSubject;
+              addItem(type, value);
+            }}
+            disabled={loading || !(type === "status" ? newStatus : type === "package" ? newPackage : newSubject).trim()}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             <FiPlus className="h-4 w-4" />
