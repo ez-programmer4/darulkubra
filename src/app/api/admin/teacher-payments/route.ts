@@ -129,9 +129,11 @@ export async function GET(req: NextRequest) {
               (actualStartTime.getTime() - scheduledTime.getTime()) / 60000
             )
           );
-          // Deduction logic
+          // Deduction logic with waiver check
           let deductionApplied = 0;
           let deductionTier = "Excused";
+          let isWaived = false;
+          
           if (latenessMinutes > excusedThreshold) {
             let foundTier = false;
             for (const [i, tier] of tiers.entries()) {
@@ -149,6 +151,18 @@ export async function GET(req: NextRequest) {
               deductionApplied = baseDeductionAmount;
               deductionTier = "> Max Tier";
             }
+            
+            // Check for waiver
+            try {
+              const { isDeductionWaived } = await import('@/lib/deduction-waivers');
+              isWaived = await isDeductionWaived(teacherId as string, scheduledTime, 'lateness');
+              if (isWaived) {
+                deductionApplied = 0;
+                deductionTier = `${deductionTier} (WAIVED)`;
+              }
+            } catch (error) {
+              console.error('Error checking waiver:', error);
+            }
           }
           latenessRecords.push({
             studentId: student.wdt_ID,
@@ -159,6 +173,7 @@ export async function GET(req: NextRequest) {
             latenessMinutes,
             deductionApplied,
             deductionTier,
+            isWaived: isWaived || false,
           });
         }
       }
