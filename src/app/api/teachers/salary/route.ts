@@ -60,144 +60,255 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
     }
 
-    // Get active student count
-    const activeStudents = await prisma.wpos_wpdatatable_23.count({
-      where: { 
-        ustaz: teacherId,
-        status: { in: ["active", "Active"] }
+    // Get package-based salary configuration
+    const packageSalaries = await prisma.packageSalary.findMany();
+    const salaryMap: Record<string, number> = {};
+    packageSalaries.forEach((pkg) => {
+      salaryMap[pkg.packageName] = Number(pkg.salaryPerStudent);
+    });
+
+    // Get working days configuration
+    const workingDaysConfig = await prisma.setting.findUnique({
+      where: { key: "include_sundays_in_salary" }
+    });
+    const includeSundays = workingDaysConfig?.value === "true" || false;
+    
+    // Calculate working days in the selected month
+    const daysInMonth = new Date(fromDate.getFullYear(), fromDate.getMonth() + 1, 0).getDate();
+    let workingDays = 0;
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(fromDate.getFullYear(), fromDate.getMonth(), day);
+      if (includeSundays || date.getDay() !== 0) {
+        workingDays++;
+      }
+    }
+
+    // Get current students with zoom links
+    const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
+      where: { ustaz: teacherId, status: { in: ["active", "Active"] } },
+      select: { 
+        wdt_ID: true,
+        name: true,
+        package: true,
+        zoom_links: {
+          where: {
+            sent_time: { gte: fromDate, lte: toDate }
+          },
+          select: { sent_time: true }
+        }
       },
     });
 
-    // Get base salary per student from settings
-    let BASE_SALARY_PER_STUDENT = 900;
-    const setting = await prisma.setting.findUnique({
-      where: { key: "base_salary_per_student" },
-    });
-    if (setting && setting.value && !isNaN(Number(setting.value))) {
-      BASE_SALARY_PER_STUDENT = Number(setting.value);
+    // Calculate base salary using daily earnings approach
+    let baseSalary = 0;
+    let totalTeachingDays = 0;
+    const dailyEarnings = new Map();
+    const dailyBreakdown = [];
+    
+    for (const student of currentStudents) {
+      if (!student.package || !salaryMap[student.package]) continue;
+      
+      const monthlyPackageSalary = Math.round(salaryMap[student.package] || 0);
+      const dailyRate = Math.round(monthlyPackageSalary / workingDays);
+      
+      // Count actual teaching days for this student (only one per day)
+      const teachingDates = new Set();
+      const dailyLinks = new Map();
+      
+      student.zoom_links.forEach(link => {
+        if (link.sent_time) {
+          const linkDate = new Date(link.sent_time);
+          if (includeSundays || linkDate.getDay() !== 0) {
+            const dateStr = link.sent_time.toISOString().split('T')[0];
+            
+            if (!dailyLinks.has(dateStr) || link.sent_time < dailyLinks.get(dateStr)) {
+              dailyLinks.set(dateStr, link.sent_time);
+            }
+          }
+        }
+      });
+      
+      dailyLinks.forEach((_, dateStr) => {
+        teachingDates.add(dateStr);
+      });
+      
+      // Add to daily earnings
+      teachingDates.forEach(dateStr => {
+        if (!dailyEarnings.has(dateStr)) {
+          dailyEarnings.set(dateStr, 0);
+        }
+        dailyEarnings.set(dateStr, dailyEarnings.get(dateStr) + dailyRate);
+      });
+      
+      if (teachingDates.size > 0) {
+        dailyBreakdown.push({
+          studentName: student.name,
+          package: student.package,
+          monthlyRate: monthlyPackageSalary,
+          dailyRate: dailyRate,
+          daysWorked: teachingDates.size,
+          totalEarned: dailyRate * teachingDates.size
+        });
+      }
     }
-
-    const baseSalary = activeStudents * BASE_SALARY_PER_STUDENT;
+    
+    baseSalary = Array.from(dailyEarnings.values()).reduce((sum, amount) => sum + amount, 0);
+    totalTeachingDays = dailyEarnings.size;
+    baseSalary = Math.round(baseSalary);
+    const numStudents = currentStudents.length;
 
     // Calculate lateness deduction using same logic as admin
+    let latenessDeduction = 0;
+    const latenessBreakdown = [];
+    
+    // Get lateness configuration
+    const latenessConfig = await prisma.latenessdeductionconfig.findFirst();
+    const baseDeductionAmount = Math.round(Number(latenessConfig?.baseDeductionAmount) || 30);
+    
     const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
       orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
     });
-    let excusedThreshold = 3;
-    let tiers = [
-      { start: 4, end: 7, percent: 10 },
-      { start: 8, end: 14, percent: 20 },
-      { start: 15, end: 21, percent: 30 },
-    ];
-    let maxTierEnd = 21;
+    
     if (latenessConfigs.length > 0) {
-      excusedThreshold = Math.min(
-        ...latenessConfigs.map((c) => c.excusedThreshold ?? 3)
-      );
-      tiers = latenessConfigs.map((c) => ({
+      const excusedThreshold = Math.min(...latenessConfigs.map(c => c.excusedThreshold ?? 0));
+      const tiers = latenessConfigs.map(c => ({
         start: c.startMinute,
         end: c.endMinute,
         percent: c.deductionPercent,
       }));
-      maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
-    }
-
-    // Get students with zoom links for lateness calculation
-    const students = await prisma.wpos_wpdatatable_23.findMany({
-      where: { ustaz: teacherId },
-      include: {
-        zoom_links: true,
-        occupiedTimes: {
-          select: {
-            time_slot: true,
-          },
-        },
-      },
-    });
-
-    let latenessDeduction = 0;
-    for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split("T")[0];
-      for (const student of students) {
-        const timeSlot = student.occupiedTimes?.[0]?.time_slot;
-        if (!timeSlot) continue;
-        
-        function to24Hour(time12h: string) {
-          if (!time12h) return "00:00";
-          
-          // Handle AM/PM format
-          if (time12h.includes("AM") || time12h.includes("PM")) {
-            const [time, modifier] = time12h.split(" ");
-            let [hours, minutes] = time.split(":");
-            if (hours === "12") hours = modifier === "AM" ? "00" : "12";
-            else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
-            return `${hours.padStart(2, "0")}:${minutes}`;
+      
+      // Group zoom links by date to avoid duplicate deductions
+      const dailyZoomLinks = new Map();
+      
+      for (const student of currentStudents) {
+        const studentWithLinks = await prisma.wpos_wpdatatable_23.findUnique({
+          where: { wdt_ID: student.wdt_ID },
+          include: {
+            zoom_links: {
+              where: {
+                sent_time: { gte: fromDate, lte: toDate }
+              }
+            },
+            occupiedTimes: { select: { time_slot: true } }
           }
-          
-          // Handle existing 24-hour format (HH:MM:SS or HH:MM)
-          if (time12h.includes(":")) {
-            const parts = time12h.split(":");
-            const hours = parts[0].padStart(2, "0");
-            const minutes = (parts[1] || "00").padStart(2, "0");
-            return `${hours}:${minutes}`;
-          }
-          
-          return "00:00"; // fallback
-        }
+        });
         
-        const time24 = to24Hour(timeSlot);
-        const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
-        
-        const sentTimes = (student.zoom_links || [])
-          .filter(
-            (zl) =>
-              zl.sent_time &&
-              zl.sent_time.toISOString().split("T")[0] === dateStr
-          )
-          .map((zl) => zl.sent_time)
-          .sort((a, b) => {
-            if (!a && !b) return 0;
-            if (!a) return 1;
-            if (!b) return -1;
-            return a.getTime() - b.getTime();
+        if (studentWithLinks) {
+          studentWithLinks.zoom_links.forEach(link => {
+            if (link.sent_time) {
+              const dateStr = link.sent_time.toISOString().split('T')[0];
+              if (!dailyZoomLinks.has(dateStr)) {
+                dailyZoomLinks.set(dateStr, []);
+              }
+              dailyZoomLinks.get(dateStr).push({
+                ...link,
+                studentId: studentWithLinks.wdt_ID,
+                studentName: studentWithLinks.name,
+                timeSlot: studentWithLinks.occupiedTimes?.[0]?.time_slot
+              });
+            }
           });
+        }
+      }
+      
+      // Calculate lateness for each day (only earliest link per day)
+      for (const [dateStr, links] of dailyZoomLinks.entries()) {
+        const date = new Date(dateStr);
+        if (date < fromDate || date > toDate) continue;
         
-        const actualStartTime = sentTimes.length > 0 ? sentTimes[0] : null;
-        if (!actualStartTime) continue;
+        // Group by student and take earliest link per student per day
+        const studentLinks = new Map<number, any>();
+        links.forEach((link: any) => {
+          const key = link.studentId;
+          if (!studentLinks.has(key) || link.sent_time < studentLinks.get(key).sent_time) {
+            studentLinks.set(key, link);
+          }
+        });
         
-        const latenessMinutes = Math.max(
-          0,
-          Math.round(
-            (actualStartTime.getTime() - scheduledTime.getTime()) / 60000
-          )
-        );
-        
-        let deductionApplied = 0;
-        if (latenessMinutes > excusedThreshold) {
-          let foundTier = false;
-          for (const tier of tiers) {
-            if (
-              latenessMinutes >= tier.start &&
-              latenessMinutes <= tier.end
-            ) {
-              deductionApplied = 30 * (tier.percent / 100);
-              foundTier = true;
-              break;
+        // Calculate lateness for each student's earliest link
+        for (const link of studentLinks.values()) {
+          if (!link.timeSlot) continue;
+          
+          // Convert time to 24-hour format
+          function convertTo24Hour(timeStr: string): string {
+            if (!timeStr) return "00:00";
+            
+            if (timeStr.includes("AM") || timeStr.includes("PM")) {
+              const match = timeStr.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+              if (match) {
+                let hour = parseInt(match[1]);
+                const minute = match[2];
+                const period = match[3].toUpperCase();
+                
+                if (period === "PM" && hour !== 12) hour += 12;
+                if (period === "AM" && hour === 12) hour = 0;
+                
+                return `${hour.toString().padStart(2, '0')}:${minute}`;
+              }
+            }
+            
+            return timeStr.includes(":") ? timeStr.split(":").slice(0, 2).join(":") : "00:00";
+          }
+          
+          const time24 = convertTo24Hour(link.timeSlot);
+          const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
+          
+          const latenessMinutes = Math.max(0, 
+            Math.round((link.sent_time.getTime() - scheduledTime.getTime()) / 60000)
+          );
+          
+          if (latenessMinutes > excusedThreshold) {
+            let deduction = 0;
+            let tier = "No Tier";
+            
+            // Find appropriate tier
+            for (const [i, t] of tiers.entries()) {
+              if (latenessMinutes >= t.start && latenessMinutes <= t.end) {
+                deduction = Math.round(baseDeductionAmount * (t.percent / 100));
+                tier = `Tier ${i + 1} (${t.percent}%)`;
+                break;
+              }
+            }
+            
+            if (deduction > 0) {
+              latenessDeduction += deduction;
+              latenessBreakdown.push({
+                date: dateStr,
+                studentName: link.studentName,
+                scheduledTime: link.timeSlot,
+                actualTime: new Date(link.sent_time).toLocaleTimeString('en-US', { hour12: false }).slice(0, 5),
+                latenessMinutes,
+                tier,
+                deduction
+              });
             }
           }
-          if (!foundTier && latenessMinutes > maxTierEnd) {
-            deductionApplied = 30;
-          }
         }
-        latenessDeduction += deductionApplied;
       }
     }
 
     // Calculate absence deduction using same logic as admin
-    const absenceConfig = await getAbsenceDeductionConfig();
     let absenceDeduction = 0;
-    // Skip absence calculation if teacher has no students
-    if (activeStudents > 0) {
+    const absenceBreakdown = [];
+    const absenceConfig = await getAbsenceDeductionConfig();
+    
+    // Get time-slot based deduction config
+    const timeSlotDeductionConfig = await prisma.deductionbonusconfig.findFirst({
+      where: { configType: "absence", key: "deduction_per_time_slot" },
+    });
+    const deductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
+    
+    // Get teacher's occupied times for day-based calculations
+    const teacherOccupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+      where: { ustaz_id: teacherId },
+      include: {
+        student: {
+          select: { daypackages: true }
+        }
+      }
+    });
+    
+    if (numStudents > 0) {
       for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
         const monthNumber = String(d.getMonth() + 1);
         if (
@@ -206,9 +317,44 @@ export async function GET(request: NextRequest) {
         ) {
           continue;
         }
+        
+        // Skip Sundays if not included in working days
+        if (!includeSundays && d.getDay() === 0) {
+          continue;
+        }
+        
         const absenceResult = await isTeacherAbsent(teacherId, new Date(d));
         if (absenceResult.isAbsent) {
-          absenceDeduction += absenceConfig.deductionAmount;
+          // Calculate time-slot based deduction
+          const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+          
+          const dayTimeSlots = teacherOccupiedTimes.filter(ot => {
+            const studentDayPackages = ot.student.daypackages;
+            return studentDayPackages && (
+              studentDayPackages.includes('All days') || 
+              (studentDayPackages.includes('MWF') && ['Monday', 'Wednesday', 'Friday'].includes(dayName)) ||
+              (studentDayPackages.includes('TTS') && ['Tuesday', 'Thursday', 'Saturday'].includes(dayName))
+            );
+          });
+          
+          let dailyDeduction = absenceConfig.deductionAmount;
+          let deductionReason = "No zoom link sent (whole day)";
+          
+          if (dayTimeSlots.length > 0) {
+            const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
+            dailyDeduction = deductionPerTimeSlot * uniqueTimeSlots.length;
+            deductionReason = `No zoom link sent (${uniqueTimeSlots.length} time slots)`;
+          }
+          
+          if (dailyDeduction > 0) {
+            absenceDeduction += Math.round(dailyDeduction);
+            absenceBreakdown.push({
+              date: d.toISOString().split('T')[0],
+              reason: deductionReason,
+              deduction: Math.round(dailyDeduction),
+              timeSlots: dayTimeSlots.length > 0 ? dayTimeSlots.length : null
+            });
+          }
         }
       }
     }
@@ -224,7 +370,11 @@ export async function GET(request: NextRequest) {
     });
     const bonusAmount = bonuses._sum?.bonusAwarded ?? 0;
 
-    const totalSalary = baseSalary - latenessDeduction - absenceDeduction + bonusAmount;
+    const finalBaseSalary = Math.round(baseSalary);
+    const finalLatenessDeduction = Math.round(latenessDeduction);
+    const finalAbsenceDeduction = Math.round(absenceDeduction);
+    const finalBonusAmount = Math.round(bonusAmount);
+    const totalSalary = finalBaseSalary - finalLatenessDeduction - finalAbsenceDeduction + finalBonusAmount;
 
     // Get payment status
     const salaryPayment = await prisma.teachersalarypayment.findFirst({
@@ -239,13 +389,31 @@ export async function GET(request: NextRequest) {
     const response = {
       id: teacherId,
       name: teacher.ustazname || "Unknown",
-      baseSalary: baseSalary,
-      latenessDeduction: latenessDeduction,
-      absenceDeduction: absenceDeduction,
-      bonuses: bonusAmount,
+      baseSalary: finalBaseSalary,
+      latenessDeduction: finalLatenessDeduction,
+      absenceDeduction: finalAbsenceDeduction,
+      bonuses: finalBonusAmount,
       totalSalary: totalSalary,
-      numStudents: activeStudents,
+      numStudents: numStudents,
+      teachingDays: totalTeachingDays,
       status: status as "Paid" | "Unpaid",
+      // Detailed breakdown for transparency
+      breakdown: {
+        dailyEarnings: Array.from(dailyEarnings.entries()).map(([date, amount]) => ({
+          date,
+          amount: Math.round(amount)
+        })),
+        studentBreakdown: dailyBreakdown,
+        latenessBreakdown,
+        absenceBreakdown,
+        summary: {
+          workingDaysInMonth: workingDays,
+          actualTeachingDays: totalTeachingDays,
+          averageDailyEarning: totalTeachingDays > 0 ? Math.round(finalBaseSalary / totalTeachingDays) : 0,
+          totalDeductions: finalLatenessDeduction + finalAbsenceDeduction,
+          netSalary: totalSalary
+        }
+      }
     };
 
     return NextResponse.json(response);
