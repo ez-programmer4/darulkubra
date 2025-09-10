@@ -53,7 +53,7 @@ export default function GeneralSettingsPage() {
           sessionTimeout: get("session_timeout", DEFAULTS.sessionTimeout),
           maintenanceMode: get("maintenance_mode", DEFAULTS.maintenanceMode),
           includeSundaysInSalary: get("include_sundays_in_salary", DEFAULTS.includeSundaysInSalary),
-          allowTeachersSalary: get("allow_teachers_see_salary", DEFAULTS.allowTeachersSalary),
+          allowTeachersSalary: get("teacher_salary_visible", DEFAULTS.allowTeachersSalary),
         });
         setLoading(false);
       })
@@ -86,7 +86,7 @@ export default function GeneralSettingsPage() {
           key === "registrationOpen" ? "registration_open" :
           key === "maintenanceMode" ? "maintenance_mode" :
           key === "includeSundaysInSalary" ? "include_sundays_in_salary" :
-          key === "allowTeachersSalary" ? "allow_teachers_see_salary" : key;
+          key === "allowTeachersSalary" ? "teacher_salary_visible" : key;
         
         await fetch("/api/admin/settings", {
           method: "PUT",

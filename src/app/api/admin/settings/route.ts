@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const generalSettings = await prisma.setting.findMany({
       where: {
         key: {
-          in: ['include_sundays_in_salary', 'allow_teachers_see_salary']
+          in: ['include_sundays_in_salary', 'teacher_salary_visible']
         }
       }
     });
@@ -42,10 +42,12 @@ export async function GET(request: NextRequest) {
     }, {} as Record<string, boolean>);
 
     return NextResponse.json({
-      reading_reward: learningMap.reading_reward || 50,
-      hifz_reward: learningMap.hifz_reward || 100,
-      include_sundays_in_salary: generalMap.include_sundays_in_salary || false,
-      allow_teachers_see_salary: generalMap.allow_teachers_see_salary || false,
+      settings: [
+        { key: 'reading_reward', value: String(learningMap.reading_reward || 50) },
+        { key: 'hifz_reward', value: String(learningMap.hifz_reward || 100) },
+        { key: 'include_sundays_in_salary', value: String(generalMap.include_sundays_in_salary || false) },
+        { key: 'teacher_salary_visible', value: String(generalMap.teacher_salary_visible || false) },
+      ]
     });
 
   } catch (error) {
@@ -68,38 +70,29 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { reading_reward, hifz_reward, include_sundays_in_salary, allow_teachers_see_salary } = await request.json();
+    const { key, value } = await request.json();
 
-    // Validate and convert values
-    const readingRewardValue = reading_reward != null ? String(reading_reward) : '50';
-    const hifzRewardValue = hifz_reward != null ? String(hifz_reward) : '100';
-    const includeSundaysValue = include_sundays_in_salary != null ? String(include_sundays_in_salary) : 'false';
-    const allowTeachersSalaryValue = allow_teachers_see_salary != null ? String(allow_teachers_see_salary) : 'false';
+    if (!key || value == null) {
+      return NextResponse.json({ error: "Key and value are required" }, { status: 400 });
+    }
 
-    await prisma.$transaction([
-      // Learning config settings
-      prisma.registralearningsconfig.upsert({
-        where: { key: 'reading_reward' },
-        update: { value: readingRewardValue },
-        create: { key: 'reading_reward', value: readingRewardValue }
-      }),
-      prisma.registralearningsconfig.upsert({
-        where: { key: 'hifz_reward' },
-        update: { value: hifzRewardValue },
-        create: { key: 'hifz_reward', value: hifzRewardValue }
-      }),
-      // General settings
-      prisma.setting.upsert({
-        where: { key: 'include_sundays_in_salary' },
-        update: { value: includeSundaysValue, updatedAt: new Date() },
-        create: { key: 'include_sundays_in_salary', value: includeSundaysValue, updatedAt: new Date() }
-      }),
-      prisma.setting.upsert({
-        where: { key: 'allow_teachers_see_salary' },
-        update: { value: allowTeachersSalaryValue, updatedAt: new Date() },
-        create: { key: 'allow_teachers_see_salary', value: allowTeachersSalaryValue, updatedAt: new Date() }
-      })
-    ]);
+    const stringValue = String(value);
+
+    // Handle different setting types
+    if (key === 'reading_reward' || key === 'hifz_reward') {
+      await prisma.registralearningsconfig.upsert({
+        where: { key },
+        update: { value: stringValue },
+        create: { key, value: stringValue }
+      });
+    } else {
+      // Handle general settings
+      await prisma.setting.upsert({
+        where: { key },
+        update: { value: stringValue, updatedAt: new Date() },
+        create: { key, value: stringValue, updatedAt: new Date() }
+      });
+    }
 
     return NextResponse.json({ success: true });
 
