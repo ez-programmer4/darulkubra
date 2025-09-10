@@ -1042,7 +1042,7 @@ export default function UserManagementPage() {
                           <div className="bg-blue-100 rounded-lg p-4 border border-blue-200">
                             <p className="text-sm text-blue-800 flex items-center gap-2">
                               <FiInfo className="h-4 w-4" />
-                              <strong>Format:</strong> Username: T001, T002, etc. | Password: [Username][Name]
+                              <strong>Format:</strong> Username: U1, U2, U3, etc. (auto-incremented) | Password: [Username][Name]
                             </p>
                           </div>
                         </div>

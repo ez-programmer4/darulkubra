@@ -289,17 +289,18 @@ export async function POST(req: NextRequest) {
 
         // Auto-generate ustazid (username) and password for teacher
         const generateUsername = async () => {
+          // Get the highest existing ID number from ustazid field
           const lastTeacher = await prisma.wpos_wpdatatable_24.findFirst({
             orderBy: { ustazid: 'desc' },
-            where: { ustazid: { startsWith: 'T' } }
+            where: { ustazid: { startsWith: 'U' } }
           });
           
           let nextId = 1;
-          if (lastTeacher && lastTeacher.ustazid.match(/^T(\d+)$/)) {
+          if (lastTeacher && lastTeacher.ustazid.match(/^U(\d+)$/)) {
             nextId = parseInt(lastTeacher.ustazid.substring(1)) + 1;
           }
           
-          return `T${nextId.toString().padStart(3, '0')}`;
+          return `U${nextId}`;
         };
 
         const autoUsername = await generateUsername();
