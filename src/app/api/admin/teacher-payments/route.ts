@@ -466,12 +466,11 @@ export async function GET(req: NextRequest) {
             id: t.ustazid,
             name: t.ustazname,
             baseSalary: Math.round(baseSalary),
-            latenessDeduction: Math.round(latenessDeduction),
+            latenessDeduction: 0,
             absenceDeduction: roundedAbsenceDeduction,
             bonuses: roundedBonusAmount,
-            totalSalary: Math.round(baseSalary - Math.round(latenessDeduction) - roundedAbsenceDeduction + roundedBonusAmount),
+            totalSalary: Math.round(baseSalary - roundedAbsenceDeduction + roundedBonusAmount),
             numStudents,
-            teachingDays: totalTeachingDays,
             status,
           };
         }
@@ -498,7 +497,6 @@ export async function GET(req: NextRequest) {
             },
           },
         });
-        let latenessDeduction = 0;
 
         // Get current students
         const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
@@ -521,6 +519,7 @@ export async function GET(req: NextRequest) {
         });
         
         const numStudents = currentStudents.length;
+        let latenessDeduction = 0;
         
         // Calculate simplified daily-based salary
         let baseSalary = 0;
@@ -821,12 +820,13 @@ export async function GET(req: NextRequest) {
         return {
           id: t.ustazid,
           name: t.ustazname,
-          baseSalary,
-          latenessDeduction,
-          absenceDeduction,
-          bonuses: bonusAmount,
-          totalSalary,
+          baseSalary: Math.round(baseSalary),
+          latenessDeduction: Math.round(latenessDeduction),
+          absenceDeduction: Math.round(absenceDeduction),
+          bonuses: Math.round(bonusAmount),
+          totalSalary: Math.round(baseSalary - Math.round(latenessDeduction) - Math.round(absenceDeduction) + Math.round(bonusAmount)),
           numStudents,
+          teachingDays: totalTeachingDays,
           status,
         };
       })
