@@ -125,9 +125,12 @@ export default function TeacherPaymentsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showAdvancedView, setShowAdvancedView] = useState(false);
-  const [salaryRangeFilter, setSalaryRangeFilter] = useState({ min: '', max: '' });
-  const [deductionFilter, setDeductionFilter] = useState('');
-  const [performanceFilter, setPerformanceFilter] = useState('');
+  const [salaryRangeFilter, setSalaryRangeFilter] = useState({
+    min: "",
+    max: "",
+  });
+  const [deductionFilter, setDeductionFilter] = useState("");
+  const [performanceFilter, setPerformanceFilter] = useState("");
 
   const months = [
     { value: "1", label: "January" },
@@ -203,7 +206,9 @@ export default function TeacherPaymentsPage() {
           fetch(
             `/api/admin/teacher-payments?teacherId=${teacherId}&from=${from.toISOString()}&to=${to.toISOString()}`
           ),
-          fetch(`/api/admin/teacher-students/${teacherId}?month=${selectedMonth}&year=${selectedYear}`),
+          fetch(
+            `/api/admin/teacher-students/${teacherId}?month=${selectedMonth}&year=${selectedYear}`
+          ),
         ]);
 
         if (!breakdownRes.ok) throw new Error("Failed to fetch breakdown");
@@ -369,8 +374,8 @@ export default function TeacherPaymentsPage() {
   useEffect(() => {
     const handleClickOutside = () => setShowReportOptions(false);
     if (showReportOptions) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
     }
   }, [showReportOptions]);
 
@@ -417,28 +422,48 @@ export default function TeacherPaymentsPage() {
 
   const filteredTeachers = teachers.filter((t) => {
     const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = !statusFilter || (salaryStatus[t.id] || "Unpaid") === statusFilter;
-    
+    const matchesStatus =
+      !statusFilter || (salaryStatus[t.id] || "Unpaid") === statusFilter;
+
     // Salary range filter
-    const matchesSalaryRange = (!salaryRangeFilter.min || t.totalSalary >= Number(salaryRangeFilter.min)) &&
-                              (!salaryRangeFilter.max || t.totalSalary <= Number(salaryRangeFilter.max));
-    
+    const matchesSalaryRange =
+      (!salaryRangeFilter.min ||
+        t.totalSalary >= Number(salaryRangeFilter.min)) &&
+      (!salaryRangeFilter.max ||
+        t.totalSalary <= Number(salaryRangeFilter.max));
+
     // Deduction filter
     const totalDeductions = t.latenessDeduction + t.absenceDeduction;
-    const matchesDeduction = !deductionFilter || 
-      (deductionFilter === 'high' && totalDeductions > 100) ||
-      (deductionFilter === 'medium' && totalDeductions > 50 && totalDeductions <= 100) ||
-      (deductionFilter === 'low' && totalDeductions > 0 && totalDeductions <= 50) ||
-      (deductionFilter === 'none' && totalDeductions === 0);
-    
+    const matchesDeduction =
+      !deductionFilter ||
+      (deductionFilter === "high" && totalDeductions > 100) ||
+      (deductionFilter === "medium" &&
+        totalDeductions > 50 &&
+        totalDeductions <= 100) ||
+      (deductionFilter === "low" &&
+        totalDeductions > 0 &&
+        totalDeductions <= 50) ||
+      (deductionFilter === "none" && totalDeductions === 0);
+
     // Performance filter
-    const matchesPerformance = !performanceFilter ||
-      (performanceFilter === 'top' && t.totalSalary > 2000) ||
-      (performanceFilter === 'good' && t.totalSalary > 1500 && t.totalSalary <= 2000) ||
-      (performanceFilter === 'average' && t.totalSalary > 1000 && t.totalSalary <= 1500) ||
-      (performanceFilter === 'low' && t.totalSalary <= 1000);
-    
-    return matchesSearch && matchesStatus && matchesSalaryRange && matchesDeduction && matchesPerformance;
+    const matchesPerformance =
+      !performanceFilter ||
+      (performanceFilter === "top" && t.totalSalary > 2000) ||
+      (performanceFilter === "good" &&
+        t.totalSalary > 1500 &&
+        t.totalSalary <= 2000) ||
+      (performanceFilter === "average" &&
+        t.totalSalary > 1000 &&
+        t.totalSalary <= 1500) ||
+      (performanceFilter === "low" && t.totalSalary <= 1000);
+
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesSalaryRange &&
+      matchesDeduction &&
+      matchesPerformance
+    );
   });
 
   const canMarkPaid = (() => {
@@ -774,15 +799,29 @@ export default function TeacherPaymentsPage() {
                       How Daily Calculation Works
                     </h4>
                     <ul className="text-blue-700 text-sm space-y-1">
-                      <li>• Monthly package salary ÷ Working days = Daily rate</li>
-                      <li>• Teacher earns daily rate when Zoom link is sent {!includeSundays && "(excludes Sundays)"}</li>
-                      <li>• Mid-month student changes are handled automatically</li>
-                      <li>• Teacher replacements get fair pro-rated payments</li>
-                      <li>• Working days ensure full monthly salary when all days taught</li>
-                      <li>• Deduction adjustments are automatically integrated</li>
+                      <li>
+                        • Monthly package salary ÷ Working days = Daily rate
+                      </li>
+                      <li>
+                        • Teacher earns daily rate when Zoom link is sent{" "}
+                        {!includeSundays && "(excludes Sundays)"}
+                      </li>
+                      <li>
+                        • Mid-month student changes are handled automatically
+                      </li>
+                      <li>
+                        • Teacher replacements get fair pro-rated payments
+                      </li>
+                      <li>
+                        • Working days ensure full monthly salary when all days
+                        taught
+                      </li>
+                      <li>
+                        • Deduction adjustments are automatically integrated
+                      </li>
                     </ul>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
                     {availablePackages.map((packageName, index) => {
                       return (
@@ -888,7 +927,7 @@ export default function TeacherPaymentsPage() {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 to-blue-100 rounded-xl opacity-60"></div>
 
@@ -898,7 +937,9 @@ export default function TeacherPaymentsPage() {
                           <input
                             type="checkbox"
                             checked={includeSundays}
-                            onChange={(e) => setIncludeSundays(e.target.checked)}
+                            onChange={(e) =>
+                              setIncludeSundays(e.target.checked)
+                            }
                             className="w-5 h-5 rounded border-2 border-indigo-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all"
                             disabled={sundayLoading}
                           />
@@ -937,7 +978,8 @@ export default function TeacherPaymentsPage() {
                             if (res.ok) {
                               toast({
                                 title: "Success",
-                                description: "Working days configuration updated!",
+                                description:
+                                  "Working days configuration updated!",
                               });
                             }
                           } catch (error) {
@@ -989,19 +1031,25 @@ export default function TeacherPaymentsPage() {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <button
-                      onClick={() => window.open('/admin/system-incidents', '_blank')}
+                      onClick={() =>
+                        window.open("/admin/system-incidents", "_blank")
+                      }
                       className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
                     >
                       <FiAlertTriangle className="h-4 w-4" />
                       Manage System Incidents
                     </button>
-                    
+
                     <button
                       onClick={() => {
-                        const adjustmentWindow = window.open('/admin/deduction-adjustments', '_blank', 'width=1200,height=800');
+                        const adjustmentWindow = window.open(
+                          "/admin/deduction-adjustments",
+                          "_blank",
+                          "width=1200,height=800"
+                        );
                         // Listen for window close to refresh data
                         const checkClosed = setInterval(() => {
                           if (adjustmentWindow?.closed) {
@@ -1010,7 +1058,8 @@ export default function TeacherPaymentsPage() {
                             window.location.reload();
                             toast({
                               title: "Data Refreshed",
-                              description: "Teacher payments updated with latest adjustments",
+                              description:
+                                "Teacher payments updated with latest adjustments",
                             });
                           }
                         }, 1000);
@@ -1156,7 +1205,9 @@ export default function TeacherPaymentsPage() {
                 <button
                   onClick={() => setShowAdvancedView(!showAdvancedView)}
                   className={`px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 ${
-                    showAdvancedView ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    showAdvancedView
+                      ? "bg-purple-600 hover:bg-purple-700 text-white"
+                      : "bg-gray-200 hover:bg-gray-300 text-gray-700"
                   }`}
                 >
                   <FiSearch className="h-4 w-4" />
@@ -1181,46 +1232,57 @@ export default function TeacherPaymentsPage() {
                   >
                     <FiDownload className="h-4 w-4" />
                     Generate Report
-                    <FiChevronDown className={`h-4 w-4 transition-transform ${showReportOptions ? 'rotate-180' : ''}`} />
+                    <FiChevronDown
+                      className={`h-4 w-4 transition-transform ${
+                        showReportOptions ? "rotate-180" : ""
+                      }`}
+                    />
                   </button>
-                  
+
                   {showReportOptions && (
                     <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50 min-w-[200px]">
                       <button
                         onClick={async () => {
                           setShowReportOptions(false);
                           try {
-                            const { from, to } = getMonthRange(selectedYear, selectedMonth);
-                            const response = await fetch('/api/admin/teacher-payments/pdf', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                startDate: from.toISOString(),
-                                endDate: to.toISOString(),
-                                teachersData: filteredTeachers,
-                                includeDetails: false
-                              })
-                            });
-                            
+                            const { from, to } = getMonthRange(
+                              selectedYear,
+                              selectedMonth
+                            );
+                            const response = await fetch(
+                              "/api/admin/teacher-payments/pdf",
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  startDate: from.toISOString(),
+                                  endDate: to.toISOString(),
+                                  teachersData: filteredTeachers,
+                                  includeDetails: false,
+                                }),
+                              }
+                            );
+
                             if (response.ok) {
                               const html = await response.text();
-                              const newWindow = window.open('', '_blank');
+                              const newWindow = window.open("", "_blank");
                               if (newWindow) {
                                 newWindow.document.write(html);
                                 newWindow.document.close();
                               }
                               toast({
                                 title: "Success",
-                                description: "Summary report generated successfully!"
+                                description:
+                                  "Summary report generated successfully!",
                               });
                             } else {
-                              throw new Error('Failed to generate report');
+                              throw new Error("Failed to generate report");
                             }
                           } catch (error) {
                             toast({
                               title: "Error",
                               description: "Failed to generate summary report",
-                              variant: "destructive"
+                              variant: "destructive",
                             });
                           }
                         }}
@@ -1229,42 +1291,49 @@ export default function TeacherPaymentsPage() {
                         <FiUsers className="h-4 w-4" />
                         Summary Report
                       </button>
-                      
+
                       <button
                         onClick={async () => {
                           setShowReportOptions(false);
                           try {
-                            const { from, to } = getMonthRange(selectedYear, selectedMonth);
-                            const response = await fetch('/api/admin/teacher-payments/pdf', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                startDate: from.toISOString(),
-                                endDate: to.toISOString(),
-                                teachersData: filteredTeachers,
-                                includeDetails: true
-                              })
-                            });
-                            
+                            const { from, to } = getMonthRange(
+                              selectedYear,
+                              selectedMonth
+                            );
+                            const response = await fetch(
+                              "/api/admin/teacher-payments/pdf",
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  startDate: from.toISOString(),
+                                  endDate: to.toISOString(),
+                                  teachersData: filteredTeachers,
+                                  includeDetails: true,
+                                }),
+                              }
+                            );
+
                             if (response.ok) {
                               const html = await response.text();
-                              const newWindow = window.open('', '_blank');
+                              const newWindow = window.open("", "_blank");
                               if (newWindow) {
                                 newWindow.document.write(html);
                                 newWindow.document.close();
                               }
                               toast({
                                 title: "Success",
-                                description: "Detailed report with daily breakdown generated!"
+                                description:
+                                  "Detailed report with daily breakdown generated!",
                               });
                             } else {
-                              throw new Error('Failed to generate report');
+                              throw new Error("Failed to generate report");
                             }
                           } catch (error) {
                             toast({
                               title: "Error",
                               description: "Failed to generate detailed report",
-                              variant: "destructive"
+                              variant: "destructive",
                             });
                           }
                         }}
@@ -1273,43 +1342,51 @@ export default function TeacherPaymentsPage() {
                         <FiCalendar className="h-4 w-4" />
                         Daily Attendance Report
                       </button>
-                      
+
                       <button
                         onClick={async () => {
                           setShowReportOptions(false);
                           try {
-                            const { from, to } = getMonthRange(selectedYear, selectedMonth);
-                            const response = await fetch('/api/admin/teacher-payments/pdf', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                startDate: from.toISOString(),
-                                endDate: to.toISOString(),
-                                teachersData: filteredTeachers,
-                                includeDetails: true,
-                                reportType: 'deductions_only'
-                              })
-                            });
-                            
+                            const { from, to } = getMonthRange(
+                              selectedYear,
+                              selectedMonth
+                            );
+                            const response = await fetch(
+                              "/api/admin/teacher-payments/pdf",
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  startDate: from.toISOString(),
+                                  endDate: to.toISOString(),
+                                  teachersData: filteredTeachers,
+                                  includeDetails: true,
+                                  reportType: "deductions_only",
+                                }),
+                              }
+                            );
+
                             if (response.ok) {
                               const html = await response.text();
-                              const newWindow = window.open('', '_blank');
+                              const newWindow = window.open("", "_blank");
                               if (newWindow) {
                                 newWindow.document.write(html);
                                 newWindow.document.close();
                               }
                               toast({
                                 title: "Success",
-                                description: "Deductions & adjustments report generated!"
+                                description:
+                                  "Deductions & adjustments report generated!",
                               });
                             } else {
-                              throw new Error('Failed to generate report');
+                              throw new Error("Failed to generate report");
                             }
                           } catch (error) {
                             toast({
                               title: "Error",
-                              description: "Failed to generate deductions report",
-                              variant: "destructive"
+                              description:
+                                "Failed to generate deductions report",
+                              variant: "destructive",
                             });
                           }
                         }}
@@ -1318,43 +1395,51 @@ export default function TeacherPaymentsPage() {
                         <FiAlertTriangle className="h-4 w-4" />
                         Deductions & Adjustments Report
                       </button>
-                      
+
                       <div className="border-t border-gray-200 my-1"></div>
-                      
+
                       <button
                         onClick={async () => {
                           setShowReportOptions(false);
                           try {
-                            const { from, to } = getMonthRange(selectedYear, selectedMonth);
-                            const response = await fetch('/api/admin/teacher-payments/analytics', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                startDate: from.toISOString(),
-                                endDate: to.toISOString(),
-                                teachersData: filteredTeachers
-                              })
-                            });
-                            
+                            const { from, to } = getMonthRange(
+                              selectedYear,
+                              selectedMonth
+                            );
+                            const response = await fetch(
+                              "/api/admin/teacher-payments/analytics",
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  startDate: from.toISOString(),
+                                  endDate: to.toISOString(),
+                                  teachersData: filteredTeachers,
+                                }),
+                              }
+                            );
+
                             if (response.ok) {
                               const html = await response.text();
-                              const newWindow = window.open('', '_blank');
+                              const newWindow = window.open("", "_blank");
                               if (newWindow) {
                                 newWindow.document.write(html);
                                 newWindow.document.close();
                               }
                               toast({
                                 title: "Success",
-                                description: "Analytics report generated successfully!"
+                                description:
+                                  "Analytics report generated successfully!",
                               });
                             } else {
-                              throw new Error('Failed to generate analytics');
+                              throw new Error("Failed to generate analytics");
                             }
                           } catch (error) {
                             toast({
                               title: "Error",
-                              description: "Failed to generate analytics report",
-                              variant: "destructive"
+                              description:
+                                "Failed to generate analytics report",
+                              variant: "destructive",
                             });
                           }
                         }}
@@ -1363,41 +1448,51 @@ export default function TeacherPaymentsPage() {
                         <FiAward className="h-4 w-4" />
                         Analytics Report
                       </button>
-                      
+
                       <button
                         onClick={async () => {
                           setShowReportOptions(false);
                           try {
-                            const { from, to } = getMonthRange(selectedYear, selectedMonth);
-                            const response = await fetch('/api/admin/teacher-payments/financial', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                startDate: from.toISOString(),
-                                endDate: to.toISOString(),
-                                teachersData: filteredTeachers
-                              })
-                            });
-                            
+                            const { from, to } = getMonthRange(
+                              selectedYear,
+                              selectedMonth
+                            );
+                            const response = await fetch(
+                              "/api/admin/teacher-payments/financial",
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  startDate: from.toISOString(),
+                                  endDate: to.toISOString(),
+                                  teachersData: filteredTeachers,
+                                }),
+                              }
+                            );
+
                             if (response.ok) {
                               const html = await response.text();
-                              const newWindow = window.open('', '_blank');
+                              const newWindow = window.open("", "_blank");
                               if (newWindow) {
                                 newWindow.document.write(html);
                                 newWindow.document.close();
                               }
                               toast({
                                 title: "Success",
-                                description: "Financial board report generated successfully!"
+                                description:
+                                  "Financial board report generated successfully!",
                               });
                             } else {
-                              throw new Error('Failed to generate financial report');
+                              throw new Error(
+                                "Failed to generate financial report"
+                              );
                             }
                           } catch (error) {
                             toast({
                               title: "Error",
-                              description: "Failed to generate financial report",
-                              variant: "destructive"
+                              description:
+                                "Failed to generate financial report",
+                              variant: "destructive",
                             });
                           }
                         }}
@@ -1420,30 +1515,44 @@ export default function TeacherPaymentsPage() {
                 <FiSearch className="h-5 w-5" />
                 Advanced Filtering & Analysis
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-purple-800 mb-2">Salary Range (ETB)</label>
+                  <label className="block text-sm font-medium text-purple-800 mb-2">
+                    Salary Range (ETB)
+                  </label>
                   <div className="flex gap-2">
                     <input
                       type="number"
                       placeholder="Min"
                       value={salaryRangeFilter.min}
-                      onChange={(e) => setSalaryRangeFilter(prev => ({ ...prev, min: e.target.value }))}
+                      onChange={(e) =>
+                        setSalaryRangeFilter((prev) => ({
+                          ...prev,
+                          min: e.target.value,
+                        }))
+                      }
                       className="flex-1 px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
                     />
                     <input
                       type="number"
                       placeholder="Max"
                       value={salaryRangeFilter.max}
-                      onChange={(e) => setSalaryRangeFilter(prev => ({ ...prev, max: e.target.value }))}
+                      onChange={(e) =>
+                        setSalaryRangeFilter((prev) => ({
+                          ...prev,
+                          max: e.target.value,
+                        }))
+                      }
                       className="flex-1 px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
                     />
                   </div>
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-purple-800 mb-2">Deduction Level</label>
+                  <label className="block text-sm font-medium text-purple-800 mb-2">
+                    Deduction Level
+                  </label>
                   <select
                     value={deductionFilter}
                     onChange={(e) => setDeductionFilter(e.target.value)}
@@ -1453,31 +1562,33 @@ export default function TeacherPaymentsPage() {
                     <option value="none">No Deductions (0 ETB)</option>
                     <option value="low">Low (1-50 ETB)</option>
                     <option value="medium">Medium (51-100 ETB)</option>
-                    <option value="high">High ({'>'}100 ETB)</option>
+                    <option value="high">High ({">"}100 ETB)</option>
                   </select>
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-purple-800 mb-2">Performance Level</label>
+                  <label className="block text-sm font-medium text-purple-800 mb-2">
+                    Performance Level
+                  </label>
                   <select
                     value={performanceFilter}
                     onChange={(e) => setPerformanceFilter(e.target.value)}
                     className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
                   >
                     <option value="">All Performance</option>
-                    <option value="top">Top Performers ({'>'}2000 ETB)</option>
+                    <option value="top">Top Performers ({">"}2000 ETB)</option>
                     <option value="good">Good (1501-2000 ETB)</option>
                     <option value="average">Average (1001-1500 ETB)</option>
                     <option value="low">Below Average (≤1000 ETB)</option>
                   </select>
                 </div>
-                
+
                 <div className="flex items-end">
                   <button
                     onClick={() => {
-                      setSalaryRangeFilter({ min: '', max: '' });
-                      setDeductionFilter('');
-                      setPerformanceFilter('');
+                      setSalaryRangeFilter({ min: "", max: "" });
+                      setDeductionFilter("");
+                      setPerformanceFilter("");
                     }}
                     className="w-full px-4 py-2 bg-purple-200 hover:bg-purple-300 text-purple-800 rounded-lg font-medium transition-all"
                   >
@@ -1485,22 +1596,37 @@ export default function TeacherPaymentsPage() {
                   </button>
                 </div>
               </div>
-              
+
               {/* Quick Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white rounded-xl p-4 border border-purple-200">
-                  <div className="text-2xl font-bold text-purple-900">{filteredTeachers.length}</div>
-                  <div className="text-sm text-purple-700">Filtered Results</div>
+                  <div className="text-2xl font-bold text-purple-900">
+                    {filteredTeachers.length}
+                  </div>
+                  <div className="text-sm text-purple-700">
+                    Filtered Results
+                  </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-purple-200">
                   <div className="text-2xl font-bold text-green-900">
-                    {filteredTeachers.length > 0 ? Math.round(filteredTeachers.reduce((sum, t) => sum + t.totalSalary, 0) / filteredTeachers.length) : 0}
+                    {filteredTeachers.length > 0
+                      ? Math.round(
+                          filteredTeachers.reduce(
+                            (sum, t) => sum + t.totalSalary,
+                            0
+                          ) / filteredTeachers.length
+                        )
+                      : 0}
                   </div>
                   <div className="text-sm text-green-700">Avg Salary (ETB)</div>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-purple-200">
                   <div className="text-2xl font-bold text-red-900">
-                    {filteredTeachers.reduce((sum, t) => sum + t.latenessDeduction + t.absenceDeduction, 0)}
+                    {filteredTeachers.reduce(
+                      (sum, t) =>
+                        sum + t.latenessDeduction + t.absenceDeduction,
+                      0
+                    )}
                   </div>
                   <div className="text-sm text-red-700">Total Deductions</div>
                 </div>
@@ -1616,39 +1742,49 @@ export default function TeacherPaymentsPage() {
                             className="rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
                           />
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                            onClick={() => {
-                              if (sortKey === 'name') {
-                                setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-                              } else {
-                                setSortKey('name');
-                                setSortDir('asc');
-                              }
-                            }}>
+                        <th
+                          className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => {
+                            if (sortKey === "name") {
+                              setSortDir(sortDir === "asc" ? "desc" : "asc");
+                            } else {
+                              setSortKey("name");
+                              setSortDir("asc");
+                            }
+                          }}
+                        >
                           <div className="flex items-center gap-2">
                             Teacher
-                            {sortKey === 'name' && (
-                              sortDir === 'asc' ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />
-                            )}
+                            {sortKey === "name" &&
+                              (sortDir === "asc" ? (
+                                <FiChevronUp className="h-4 w-4" />
+                              ) : (
+                                <FiChevronDown className="h-4 w-4" />
+                              ))}
                           </div>
                         </th>
                         <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
                           # Students
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                            onClick={() => {
-                              if (sortKey === 'baseSalary') {
-                                setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-                              } else {
-                                setSortKey('baseSalary');
-                                setSortDir('desc');
-                              }
-                            }}>
+                        <th
+                          className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => {
+                            if (sortKey === "baseSalary") {
+                              setSortDir(sortDir === "asc" ? "desc" : "asc");
+                            } else {
+                              setSortKey("baseSalary");
+                              setSortDir("desc");
+                            }
+                          }}
+                        >
                           <div className="flex items-center gap-2">
                             Base Salary
-                            {sortKey === 'baseSalary' && (
-                              sortDir === 'asc' ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />
-                            )}
+                            {sortKey === "baseSalary" &&
+                              (sortDir === "asc" ? (
+                                <FiChevronUp className="h-4 w-4" />
+                              ) : (
+                                <FiChevronDown className="h-4 w-4" />
+                              ))}
                           </div>
                         </th>
                         <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
@@ -1660,20 +1796,25 @@ export default function TeacherPaymentsPage() {
                         <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
                           Bonuses
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                            onClick={() => {
-                              if (sortKey === 'totalSalary') {
-                                setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-                              } else {
-                                setSortKey('totalSalary');
-                                setSortDir('desc');
-                              }
-                            }}>
+                        <th
+                          className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => {
+                            if (sortKey === "totalSalary") {
+                              setSortDir(sortDir === "asc" ? "desc" : "asc");
+                            } else {
+                              setSortKey("totalSalary");
+                              setSortDir("desc");
+                            }
+                          }}
+                        >
                           <div className="flex items-center gap-2">
                             Total Salary
-                            {sortKey === 'totalSalary' && (
-                              sortDir === 'asc' ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />
-                            )}
+                            {sortKey === "totalSalary" &&
+                              (sortDir === "asc" ? (
+                                <FiChevronUp className="h-4 w-4" />
+                              ) : (
+                                <FiChevronDown className="h-4 w-4" />
+                              ))}
                           </div>
                         </th>
                         <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
@@ -1739,7 +1880,9 @@ export default function TeacherPaymentsPage() {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <div className="font-bold text-gray-900">{t.baseSalary} ETB</div>
+                              <div className="font-bold text-gray-900">
+                                {t.baseSalary} ETB
+                              </div>
                               {t.teachingDays && (
                                 <div className="text-xs text-blue-600 mt-1">
                                   {t.teachingDays} teaching days
@@ -1747,7 +1890,8 @@ export default function TeacherPaymentsPage() {
                               )}
                               {t.breakdown?.summary && (
                                 <div className="text-xs text-green-600">
-                                  Avg: {t.breakdown.summary.averageDailyEarning} ETB/day
+                                  Avg: {t.breakdown.summary.averageDailyEarning}{" "}
+                                  ETB/day
                                 </div>
                               )}
                             </td>
@@ -1773,21 +1917,32 @@ export default function TeacherPaymentsPage() {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <div className="font-bold text-black text-lg">{t.totalSalary} ETB</div>
+                              <div className="font-bold text-black text-lg">
+                                {t.totalSalary} ETB
+                              </div>
                               {(() => {
-                                const efficiency = t.numStudents && t.totalSalary ? Math.round(t.totalSalary / t.numStudents) : 0;
-                                return efficiency > 0 && (
-                                  <div className="text-xs text-purple-600">
-                                    {efficiency} ETB per student
-                                  </div>
+                                const efficiency =
+                                  t.numStudents && t.totalSalary
+                                    ? Math.round(t.totalSalary / t.numStudents)
+                                    : 0;
+                                return (
+                                  efficiency > 0 && (
+                                    <div className="text-xs text-purple-600">
+                                      {efficiency} ETB per student
+                                    </div>
+                                  )
                                 );
                               })()}
                               {t.breakdown?.summary && (
-                                <div className={`text-xs font-medium ${
-                                  t.breakdown.summary.totalDeductions > 100 ? 'text-red-600' :
-                                  t.breakdown.summary.totalDeductions > 50 ? 'text-yellow-600' :
-                                  'text-green-600'
-                                }`}>
+                                <div
+                                  className={`text-xs font-medium ${
+                                    t.breakdown.summary.totalDeductions > 100
+                                      ? "text-red-600"
+                                      : t.breakdown.summary.totalDeductions > 50
+                                      ? "text-yellow-600"
+                                      : "text-green-600"
+                                  }`}
+                                >
                                   Net: {t.breakdown.summary.netSalary} ETB
                                 </div>
                               )}
@@ -2058,7 +2213,12 @@ export default function TeacherPaymentsPage() {
                       color: "red",
                       badge: true,
                       icon: FiAlertTriangle,
-                      detail: breakdown.latenessRecords?.length > 0 ? `${breakdown.latenessRecords.length} incident${breakdown.latenessRecords.length > 1 ? 's' : ''}` : undefined,
+                      detail:
+                        breakdown.latenessRecords?.length > 0
+                          ? `${breakdown.latenessRecords.length} incident${
+                              breakdown.latenessRecords.length > 1 ? "s" : ""
+                            }`
+                          : undefined,
                     },
                     {
                       label: "Absence Deduction",
@@ -2151,9 +2311,21 @@ export default function TeacherPaymentsPage() {
                     </div>
                     {teacherPackageBreakdown && (
                       <div className="text-sm text-gray-600">
-                        <span className="font-medium">Month:</span> {months.find(m => m.value === String(selectedMonth))?.label} {selectedYear} 
-                        <span className="ml-4 font-medium">Total Days:</span> {teacherPackageBreakdown.daysInMonth}
-                        <span className="ml-4 font-medium">Working Days:</span> {teacherPackageBreakdown.workingDays} {!includeSundays && "(excludes Sundays)"}
+                        <span className="font-medium">Month:</span>{" "}
+                        {
+                          months.find((m) => m.value === String(selectedMonth))
+                            ?.label
+                        }{" "}
+                        {selectedYear}
+                        <span className="ml-4 font-medium">
+                          Total Days:
+                        </span>{" "}
+                        {teacherPackageBreakdown.daysInMonth}
+                        <span className="ml-4 font-medium">
+                          Working Days:
+                        </span>{" "}
+                        {teacherPackageBreakdown.workingDays}{" "}
+                        {!includeSundays && "(excludes Sundays)"}
                       </div>
                     )}
                   </div>
@@ -2192,15 +2364,27 @@ export default function TeacherPaymentsPage() {
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-2">
                             <FiAlertTriangle className="text-red-500 h-5 w-5" />
-                            <span className="font-semibold text-black">Lateness Records</span>
+                            <span className="font-semibold text-black">
+                              Lateness Records
+                            </span>
                           </div>
                           {breakdown.latenessRecords?.length > 0 && (
                             <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-200">
                               <div className="text-sm font-semibold text-red-800">
-                                Total Deduction: {breakdown.latenessRecords.reduce((sum: number, r: any) => sum + r.deductionApplied, 0)} ETB
+                                Total Deduction:{" "}
+                                {breakdown.latenessRecords.reduce(
+                                  (sum: number, r: any) =>
+                                    sum + r.deductionApplied,
+                                  0
+                                )}{" "}
+                                ETB
                               </div>
                               <div className="text-xs text-red-600">
-                                {breakdown.latenessRecords.length} lateness record{breakdown.latenessRecords.length > 1 ? 's' : ''}
+                                {breakdown.latenessRecords.length} lateness
+                                record
+                                {breakdown.latenessRecords.length > 1
+                                  ? "s"
+                                  : ""}
                               </div>
                             </div>
                           )}
@@ -2213,23 +2397,31 @@ export default function TeacherPaymentsPage() {
                       ) : (
                         <ul className="mb-6 space-y-3">
                           {breakdown.latenessRecords.map((r: any) => (
-                            <li key={r.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-all">
+                            <li
+                              key={r.id}
+                              className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-all"
+                            >
                               <div className="flex flex-col space-y-3">
                                 {/* Header Row */}
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-3">
                                     <span className="font-mono text-sm font-semibold text-gray-800">
-                                      {new Date(r.classDate).toLocaleDateString()}
+                                      {new Date(
+                                        r.classDate
+                                      ).toLocaleDateString()}
                                     </span>
                                     <span className="text-xs text-gray-500">
-                                      {new Date(r.classDate).toLocaleDateString('en-US', { weekday: 'long' })}
+                                      {new Date(r.classDate).toLocaleDateString(
+                                        "en-US",
+                                        { weekday: "long" }
+                                      )}
                                     </span>
                                   </div>
                                   <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-bold text-sm">
                                     -{r.deductionApplied} ETB
                                   </span>
                                 </div>
-                                
+
                                 {/* Lateness Details */}
                                 <div className="flex items-center gap-3 flex-wrap">
                                   <span className="inline-block px-3 py-1 rounded-full bg-orange-100 text-orange-800 font-semibold text-xs">
@@ -2244,21 +2436,34 @@ export default function TeacherPaymentsPage() {
                                     </span>
                                   )}
                                 </div>
-                                
+
                                 {/* Calculation Details */}
                                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                                   <div className="text-xs font-mono text-gray-700 mb-2">
-                                    Calculation: Base Amount × Tier Percentage = {r.deductionApplied} ETB
+                                    Calculation: Base Amount × Tier Percentage ={" "}
+                                    {r.deductionApplied} ETB
                                   </div>
                                   {r.scheduledTime && r.actualStartTime && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
                                       <div>
-                                        <span className="font-medium">Scheduled: </span>
-                                        <span className="font-mono">{new Date(r.scheduledTime).toLocaleTimeString()}</span>
+                                        <span className="font-medium">
+                                          Scheduled:{" "}
+                                        </span>
+                                        <span className="font-mono">
+                                          {new Date(
+                                            r.scheduledTime
+                                          ).toLocaleTimeString()}
+                                        </span>
                                       </div>
                                       <div>
-                                        <span className="font-medium">Actual Start: </span>
-                                        <span className="font-mono">{new Date(r.actualStartTime).toLocaleTimeString()}</span>
+                                        <span className="font-medium">
+                                          Actual Start:{" "}
+                                        </span>
+                                        <span className="font-mono">
+                                          {new Date(
+                                            r.actualStartTime
+                                          ).toLocaleTimeString()}
+                                        </span>
                                       </div>
                                     </div>
                                   )}
@@ -2273,15 +2478,24 @@ export default function TeacherPaymentsPage() {
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-2">
                             <FiAlertTriangle className="text-yellow-500 h-5 w-5" />
-                            <span className="font-semibold text-black">Absence Records</span>
+                            <span className="font-semibold text-black">
+                              Absence Records
+                            </span>
                           </div>
                           {breakdown.absenceRecords?.length > 0 && (
                             <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-200">
                               <div className="text-sm font-semibold text-red-800">
-                                Total Deduction: {breakdown.absenceRecords.reduce((sum: number, r: any) => sum + r.deductionApplied, 0)} ETB
+                                Total Deduction:{" "}
+                                {breakdown.absenceRecords.reduce(
+                                  (sum: number, r: any) =>
+                                    sum + r.deductionApplied,
+                                  0
+                                )}{" "}
+                                ETB
                               </div>
                               <div className="text-xs text-red-600">
-                                {breakdown.absenceRecords.length} absence record{breakdown.absenceRecords.length > 1 ? 's' : ''}
+                                {breakdown.absenceRecords.length} absence record
+                                {breakdown.absenceRecords.length > 1 ? "s" : ""}
                               </div>
                             </div>
                           )}
@@ -2299,38 +2513,53 @@ export default function TeacherPaymentsPage() {
                             if (r.timeSlots) {
                               try {
                                 const slots = JSON.parse(r.timeSlots);
-                                if (slots.includes('Whole Day')) {
+                                if (slots.includes("Whole Day")) {
                                   timeSlotsInfo = "🚫 Whole Day";
                                 } else {
                                   slotsCount = slots.length;
-                                  timeSlotsInfo = `⏰ ${slotsCount} Time Slot${slotsCount > 1 ? 's' : ''}`;
+                                  timeSlotsInfo = `⏰ ${slotsCount} Time Slot${
+                                    slotsCount > 1 ? "s" : ""
+                                  }`;
                                 }
                               } catch {}
                             }
-                            
+
                             return (
-                              <li key={r.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-all">
+                              <li
+                                key={r.id}
+                                className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-all"
+                              >
                                 <div className="flex flex-col space-y-3">
                                   {/* Header Row */}
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                       <span className="font-mono text-sm font-semibold text-gray-800">
-                                        {new Date(r.classDate).toLocaleDateString()}
+                                        {new Date(
+                                          r.classDate
+                                        ).toLocaleDateString()}
                                       </span>
                                       <span className="text-xs text-gray-500">
-                                        {new Date(r.classDate).toLocaleDateString('en-US', { weekday: 'long' })}
+                                        {new Date(
+                                          r.classDate
+                                        ).toLocaleDateString("en-US", {
+                                          weekday: "long",
+                                        })}
                                       </span>
                                     </div>
                                     <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-bold text-sm">
                                       -{r.deductionApplied} ETB
                                     </span>
                                   </div>
-                                  
+
                                   {/* Time Slots & Status Row */}
                                   <div className="flex items-center gap-3 flex-wrap">
-                                    <span className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
-                                      timeSlotsInfo.includes('Whole Day') ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
-                                    }`}>
+                                    <span
+                                      className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
+                                        timeSlotsInfo.includes("Whole Day")
+                                          ? "bg-red-100 text-red-800"
+                                          : "bg-blue-100 text-blue-800"
+                                      }`}
+                                    >
                                       {timeSlotsInfo}
                                     </span>
                                     <span
@@ -2340,25 +2569,35 @@ export default function TeacherPaymentsPage() {
                                           : "bg-red-100 text-red-700"
                                       }`}
                                     >
-                                      {r.permitted ? "✅ Permitted" : "❌ Unpermitted"}
+                                      {r.permitted
+                                        ? "✅ Permitted"
+                                        : "❌ Unpermitted"}
                                     </span>
-                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                      r.reviewedByManager ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
-                                    }`}>
-                                      {r.reviewedByManager ? '🤖 Auto-Detected' : '👁️ Manual Review'}
+                                    <span
+                                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                        r.reviewedByManager
+                                          ? "bg-blue-100 text-blue-800"
+                                          : "bg-yellow-100 text-yellow-800"
+                                      }`}
+                                    >
+                                      {r.reviewedByManager
+                                        ? "🤖 Auto-Detected"
+                                        : "👁️ Manual Review"}
                                     </span>
                                   </div>
-                                  
+
                                   {/* Calculation Details */}
                                   {(() => {
                                     let calculationDisplay = "";
                                     if (r.timeSlots) {
                                       try {
                                         const slots = JSON.parse(r.timeSlots);
-                                        if (slots.includes('Whole Day')) {
+                                        if (slots.includes("Whole Day")) {
                                           calculationDisplay = `Whole Day Deduction: ${r.deductionApplied} ETB (Fixed Rate)`;
                                         } else {
-                                          const perSlotRate = Math.round(r.deductionApplied / slots.length);
+                                          const perSlotRate = Math.round(
+                                            r.deductionApplied / slots.length
+                                          );
                                           calculationDisplay = `Time Slot Deduction: ${perSlotRate} ETB × ${slots.length} slots = ${r.deductionApplied} ETB`;
                                         }
                                       } catch {
@@ -2367,38 +2606,53 @@ export default function TeacherPaymentsPage() {
                                     } else {
                                       calculationDisplay = `Legacy Calculation: ${r.deductionApplied} ETB`;
                                     }
-                                    
+
                                     return (
                                       <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                                         <div className="text-xs font-mono text-gray-700 mb-2">
                                           {calculationDisplay}
                                         </div>
-                                        {r.timeSlots && (() => {
-                                          try {
-                                            const slots = JSON.parse(r.timeSlots);
-                                            if (!slots.includes('Whole Day') && slots.length > 0) {
-                                              return (
-                                                <div className="text-xs text-gray-600">
-                                                  <span className="font-medium">Affected time slots: </span>
-                                                  <span className="font-mono">
-                                                    {slots.slice(0, 2).join(', ')}
-                                                    {slots.length > 2 && ` +${slots.length - 2} more`}
-                                                  </span>
-                                                </div>
+                                        {r.timeSlots &&
+                                          (() => {
+                                            try {
+                                              const slots = JSON.parse(
+                                                r.timeSlots
                                               );
-                                            }
-                                          } catch {}
-                                          return null;
-                                        })()}
+                                              if (
+                                                !slots.includes("Whole Day") &&
+                                                slots.length > 0
+                                              ) {
+                                                return (
+                                                  <div className="text-xs text-gray-600">
+                                                    <span className="font-medium">
+                                                      Affected time slots:{" "}
+                                                    </span>
+                                                    <span className="font-mono">
+                                                      {slots
+                                                        .slice(0, 2)
+                                                        .join(", ")}
+                                                      {slots.length > 2 &&
+                                                        ` +${
+                                                          slots.length - 2
+                                                        } more`}
+                                                    </span>
+                                                  </div>
+                                                );
+                                              }
+                                            } catch {}
+                                            return null;
+                                          })()}
                                       </div>
                                     );
                                   })()}
-                                  
+
                                   {/* Review Notes */}
                                   {r.reviewNotes && (
                                     <div className="bg-yellow-50 rounded-lg p-2 border border-yellow-200">
                                       <div className="text-xs text-yellow-800">
-                                        <span className="font-medium">Admin Note: </span>
+                                        <span className="font-medium">
+                                          Admin Note:{" "}
+                                        </span>
                                         {r.reviewNotes}
                                       </div>
                                     </div>

@@ -462,40 +462,78 @@ export async function GET(req: NextRequest) {
             },
           });
           
-          for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-            const dateStr = format(d, "yyyy-MM-dd");
+          // Group zoom links by date to avoid duplicate deductions
+          const dailyZoomLinks = new Map();
+          
+          for (const student of allStudents) {
+            student.zoom_links.forEach(link => {
+              if (link.sent_time) {
+                const dateStr = format(link.sent_time, "yyyy-MM-dd");
+                if (!dailyZoomLinks.has(dateStr)) {
+                  dailyZoomLinks.set(dateStr, []);
+                }
+                dailyZoomLinks.get(dateStr).push({
+                  ...link,
+                  studentId: student.wdt_ID,
+                  studentName: student.name,
+                  timeSlot: student.occupiedTimes?.[0]?.time_slot
+                });
+              }
+            });
+          }
+          
+          // Calculate lateness for each day (only earliest link per day)
+          for (const [dateStr, links] of dailyZoomLinks.entries()) {
+            const date = new Date(dateStr);
+            if (date < from || date > to) continue;
             
-            for (const student of allStudents) {
-              const timeSlot = student.occupiedTimes?.[0]?.time_slot;
-              if (!timeSlot) continue;
+            // Group by student and take earliest link per student per day
+            const studentLinks = new Map();
+            links.forEach(link => {
+              const key = link.studentId;
+              if (!studentLinks.has(key) || link.sent_time < studentLinks.get(key).sent_time) {
+                studentLinks.set(key, link);
+              }
+            });
+            
+            // Calculate lateness for each student's earliest link
+            for (const link of studentLinks.values()) {
+              if (!link.timeSlot) continue;
               
               // Convert time to 24-hour format
-              const time24 = timeSlot.includes("AM") || timeSlot.includes("PM") 
-                ? timeSlot.replace(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i, (match, h, m, period) => {
-                    let hour = parseInt(h);
-                    if (period.toUpperCase() === "PM" && hour !== 12) hour += 12;
-                    if (period.toUpperCase() === "AM" && hour === 12) hour = 0;
-                    return `${hour.toString().padStart(2, '0')}:${m}`;
-                  })
-                : timeSlot;
+              function convertTo24Hour(timeStr) {
+                if (!timeStr) return "00:00";
+                
+                if (timeStr.includes("AM") || timeStr.includes("PM")) {
+                  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+                  if (match) {
+                    let hour = parseInt(match[1]);
+                    const minute = match[2];
+                    const period = match[3].toUpperCase();
+                    
+                    if (period === "PM" && hour !== 12) hour += 12;
+                    if (period === "AM" && hour === 12) hour = 0;
+                    
+                    return `${hour.toString().padStart(2, '0')}:${minute}`;
+                  }
+                }
+                
+                // Already 24-hour or other format
+                return timeStr.includes(":") ? timeStr.split(":").slice(0, 2).join(":") : "00:00";
+              }
               
+              const time24 = convertTo24Hour(link.timeSlot);
               const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
               
-              // Find actual start time from zoom links
-              const zoomLink = student.zoom_links.find(zl => 
-                zl.sent_time && format(zl.sent_time, "yyyy-MM-dd") === dateStr
-              );
-              
-              if (!zoomLink?.sent_time) continue;
-              
               const latenessMinutes = Math.max(0, 
-                Math.round((zoomLink.sent_time.getTime() - scheduledTime.getTime()) / 60000)
+                Math.round((link.sent_time.getTime() - scheduledTime.getTime()) / 60000)
               );
               
               if (latenessMinutes > excusedThreshold) {
                 let deduction = 0;
                 let tier = "No Tier";
                 
+                // Find appropriate tier
                 for (const [i, t] of tiers.entries()) {
                   if (latenessMinutes >= t.start && latenessMinutes <= t.end) {
                     deduction = Math.round(baseDeductionAmount * (t.percent / 100));
@@ -504,13 +542,25 @@ export async function GET(req: NextRequest) {
                   }
                 }
                 
+                // Check for waiver
+                try {
+                  const { isDeductionWaived } = await import('@/lib/deduction-waivers');
+                  const isWaived = await isDeductionWaived(t.ustazid, scheduledTime, 'lateness');
+                  if (isWaived) {
+                    deduction = 0;
+                    tier = `${tier} (WAIVED)`;
+                  }
+                } catch (error) {
+                  // Continue without waiver check if module not available
+                }
+                
                 if (deduction > 0) {
                   latenessDeduction += deduction;
                   latenessBreakdown.push({
                     date: dateStr,
-                    studentName: student.name,
-                    scheduledTime: timeSlot,
-                    actualTime: format(zoomLink.sent_time, "HH:mm"),
+                    studentName: link.studentName,
+                    scheduledTime: link.timeSlot,
+                    actualTime: format(link.sent_time, "HH:mm"),
                     latenessMinutes,
                     tier,
                     deduction
@@ -526,6 +576,22 @@ export async function GET(req: NextRequest) {
         let absenceDeduction = 0;
         const absenceBreakdown = [];
         
+        // Get time-slot based deduction config
+        const timeSlotDeductionConfig = await prisma.deductionbonusconfig.findFirst({
+          where: { configType: "absence", key: "deduction_per_time_slot" },
+        });
+        const deductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
+        
+        // Get teacher's occupied times for day-based calculations
+        const teacherOccupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+          where: { ustaz_id: t.ustazid },
+          include: {
+            student: {
+              select: { daypackages: true }
+            }
+          }
+        });
+        
         for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
           const monthNumber = String(d.getMonth() + 1);
           if (
@@ -535,15 +601,55 @@ export async function GET(req: NextRequest) {
             continue;
           }
           
+          // Skip Sundays if not included in working days
+          if (!includeSundays && d.getDay() === 0) {
+            continue;
+          }
+          
           const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
           if (absenceResult.isAbsent) {
-            const dailyDeduction = Math.round(absenceConfig.deductionAmount);
-            absenceDeduction += dailyDeduction;
-            absenceBreakdown.push({
-              date: format(d, "yyyy-MM-dd"),
-              reason: "No zoom link sent",
-              deduction: dailyDeduction
+            // Calculate time-slot based deduction
+            const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+            
+            const dayTimeSlots = teacherOccupiedTimes.filter(ot => {
+              const studentDayPackages = ot.student.daypackages;
+              return studentDayPackages && (
+                studentDayPackages.includes('All days') || 
+                (studentDayPackages.includes('MWF') && ['Monday', 'Wednesday', 'Friday'].includes(dayName)) ||
+                (studentDayPackages.includes('TTS') && ['Tuesday', 'Thursday', 'Saturday'].includes(dayName))
+              );
             });
+            
+            let dailyDeduction = absenceConfig.deductionAmount;
+            let deductionReason = "No zoom link sent (whole day)";
+            
+            if (dayTimeSlots.length > 0) {
+              const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
+              dailyDeduction = deductionPerTimeSlot * uniqueTimeSlots.length;
+              deductionReason = `No zoom link sent (${uniqueTimeSlots.length} time slots)`;
+            }
+            
+            // Check for waiver
+            try {
+              const { isDeductionWaived } = await import('@/lib/deduction-waivers');
+              const isWaived = await isDeductionWaived(t.ustazid, new Date(d), 'absence');
+              if (isWaived) {
+                dailyDeduction = 0;
+                deductionReason = `${deductionReason} (WAIVED)`;
+              }
+            } catch (error) {
+              // Continue without waiver check if module not available
+            }
+            
+            if (dailyDeduction > 0) {
+              absenceDeduction += Math.round(dailyDeduction);
+              absenceBreakdown.push({
+                date: format(d, "yyyy-MM-dd"),
+                reason: deductionReason,
+                deduction: Math.round(dailyDeduction),
+                timeSlots: dayTimeSlots.length > 0 ? dayTimeSlots.length : null
+              });
+            }
           }
         }
         
