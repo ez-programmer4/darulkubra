@@ -488,8 +488,8 @@ export async function GET(req: NextRequest) {
             if (date < from || date > to) continue;
             
             // Group by student and take earliest link per student per day
-            const studentLinks = new Map();
-            links.forEach(link => {
+            const studentLinks = new Map<number, any>();
+            links.forEach((link: any) => {
               const key = link.studentId;
               if (!studentLinks.has(key) || link.sent_time < studentLinks.get(key).sent_time) {
                 studentLinks.set(key, link);
@@ -501,7 +501,7 @@ export async function GET(req: NextRequest) {
               if (!link.timeSlot) continue;
               
               // Convert time to 24-hour format
-              function convertTo24Hour(timeStr) {
+              function convertTo24Hour(timeStr: string): string {
                 if (!timeStr) return "00:00";
                 
                 if (timeStr.includes("AM") || timeStr.includes("PM")) {
