@@ -1453,7 +1453,7 @@ export default function TeacherPaymentsPage() {
                     <option value="none">No Deductions (0 ETB)</option>
                     <option value="low">Low (1-50 ETB)</option>
                     <option value="medium">Medium (51-100 ETB)</option>
-                    <option value="high">High (>100 ETB)</option>
+                    <option value="high">High ({'>'}100 ETB)</option>
                   </select>
                 </div>
                 
@@ -1465,7 +1465,7 @@ export default function TeacherPaymentsPage() {
                     className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
                   >
                     <option value="">All Performance</option>
-                    <option value="top">Top Performers (>2000 ETB)</option>
+                    <option value="top">Top Performers ({'>'}2000 ETB)</option>
                     <option value="good">Good (1501-2000 ETB)</option>
                     <option value="average">Average (1001-1500 ETB)</option>
                     <option value="low">Below Average (≤1000 ETB)</option>

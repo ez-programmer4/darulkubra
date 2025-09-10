@@ -111,6 +111,7 @@ export default function AssignedStudents() {
   >({});
   const [sending, setSending] = useState<Record<number, boolean>>({});
   const [surahs, setSurahs] = useState<string[]>([]);
+  const qaidahLessons = ["ክፍል 1", "ክፍል 2", "ክፍል 3", "ክፍል 4", "ክፍል 5", "ክፍል 6 [ exam ]", "ክፍል 7", "ክፍል 8", "ክፍል 9", "ክፍል 10", "ክፍል 11", "ክፍል 12", "ክፍል 13", "ክፍል 14", "ክፍል 15", "ክፍል 16", "ክፍል 17", "ክፍል 18", "ክፍል 19 ( exam )", "ክፍል 20", "ክፍል 21", "ክፍል 22", "ክፍል 23", "ክፍል 24", "ክፍል 25", "ክፍል 26", "ክፍል 27", "ክፍል 28", "ክፍል 29", "ክፍል 30", "ክፍል 31", "ክፍል 32", "ክፍል 33", "ክፍል 34", "ክፍል 35", "ክፍል 36", "ክፍል 37", "ክፍል 38 ( final exam )"];
   const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
 
   // Set all students as having zoom sent (temporary fix)
@@ -1179,16 +1180,22 @@ export default function AssignedStudents() {
                                 <label className="block text-sm font-bold text-gray-800 mb-2">
                                   Lesson Topic
                                 </label>
-                                <input
-                                  placeholder="Topic covered"
+                                <select
                                   value={attend[modal.studentId]?.lesson || ""}
                                   onChange={(e) =>
                                     updateAttend(modal.studentId!, {
                                       lesson: e.target.value,
                                     })
                                   }
-                                  className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-500 text-base"
-                                />
+                                  className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-base appearance-none"
+                                >
+                                  <option value="">Select Lesson</option>
+                                  {qaidahLessons.map((lesson) => (
+                                    <option key={lesson} value={lesson}>
+                                      {lesson}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
                             ) : (
                               <div>
