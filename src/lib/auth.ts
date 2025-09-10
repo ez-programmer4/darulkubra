@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
         } else if (role === "teacher") {
           try {
             user = await prisma.wpos_wpdatatable_24.findFirst({
-              where: { ustazname: credentials.username },
+              where: { ustazid: credentials.username },
             });
             if (!user) {
               return null;
@@ -78,7 +78,7 @@ export const authOptions: NextAuthOptions = {
             return {
               id: user.ustazid,
               name: user.ustazname ?? "",
-              username: user.ustazname ?? "",
+              username: user.ustazid ?? "",
               role,
             };
           } catch (error) {
