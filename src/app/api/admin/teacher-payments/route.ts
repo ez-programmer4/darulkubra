@@ -383,16 +383,27 @@ export async function GET(req: NextRequest) {
           const monthlyPackageSalary = Math.round(salaryMap[student.package] || 0);
           const dailyRate = Math.round(monthlyPackageSalary / workingDays);
           
-          // Count actual teaching days for this student
+          // Count actual teaching days for this student (only one per day)
           const teachingDates = new Set();
+          const dailyLinks = new Map();
+          
+          // Group zoom links by date and keep only the earliest one per day
           student.zoom_links.forEach(link => {
             if (link.sent_time) {
               const linkDate = new Date(link.sent_time);
               if (includeSundays || linkDate.getDay() !== 0) {
                 const dateStr = link.sent_time.toISOString().split('T')[0];
-                teachingDates.add(dateStr);
+                
+                if (!dailyLinks.has(dateStr) || link.sent_time < dailyLinks.get(dateStr)) {
+                  dailyLinks.set(dateStr, link.sent_time);
+                }
               }
             }
+          });
+          
+          // Add unique teaching dates
+          dailyLinks.forEach((_, dateStr) => {
+            teachingDates.add(dateStr);
           });
           
           // Add to daily earnings

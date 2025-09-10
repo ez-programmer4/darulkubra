@@ -157,9 +157,22 @@ export async function POST(
         notificationError = "Student has no Telegram chat ID";
       } else {
         try {
-          const message = `🎓 Assalamu Alaikum dear ${
-            student.name ?? "student"
-          },\n\nYour teacher has shared a Zoom link for your class. Click the button below to join:`;
+          const message = `📚 **Darulkubra Online Class Invitation**
+
+🎓 Assalamu Alaikum ${student.name ?? "dear student"},
+
+📅 **Class Details:**
+• **Date:** ${localTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+• **Time:** ${localTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+• **Platform:** Zoom Meeting
+
+🔗 **Join Instructions:**
+Click the button below to join your online class session.
+
+⏰ **Please join on time**
+📖 **Have your materials ready**
+
+*May Allah bless your learning journey*`;
 
           const requestPayload = {
             chat_id: student.chatId,
