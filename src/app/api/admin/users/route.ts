@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
       phone = "",
     } = reqBody;
 
-    if (!role || !name || (role !== "teacher" && !username) || !password) {
+    if (!role || !name || (role !== "teacher" && !username)) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -287,7 +287,7 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Auto-generate username for teacher
+        // Auto-generate ustazid (username) and password for teacher
         const generateUsername = async () => {
           const lastTeacher = await prisma.wpos_wpdatatable_24.findFirst({
             orderBy: { ustazid: 'desc' },
@@ -305,19 +305,10 @@ export async function POST(req: NextRequest) {
         const autoUsername = await generateUsername();
         const autoPassword = `${autoUsername}${name.replace(/\s+/g, '').toUpperCase()}`;
 
-        // Check database schema for wpos_wpdatatable_24
-        try {
-          const schemaCheck =
-            await prisma.$queryRaw`DESCRIBE wpos_wpdatatable_24`;
-        } catch (schemaError) {
-          console.error("Schema check error:", schemaError);
-        }
-
-        // Use auto-generated username as ustazid
+        // Use auto-generated username as ustazid (username)
         const ustazid = autoUsername;
 
         try {
-          // Try raw SQL insert as fallback
           await prisma.$executeRaw`
             INSERT INTO wpos_wpdatatable_24 (ustazid, ustazname, password, schedule, control, phone, created_at)
             VALUES (${ustazid}, ${name}, ${autoPassword}, ${
@@ -325,7 +316,6 @@ export async function POST(req: NextRequest) {
           }, ${controlIdStr}, ${phone || ""}, NOW())
           `;
 
-          // Fetch the created record
           newUser = await prisma.wpos_wpdatatable_24.findUnique({
             where: { ustazid },
           });
