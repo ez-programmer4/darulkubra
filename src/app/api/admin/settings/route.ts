@@ -53,16 +53,20 @@ export async function PUT(request: NextRequest) {
 
     const { reading_reward, hifz_reward } = await request.json();
 
+    // Validate and convert values
+    const readingRewardValue = reading_reward != null ? String(reading_reward) : '50';
+    const hifzRewardValue = hifz_reward != null ? String(hifz_reward) : '100';
+
     await prisma.$transaction([
       prisma.registralearningsconfig.upsert({
         where: { key: 'reading_reward' },
-        update: { value: reading_reward.toString() },
-        create: { key: 'reading_reward', value: reading_reward.toString() }
+        update: { value: readingRewardValue },
+        create: { key: 'reading_reward', value: readingRewardValue }
       }),
       prisma.registralearningsconfig.upsert({
         where: { key: 'hifz_reward' },
-        update: { value: hifz_reward.toString() },
-        create: { key: 'hifz_reward', value: hifz_reward.toString() }
+        update: { value: hifzRewardValue },
+        create: { key: 'hifz_reward', value: hifzRewardValue }
       })
     ]);
 
