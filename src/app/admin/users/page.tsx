@@ -299,6 +299,8 @@ export default function UserManagementPage() {
   const [teacherControlId, setTeacherControlId] = useState("");
   const [teacherPhone, setTeacherPhone] = useState("");
   const [generatedPassword, setGeneratedPassword] = useState("");
+  const [generatedUsername, setGeneratedUsername] = useState("");
+  const [showCredentials, setShowCredentials] = useState(false);
   const [totalCounts, setTotalCounts] = useState<Record<UserRole, number>>({
     admin: 0,
     controller: 0,
@@ -307,33 +309,7 @@ export default function UserManagementPage() {
   });
   const [totalUsers, setTotalUsers] = useState(0);
 
-  // Generate password for teacher
-  const generateTeacherPassword = (name: string) => {
-    const cleanName = name.replace(/\s+/g, "").toUpperCase();
-    const randomId = Math.floor(Math.random() * 900) + 100; // 3-digit number
-    return `U${randomId}${cleanName}`;
-  };
 
-  // Generate password when teacher name changes or modal opens
-  useEffect(() => {
-    if ((editingUser ? editingUser.role : newUserRole) === "teacher") {
-      const nameInput = document.querySelector(
-        'input[name="name"]'
-      ) as HTMLInputElement;
-      if (nameInput && nameInput.value) {
-        const newPassword = generateTeacherPassword(nameInput.value);
-        setGeneratedPassword(newPassword);
-      }
-    }
-  }, [newUserRole, editingUser, isModalOpen]);
-
-  // Generate password when name input changes for teachers
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if ((editingUser ? editingUser.role : newUserRole) === "teacher") {
-      const newPassword = generateTeacherPassword(e.target.value);
-      setGeneratedPassword(newPassword);
-    }
-  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -442,9 +418,18 @@ export default function UserManagementPage() {
         throw new Error(errorData.error || "Something went wrong");
       }
 
-      setIsModalOpen(false);
-      fetchUsers();
-      resetForm();
+      const result = await res.json();
+      
+      // Show generated credentials for new teachers
+      if (!editingUser && newUserRole === "teacher" && result.generatedUsername && result.generatedPassword) {
+        setGeneratedUsername(result.generatedUsername);
+        setGeneratedPassword(result.generatedPassword);
+        setShowCredentials(true);
+      } else {
+        setIsModalOpen(false);
+        fetchUsers();
+        resetForm();
+      }
     } catch (err: any) {
       setError(err.message);
     }
@@ -935,7 +920,6 @@ export default function UserManagementPage() {
                           type="text"
                           name="name"
                           defaultValue={editingUser?.name}
-                          onChange={handleNameChange}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="Enter full name"
                           required
@@ -945,14 +929,20 @@ export default function UserManagementPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Username *
                         </label>
-                        <input
-                          type="text"
-                          name="username"
-                          defaultValue={editingUser?.username}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter username"
-                          required
-                        />
+                        {(editingUser ? editingUser.role : newUserRole) === "teacher" ? (
+                          <div className="bg-gray-100 px-4 py-3 rounded-lg border border-gray-300">
+                            <span className="text-gray-600 text-sm">Auto-generated after creation</span>
+                          </div>
+                        ) : (
+                          <input
+                            type="text"
+                            name="username"
+                            defaultValue={editingUser?.username}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Enter username"
+                            required
+                          />
+                        )}
                       </div>
 
 
@@ -1034,74 +1024,26 @@ export default function UserManagementPage() {
 
                         </div>
 
-                        {/* Generated Password for Teachers */}
-                        <div className="mt-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border-2 border-green-200 shadow-lg">
+                        {/* Auto-Generated Credentials Info */}
+                        <div className="mt-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border-2 border-blue-200 shadow-lg">
                           <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
+                            <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
                               <FiSettings className="h-5 w-5 text-white" />
                             </div>
                             <div>
-                              <h4 className="text-lg font-bold text-green-900">
-                                Auto-Generated Password
+                              <h4 className="text-lg font-bold text-blue-900">
+                                Auto-Generated Credentials
                               </h4>
-                              <p className="text-green-700 text-sm">
-                                Secure password automatically created
+                              <p className="text-blue-700 text-sm">
+                                Username and password will be generated automatically
                               </p>
                             </div>
                           </div>
-                          <div>
-                            <label className="block text-sm font-bold text-green-700 mb-2">
-                              Generated Password
-                            </label>
-                            <div className="flex items-center gap-3">
-                              <input
-                                type="text"
-                                name="password"
-                                value={
-                                  generatedPassword ||
-                                  `U${Math.floor(Math.random() * 900) + 100}${
-                                    (
-                                      document.querySelector(
-                                        'input[name="name"]'
-                                      ) as HTMLInputElement
-                                    )?.value
-                                      ?.replace(/\s+/g, "")
-                                      .toUpperCase() || "TEACHER"
-                                  }`
-                                }
-                                readOnly
-                                className="flex-1 px-4 py-3 bg-white border-2 border-green-300 rounded-lg text-green-900 font-mono text-base font-bold shadow-sm"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const password =
-                                    generatedPassword ||
-                                    `U${Math.floor(Math.random() * 900) + 100}${
-                                      (
-                                        document.querySelector(
-                                          'input[name="name"]'
-                                        ) as HTMLInputElement
-                                      )?.value
-                                        ?.replace(/\s+/g, "")
-                                        .toUpperCase() || "TEACHER"
-                                    }`;
-                                  copyToClipboard(password);
-                                }}
-                                className="px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 font-bold shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2"
-                                title="Copy password"
-                              >
-                                <FiCopy className="h-4 w-4" />
-                                Copy
-                              </button>
-                            </div>
-                            <div className="mt-4 p-3 bg-green-100 rounded-lg border border-green-200">
-                              <p className="text-xs text-green-800 flex items-center gap-2">
-                                <FiInfo className="h-3 w-3" />
-                                <strong>Note:</strong> Password format:
-                                U[ID][NAME]. Username is entered manually above.
-                              </p>
-                            </div>
+                          <div className="bg-blue-100 rounded-lg p-4 border border-blue-200">
+                            <p className="text-sm text-blue-800 flex items-center gap-2">
+                              <FiInfo className="h-4 w-4" />
+                              <strong>Format:</strong> Username: T001, T002, etc. | Password: [Username][Name]
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -1153,6 +1095,80 @@ export default function UserManagementPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </Modal>
+
+        {/* Generated Credentials Modal */}
+        <Modal isOpen={showCredentials} onClose={() => {
+          setShowCredentials(false);
+          setIsModalOpen(false);
+          fetchUsers();
+          resetForm();
+        }}>
+          <div className="bg-white rounded-3xl p-8 max-w-md mx-auto">
+            <div className="text-center mb-6">
+              <div className="p-4 bg-green-100 rounded-full w-fit mx-auto mb-4">
+                <FiCheck className="h-8 w-8 text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Teacher Created Successfully!</h2>
+              <p className="text-gray-600">Here are the auto-generated credentials:</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <label className="block text-sm font-bold text-gray-700 mb-2">Username</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={generatedUsername}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg font-mono font-bold"
+                  />
+                  <button
+                    onClick={() => copyToClipboard(generatedUsername)}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <FiCopy className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 rounded-lg p-4">
+                <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={generatedPassword}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg font-mono font-bold"
+                  />
+                  <button
+                    onClick={() => copyToClipboard(generatedPassword)}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <FiCopy className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+              <p className="text-sm text-yellow-800">
+                <strong>Important:</strong> Please copy and share these credentials with the teacher. They cannot be retrieved later.
+              </p>
+            </div>
+            
+            <button
+              onClick={() => {
+                setShowCredentials(false);
+                setIsModalOpen(false);
+                fetchUsers();
+                resetForm();
+              }}
+              className="w-full mt-6 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-bold"
+            >
+              Done
+            </button>
           </div>
         </Modal>
 
