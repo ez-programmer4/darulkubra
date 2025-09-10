@@ -14,6 +14,8 @@ const DEFAULTS = {
   maxLoginAttempts: 5,
   sessionTimeout: 30,
   maintenanceMode: false,
+  includeSundaysInSalary: false,
+  allowTeachersSalary: false,
 };
 
 export default function GeneralSettingsPage() {
@@ -50,6 +52,8 @@ export default function GeneralSettingsPage() {
           maxLoginAttempts: get("max_login_attempts", DEFAULTS.maxLoginAttempts),
           sessionTimeout: get("session_timeout", DEFAULTS.sessionTimeout),
           maintenanceMode: get("maintenance_mode", DEFAULTS.maintenanceMode),
+          includeSundaysInSalary: get("include_sundays_in_salary", DEFAULTS.includeSundaysInSalary),
+          allowTeachersSalary: get("allow_teachers_see_salary", DEFAULTS.allowTeachersSalary),
         });
         setLoading(false);
       })
@@ -80,7 +84,9 @@ export default function GeneralSettingsPage() {
           key === "maxLoginAttempts" ? "max_login_attempts" :
           key === "sessionTimeout" ? "session_timeout" :
           key === "registrationOpen" ? "registration_open" :
-          key === "maintenanceMode" ? "maintenance_mode" : key;
+          key === "maintenanceMode" ? "maintenance_mode" :
+          key === "includeSundaysInSalary" ? "include_sundays_in_salary" :
+          key === "allowTeachersSalary" ? "allow_teachers_see_salary" : key;
         
         await fetch("/api/admin/settings", {
           method: "PUT",
@@ -358,20 +364,58 @@ export default function GeneralSettingsPage() {
               </div>
             </div>
             <div className="p-6 sm:p-8 lg:p-10">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={!!settings.maintenanceMode}
-                  onChange={(e) => handleChange("maintenanceMode", e.target.checked)}
-                  disabled={saving}
-                  id="maintenanceMode"
-                  className="w-5 h-5 rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
-                />
-                <label htmlFor="maintenanceMode" className="text-sm font-bold text-black">
-                  Maintenance Mode
-                </label>
+              <div className="space-y-6">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={!!settings.maintenanceMode}
+                      onChange={(e) => handleChange("maintenanceMode", e.target.checked)}
+                      disabled={saving}
+                      id="maintenanceMode"
+                      className="w-5 h-5 rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
+                    />
+                    <label htmlFor="maintenanceMode" className="text-sm font-bold text-black">
+                      Maintenance Mode
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">When enabled, only administrators can access the system.</p>
+                </div>
+                
+                <div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={!!settings.includeSundaysInSalary}
+                      onChange={(e) => handleChange("includeSundaysInSalary", e.target.checked)}
+                      disabled={saving}
+                      id="includeSundaysInSalary"
+                      className="w-5 h-5 rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
+                    />
+                    <label htmlFor="includeSundaysInSalary" className="text-sm font-bold text-black">
+                      Include Sundays in salary calculation
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">When enabled, Sundays will be counted as working days for salary calculations.</p>
+                </div>
+                
+                <div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={!!settings.allowTeachersSalary}
+                      onChange={(e) => handleChange("allowTeachersSalary", e.target.checked)}
+                      disabled={saving}
+                      id="allowTeachersSalary"
+                      className="w-5 h-5 rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
+                    />
+                    <label htmlFor="allowTeachersSalary" className="text-sm font-bold text-black">
+                      Allow teachers to see their salary
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">When enabled, teachers can view their salary information in their dashboard.</p>
+                </div>
               </div>
-              <p className="text-xs text-gray-500 mt-2">When enabled, only administrators can access the system.</p>
             </div>
           </div>
 
