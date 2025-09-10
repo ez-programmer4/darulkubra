@@ -91,13 +91,13 @@ export async function PUT(request: NextRequest) {
       // General settings
       prisma.setting.upsert({
         where: { key: 'include_sundays_in_salary' },
-        update: { value: includeSundaysValue },
-        create: { key: 'include_sundays_in_salary', value: includeSundaysValue }
+        update: { value: includeSundaysValue, updatedAt: new Date() },
+        create: { key: 'include_sundays_in_salary', value: includeSundaysValue, updatedAt: new Date() }
       }),
       prisma.setting.upsert({
         where: { key: 'allow_teachers_see_salary' },
-        update: { value: allowTeachersSalaryValue },
-        create: { key: 'allow_teachers_see_salary', value: allowTeachersSalaryValue }
+        update: { value: allowTeachersSalaryValue, updatedAt: new Date() },
+        create: { key: 'allow_teachers_see_salary', value: allowTeachersSalaryValue, updatedAt: new Date() }
       })
     ]);
 
