@@ -287,6 +287,24 @@ export async function POST(req: NextRequest) {
           );
         }
 
+        // Auto-generate username for teacher
+        const generateUsername = async () => {
+          const lastTeacher = await prisma.wpos_wpdatatable_24.findFirst({
+            orderBy: { ustazid: 'desc' },
+            where: { ustazid: { startsWith: 'T' } }
+          });
+          
+          let nextId = 1;
+          if (lastTeacher && lastTeacher.ustazid.match(/^T(\d+)$/)) {
+            nextId = parseInt(lastTeacher.ustazid.substring(1)) + 1;
+          }
+          
+          return `T${nextId.toString().padStart(3, '0')}`;
+        };
+
+        const autoUsername = await generateUsername();
+        const autoPassword = `${autoUsername}${name.replace(/\s+/g, '').toUpperCase()}`;
+
         // Check database schema for wpos_wpdatatable_24
         try {
           const schemaCheck =
@@ -295,23 +313,14 @@ export async function POST(req: NextRequest) {
           console.error("Schema check error:", schemaError);
         }
 
-        // Use teacher name as ustazid (username)
-        const ustazid = name.toLowerCase().replace(/\s+/g, "");
-
-        // Check if ustazid already exists
-        const existingTeacher = await prisma.wpos_wpdatatable_24.findUnique({
-          where: { ustazid },
-        });
-
-        if (existingTeacher) {
-          throw new Error(`Teacher ID ${ustazid} already exists`);
-        }
+        // Use auto-generated username as ustazid
+        const ustazid = autoUsername;
 
         try {
           // Try raw SQL insert as fallback
           await prisma.$executeRaw`
             INSERT INTO wpos_wpdatatable_24 (ustazid, ustazname, password, schedule, control, phone, created_at)
-            VALUES (${ustazid}, ${name}, ${hashedPassword}, ${
+            VALUES (${ustazid}, ${name}, ${autoPassword}, ${
             schedule || ""
           }, ${controlIdStr}, ${phone || ""}, NOW())
           `;
@@ -320,6 +329,13 @@ export async function POST(req: NextRequest) {
           newUser = await prisma.wpos_wpdatatable_24.findUnique({
             where: { ustazid },
           });
+          
+          // Add generated credentials to response
+          newUser = {
+            ...newUser,
+            generatedUsername: autoUsername,
+            generatedPassword: autoPassword
+          };
         } catch (createError: any) {
           console.error("=== TEACHER CREATION ERROR ===");
           console.error("Error code:", createError.code);
