@@ -48,6 +48,25 @@ export type TeacherPayment = {
   totalSalary: number;
   status?: "Paid" | "Unpaid";
   numStudents?: number;
+  teachingDays?: number;
+  breakdown?: {
+    dailyEarnings: Array<{ date: string; amount: number }>;
+    studentBreakdown: Array<{
+      studentName: string;
+      package: string;
+      monthlyRate: number;
+      dailyRate: number;
+      daysWorked: number;
+      totalEarned: number;
+    }>;
+    summary: {
+      workingDaysInMonth: number;
+      actualTeachingDays: number;
+      averageDailyEarning: number;
+      totalDeductions: number;
+      netSalary: number;
+    };
+  };
 };
 
 export default function TeacherPaymentsPage() {
@@ -105,6 +124,10 @@ export default function TeacherPaymentsPage() {
   );
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [showReportOptions, setShowReportOptions] = useState(false);
+  const [showAdvancedView, setShowAdvancedView] = useState(false);
+  const [salaryRangeFilter, setSalaryRangeFilter] = useState({ min: '', max: '' });
+  const [deductionFilter, setDeductionFilter] = useState('');
+  const [performanceFilter, setPerformanceFilter] = useState('');
 
   const months = [
     { value: "1", label: "January" },
@@ -394,9 +417,28 @@ export default function TeacherPaymentsPage() {
 
   const filteredTeachers = teachers.filter((t) => {
     const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus =
-      !statusFilter || (salaryStatus[t.id] || "Unpaid") === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesStatus = !statusFilter || (salaryStatus[t.id] || "Unpaid") === statusFilter;
+    
+    // Salary range filter
+    const matchesSalaryRange = (!salaryRangeFilter.min || t.totalSalary >= Number(salaryRangeFilter.min)) &&
+                              (!salaryRangeFilter.max || t.totalSalary <= Number(salaryRangeFilter.max));
+    
+    // Deduction filter
+    const totalDeductions = t.latenessDeduction + t.absenceDeduction;
+    const matchesDeduction = !deductionFilter || 
+      (deductionFilter === 'high' && totalDeductions > 100) ||
+      (deductionFilter === 'medium' && totalDeductions > 50 && totalDeductions <= 100) ||
+      (deductionFilter === 'low' && totalDeductions > 0 && totalDeductions <= 50) ||
+      (deductionFilter === 'none' && totalDeductions === 0);
+    
+    // Performance filter
+    const matchesPerformance = !performanceFilter ||
+      (performanceFilter === 'top' && t.totalSalary > 2000) ||
+      (performanceFilter === 'good' && t.totalSalary > 1500 && t.totalSalary <= 2000) ||
+      (performanceFilter === 'average' && t.totalSalary > 1000 && t.totalSalary <= 1500) ||
+      (performanceFilter === 'low' && t.totalSalary <= 1000);
+    
+    return matchesSearch && matchesStatus && matchesSalaryRange && matchesDeduction && matchesPerformance;
   });
 
   const canMarkPaid = (() => {
@@ -1112,6 +1154,15 @@ export default function TeacherPaymentsPage() {
               </div>
               <div className="flex gap-3">
                 <button
+                  onClick={() => setShowAdvancedView(!showAdvancedView)}
+                  className={`px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 ${
+                    showAdvancedView ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  <FiSearch className="h-4 w-4" />
+                  Advanced Filters
+                </button>
+                <button
                   onClick={() =>
                     exportToCSV(
                       filteredTeachers,
@@ -1362,6 +1413,107 @@ export default function TeacherPaymentsPage() {
             </div>
           </div>
 
+          {/* Advanced Filters */}
+          {showAdvancedView && (
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-6 border border-purple-200 mx-6 sm:mx-8 lg:mx-10 mb-6">
+              <h3 className="text-lg font-bold text-purple-900 mb-4 flex items-center gap-2">
+                <FiSearch className="h-5 w-5" />
+                Advanced Filtering & Analysis
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-purple-800 mb-2">Salary Range (ETB)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      value={salaryRangeFilter.min}
+                      onChange={(e) => setSalaryRangeFilter(prev => ({ ...prev, min: e.target.value }))}
+                      className="flex-1 px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      value={salaryRangeFilter.max}
+                      onChange={(e) => setSalaryRangeFilter(prev => ({ ...prev, max: e.target.value }))}
+                      className="flex-1 px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-purple-800 mb-2">Deduction Level</label>
+                  <select
+                    value={deductionFilter}
+                    onChange={(e) => setDeductionFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                  >
+                    <option value="">All Levels</option>
+                    <option value="none">No Deductions (0 ETB)</option>
+                    <option value="low">Low (1-50 ETB)</option>
+                    <option value="medium">Medium (51-100 ETB)</option>
+                    <option value="high">High (>100 ETB)</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-purple-800 mb-2">Performance Level</label>
+                  <select
+                    value={performanceFilter}
+                    onChange={(e) => setPerformanceFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                  >
+                    <option value="">All Performance</option>
+                    <option value="top">Top Performers (>2000 ETB)</option>
+                    <option value="good">Good (1501-2000 ETB)</option>
+                    <option value="average">Average (1001-1500 ETB)</option>
+                    <option value="low">Below Average (≤1000 ETB)</option>
+                  </select>
+                </div>
+                
+                <div className="flex items-end">
+                  <button
+                    onClick={() => {
+                      setSalaryRangeFilter({ min: '', max: '' });
+                      setDeductionFilter('');
+                      setPerformanceFilter('');
+                    }}
+                    className="w-full px-4 py-2 bg-purple-200 hover:bg-purple-300 text-purple-800 rounded-lg font-medium transition-all"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+              
+              {/* Quick Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-xl p-4 border border-purple-200">
+                  <div className="text-2xl font-bold text-purple-900">{filteredTeachers.length}</div>
+                  <div className="text-sm text-purple-700">Filtered Results</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 border border-purple-200">
+                  <div className="text-2xl font-bold text-green-900">
+                    {filteredTeachers.length > 0 ? Math.round(filteredTeachers.reduce((sum, t) => sum + t.totalSalary, 0) / filteredTeachers.length) : 0}
+                  </div>
+                  <div className="text-sm text-green-700">Avg Salary (ETB)</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 border border-purple-200">
+                  <div className="text-2xl font-bold text-red-900">
+                    {filteredTeachers.reduce((sum, t) => sum + t.latenessDeduction + t.absenceDeduction, 0)}
+                  </div>
+                  <div className="text-sm text-red-700">Total Deductions</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 border border-purple-200">
+                  <div className="text-2xl font-bold text-blue-900">
+                    {filteredTeachers.reduce((sum, t) => sum + t.bonuses, 0)}
+                  </div>
+                  <div className="text-sm text-blue-700">Total Bonuses</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="p-6 sm:p-8 lg:p-10">
             {/* Bulk Actions */}
             {selectedTeachers.size > 0 && (
@@ -1464,14 +1616,40 @@ export default function TeacherPaymentsPage() {
                             className="rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
                           />
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
-                          Teacher
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => {
+                              if (sortKey === 'name') {
+                                setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+                              } else {
+                                setSortKey('name');
+                                setSortDir('asc');
+                              }
+                            }}>
+                          <div className="flex items-center gap-2">
+                            Teacher
+                            {sortKey === 'name' && (
+                              sortDir === 'asc' ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />
+                            )}
+                          </div>
                         </th>
                         <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
                           # Students
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
-                          Base Salary
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => {
+                              if (sortKey === 'baseSalary') {
+                                setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+                              } else {
+                                setSortKey('baseSalary');
+                                setSortDir('desc');
+                              }
+                            }}>
+                          <div className="flex items-center gap-2">
+                            Base Salary
+                            {sortKey === 'baseSalary' && (
+                              sortDir === 'asc' ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />
+                            )}
+                          </div>
                         </th>
                         <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
                           Lateness Deduction
@@ -1482,8 +1660,21 @@ export default function TeacherPaymentsPage() {
                         <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
                           Bonuses
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
-                          Total Salary
+                        <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => {
+                              if (sortKey === 'totalSalary') {
+                                setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+                              } else {
+                                setSortKey('totalSalary');
+                                setSortDir('desc');
+                              }
+                            }}>
+                          <div className="flex items-center gap-2">
+                            Total Salary
+                            {sortKey === 'totalSalary' && (
+                              sortDir === 'asc' ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />
+                            )}
+                          </div>
                         </th>
                         <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase tracking-wider">
                           Status
@@ -1547,8 +1738,18 @@ export default function TeacherPaymentsPage() {
                                 {t.numStudents || 0}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-center font-medium text-gray-700">
-                              {t.baseSalary} ETB
+                            <td className="px-6 py-4 text-center">
+                              <div className="font-bold text-gray-900">{t.baseSalary} ETB</div>
+                              {t.teachingDays && (
+                                <div className="text-xs text-blue-600 mt-1">
+                                  {t.teachingDays} teaching days
+                                </div>
+                              )}
+                              {t.breakdown?.summary && (
+                                <div className="text-xs text-green-600">
+                                  Avg: {t.breakdown.summary.averageDailyEarning} ETB/day
+                                </div>
+                              )}
                             </td>
                             <td className="px-6 py-4 text-center">
                               <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs">
@@ -1571,8 +1772,25 @@ export default function TeacherPaymentsPage() {
                                 +{t.bonuses} ETB
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-center font-bold text-black">
-                              {t.totalSalary} ETB
+                            <td className="px-6 py-4 text-center">
+                              <div className="font-bold text-black text-lg">{t.totalSalary} ETB</div>
+                              {(() => {
+                                const efficiency = t.numStudents && t.totalSalary ? Math.round(t.totalSalary / t.numStudents) : 0;
+                                return efficiency > 0 && (
+                                  <div className="text-xs text-purple-600">
+                                    {efficiency} ETB per student
+                                  </div>
+                                );
+                              })()}
+                              {t.breakdown?.summary && (
+                                <div className={`text-xs font-medium ${
+                                  t.breakdown.summary.totalDeductions > 100 ? 'text-red-600' :
+                                  t.breakdown.summary.totalDeductions > 50 ? 'text-yellow-600' :
+                                  'text-green-600'
+                                }`}>
+                                  Net: {t.breakdown.summary.netSalary} ETB
+                                </div>
+                              )}
                             </td>
                             <td className="px-6 py-4 text-center">
                               <button
