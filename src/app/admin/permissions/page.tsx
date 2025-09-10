@@ -169,7 +169,7 @@ export default function AdminPermissionsPage() {
       const res = await fetch(`/api/admin/permissions${statusParam}`);
       if (!res.ok) throw new Error("Failed to fetch permission requests");
       const data = await res.json();
-      console.log('Admin permissions data:', data);
+      console.log("Admin permissions data:", data);
       setRequests(data);
     } catch (e: any) {
       setError(e.message);
@@ -250,9 +250,9 @@ export default function AdminPermissionsPage() {
   // Calculate statistics
   const stats = {
     total: requests.length,
-    pending: requests.filter(r => r.status === 'Pending').length,
-    approved: requests.filter(r => r.status === 'Approved').length,
-    declined: requests.filter(r => r.status === 'Declined').length,
+    pending: requests.filter((r) => r.status === "Pending").length,
+    approved: requests.filter((r) => r.status === "Approved").length,
+    declined: requests.filter((r) => r.status === "Declined").length,
   };
 
   return (
@@ -280,30 +280,46 @@ export default function AdminPermissionsPage() {
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiBell className="h-5 w-5 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-600">Total</span>
+                  <span className="text-xs font-semibold text-gray-600">
+                    Total
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-black">{stats.total}</div>
+                <div className="text-2xl font-bold text-black">
+                  {stats.total}
+                </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiClock className="h-5 w-5 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-600">Pending</span>
+                  <span className="text-xs font-semibold text-gray-600">
+                    Pending
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-black">{stats.pending}</div>
+                <div className="text-2xl font-bold text-black">
+                  {stats.pending}
+                </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiCheck className="h-5 w-5 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-600">Approved</span>
+                  <span className="text-xs font-semibold text-gray-600">
+                    Approved
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-black">{stats.approved}</div>
+                <div className="text-2xl font-bold text-black">
+                  {stats.approved}
+                </div>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <FiX className="h-5 w-5 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-600">Declined</span>
+                  <span className="text-xs font-semibold text-gray-600">
+                    Declined
+                  </span>
                 </div>
-                <div className="text-2xl font-bold text-black">{stats.declined}</div>
+                <div className="text-2xl font-bold text-black">
+                  {stats.declined}
+                </div>
               </div>
             </div>
           </div>
@@ -357,12 +373,18 @@ export default function AdminPermissionsPage() {
                       dayjs(req.requestedDate).format("MMM D, YYYY"),
                       req.reasonCategory,
                       req.reasonDetails,
-                      req.timeSlots ? (() => {
-                        try {
-                          const slots = JSON.parse(req.timeSlots);
-                          return slots.includes('Whole Day') ? 'Whole Day' : `${slots.length} Time Slots`;
-                        } catch { return 'N/A'; }
-                      })() : 'N/A',
+                      req.timeSlots
+                        ? (() => {
+                            try {
+                              const slots = JSON.parse(req.timeSlots);
+                              return slots.includes("Whole Day")
+                                ? "Whole Day"
+                                : `${slots.length} Time Slots`;
+                            } catch {
+                              return "N/A";
+                            }
+                          })()
+                        : "N/A",
                       dayjs(req.createdAt).fromNow(),
                       req.status,
                     ]);
@@ -402,25 +424,35 @@ export default function AdminPermissionsPage() {
                 <FiUsers className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-black">Permission Requests</h2>
-                <p className="text-gray-600">Review and manage teacher absence requests</p>
+                <h2 className="text-2xl font-bold text-black">
+                  Permission Requests
+                </h2>
+                <p className="text-gray-600">
+                  Review and manage teacher absence requests
+                </p>
               </div>
             </div>
           </div>
-          
+
           <div className="p-6 sm:p-8 lg:p-10">
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
-                <p className="text-black font-medium text-lg">Loading requests...</p>
-                <p className="text-gray-500 text-sm mt-2">Please wait while we fetch the data</p>
+                <p className="text-black font-medium text-lg">
+                  Loading requests...
+                </p>
+                <p className="text-gray-500 text-sm mt-2">
+                  Please wait while we fetch the data
+                </p>
               </div>
             ) : error ? (
               <div className="text-center py-12">
                 <div className="p-8 bg-red-50 rounded-full w-fit mx-auto mb-8">
                   <FiX className="h-16 w-16 text-red-500" />
                 </div>
-                <h3 className="text-3xl font-bold text-black mb-4">Error Loading Requests</h3>
+                <h3 className="text-3xl font-bold text-black mb-4">
+                  Error Loading Requests
+                </h3>
                 <p className="text-red-600 text-xl">{error}</p>
               </div>
             ) : paginatedRequests.length === 0 ? (
@@ -428,8 +460,12 @@ export default function AdminPermissionsPage() {
                 <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
                   <FiBell className="h-16 w-16 text-gray-500" />
                 </div>
-                <h3 className="text-3xl font-bold text-black mb-4">No Requests Found</h3>
-                <p className="text-gray-600 text-xl">No permission requests match your current filters.</p>
+                <h3 className="text-3xl font-bold text-black mb-4">
+                  No Requests Found
+                </h3>
+                <p className="text-gray-600 text-xl">
+                  No permission requests match your current filters.
+                </p>
               </div>
             ) : (
               <>
@@ -487,19 +523,23 @@ export default function AdminPermissionsPage() {
                           </td>
                           <td className="px-6 py-4 text-gray-700">
                             <div>
-                              <div className="font-medium">{dayjs(req.requestedDate).format("MMM D, YYYY")}</div>
+                              <div className="font-medium">
+                                {dayjs(req.requestedDate).format("MMM D, YYYY")}
+                              </div>
                               {req.timeSlots && (
                                 <div className="text-xs text-gray-500 mt-1">
                                   {(() => {
                                     try {
                                       const slots = JSON.parse(req.timeSlots);
-                                      return slots.includes('Whole Day') 
-                                        ? '🚫 Whole Day Absence'
-                                        : `⏰ ${slots.length} Time Slot${slots.length > 1 ? 's' : ''}`;
+                                      return slots.includes("Whole Day")
+                                        ? "🚫 Whole Day Absence"
+                                        : `⏰ ${slots.length} Time Slot${
+                                            slots.length > 1 ? "s" : ""
+                                          }`;
                                     } catch {
-                                      return 'Time slots unavailable';
+                                      return "Time slots unavailable";
                                     }
-                                  })()} 
+                                  })()}
                                 </div>
                               )}
                             </div>
@@ -523,9 +563,15 @@ export default function AdminPermissionsPage() {
                                   : "bg-red-100 text-red-800"
                               }`}
                             >
-                              {req.status === "Pending" && <FiClock className="h-3 w-3 mr-1" />}
-                              {req.status === "Approved" && <FiCheck className="h-3 w-3 mr-1" />}
-                              {req.status === "Declined" && <FiX className="h-3 w-3 mr-1" />}
+                              {req.status === "Pending" && (
+                                <FiClock className="h-3 w-3 mr-1" />
+                              )}
+                              {req.status === "Approved" && (
+                                <FiCheck className="h-3 w-3 mr-1" />
+                              )}
+                              {req.status === "Declined" && (
+                                <FiX className="h-3 w-3 mr-1" />
+                              )}
                               {req.status}
                             </span>
                           </td>
@@ -558,7 +604,9 @@ export default function AdminPermissionsPage() {
                       <FiChevronLeft className="h-6 w-6" />
                     </button>
                     <button
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
                       disabled={currentPage === totalPages}
                       className="p-3 border border-gray-300 rounded-xl bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all hover:scale-105"
                     >
@@ -579,22 +627,29 @@ export default function AdminPermissionsPage() {
                 <FiBell className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-black">Permission Reasons</h2>
-                <p className="text-gray-600">Manage pre-approved reasons for teacher time-off requests</p>
+                <h2 className="text-2xl font-bold text-black">
+                  Permission Reasons
+                </h2>
+                <p className="text-gray-600">
+                  Manage pre-approved reasons for teacher time-off requests
+                </p>
               </div>
             </div>
           </div>
-          
+
           <div className="p-6 sm:p-8 lg:p-10">
             {reasonsError && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 mb-6">
                 {reasonsError}
               </div>
             )}
-            
+
             <div className="space-y-4 mb-6">
               {permissionReasons.map((r) => (
-                <div key={r.id} className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div
+                  key={r.id}
+                  className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200"
+                >
                   <div className="flex-1">
                     <p className="text-black font-medium">{r.reason}</p>
                   </div>
@@ -609,7 +664,7 @@ export default function AdminPermissionsPage() {
                 </div>
               ))}
             </div>
-            
+
             <div className="flex items-center gap-3">
               <input
                 type="text"
@@ -624,7 +679,11 @@ export default function AdminPermissionsPage() {
                 disabled={savingReasons || !newReason.trim()}
                 className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 disabled:opacity-50"
               >
-                {savingReasons ? <FiLoader className="h-4 w-4 animate-spin" /> : "Add"}
+                {savingReasons ? (
+                  <FiLoader className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Add"
+                )}
               </button>
             </div>
           </div>
@@ -640,7 +699,7 @@ export default function AdminPermissionsPage() {
               >
                 <FiX size={20} />
               </button>
-              
+
               {/* Modal Header */}
               <div className="bg-black rounded-t-3xl p-6 text-white">
                 <div className="flex items-center gap-4">
@@ -648,8 +707,12 @@ export default function AdminPermissionsPage() {
                     <FiBell className="h-8 w-8" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold">Permission Request Review</h2>
-                    <p className="text-gray-300 mt-1">Evaluate and respond to teacher absence request</p>
+                    <h2 className="text-2xl font-bold">
+                      Permission Request Review
+                    </h2>
+                    <p className="text-gray-300 mt-1">
+                      Evaluate and respond to teacher absence request
+                    </p>
                   </div>
                 </div>
               </div>
@@ -663,23 +726,45 @@ export default function AdminPermissionsPage() {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-white rounded-xl p-4 border border-gray-200">
-                      <p className="text-sm font-medium text-gray-600 mb-1">Teacher</p>
-                      <p className="text-black font-semibold">{selected?.teacher?.ustazname || selected?.teacherId}</p>
+                      <p className="text-sm font-medium text-gray-600 mb-1">
+                        Teacher
+                      </p>
+                      <p className="text-black font-semibold">
+                        {selected?.teacher?.ustazname || selected?.teacherId}
+                      </p>
                     </div>
                     <div className="bg-white rounded-xl p-4 border border-gray-200">
-                      <p className="text-sm font-medium text-gray-600 mb-1">Absence Date</p>
-                      <p className="text-black font-semibold">{dayjs(selected?.requestedDate).format("dddd, MMMM D, YYYY")}</p>
+                      <p className="text-sm font-medium text-gray-600 mb-1">
+                        Absence Date
+                      </p>
+                      <p className="text-black font-semibold">
+                        {dayjs(selected?.requestedDate).format(
+                          "dddd, MMMM D, YYYY"
+                        )}
+                      </p>
                     </div>
                     <div className="bg-white rounded-xl p-4 border border-gray-200">
-                      <p className="text-sm font-medium text-gray-600 mb-1">Reason Category</p>
-                      <p className="text-black font-semibold">{selected?.reasonCategory || "Not specified"}</p>
+                      <p className="text-sm font-medium text-gray-600 mb-1">
+                        Reason Category
+                      </p>
+                      <p className="text-black font-semibold">
+                        {selected?.reasonCategory || "Not specified"}
+                      </p>
                     </div>
                     <div className="bg-white rounded-xl p-4 border border-gray-200">
-                      <p className="text-sm font-medium text-gray-600 mb-1">Submitted</p>
-                      <p className="text-black font-semibold">{selected?.createdAt ? dayjs(selected.createdAt).format("MMM D, YYYY [at] h:mm A") : "-"}</p>
+                      <p className="text-sm font-medium text-gray-600 mb-1">
+                        Submitted
+                      </p>
+                      <p className="text-black font-semibold">
+                        {selected?.createdAt
+                          ? dayjs(selected.createdAt).format(
+                              "MMM D, YYYY [at] h:mm A"
+                            )
+                          : "-"}
+                      </p>
                     </div>
                   </div>
-                  
+
                   {/* Time Slots Information */}
                   {selected?.timeSlots && (
                     <div className="mt-4 bg-blue-50 rounded-xl p-4 border border-blue-200">
@@ -689,14 +774,15 @@ export default function AdminPermissionsPage() {
                       {(() => {
                         try {
                           const slots = JSON.parse(selected.timeSlots);
-                          if (slots.includes('Whole Day')) {
+                          if (slots.includes("Whole Day")) {
                             return (
                               <div className="bg-red-100 border border-red-200 rounded-lg p-3">
                                 <p className="text-red-800 font-semibold flex items-center gap-2">
                                   🚫 Whole Day Absence Request
                                 </p>
                                 <p className="text-red-600 text-sm mt-1">
-                                  Teacher requested permission for the entire day
+                                  Teacher requested permission for the entire
+                                  day
                                 </p>
                               </div>
                             );
@@ -708,7 +794,10 @@ export default function AdminPermissionsPage() {
                                 </p>
                                 <div className="flex flex-wrap gap-2">
                                   {slots.map((slot: string, idx: number) => (
-                                    <span key={idx} className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                                    <span
+                                      key={idx}
+                                      className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full"
+                                    >
                                       {slot}
                                     </span>
                                   ))}
@@ -717,25 +806,35 @@ export default function AdminPermissionsPage() {
                             );
                           }
                         } catch {
-                          return <p className="text-gray-500 text-sm">Time slot information unavailable</p>;
+                          return (
+                            <p className="text-gray-500 text-sm">
+                              Time slot information unavailable
+                            </p>
+                          );
                         }
                       })()}
                     </div>
                   )}
-                  
+
                   {selected?.reasonDetails && (
                     <div className="mt-4 bg-white rounded-xl p-4 border border-gray-200">
-                      <p className="text-sm font-medium text-gray-600 mb-2">Additional Details</p>
-                      <p className="text-black leading-relaxed">{selected.reasonDetails}</p>
+                      <p className="text-sm font-medium text-gray-600 mb-2">
+                        Additional Details
+                      </p>
+                      <p className="text-black leading-relaxed">
+                        {selected.reasonDetails}
+                      </p>
                     </div>
                   )}
                 </div>
-                
+
                 {/* Review Form */}
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Decision Buttons */}
                   <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-                    <h3 className="text-lg font-bold text-black mb-4">Review Decision</h3>
+                    <h3 className="text-lg font-bold text-black mb-4">
+                      Review Decision
+                    </h3>
                     <div className="grid grid-cols-2 gap-4">
                       <button
                         type="button"
@@ -744,10 +843,12 @@ export default function AdminPermissionsPage() {
                             ? "bg-green-600 text-white"
                             : "bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-700"
                         }`}
-                        onClick={() => setForm((f) => ({ ...f, status: "Approved" }))}
+                        onClick={() =>
+                          setForm((f) => ({ ...f, status: "Approved" }))
+                        }
                         disabled={submitting}
                       >
-                        <FiCheck className="h-5 w-5" /> 
+                        <FiCheck className="h-5 w-5" />
                         <span>Approve Request</span>
                       </button>
                       <button
@@ -757,7 +858,9 @@ export default function AdminPermissionsPage() {
                             ? "bg-red-600 text-white"
                             : "bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-700"
                         }`}
-                        onClick={() => setForm((f) => ({ ...f, status: "Declined" }))}
+                        onClick={() =>
+                          setForm((f) => ({ ...f, status: "Declined" }))
+                        }
                         disabled={submitting}
                       >
                         <FiX className="h-5 w-5" />
@@ -777,7 +880,9 @@ export default function AdminPermissionsPage() {
 
                   {/* Review Notes */}
                   <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-                    <h3 className="text-lg font-bold text-black mb-4">Review Notes & Comments</h3>
+                    <h3 className="text-lg font-bold text-black mb-4">
+                      Review Notes & Comments
+                    </h3>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -786,7 +891,12 @@ export default function AdminPermissionsPage() {
                         <textarea
                           className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white"
                           value={form.reviewNotes}
-                          onChange={(e) => setForm((f) => ({ ...f, reviewNotes: e.target.value }))}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              reviewNotes: e.target.value,
+                            }))
+                          }
                           rows={4}
                           placeholder="Add your review comments, feedback, or instructions for the teacher..."
                         />
@@ -798,11 +908,20 @@ export default function AdminPermissionsPage() {
                         <select
                           className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white"
                           value={form.lateReviewReason}
-                          onChange={(e) => setForm((f) => ({ ...f, lateReviewReason: e.target.value }))}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              lateReviewReason: e.target.value,
+                            }))
+                          }
                         >
                           <option value="">-- Select Classification --</option>
-                          <option value="Accepted Reason">Valid Reason (No Salary Deduction)</option>
-                          <option value="Not Relevant Reason">Invalid Reason (Salary Deduction Applies)</option>
+                          <option value="Accepted Reason">
+                            Valid Reason (No Salary Deduction)
+                          </option>
+                          <option value="Not Relevant Reason">
+                            Invalid Reason (Salary Deduction Applies)
+                          </option>
                         </select>
                       </div>
                     </div>
@@ -814,7 +933,7 @@ export default function AdminPermissionsPage() {
                       {formError}
                     </div>
                   )}
-                  
+
                   {/* Notification Buttons */}
                   <div className="flex flex-col gap-4">
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -832,28 +951,40 @@ export default function AdminPermissionsPage() {
                                 body: JSON.stringify({
                                   status: form.status,
                                   reviewNotes: form.reviewNotes,
-                                  teacherName: selected.teacher?.ustazname || selected.teacherId,
+                                  teacherName:
+                                    selected.teacher?.ustazname ||
+                                    selected.teacherId,
                                   requestDate: selected.requestedDate,
                                   timeSlots: selected.timeSlots,
                                 }),
                               }
                             );
                             const data = await res.json();
-                            const title = data.success ? "✅ Notification Sent" : "❌ Notification Failed";
+                            const title = data.success
+                              ? "✅ Notification Sent"
+                              : "❌ Notification Failed";
                             let description = "";
-                            
+
                             if (data.success) {
-                              description = `📱 SMS sent to ${data.teacherInfo?.name || 'teacher'} (${data.teacherInfo?.phone || 'phone'}) for ${data.requestInfo?.status?.toLowerCase()} request on ${data.requestInfo?.date}`;
+                              description = `📱 SMS sent to ${
+                                data.teacherInfo?.name || "teacher"
+                              } (${
+                                data.teacherInfo?.phone || "phone"
+                              }) for ${data.requestInfo?.status?.toLowerCase()} request on ${
+                                data.requestInfo?.date
+                              }`;
                             } else {
                               if (data.smsDetails?.status === "no_phone") {
-                                description = "🙅 Teacher has no phone number on file. Please update their contact information.";
+                                description =
+                                  "🙅 Teacher has no phone number on file. Please update their contact information.";
                               } else if (data.smsDetails?.error) {
                                 description = `😔 SMS failed: ${data.smsDetails.error}`;
                               } else {
-                                description = data.error || "Failed to notify teacher";
+                                description =
+                                  data.error || "Failed to notify teacher";
                               }
                             }
-                            
+
                             toast({
                               title,
                               description,
@@ -894,7 +1025,9 @@ export default function AdminPermissionsPage() {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
-                                  teacherName: selected.teacher?.ustazname || selected.teacherId,
+                                  teacherName:
+                                    selected.teacher?.ustazname ||
+                                    selected.teacherId,
                                   absenceDate: selected.requestedDate,
                                   reason: selected.reasonCategory,
                                   timeSlots: selected.timeSlots,
@@ -905,7 +1038,11 @@ export default function AdminPermissionsPage() {
                             toast({
                               title: data.success ? "Success" : "Error",
                               description: data.success
-                                ? `Students notified successfully! (${data.sentCount || 0} notifications sent via ${data.methods?.join(', ') || 'SMS'})`
+                                ? `Students notified successfully! (${
+                                    data.sentCount || 0
+                                  } notifications sent via ${
+                                    data.methods?.join(", ") || "SMS"
+                                  })`
                                 : data.error || "Failed to notify students",
                               variant: data.success ? "default" : "destructive",
                             });
@@ -924,13 +1061,17 @@ export default function AdminPermissionsPage() {
                             });
                           }
                         }}
-                        title={form.status === "Approved" ? "Send SMS notifications to all students" : "Only available for approved requests"}
+                        title={
+                          form.status === "Approved"
+                            ? "Send SMS notifications to all students"
+                            : "Only available for approved requests"
+                        }
                         disabled={form.status !== "Approved"}
                       >
                         <FiSend className="h-4 w-4" /> Notify Students
                       </button>
                     </div>
-                    
+
                     {/* Action Buttons */}
                     <div className="flex justify-between">
                       <button

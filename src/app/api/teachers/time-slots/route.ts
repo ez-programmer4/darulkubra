@@ -43,13 +43,19 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Filter occupied times for the selected day
+    // Filter occupied times for the selected day (include 'All days' + specific day packages)
     const dayTimeSlots = occupiedTimes.filter(ot => {
       const studentDayPackages = ot.student.daypackages;
-      return studentDayPackages && (
-        studentDayPackages.includes('All days') || 
-        studentDayPackages.includes(dayName)
-      );
+      if (!studentDayPackages) return false;
+      
+      // Include 'All days' packages
+      if (studentDayPackages.includes('All days')) return true;
+      
+      // Include MWF and TTS packages for their respective days
+      const isMWF = studentDayPackages.includes('MWF') && ['Monday', 'Wednesday', 'Friday'].includes(dayName);
+      const isTTS = studentDayPackages.includes('TTS') && ['Tuesday', 'Thursday', 'Saturday'].includes(dayName);
+      
+      return isMWF || isTTS;
     });
 
     // Helper function to normalize time formats
