@@ -441,7 +441,10 @@ export async function GET(req: NextRequest) {
           });
           const bonusAmount = bonuses._sum?.bonusAwarded ?? 0;
 
-          const totalSalary = baseSalary - absenceDeduction + bonusAmount;
+          // Round all amounts to remove decimals
+          const roundedAbsenceDeduction = Math.round(absenceDeduction);
+          const roundedBonusAmount = Math.round(bonusAmount);
+          const totalSalary = Math.round(baseSalary - roundedAbsenceDeduction + roundedBonusAmount);
 
           // Fetch payment status
           let status: "Paid" | "Unpaid" = "Unpaid";
@@ -462,12 +465,13 @@ export async function GET(req: NextRequest) {
           return {
             id: t.ustazid,
             name: t.ustazname,
-            baseSalary,
-            latenessDeduction: 0,
-            absenceDeduction,
-            bonuses: bonusAmount,
-            totalSalary,
+            baseSalary: Math.round(baseSalary),
+            latenessDeduction: Math.round(latenessDeduction),
+            absenceDeduction: roundedAbsenceDeduction,
+            bonuses: roundedBonusAmount,
+            totalSalary: Math.round(baseSalary - Math.round(latenessDeduction) - roundedAbsenceDeduction + roundedBonusAmount),
             numStudents,
+            teachingDays: totalTeachingDays,
             status,
           };
         }
@@ -518,10 +522,11 @@ export async function GET(req: NextRequest) {
         
         const numStudents = currentStudents.length;
         
-        // Calculate daily-based salary
+        // Calculate simplified daily-based salary
         let baseSalary = 0;
+        let totalTeachingDays = 0;
         
-        // Get ALL zoom links for this teacher in the period (including from students no longer assigned)
+        // Get ALL zoom links for this teacher in the period
         const teacherZoomLinks = await prisma.wpos_zoom_links.findMany({
           where: {
             ustazid: t.ustazid,
@@ -541,8 +546,8 @@ export async function GET(req: NextRequest) {
           }
         });
         
-        // Group by student and calculate daily earnings
-        const studentEarnings = new Map();
+        // Sum up daily earnings (no decimals)
+        const dailyEarnings = new Map(); // date -> total earnings for that day
         
         for (const link of teacherZoomLinks) {
           if (!link.sent_time || !link.wpos_wpdatatable_23) continue;
@@ -550,33 +555,32 @@ export async function GET(req: NextRequest) {
           const student = link.wpos_wpdatatable_23;
           const packageName = student.package;
           if (!packageName) continue;
-          const packageSalary = salaryMap[packageName] || 0;
-          const dailySalary = packageSalary / workingDays;
+          
+          const packageSalary = Math.round(salaryMap[packageName] || 0);
+          const dailySalary = Math.round(packageSalary / workingDays);
           
           const linkDate = new Date(link.sent_time);
           // Count based on configuration
           if (includeSundays || linkDate.getDay() !== 0) {
             const dateStr = link.sent_time.toISOString().split('T')[0];
-            const studentKey = `${student.wdt_ID}_${packageName}`;
             
-            if (!studentEarnings.has(studentKey)) {
-              studentEarnings.set(studentKey, {
-                studentId: student.wdt_ID,
-                packageName,
-                dailySalary,
-                teachingDates: new Set()
-              });
+            if (!dailyEarnings.has(dateStr)) {
+              dailyEarnings.set(dateStr, 0);
             }
             
-            studentEarnings.get(studentKey).teachingDates.add(dateStr);
+            dailyEarnings.set(dateStr, dailyEarnings.get(dateStr) + dailySalary);
           }
         }
         
-        // Calculate total salary from historical zoom links
+        // Calculate total salary (sum of all daily earnings)
         baseSalary = 0;
-        for (const earning of studentEarnings.values()) {
-          baseSalary += earning.dailySalary * earning.teachingDates.size;
+        totalTeachingDays = dailyEarnings.size;
+        for (const dayEarning of dailyEarnings.values()) {
+          baseSalary += dayEarning;
         }
+        
+        // Round to remove any decimals
+        baseSalary = Math.round(baseSalary);
         
         // Skip teachers with 0 students
         if (numStudents === 0) {
@@ -668,7 +672,7 @@ export async function GET(req: NextRequest) {
                 console.error('Error checking lateness waiver:', error);
               }
             }
-            latenessDeduction += deductionApplied;
+            latenessDeduction += Math.round(deductionApplied);
           }
         }
         // Enhanced absence deduction with time slot support
