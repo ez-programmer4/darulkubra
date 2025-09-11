@@ -1020,7 +1020,7 @@ export default function AssignedStudents() {
               className="fixed inset-0 bg-black/60 z-40 animate-fade-in"
               onClick={() => setModal({ type: null, studentId: null })}
             />
-            <div className="fixed inset-x-0 bottom-0 z-50 animate-slide-up">
+            <div className="fixed inset-x-0 top-[50%] -translate-y-[50%] z-50 animate-slide-up">
               <div className="bg-white rounded-t-3xl shadow-2xl border-t border-gray-200 max-h-[90vh] overflow-hidden">
                 <div className="flex justify-center py-3 border-b border-gray-100">
                   <div className="w-12 h-1 bg-gray-300 rounded-full" />

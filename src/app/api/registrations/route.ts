@@ -150,6 +150,8 @@ export async function POST(request: NextRequest) {
       refer,
       selectedTime,
       registrationdate,
+      chatId,
+      reason,
     } = body;
 
     // Validation
@@ -318,7 +320,10 @@ export async function POST(request: NextRequest) {
         data: {
           name: fullName,
           phoneno: phoneNumber,
-          classfee: classfee ? parseFloat(classfee) : null,
+          classfee:
+            classfee !== undefined && classfee !== null
+              ? parseFloat(classfee)
+              : null,
           startdate: startdate ? new Date(startdate) : null,
           u_control,
           status: status
@@ -337,6 +342,8 @@ export async function POST(request: NextRequest) {
             ? new Date(registrationdate)
             : new Date(),
           userId: usStudentId ? usStudentId.toString() : null,
+          chatId: chatId || null,
+          reason: reason || null,
         },
       });
 
@@ -448,6 +455,8 @@ export async function PUT(request: NextRequest) {
       refer,
       selectedTime,
       registrationdate,
+      chatId,
+      reason,
     } = body;
 
     // Validation - skip class fee and country for US students
@@ -603,7 +612,10 @@ export async function PUT(request: NextRequest) {
         data: {
           name: fullName,
           phoneno: phoneNumber,
-          classfee: classfee ? parseFloat(classfee) : null,
+          classfee:
+            classfee !== undefined && classfee !== null
+              ? parseFloat(classfee)
+              : null,
           startdate: startdate ? new Date(startdate) : null,
           u_control,
           status: newStatus,
@@ -620,6 +632,8 @@ export async function PUT(request: NextRequest) {
           registrationdate: registrationdate
             ? new Date(registrationdate)
             : undefined,
+          chatId: chatId || null,
+          reason: reason || null,
           ...(exitdate && { exitdate }),
         },
       });
@@ -754,6 +768,8 @@ export async function GET(request: NextRequest) {
         registrationdate: true,
         isTrained: true,
         userId: true,
+        chatId: true,
+        reason: true,
         teacher: { select: { ustazname: true } },
         occupiedTimes: {
           select: {
@@ -819,6 +835,8 @@ export async function GET(request: NextRequest) {
       registrationdate: true,
       isTrained: true,
       userId: true,
+      chatId: true,
+      reason: true,
       teacher: { select: { ustazname: true } },
       occupiedTimes: {
         select: {

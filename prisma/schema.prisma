@@ -62,6 +62,7 @@ model wpos_wpdatatable_23 {
   u_control           String?                       @db.VarChar(255)
   exitdate            DateTime?                     @db.DateTime(0)
   isKid               Boolean?                      @default(false)
+  reason              String?                       @db.VarChar(255)
   // activePackage       coursePackage?                @relation("ActivePackage", fields: [youtubeSubject], references: [id])
   // youtubeSubject      String?
   // coursePackage       coursePackage?                @relation("PackageHistory", fields: [coursePackageId], references: [id])

@@ -50,6 +50,8 @@ interface FormData {
   daypackages?: string;
   package?: string;
   refer?: string;
+  chatId?: string;
+  reason?: string;
 }
 
 interface TimeSlot {
@@ -561,6 +563,8 @@ function RegistrationContent() {
           setValue("daypackages", data.daypackages || "All days");
           setValue("refer", data.refer || "");
           setValue("package", data.package || "");
+          setValue("chatId", data.chatId || "");
+          setValue("reason", data.reason || "");
           setSelectedTime(fetchedSelectedTime);
           setSelectedTeacher(data.ustaz || "");
           setEditingTeacherName(data.ustaz || "");
@@ -633,7 +637,7 @@ function RegistrationContent() {
       const payload = {
         fullName: data.fullName,
         phoneNumber: data.phoneNumber,
-        classfee: data.classfee ? parseFloat(data.classfee as any) : null,
+        classfee: data.classfee !== undefined && data.classfee !== null ? parseFloat(data.classfee as any) : null,
         startdate: isoStartDate,
         control: control, // Automatically set based on selected ustaz's controlId
         status: data.status?.toLowerCase() || "pending",
@@ -655,6 +659,9 @@ function RegistrationContent() {
         // Add US student data
         email: usStudentEmail || null,
         usStudentId: usStudentId ?? null,
+        // Add new fields
+        chatId: data.chatId || null,
+        reason: data.reason || null,
       };
 
       const url = editId
@@ -1736,6 +1743,18 @@ function RegistrationContent() {
 
                     <div className="space-y-2">
                       <label className="block text-sm font-semibold text-gray-800 flex items-center">
+                        <FiUser className="mr-2 text-teal-600" />
+                        Chat ID (Optional)
+                      </label>
+                      <input
+                        {...register("chatId")}
+                        className="w-full px-5 py-3 rounded-xl border border-gray-200 hover:border-teal-300 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm"
+                        placeholder="Enter Telegram chat ID"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-gray-800 flex items-center">
                         <FiDollarSign className="mr-2 text-teal-600" />
                         Class Fee{" "}
                         {!isUsStudent ? "*" : "(Optional for US students)"}
@@ -1751,6 +1770,7 @@ function RegistrationContent() {
                               value: 0,
                               message: "Fee cannot be negative",
                             },
+                            valueAsNumber: true,
                           })}
                           className={`w-full pl-10 pr-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
                             errors.classfee
@@ -1867,6 +1887,32 @@ function RegistrationContent() {
                         </p>
                       )}
                     </div>
+
+                    {watch("status") === "leave" && (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-800 flex items-center">
+                          <FiInfo className="mr-2 text-teal-600" />
+                          Reason for Leave *
+                        </label>
+                        <textarea
+                          {...register("reason", {
+                            required: watch("status") === "leave" ? "Reason is required when status is Leave" : false,
+                          })}
+                          className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm resize-none ${
+                            errors.reason
+                              ? "border-red-500"
+                              : "border-gray-200 hover:border-teal-300"
+                          }`}
+                          placeholder="Please provide reason for leaving"
+                          rows={3}
+                        />
+                        {errors.reason && (
+                          <p className="mt-1 text-xs text-red-600 font-medium">
+                            {errors.reason.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <label className="block text-sm font-semibold text-gray-800 flex items-center">
