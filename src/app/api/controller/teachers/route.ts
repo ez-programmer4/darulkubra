@@ -1,46 +1,45 @@
-import { NextResponse, NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
-  const token = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
-
-  if (!token || token.role !== "controller") {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
-
-  const controllerUsername = token.username;
-
   try {
-    const controller = await prisma.wpos_wpdatatable_28.findUnique({
-      where: { username: controllerUsername },
-      select: { code: true },
+    const session = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
     });
 
-    if (!controller) {
-      return NextResponse.json(
-        { message: "Controller not found" },
-        { status: 404 }
-      );
+    if (!session) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const ustazs = await prisma.wpos_wpdatatable_24.findMany({
+    if (session.role !== "controller") {
+      return NextResponse.json({ message: "Access denied" }, { status: 403 });
+    }
+
+    // Get teachers assigned to this controller
+    const teachers = await prisma.wpos_wpdatatable_24.findMany({
       where: {
-        control: controller.code,
+        control: session.code,
       },
       select: {
         ustazid: true,
         ustazname: true,
+        phone: true,
+        schedule: true,
+        password: true,
+        created_at: true,
+      },
+      orderBy: {
+        ustazname: "asc",
       },
     });
 
-    return NextResponse.json(ustazs, { status: 200 });
+    return NextResponse.json({ teachers });
   } catch (error) {
+    console.error("Controller teachers API error:", error);
     return NextResponse.json(
-      { message: "Error fetching assigned teachers" },
+      { message: "Internal server error" },
       { status: 500 }
     );
   }
