@@ -472,9 +472,11 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
+    // Only require class fee if not US student and package is not "0 Fee"
     if (
       !isUsStudent &&
-      (!classfee || classfee === null || classfee === undefined)
+      regionPackage !== "0 Fee" &&
+      (!classfee && classfee !== 0 && classfee !== null && classfee !== undefined)
     ) {
       return NextResponse.json(
         { message: "Class Fee is required" },

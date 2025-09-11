@@ -53,6 +53,7 @@ interface Registration {
   registrationdate: string;
   isTrained?: boolean;
   daypackages?: string;
+  chatId?: string;
 }
 
 type SortKey = keyof Registration;
@@ -97,6 +98,7 @@ export default function Dashboard() {
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [filterUstaz, setFilterUstaz] = useState<string>("all");
+  const [filterConnection, setFilterConnection] = useState<string>("all");
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -396,6 +398,10 @@ export default function Dashboard() {
       const matchesSubject =
         filterSubject === "all" ||
         (reg.subject || "").toLowerCase() === filterSubject.toLowerCase();
+      const matchesConnection =
+        filterConnection === "all" ||
+        (filterConnection === "connected" && reg.chatId) ||
+        (filterConnection === "not-connected" && !reg.chatId);
       return (
         matchesSearch &&
         matchesStatus &&
@@ -403,7 +409,8 @@ export default function Dashboard() {
         matchesDayPackage &&
         matchesSubject &&
         matchesUstaz &&
-        matchesTrained
+        matchesTrained &&
+        matchesConnection
       );
     });
   }, [
@@ -415,6 +422,7 @@ export default function Dashboard() {
     filterSubject,
     filterUstaz,
     filterTrained,
+    filterConnection,
   ]);
 
   const sortedRegistrations = useMemo(() => {
@@ -1014,7 +1022,7 @@ export default function Dashboard() {
                 exit={{ height: 0, opacity: 0 }}
                 className="px-6 py-4 border-b border-gray-200 bg-gray-50"
               >
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Status
@@ -1128,6 +1136,23 @@ export default function Dashboard() {
                       <option value="all">All</option>
                       <option value="trained">Trained</option>
                       <option value="nottrained">Not Trained</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Connection Status
+                    </label>
+                    <select
+                      value={filterConnection}
+                      onChange={(e) => {
+                        setFilterConnection(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full p-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
+                    >
+                      <option value="all">All</option>
+                      <option value="connected">Connected</option>
+                      <option value="not-connected">Not Connected</option>
                     </select>
                   </div>
                 </div>
@@ -1596,6 +1621,11 @@ export default function Dashboard() {
                                           ).toLocaleDateString()
                                         : "-"
                                     }
+                                  />
+                                  <DetailItem
+                                    icon={<FiUser className="text-blue-600" />}
+                                    label="Chat ID"
+                                    value={reg.chatId || "Not Connected"}
                                   />
                                 </div>
                               </td>

@@ -608,7 +608,8 @@ function RegistrationContent() {
     try {
       // Validate required fields based on student type
       if (!isUsStudent) {
-        if (!data.classfee) {
+        // Only require class fee if package is not "0 Fee"
+        if (data.package !== "0 Fee" && (!data.classfee && data.classfee !== 0)) {
           throw new Error("Class Fee is required");
         }
         if (!data.country) {
@@ -1757,7 +1758,7 @@ function RegistrationContent() {
                       <label className="block text-sm font-semibold text-gray-800 flex items-center">
                         <FiDollarSign className="mr-2 text-teal-600" />
                         Class Fee{" "}
-                        {!isUsStudent ? "*" : "(Optional for US students)"}
+                        {!isUsStudent && watch("package") !== "0 Fee" ? "*" : "(Optional)"}
                       </label>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
@@ -1780,6 +1781,8 @@ function RegistrationContent() {
                           placeholder={
                             isUsStudent
                               ? "Optional for US students"
+                              : watch("package") === "0 Fee"
+                              ? "Optional for 0 Fee package"
                               : "Enter fee amount"
                           }
                           type="number"
@@ -1794,6 +1797,11 @@ function RegistrationContent() {
                       {isUsStudent && (
                         <p className="mt-1 text-xs text-blue-600 font-medium">
                           Class fee is not required for US students
+                        </p>
+                      )}
+                      {!isUsStudent && watch("package") === "0 Fee" && (
+                        <p className="mt-1 text-xs text-blue-600 font-medium">
+                          Class fee is optional for 0 Fee package
                         </p>
                       )}
                     </div>
