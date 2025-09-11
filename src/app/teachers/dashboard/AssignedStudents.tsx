@@ -981,8 +981,8 @@ export default function AssignedStudents() {
               className="fixed inset-0 bg-black/60 z-40 animate-fade-in"
               onClick={() => setModal({ type: null, studentId: null })}
             />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md animate-scale-up">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md animate-scale-up" style={{ position: 'relative', maxHeight: '90vh' }}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-100">
                   <div className="flex items-center gap-3">
