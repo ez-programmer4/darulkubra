@@ -1015,15 +1015,15 @@ export default function AssignedStudents() {
 
         {/* Centered Modal */}
         {modal.type && modal.studentId !== null && (
-          <>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             <div
-              className="fixed inset-0 bg-black/60 z-40 animate-fade-in flex items-center justify-center p-4"
+              className="absolute inset-0 bg-black/60 animate-fade-in"
               onClick={() => setModal({ type: null, studentId: null })}
+            />
+            <div 
+              className="relative bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-md max-h-[90vh] overflow-y-auto animate-scale-up"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div 
-                className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-md max-h-[90vh] overflow-hidden animate-scale-up"
-                onClick={(e) => e.stopPropagation()}
-              >
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                   <div className="flex items-center gap-4">
                     <div
@@ -1304,7 +1304,6 @@ export default function AssignedStudents() {
                 </div>
               </div>
             </div>
-          </>
         )}
       </div>
 
