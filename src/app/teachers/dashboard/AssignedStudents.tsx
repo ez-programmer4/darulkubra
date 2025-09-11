@@ -20,14 +20,12 @@ import {
   FiTarget,
   FiUsers,
   FiActivity,
-  FiPhone,
 } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/components/ui/use-toast";
 
 // Types
-
 type Group = {
   group: string;
   students: Array<{
@@ -44,7 +42,6 @@ type Group = {
 type ModalType = "zoom" | "attendance" | null;
 
 // Utils
-
 function safeIncludes(haystack: unknown, needle: string): boolean {
   if (!needle) return true;
   const h = String(haystack ?? "").toLowerCase();
@@ -152,19 +149,6 @@ export default function AssignedStudents() {
     "ክፍል 38 ( final exam )",
   ];
   const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
-
-  // Set all students as having zoom sent (temporary fix)
-  useEffect(() => {
-    if (groups.length > 0) {
-      const allStudentIds: Record<number, boolean> = {};
-      groups.forEach((group) => {
-        group.students.forEach((student) => {
-          allStudentIds[student.id] = true;
-        });
-      });
-      setZoomSent(allStudentIds);
-    }
-  }, [groups]);
   const [query, setQuery] = useState("");
   const [pkgFilter, setPkgFilter] = useState("all");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -172,12 +156,10 @@ export default function AssignedStudents() {
   const [todayOnly, setTodayOnly] = useState(true);
   const [now, setNow] = useState<Date>(new Date());
 
-  // Static time display to prevent reloads
   useEffect(() => {
     setNow(new Date());
   }, []);
 
-  // Close modal on Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setModal({ type: null, studentId: null });
@@ -190,47 +172,6 @@ export default function AssignedStudents() {
     refresh();
     loadSurahs();
   }, []);
-
-  // Disabled zoom status checking to prevent infinite refresh
-  // useEffect(() => {
-  //   checkZoomStatus();
-  // }, []);
-
-  // useEffect(() => {
-  //   if (groups.length > 0) {
-  //     checkZoomStatus();
-  //   }
-  // }, [groups]);
-
-  // Disabled to prevent infinite refresh
-  // async function checkZoomStatus() {
-  //   try {
-  //     const res = await fetch("/api/teachers/students/zoom-status", {
-  //       credentials: "include",
-  //       cache: "no-store",
-  //       headers: {
-  //         "Cache-Control": "no-cache, no-store, must-revalidate",
-  //         Pragma: "no-cache",
-  //         Expires: "0",
-  //       },
-  //     });
-
-  //     if (res.ok) {
-  //       const data = await res.json();
-  //       const zoomStatus: Record<number, boolean> = {};
-
-  //       if (data.sentToday && Array.isArray(data.sentToday)) {
-  //         data.sentToday.forEach((studentId: number) => {
-  //           zoomStatus[studentId] = true;
-  //         });
-  //       }
-
-  //       setZoomSent(zoomStatus);
-  //     }
-  //   } catch (error) {
-  //     console.error("Failed to check zoom status:", error);
-  //   }
-  // }
 
   async function loadSurahs() {
     setSurahs([
@@ -454,8 +395,6 @@ export default function AssignedStudents() {
       }
 
       const responseData = await res.json();
-
-      // Show success message with notification details
       const successMessage = responseData.notification_sent
         ? "Zoom link sent successfully via Telegram!"
         : responseData.notification_error
@@ -596,7 +535,7 @@ export default function AssignedStudents() {
   );
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
         {/* Header + Stats */}
         <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
@@ -671,7 +610,6 @@ export default function AssignedStudents() {
           {/* Controls */}
           <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 sticky top-4 z-10">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
-              {/* Search */}
               <div className="lg:col-span-4">
                 <label className="block text-sm font-bold text-black mb-3">
                   <FiSearch className="inline h-4 w-4 mr-2" />
@@ -688,8 +626,6 @@ export default function AssignedStudents() {
                   />
                 </div>
               </div>
-
-              {/* Actions */}
             </div>
           </div>
         </div>
@@ -697,7 +633,6 @@ export default function AssignedStudents() {
         {loading && (
           <div className="space-y-4">
             <PageLoading />
-            {/* Skeleton shimmer */}
             <div className="animate-pulse grid grid-cols-1 gap-4">
               <div className="h-24 bg-gray-100 rounded-2xl" />
               <div className="h-24 bg-gray-100 rounded-2xl" />
@@ -847,21 +782,12 @@ export default function AssignedStudents() {
                                 Send Zoom
                               </Button>
                               <Button
-                                onClick={() => {
-                                  if (!zoomSent[s.id]) {
-                                    toast({
-                                      title: "Zoom Link Required",
-                                      description:
-                                        "Please send the Zoom link first before marking attendance.",
-                                      variant: "destructive",
-                                    });
-                                    return;
-                                  }
+                                onClick={() =>
                                   setModal({
                                     type: "attendance",
                                     studentId: s.id,
-                                  });
-                                }}
+                                  })
+                                }
                                 disabled={!zoomSent[s.id]}
                                 className={`px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 ${
                                   zoomSent[s.id]
@@ -982,18 +908,9 @@ export default function AssignedStudents() {
                           Send Zoom Link
                         </Button>
                         <Button
-                          onClick={() => {
-                            if (!zoomSent[s.id]) {
-                              toast({
-                                title: "Zoom Link Required",
-                                description:
-                                  "Please send the Zoom link first before marking attendance.",
-                                variant: "destructive",
-                              });
-                              return;
-                            }
-                            setModal({ type: "attendance", studentId: s.id });
-                          }}
+                          onClick={() =>
+                            setModal({ type: "attendance", studentId: s.id })
+                          }
                           disabled={!zoomSent[s.id]}
                           className={`py-4 rounded-xl font-bold shadow-lg touch-manipulation transition-all duration-200 ${
                             zoomSent[s.id]
@@ -1013,64 +930,59 @@ export default function AssignedStudents() {
           ))}
         </div>
 
-        {/* Student Modal */}
+        {/* Centered Modal */}
         {modal.type && modal.studentId !== null && (
-          <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-20 p-4">
+          <>
             <div
-              className="absolute inset-0 bg-black/60 animate-fade-in"
+              className="fixed inset-0 bg-black/60 z-40 animate-fade-in"
               onClick={() => setModal({ type: null, studentId: null })}
             />
-            <div 
-              className="relative bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-md max-h-[80vh] overflow-y-auto animate-scale-up"
-              onClick={(e) => e.stopPropagation()}
-            >
-                <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                  <div className="flex items-center gap-4">
+            <div className="fixed inset-0 flex items-center justify-center z-50 animate-slide-up">
+              <div className="bg-white rounded-2xl shadow-3xl border border-gray-200 w-full max-w-md max-h-[80vh] flex flex-col">
+                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
                     <div
-                      className={`p-3 rounded-2xl ${
+                      className={`p-2 rounded-lg ${
                         modal.type === "zoom"
                           ? "bg-gradient-to-br from-blue-600 to-indigo-700"
                           : "bg-gradient-to-br from-green-600 to-emerald-700"
                       }`}
                     >
                       {modal.type === "zoom" ? (
-                        <FiLink2 className="h-6 w-6 text-white" />
+                        <FiLink2 className="h-5 w-5 text-white" />
                       ) : (
-                        <FiCheck className="h-6 w-6 text-white" />
+                        <FiCheck className="h-5 w-5 text-white" />
                       )}
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-black">
+                      <h3 className="text-lg font-semibold text-gray-900">
                         {modal.type === "zoom"
                           ? "Send Zoom Link"
                           : "Mark Attendance"}
                       </h3>
-                      <p className="text-sm text-gray-600">
-                        {(() => {
-                          const student = groups
-                            .flatMap((g) => g.students)
-                            .find((s) => s.id === modal.studentId);
-                          return student ? `${student.name || 'Student'} - ${student.subject || 'N/A'}` : 'Student';
-                        })()}
+                      <p className="text-sm text-gray-500">
+                        {modal.type === "zoom"
+                          ? "Share meeting details with your student"
+                          : "Record student progress and attendance"}
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => setModal({ type: null, studentId: null })}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                     aria-label="Close"
                   >
-                    <FiX className="h-6 w-6" />
+                    <FiX className="h-5 w-5" />
                   </button>
                 </div>
-                <div className="p-6 overflow-y-auto max-h-[70vh]">
+                <div className="p-4 space-y-4 overflow-y-auto">
                   {modal.type === "zoom" && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-bold text-gray-800 mb-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                           Meeting Link *
                         </label>
-                        <div className="flex gap-3">
+                        <div className="flex gap-2">
                           <input
                             placeholder="https://zoom.us/j/... or https://meet.google.com/..."
                             value={forms[modal.studentId]?.link || ""}
@@ -1079,7 +991,7 @@ export default function AssignedStudents() {
                                 link: e.target.value,
                               })
                             }
-                            className="flex-1 p-4 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500 text-base transition-all duration-200"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400 text-sm transition-all duration-200"
                           />
                           <Button
                             variant="outline"
@@ -1087,31 +999,28 @@ export default function AssignedStudents() {
                             onClick={() =>
                               handleCopy(forms[modal.studentId!]?.link || "")
                             }
-                            className="px-4 border-2 border-blue-200 hover:bg-blue-50"
+                            className="px-3 border border-gray-300 hover:bg-gray-50"
                             aria-label="Copy meeting link"
                           >
                             <FiCopy className="h-4 w-4" />
                           </Button>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2">
+                        <p className="text-xs text-gray-500 mt-1">
                           Enter your Zoom, Google Meet, or other meeting
                           platform link
                         </p>
                       </div>
 
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-2">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-1">
                           <FiClock className="h-4 w-4 text-blue-600" />
-                          <label className="text-sm font-bold text-blue-800">
+                          <label className="text-sm font-medium text-blue-800">
                             Sending Time
                           </label>
                         </div>
-                        <div className="text-lg font-mono text-blue-900">
+                        <div className="text-sm font-medium text-blue-900">
                           {new Date().toLocaleString()}
                         </div>
-                        <p className="text-xs text-blue-600 mt-1">
-                          Link will be sent via Telegram immediately
-                        </p>
                       </div>
 
                       <Button
@@ -1120,12 +1029,12 @@ export default function AssignedStudents() {
                           !forms[modal.studentId]?.link?.trim()
                         }
                         onClick={() => sendZoom(modal.studentId!)}
-                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold py-2.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
                       >
                         {sending[modal.studentId] ? (
                           <span className="flex items-center gap-2">
                             <svg
-                              className="animate-spin h-5 w-5"
+                              className="animate-spin h-4 w-4"
                               viewBox="0 0 24 24"
                             >
                               <circle
@@ -1146,7 +1055,7 @@ export default function AssignedStudents() {
                           </span>
                         ) : (
                           <span className="flex items-center gap-2">
-                            <FiSend className="h-5 w-5" />
+                            <FiSend className="h-4 w-4" />
                             Send Zoom Link
                           </span>
                         )}
@@ -1155,12 +1064,12 @@ export default function AssignedStudents() {
                   )}
 
                   {modal.type === "attendance" && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-bold text-gray-800 mb-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                           Attendance Status *
                         </label>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-2">
                           {(["present", "absent", "permission"] as const).map(
                             (status) => {
                               const getStatusColor = (status: string) => {
@@ -1191,7 +1100,7 @@ export default function AssignedStudents() {
                                   onClick={() =>
                                     updateAttend(modal.studentId!, { status })
                                   }
-                                  className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${getStatusColor(
+                                  className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${getStatusColor(
                                     status
                                   )}`}
                                   aria-pressed={
@@ -1218,7 +1127,7 @@ export default function AssignedStudents() {
                           <div>
                             {isQaidah ? (
                               <div>
-                                <label className="block text-sm font-bold text-gray-800 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                   Lesson Topic
                                 </label>
                                 <select
@@ -1228,7 +1137,7 @@ export default function AssignedStudents() {
                                       lesson: e.target.value,
                                     })
                                   }
-                                  className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-base appearance-none"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-sm"
                                 >
                                   <option value="">Select Lesson</option>
                                   {qaidahLessons.map((lesson) => (
@@ -1240,7 +1149,7 @@ export default function AssignedStudents() {
                               </div>
                             ) : (
                               <div>
-                                <label className="block text-sm font-bold text-gray-800 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                   Surah
                                 </label>
                                 <select
@@ -1250,7 +1159,7 @@ export default function AssignedStudents() {
                                       surah: e.target.value,
                                     })
                                   }
-                                  className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-base appearance-none"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-sm"
                                 >
                                   <option value="">Select Surah</option>
                                   {surahs.map((surah) => (
@@ -1271,12 +1180,12 @@ export default function AssignedStudents() {
                           !!sending[modal.studentId] ||
                           !attend[modal.studentId]?.status
                         }
-                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-semibold py-2.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
                       >
                         {sending[modal.studentId] ? (
                           <span className="flex items-center gap-2">
                             <svg
-                              className="animate-spin h-5 w-5"
+                              className="animate-spin h-4 w-4"
                               viewBox="0 0 24 24"
                             >
                               <circle
@@ -1297,8 +1206,8 @@ export default function AssignedStudents() {
                           </span>
                         ) : (
                           <span className="flex items-center gap-2">
-                            <FiCheck className="h-5 w-5" />
-                            Save Attendance Record
+                            <FiCheck className="h-4 w-4" />
+                            Save Attendance
                           </span>
                         )}
                       </Button>
@@ -1307,18 +1216,18 @@ export default function AssignedStudents() {
                 </div>
               </div>
             </div>
+          </>
         )}
       </div>
 
-      {/* Modal Animations */}
       <style jsx>{`
-        @keyframes scale-up {
+        @keyframes slide-up {
           from {
-            transform: scale(0.95);
+            transform: translateY(20px);
             opacity: 0;
           }
           to {
-            transform: scale(1);
+            transform: translateY(0);
             opacity: 1;
           }
         }
@@ -1330,8 +1239,8 @@ export default function AssignedStudents() {
             opacity: 1;
           }
         }
-        .animate-scale-up {
-          animation: scale-up 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        .animate-slide-up {
+          animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .animate-fade-in {
           animation: fade-in 0.2s ease-out;
