@@ -138,14 +138,26 @@ export default function AssignedStudents() {
     setNow(new Date());
   }, []);
 
-  // Close modal on Escape
+  // Close modal on Escape and handle scroll lock
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setModal({ type: null, studentId: null });
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    
+    if (modal.type) {
+      // Lock scroll when modal is open
+      document.body.style.overflow = 'hidden';
+      window.addEventListener("keydown", onKey);
+    } else {
+      // Restore scroll when modal is closed
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = 'unset';
+    };
+  }, [modal.type]);
 
   useEffect(() => {
     refresh();
@@ -974,15 +986,15 @@ export default function AssignedStudents() {
           ))}
         </div>
 
-        {/* Compact Modal */}
+        {/* Enhanced Modal */}
         {modal.type && modal.studentId !== null && (
           <>
             <div
-              className="fixed inset-0 bg-black/60 z-40 animate-fade-in"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-fade-in"
               onClick={() => setModal({ type: null, studentId: null })}
             />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md animate-scale-up" style={{ position: 'relative', maxHeight: '90vh' }}>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md animate-scale-up my-8 mx-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-100">
                   <div className="flex items-center gap-3">
@@ -1012,7 +1024,7 @@ export default function AssignedStudents() {
                 </div>
 
                 {/* Content */}
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 8rem)' }}>
                   {modal.type === "zoom" && (
                     <>
                       <div>
@@ -1025,7 +1037,8 @@ export default function AssignedStudents() {
                           onChange={(e) =>
                             updateForm(modal.studentId!, { link: e.target.value })
                           }
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                          autoFocus
                         />
                       </div>
                       <Button
@@ -1034,7 +1047,7 @@ export default function AssignedStudents() {
                           !forms[modal.studentId]?.link?.trim()
                         }
                         onClick={() => sendZoom(modal.studentId!)}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg"
+                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-all duration-200 hover:shadow-lg"
                       >
                         {sending[modal.studentId] ? (
                           <span className="flex items-center gap-2">
@@ -1114,7 +1127,7 @@ export default function AssignedStudents() {
                                   [isQaidah ? "lesson" : "surah"]: e.target.value,
                                 })
                               }
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
                             >
                               <option value="">Select {isQaidah ? "Lesson" : "Surah"}</option>
                               {(isQaidah ? qaidahLessons : surahs).map((item) => (
@@ -1132,7 +1145,7 @@ export default function AssignedStudents() {
                         disabled={
                           !!sending[modal.studentId] || !attend[modal.studentId]?.status
                         }
-                        className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg"
+                        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-all duration-200 hover:shadow-lg"
                       >
                         {sending[modal.studentId] ? (
                           <span className="flex items-center gap-2">
@@ -1169,16 +1182,16 @@ export default function AssignedStudents() {
         )}
       </div>
 
-      {/* Modal Animations */}
+      {/* Enhanced Modal Animations */}
       <style jsx>{`
         @keyframes scale-up {
           from {
             opacity: 0;
-            transform: scale(0.95);
+            transform: scale(0.9) translateY(-20px);
           }
           to {
             opacity: 1;
-            transform: scale(1);
+            transform: scale(1) translateY(0);
           }
         }
         @keyframes fade-in {
@@ -1190,10 +1203,26 @@ export default function AssignedStudents() {
           }
         }
         .animate-scale-up {
-          animation: scale-up 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          animation: scale-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .animate-fade-in {
           animation: fade-in 0.2s ease-out;
+        }
+        
+        /* Smooth scrollbar */
+        ::-webkit-scrollbar {
+          width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: #c1c1c1;
+          border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: #a8a8a8;
         }
       `}</style>
     </div>
