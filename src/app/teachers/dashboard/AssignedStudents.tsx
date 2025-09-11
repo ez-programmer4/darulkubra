@@ -984,16 +984,16 @@ export default function AssignedStudents() {
           ))}
         </div>
 
-        {/* Centered Modal */}
+        {/* Scrollable Modal */}
         {modal.type && modal.studentId !== null && (
           <>
             <div
               className="fixed inset-0 bg-black/60 z-40 animate-fade-in"
               onClick={() => setModal({ type: null, studentId: null })}
             />
-            <div className="fixed inset-0 flex items-center justify-center z-50 animate-slide-up">
-              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm max-h-[70vh] flex flex-col">
-                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm max-h-[80vh] flex flex-col animate-slide-up">
+                <div className="flex items-center justify-between p-4 border-b border-gray-100 flex-shrink-0">
                   <div className="flex items-center gap-3">
                     <div
                       className={`p-2 rounded-lg ${
@@ -1015,9 +1015,12 @@ export default function AssignedStudents() {
                           : "Mark Attendance"}
                       </h3>
                       <p className="text-xs text-gray-500">
-                        {modal.type === "zoom"
-                          ? "Share meeting details"
-                          : "Record student progress"}
+                        {(() => {
+                          const student = groups
+                            .flatMap((g) => g.students)
+                            .find((s) => s.id === modal.studentId);
+                          return student ? `${student.name || 'Student'} - ${student.subject || 'N/A'}` : 'Student';
+                        })()}
                       </p>
                     </div>
                   </div>
@@ -1029,7 +1032,7 @@ export default function AssignedStudents() {
                     <FiX className="h-5 w-5" />
                   </button>
                 </div>
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-4 overflow-y-auto flex-1">
                   {modal.type === "zoom" && (
                     <div className="space-y-3">
                       <div>
