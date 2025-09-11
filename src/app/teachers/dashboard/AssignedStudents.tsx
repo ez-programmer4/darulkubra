@@ -974,119 +974,71 @@ export default function AssignedStudents() {
           ))}
         </div>
 
-        {/* Slide Panel Modal */}
+        {/* Compact Modal */}
         {modal.type && modal.studentId !== null && (
           <>
             <div
               className="fixed inset-0 bg-black/60 z-40 animate-fade-in"
               onClick={() => setModal({ type: null, studentId: null })}
             />
-            <div className="fixed inset-x-0 bottom-0 z-50 animate-slide-up">
-              <div className="bg-white rounded-t-3xl shadow-2xl border-t border-gray-200 max-h-[90vh] overflow-hidden">
-                <div className="flex justify-center py-3 border-b border-gray-100">
-                  <div className="w-12 h-1 bg-gray-300 rounded-full" />
-                </div>
-                <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                  <div className="flex items-center gap-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md animate-scale-up">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
                     <div
-                      className={`p-3 rounded-2xl ${
+                      className={`p-2 rounded-lg ${
                         modal.type === "zoom"
-                          ? "bg-gradient-to-br from-blue-600 to-indigo-700"
-                          : "bg-gradient-to-br from-green-600 to-emerald-700"
+                          ? "bg-blue-600"
+                          : "bg-green-600"
                       }`}
                     >
                       {modal.type === "zoom" ? (
-                        <FiLink2 className="h-6 w-6 text-white" />
+                        <FiLink2 className="h-5 w-5 text-white" />
                       ) : (
-                        <FiCheck className="h-6 w-6 text-white" />
+                        <FiCheck className="h-5 w-5 text-white" />
                       )}
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-black">
-                        {modal.type === "zoom"
-                          ? "Send Zoom Link"
-                          : "Mark Attendance"}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {modal.type === "zoom"
-                          ? "Share meeting details with your student"
-                          : "Record student progress and attendance"}
-                      </p>
-                    </div>
+                    <h3 className="text-lg font-bold text-black">
+                      {modal.type === "zoom" ? "Send Zoom Link" : "Mark Attendance"}
+                    </h3>
                   </div>
                   <button
                     onClick={() => setModal({ type: null, studentId: null })}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
-                    aria-label="Close"
+                    className="p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
                   >
-                    <FiX className="h-6 w-6" />
+                    <FiX className="h-5 w-5" />
                   </button>
                 </div>
-                <div className="p-6 overflow-y-auto max-h-[70vh]">
+
+                {/* Content */}
+                <div className="p-4 space-y-4">
                   {modal.type === "zoom" && (
-                    <div className="space-y-6">
+                    <>
                       <div>
-                        <label className="block text-sm font-bold text-gray-800 mb-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                           Meeting Link *
                         </label>
-                        <div className="flex gap-3">
-                          <input
-                            placeholder="https://zoom.us/j/... or https://meet.google.com/..."
-                            value={forms[modal.studentId]?.link || ""}
-                            onChange={(e) =>
-                              updateForm(modal.studentId!, {
-                                link: e.target.value,
-                              })
-                            }
-                            className="flex-1 p-4 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500 text-base transition-all duration-200"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleCopy(forms[modal.studentId!]?.link || "")
-                            }
-                            className="px-4 border-2 border-blue-200 hover:bg-blue-50"
-                            aria-label="Copy meeting link"
-                          >
-                            <FiCopy className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          Enter your Zoom, Google Meet, or other meeting
-                          platform link
-                        </p>
+                        <input
+                          placeholder="https://zoom.us/j/..."
+                          value={forms[modal.studentId]?.link || ""}
+                          onChange={(e) =>
+                            updateForm(modal.studentId!, { link: e.target.value })
+                          }
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
                       </div>
-
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FiClock className="h-4 w-4 text-blue-600" />
-                          <label className="text-sm font-bold text-blue-800">
-                            Sending Time
-                          </label>
-                        </div>
-                        <div className="text-lg font-mono text-blue-900">
-                          {new Date().toLocaleString()}
-                        </div>
-                        <p className="text-xs text-blue-600 mt-1">
-                          Link will be sent via Telegram immediately
-                        </p>
-                      </div>
-
                       <Button
                         disabled={
                           !!sending[modal.studentId] ||
                           !forms[modal.studentId]?.link?.trim()
                         }
                         onClick={() => sendZoom(modal.studentId!)}
-                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg"
                       >
                         {sending[modal.studentId] ? (
                           <span className="flex items-center gap-2">
-                            <svg
-                              className="animate-spin h-5 w-5"
-                              viewBox="0 0 24 24"
-                            >
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                               <circle
                                 className="opacity-25"
                                 cx="12"
@@ -1101,68 +1053,42 @@ export default function AssignedStudents() {
                                 d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                               />
                             </svg>
-                            Sending Link...
+                            Sending...
                           </span>
                         ) : (
                           <span className="flex items-center gap-2">
-                            <FiSend className="h-5 w-5" />
-                            Send Zoom Link
+                            <FiSend className="h-4 w-4" />
+                            Send Link
                           </span>
                         )}
                       </Button>
-                    </div>
+                    </>
                   )}
 
                   {modal.type === "attendance" && (
-                    <div className="space-y-6">
+                    <>
                       <div>
-                        <label className="block text-sm font-bold text-gray-800 mb-3">
-                          Attendance Status *
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Status *
                         </label>
-                        <div className="grid grid-cols-2 gap-3">
-                          {(["present", "absent", "permission"] as const).map(
-                            (status) => {
-                              const getStatusColor = (status: string) => {
-                                switch (status) {
-                                  case "present":
-                                    return attend[modal.studentId!]?.status ===
-                                      status
-                                      ? "bg-green-600 text-white border-green-600"
-                                      : "border-green-300 text-green-700 hover:bg-green-50";
-                                  case "absent":
-                                    return attend[modal.studentId!]?.status ===
-                                      status
-                                      ? "bg-red-600 text-white border-red-600"
-                                      : "border-red-300 text-red-700 hover:bg-red-50";
-                                  case "permission":
-                                    return attend[modal.studentId!]?.status ===
-                                      status
-                                      ? "bg-yellow-600 text-white border-yellow-600"
-                                      : "border-yellow-300 text-yellow-700 hover:bg-yellow-50";
-                                  default:
-                                    return "border-gray-300 text-gray-700 hover:bg-gray-50";
-                                }
-                              };
-
-                              return (
-                                <button
-                                  key={status}
-                                  onClick={() =>
-                                    updateAttend(modal.studentId!, { status })
-                                  }
-                                  className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${getStatusColor(
-                                    status
-                                  )}`}
-                                  aria-pressed={
-                                    attend[modal.studentId!]?.status === status
-                                  }
-                                >
-                                  {status.charAt(0).toUpperCase() +
-                                    status.slice(1)}
-                                </button>
-                              );
-                            }
-                          )}
+                        <div className="grid grid-cols-3 gap-2">
+                          {(["present", "absent", "permission"] as const).map((status) => (
+                            <button
+                              key={status}
+                              onClick={() => updateAttend(modal.studentId!, { status })}
+                              className={`px-3 py-2 rounded-lg border font-medium text-sm transition-all ${
+                                attend[modal.studentId!]?.status === status
+                                  ? status === "present"
+                                    ? "bg-green-600 text-white border-green-600"
+                                    : status === "absent"
+                                    ? "bg-red-600 text-white border-red-600"
+                                    : "bg-yellow-600 text-white border-yellow-600"
+                                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                              }`}
+                            >
+                              {status.charAt(0).toUpperCase() + status.slice(1)}
+                            </button>
+                          ))}
                         </div>
                       </div>
 
@@ -1170,56 +1096,33 @@ export default function AssignedStudents() {
                         const currentStudent = groups
                           .flatMap((g) => g.students)
                           .find((s) => s.id === modal.studentId);
-                        const isQaidah =
-                          currentStudent?.subject?.toLowerCase() === "qaidah";
+                        const isQaidah = currentStudent?.subject?.toLowerCase() === "qaidah";
 
                         return (
                           <div>
-                            {isQaidah ? (
-                              <div>
-                                <label className="block text-sm font-bold text-gray-800 mb-2">
-                                  Lesson Topic
-                                </label>
-                                <select
-                                  value={attend[modal.studentId]?.lesson || ""}
-                                  onChange={(e) =>
-                                    updateAttend(modal.studentId!, {
-                                      lesson: e.target.value,
-                                    })
-                                  }
-                                  className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-base appearance-none"
-                                >
-                                  <option value="">Select Lesson</option>
-                                  {qaidahLessons.map((lesson) => (
-                                    <option key={lesson} value={lesson}>
-                                      {lesson}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            ) : (
-                              <div>
-                                <label className="block text-sm font-bold text-gray-800 mb-2">
-                                  Surah
-                                </label>
-                                <select
-                                  value={attend[modal.studentId]?.surah || ""}
-                                  onChange={(e) =>
-                                    updateAttend(modal.studentId!, {
-                                      surah: e.target.value,
-                                    })
-                                  }
-                                  className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-base appearance-none"
-                                >
-                                  <option value="">Select Surah</option>
-                                  {surahs.map((surah) => (
-                                    <option key={surah} value={surah}>
-                                      {surah}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            )}
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              {isQaidah ? "Lesson" : "Surah"}
+                            </label>
+                            <select
+                              value={
+                                isQaidah
+                                  ? attend[modal.studentId]?.lesson || ""
+                                  : attend[modal.studentId]?.surah || ""
+                              }
+                              onChange={(e) =>
+                                updateAttend(modal.studentId!, {
+                                  [isQaidah ? "lesson" : "surah"]: e.target.value,
+                                })
+                              }
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            >
+                              <option value="">Select {isQaidah ? "Lesson" : "Surah"}</option>
+                              {(isQaidah ? qaidahLessons : surahs).map((item) => (
+                                <option key={item} value={item}>
+                                  {item}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         );
                       })()}
@@ -1227,17 +1130,13 @@ export default function AssignedStudents() {
                       <Button
                         onClick={() => saveAttendance(modal.studentId!)}
                         disabled={
-                          !!sending[modal.studentId] ||
-                          !attend[modal.studentId]?.status
+                          !!sending[modal.studentId] || !attend[modal.studentId]?.status
                         }
-                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg"
                       >
                         {sending[modal.studentId] ? (
                           <span className="flex items-center gap-2">
-                            <svg
-                              className="animate-spin h-5 w-5"
-                              viewBox="0 0 24 24"
-                            >
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                               <circle
                                 className="opacity-25"
                                 cx="12"
@@ -1252,16 +1151,16 @@ export default function AssignedStudents() {
                                 d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                               />
                             </svg>
-                            Saving Attendance...
+                            Saving...
                           </span>
                         ) : (
                           <span className="flex items-center gap-2">
-                            <FiCheck className="h-5 w-5" />
-                            Save Attendance Record
+                            <FiCheck className="h-4 w-4" />
+                            Save
                           </span>
                         )}
                       </Button>
-                    </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -1270,14 +1169,16 @@ export default function AssignedStudents() {
         )}
       </div>
 
-      {/* Slide Panel Animations */}
+      {/* Modal Animations */}
       <style jsx>{`
-        @keyframes slide-up {
+        @keyframes scale-up {
           from {
-            transform: translateY(100%);
+            opacity: 0;
+            transform: scale(0.95);
           }
           to {
-            transform: translateY(0);
+            opacity: 1;
+            transform: scale(1);
           }
         }
         @keyframes fade-in {
@@ -1288,8 +1189,8 @@ export default function AssignedStudents() {
             opacity: 1;
           }
         }
-        .animate-slide-up {
-          animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        .animate-scale-up {
+          animation: scale-up 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .animate-fade-in {
           animation: fade-in 0.2s ease-out;
