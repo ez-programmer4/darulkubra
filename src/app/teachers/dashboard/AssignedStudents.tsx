@@ -8,6 +8,7 @@ import {
   FiClock,
   FiLink2,
   FiAlertTriangle,
+  FiX,
   FiRefreshCcw,
   FiFilter,
   FiSearch,
@@ -40,7 +41,7 @@ type Group = {
   }>;
 };
 
-
+type ModalType = "zoom" | "attendance" | null;
 
 // Utils
 
@@ -90,7 +91,10 @@ export default function AssignedStudents() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const [modal, setModal] = useState<{
+    type: ModalType;
+    studentId: number | null;
+  }>({ type: null, studentId: null });
   const [forms, setForms] = useState<Record<number, { link: string }>>({});
   const [attend, setAttend] = useState<
     Record<
@@ -107,7 +111,46 @@ export default function AssignedStudents() {
   >({});
   const [sending, setSending] = useState<Record<number, boolean>>({});
   const [surahs, setSurahs] = useState<string[]>([]);
-  const qaidahLessons = ["ክፍል 1", "ክፍል 2", "ክፍል 3", "ክፍል 4", "ክፍል 5", "ክፍል 6 [ exam ]", "ክፍል 7", "ክፍል 8", "ክፍል 9", "ክፍል 10", "ክፍል 11", "ክፍል 12", "ክፍል 13", "ክፍል 14", "ክፍል 15", "ክፍል 16", "ክፍል 17", "ክፍል 18", "ክፍል 19 ( exam )", "ክፍል 20", "ክፍል 21", "ክፍል 22", "ክፍል 23", "ክፍል 24", "ክፍል 25", "ክፍል 26", "ክፍል 27", "ክፍል 28", "ክፍል 29", "ክፍል 30", "ክፍል 31", "ክፍል 32", "ክፍል 33", "ክፍል 34", "ክፍል 35", "ክፍል 36", "ክፍል 37", "ክፍል 38 ( final exam )"];
+  const qaidahLessons = [
+    "ክፍል 1",
+    "ክፍል 2",
+    "ክፍል 3",
+    "ክፍል 4",
+    "ክፍል 5",
+    "ክፍል 6 [ exam ]",
+    "ክፍል 7",
+    "ክፍል 8",
+    "ክፍል 9",
+    "ክፍል 10",
+    "ክፍል 11",
+    "ክፍል 12",
+    "ክፍል 13",
+    "ክፍል 14",
+    "ክፍል 15",
+    "ክፍል 16",
+    "ክፍል 17",
+    "ክፍል 18",
+    "ክፍል 19 ( exam )",
+    "ክፍል 20",
+    "ክፍል 21",
+    "ክፍል 22",
+    "ክፍል 23",
+    "ክፍል 24",
+    "ክፍል 25",
+    "ክፍል 26",
+    "ክፍል 27",
+    "ክፍል 28",
+    "ክፍል 29",
+    "ክፍል 30",
+    "ክፍል 31",
+    "ክፍል 32",
+    "ክፍል 33",
+    "ክፍል 34",
+    "ክፍል 35",
+    "ክፍል 36",
+    "ክፍል 37",
+    "ክፍል 38 ( final exam )",
+  ];
   const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
 
   // Set all students as having zoom sent (temporary fix)
@@ -134,7 +177,14 @@ export default function AssignedStudents() {
     setNow(new Date());
   }, []);
 
-
+  // Close modal on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setModal({ type: null, studentId: null });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     refresh();
@@ -423,6 +473,7 @@ export default function AssignedStudents() {
         [studentId]: { link: "" },
       }));
       setZoomSent((z) => ({ ...z, [studentId]: true }));
+      setModal({ type: null, studentId: null });
     } catch (e: any) {
       console.error("Zoom sending error:", e);
       toast({
@@ -471,6 +522,7 @@ export default function AssignedStudents() {
         description: "Attendance saved successfully!",
       });
       setAttend((a) => ({ ...a, [studentId]: { status: "present" } }));
+      setModal({ type: null, studentId: null });
     } catch (e: any) {
       toast({
         title: "Error",
@@ -729,7 +781,7 @@ export default function AssignedStudents() {
                         <th className="py-6 text-left font-bold text-black uppercase tracking-wider">
                           Schedule
                         </th>
-                        <th className="py-6 text-left font-bold text-black uppercase tracking-wider">
+                        <th className="py-6 text-right font-bold text-black uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
@@ -783,55 +835,43 @@ export default function AssignedStudents() {
                               )}
                             </div>
                           </td>
-                          <td className="py-6">
-                            <div className="space-y-3">
-                              {/* Zoom Link Input */}
-                              <div className="flex gap-2">
-                                <input
-                                  placeholder="Zoom link..."
-                                  value={forms[s.id]?.link || ""}
-                                  onChange={(e) => updateForm(s.id, { link: e.target.value })}
-                                  className="flex-1 p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                />
-                                <Button
-                                  onClick={() => sendZoom(s.id)}
-                                  disabled={!!sending[s.id] || !forms[s.id]?.link?.trim()}
-                                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm"
-                                >
-                                  {sending[s.id] ? "..." : "Send"}
-                                </Button>
-                              </div>
-                              
-                              {/* Attendance Controls */}
-                              <div className="flex gap-2">
-                                <select
-                                  value={attend[s.id]?.status || ""}
-                                  onChange={(e) => updateAttend(s.id, { status: e.target.value })}
-                                  className="flex-1 p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                                >
-                                  <option value="">Status</option>
-                                  <option value="present">Present</option>
-                                  <option value="absent">Absent</option>
-                                  <option value="permission">Permission</option>
-                                </select>
-                                <select
-                                  value={s.subject?.toLowerCase() === "qaidah" ? attend[s.id]?.lesson || "" : attend[s.id]?.surah || ""}
-                                  onChange={(e) => updateAttend(s.id, { [s.subject?.toLowerCase() === "qaidah" ? "lesson" : "surah"]: e.target.value })}
-                                  className="flex-1 p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                                >
-                                  <option value="">{s.subject?.toLowerCase() === "qaidah" ? "Lesson" : "Surah"}</option>
-                                  {(s.subject?.toLowerCase() === "qaidah" ? qaidahLessons : surahs).map((item) => (
-                                    <option key={item} value={item}>{item}</option>
-                                  ))}
-                                </select>
-                                <Button
-                                  onClick={() => saveAttendance(s.id)}
-                                  disabled={!!sending[s.id] || !attend[s.id]?.status}
-                                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm"
-                                >
-                                  {sending[s.id] ? "..." : "Save"}
-                                </Button>
-                              </div>
+                          <td className="py-6 text-right">
+                            <div className="flex gap-3 justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              <Button
+                                onClick={() =>
+                                  setModal({ type: "zoom", studentId: s.id })
+                                }
+                                className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                              >
+                                <FiLink2 className="h-4 w-4 mr-2" />
+                                Send Zoom
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  if (!zoomSent[s.id]) {
+                                    toast({
+                                      title: "Zoom Link Required",
+                                      description:
+                                        "Please send the Zoom link first before marking attendance.",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  setModal({
+                                    type: "attendance",
+                                    studentId: s.id,
+                                  });
+                                }}
+                                disabled={!zoomSent[s.id]}
+                                className={`px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 ${
+                                  zoomSent[s.id]
+                                    ? "bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white"
+                                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                }`}
+                              >
+                                <FiCheck className="h-4 w-4 mr-2" />
+                                Attendance
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -931,54 +971,39 @@ export default function AssignedStudents() {
                         </div>
                       </div>
 
-                      <div className="space-y-3">
-                        {/* Zoom Link Input */}
-                        <div className="flex gap-2">
-                          <input
-                            placeholder="Zoom link..."
-                            value={forms[s.id]?.link || ""}
-                            onChange={(e) => updateForm(s.id, { link: e.target.value })}
-                            className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                          <Button
-                            onClick={() => sendZoom(s.id)}
-                            disabled={!!sending[s.id] || !forms[s.id]?.link?.trim()}
-                            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-3 rounded-lg"
-                          >
-                            {sending[s.id] ? "Sending..." : "Send"}
-                          </Button>
-                        </div>
-                        
-                        {/* Attendance Controls */}
-                        <div className="grid grid-cols-3 gap-2">
-                          <select
-                            value={attend[s.id]?.status || ""}
-                            onChange={(e) => updateAttend(s.id, { status: e.target.value })}
-                            className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                          >
-                            <option value="">Status</option>
-                            <option value="present">Present</option>
-                            <option value="absent">Absent</option>
-                            <option value="permission">Permission</option>
-                          </select>
-                          <select
-                            value={s.subject?.toLowerCase() === "qaidah" ? attend[s.id]?.lesson || "" : attend[s.id]?.surah || ""}
-                            onChange={(e) => updateAttend(s.id, { [s.subject?.toLowerCase() === "qaidah" ? "lesson" : "surah"]: e.target.value })}
-                            className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                          >
-                            <option value="">{s.subject?.toLowerCase() === "qaidah" ? "Lesson" : "Surah"}</option>
-                            {(s.subject?.toLowerCase() === "qaidah" ? qaidahLessons : surahs).map((item) => (
-                              <option key={item} value={item}>{item}</option>
-                            ))}
-                          </select>
-                          <Button
-                            onClick={() => saveAttendance(s.id)}
-                            disabled={!!sending[s.id] || !attend[s.id]?.status}
-                            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-3 rounded-lg"
-                          >
-                            {sending[s.id] ? "Saving..." : "Save"}
-                          </Button>
-                        </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Button
+                          onClick={() =>
+                            setModal({ type: "zoom", studentId: s.id })
+                          }
+                          className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white py-4 rounded-xl font-bold shadow-lg touch-manipulation hover:scale-105 transition-all duration-200"
+                        >
+                          <FiLink2 className="h-4 w-4 mr-2" />
+                          Send Zoom Link
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            if (!zoomSent[s.id]) {
+                              toast({
+                                title: "Zoom Link Required",
+                                description:
+                                  "Please send the Zoom link first before marking attendance.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setModal({ type: "attendance", studentId: s.id });
+                          }}
+                          disabled={!zoomSent[s.id]}
+                          className={`py-4 rounded-xl font-bold shadow-lg touch-manipulation transition-all duration-200 ${
+                            zoomSent[s.id]
+                              ? "bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white hover:scale-105"
+                              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          }`}
+                        >
+                          <FiCheck className="h-4 w-4 mr-2" />
+                          Mark Attendance
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -988,19 +1013,311 @@ export default function AssignedStudents() {
           ))}
         </div>
 
+        {/* Centered Modal */}
+        {modal.type && modal.studentId !== null && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/60 z-40 animate-fade-in flex items-center justify-center p-4"
+              onClick={() => setModal({ type: null, studentId: null })}
+            >
+              <div 
+                className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-md max-h-[90vh] overflow-hidden animate-scale-up"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`p-3 rounded-2xl ${
+                        modal.type === "zoom"
+                          ? "bg-gradient-to-br from-blue-600 to-indigo-700"
+                          : "bg-gradient-to-br from-green-600 to-emerald-700"
+                      }`}
+                    >
+                      {modal.type === "zoom" ? (
+                        <FiLink2 className="h-6 w-6 text-white" />
+                      ) : (
+                        <FiCheck className="h-6 w-6 text-white" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-black">
+                        {modal.type === "zoom"
+                          ? "Send Zoom Link"
+                          : "Mark Attendance"}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {modal.type === "zoom"
+                          ? "Share meeting details with your student"
+                          : "Record student progress and attendance"}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setModal({ type: null, studentId: null })}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                    aria-label="Close"
+                  >
+                    <FiX className="h-6 w-6" />
+                  </button>
+                </div>
+                <div className="p-6 overflow-y-auto max-h-[70vh]">
+                  {modal.type === "zoom" && (
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-800 mb-3">
+                          Meeting Link *
+                        </label>
+                        <div className="flex gap-3">
+                          <input
+                            placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+                            value={forms[modal.studentId]?.link || ""}
+                            onChange={(e) =>
+                              updateForm(modal.studentId!, {
+                                link: e.target.value,
+                              })
+                            }
+                            className="flex-1 p-4 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500 text-base transition-all duration-200"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleCopy(forms[modal.studentId!]?.link || "")
+                            }
+                            className="px-4 border-2 border-blue-200 hover:bg-blue-50"
+                            aria-label="Copy meeting link"
+                          >
+                            <FiCopy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Enter your Zoom, Google Meet, or other meeting
+                          platform link
+                        </p>
+                      </div>
 
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FiClock className="h-4 w-4 text-blue-600" />
+                          <label className="text-sm font-bold text-blue-800">
+                            Sending Time
+                          </label>
+                        </div>
+                        <div className="text-lg font-mono text-blue-900">
+                          {new Date().toLocaleString()}
+                        </div>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Link will be sent via Telegram immediately
+                        </p>
+                      </div>
+
+                      <Button
+                        disabled={
+                          !!sending[modal.studentId] ||
+                          !forms[modal.studentId]?.link?.trim()
+                        }
+                        onClick={() => sendZoom(modal.studentId!)}
+                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+                      >
+                        {sending[modal.studentId] ? (
+                          <span className="flex items-center gap-2">
+                            <svg
+                              className="animate-spin h-5 w-5"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                              />
+                            </svg>
+                            Sending Link...
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <FiSend className="h-5 w-5" />
+                            Send Zoom Link
+                          </span>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
+                  {modal.type === "attendance" && (
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-800 mb-3">
+                          Attendance Status *
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                          {(["present", "absent", "permission"] as const).map(
+                            (status) => {
+                              const getStatusColor = (status: string) => {
+                                switch (status) {
+                                  case "present":
+                                    return attend[modal.studentId!]?.status ===
+                                      status
+                                      ? "bg-green-600 text-white border-green-600"
+                                      : "border-green-300 text-green-700 hover:bg-green-50";
+                                  case "absent":
+                                    return attend[modal.studentId!]?.status ===
+                                      status
+                                      ? "bg-red-600 text-white border-red-600"
+                                      : "border-red-300 text-red-700 hover:bg-red-50";
+                                  case "permission":
+                                    return attend[modal.studentId!]?.status ===
+                                      status
+                                      ? "bg-yellow-600 text-white border-yellow-600"
+                                      : "border-yellow-300 text-yellow-700 hover:bg-yellow-50";
+                                  default:
+                                    return "border-gray-300 text-gray-700 hover:bg-gray-50";
+                                }
+                              };
+
+                              return (
+                                <button
+                                  key={status}
+                                  onClick={() =>
+                                    updateAttend(modal.studentId!, { status })
+                                  }
+                                  className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${getStatusColor(
+                                    status
+                                  )}`}
+                                  aria-pressed={
+                                    attend[modal.studentId!]?.status === status
+                                  }
+                                >
+                                  {status.charAt(0).toUpperCase() +
+                                    status.slice(1)}
+                                </button>
+                              );
+                            }
+                          )}
+                        </div>
+                      </div>
+
+                      {(() => {
+                        const currentStudent = groups
+                          .flatMap((g) => g.students)
+                          .find((s) => s.id === modal.studentId);
+                        const isQaidah =
+                          currentStudent?.subject?.toLowerCase() === "qaidah";
+
+                        return (
+                          <div>
+                            {isQaidah ? (
+                              <div>
+                                <label className="block text-sm font-bold text-gray-800 mb-2">
+                                  Lesson Topic
+                                </label>
+                                <select
+                                  value={attend[modal.studentId]?.lesson || ""}
+                                  onChange={(e) =>
+                                    updateAttend(modal.studentId!, {
+                                      lesson: e.target.value,
+                                    })
+                                  }
+                                  className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-base appearance-none"
+                                >
+                                  <option value="">Select Lesson</option>
+                                  {qaidahLessons.map((lesson) => (
+                                    <option key={lesson} value={lesson}>
+                                      {lesson}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="block text-sm font-bold text-gray-800 mb-2">
+                                  Surah
+                                </label>
+                                <select
+                                  value={attend[modal.studentId]?.surah || ""}
+                                  onChange={(e) =>
+                                    updateAttend(modal.studentId!, {
+                                      surah: e.target.value,
+                                    })
+                                  }
+                                  className="w-full p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 text-base appearance-none"
+                                >
+                                  <option value="">Select Surah</option>
+                                  {surahs.map((surah) => (
+                                    <option key={surah} value={surah}>
+                                      {surah}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      <Button
+                        onClick={() => saveAttendance(modal.studentId!)}
+                        disabled={
+                          !!sending[modal.studentId] ||
+                          !attend[modal.studentId]?.status
+                        }
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+                      >
+                        {sending[modal.studentId] ? (
+                          <span className="flex items-center gap-2">
+                            <svg
+                              className="animate-spin h-5 w-5"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                              />
+                            </svg>
+                            Saving Attendance...
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <FiCheck className="h-5 w-5" />
+                            Save Attendance Record
+                          </span>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Enhanced Modal Animations */}
+      {/* Modal Animations */}
       <style jsx>{`
         @keyframes scale-up {
           from {
+            transform: scale(0.95);
             opacity: 0;
-            transform: scale(0.9) translateY(-20px);
           }
           to {
+            transform: scale(1);
             opacity: 1;
-            transform: scale(1) translateY(0);
           }
         }
         @keyframes fade-in {
@@ -1012,26 +1329,10 @@ export default function AssignedStudents() {
           }
         }
         .animate-scale-up {
-          animation: scale-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+          animation: scale-up 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .animate-fade-in {
           animation: fade-in 0.2s ease-out;
-        }
-        
-        /* Smooth scrollbar */
-        ::-webkit-scrollbar {
-          width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb {
-          background: #c1c1c1;
-          border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-          background: #a8a8a8;
         }
       `}</style>
     </div>
