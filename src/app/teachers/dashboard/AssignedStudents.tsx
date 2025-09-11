@@ -10,7 +10,6 @@ import {
   FiAlertTriangle,
   FiX,
   FiRefreshCcw,
-  FiFilter,
   FiSearch,
   FiCopy,
   FiChevronDown,
@@ -108,6 +107,14 @@ export default function AssignedStudents() {
   >({});
   const [sending, setSending] = useState<Record<number, boolean>>({});
   const [surahs, setSurahs] = useState<string[]>([]);
+  const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
+  const [query, setQuery] = useState("");
+  const [pkgFilter, setPkgFilter] = useState("all");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expAll, setExpAll] = useState(false);
+  const [todayOnly, setTodayOnly] = useState(true);
+  const [now, setNow] = useState<Date>(new Date());
+
   const qaidahLessons = [
     "ክፍል 1",
     "ክፍል 2",
@@ -148,13 +155,6 @@ export default function AssignedStudents() {
     "ክፍል 37",
     "ክፍል 38 ( final exam )",
   ];
-  const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
-  const [query, setQuery] = useState("");
-  const [pkgFilter, setPkgFilter] = useState("all");
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [expAll, setExpAll] = useState(false);
-  const [todayOnly, setTodayOnly] = useState(true);
-  const [now, setNow] = useState<Date>(new Date());
 
   useEffect(() => {
     setNow(new Date());
@@ -171,7 +171,38 @@ export default function AssignedStudents() {
   useEffect(() => {
     refresh();
     loadSurahs();
+    checkZoomStatus();
   }, []);
+
+  const checkZoomStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/teachers/students/zoom-status", {
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      });
+      if (!res.ok) throw new Error("Failed to fetch Zoom status");
+      const data = await res.json();
+      const zoomStatus: Record<number, boolean> = {};
+      if (data.sentToday && Array.isArray(data.sentToday)) {
+        data.sentToday.forEach((studentId: number) => {
+          zoomStatus[studentId] = true;
+        });
+      }
+      setZoomSent(zoomStatus);
+    } catch (error) {
+      console.error("Failed to check zoom status:", error);
+      toast({
+        title: "Error",
+        description: "Could not verify Zoom link status.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
 
   async function loadSurahs() {
     setSurahs([
@@ -292,7 +323,7 @@ export default function AssignedStudents() {
     ]);
   }
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -321,7 +352,7 @@ export default function AssignedStudents() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [expAll, toast]);
 
   const updateForm = useMemo(
     () => (id: number, patch: Partial<{ link: string }>) =>
@@ -358,120 +389,128 @@ export default function AssignedStudents() {
     []
   );
 
-  async function sendZoom(studentId: number) {
-    try {
-      const form = forms[studentId];
-      if (!form?.link) {
-        toast({
-          title: "Error",
-          description: "Meeting link is required.",
-          variant: "destructive",
-        });
-        return;
-      }
-      setSending((s) => ({ ...s, [studentId]: true }));
-
-      const res = await fetch(`/api/teachers/students/${studentId}/zoom`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          link: form.link,
-        }),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        let errorMessage = "Failed to send Zoom link";
-        try {
-          const errorData = await res.json();
-          errorMessage = errorData.error || errorMessage;
-          console.error("Zoom API error:", errorData);
-        } catch {
-          const errorText = await res.text();
-          errorMessage = errorText || errorMessage;
-          console.error("Zoom API error text:", errorText);
+  const sendZoom = useCallback(
+    async (studentId: number) => {
+      try {
+        const form = forms[studentId];
+        if (!form?.link?.trim()) {
+          toast({
+            title: "Error",
+            description: "Meeting link is required.",
+            variant: "destructive",
+          });
+          return;
         }
-        throw new Error(errorMessage);
-      }
+        setSending((s) => ({ ...s, [studentId]: true }));
 
-      const responseData = await res.json();
-      const successMessage = responseData.notification_sent
-        ? "Zoom link sent successfully via Telegram!"
-        : responseData.notification_error
-        ? `Zoom link saved but notification failed: ${responseData.notification_error}`
-        : "Zoom link sent successfully!";
-
-      toast({
-        title: "Success",
-        description: successMessage,
-        variant: responseData.notification_sent ? "default" : "default",
-      });
-
-      setForms((f) => ({
-        ...f,
-        [studentId]: { link: "" },
-      }));
-      setZoomSent((z) => ({ ...z, [studentId]: true }));
-      setModal({ type: null, studentId: null });
-    } catch (e: any) {
-      console.error("Zoom sending error:", e);
-      toast({
-        title: "Error",
-        description: e.message || "Failed to send Zoom link.",
-        variant: "destructive",
-      });
-    } finally {
-      setSending((s) => ({ ...s, [studentId]: false }));
-    }
-  }
-
-  async function saveAttendance(studentId: number) {
-    try {
-      const rec = attend[studentId];
-      if (!rec?.status) {
-        toast({
-          title: "Error",
-          description: "Attendance status is required.",
-          variant: "destructive",
-        });
-        return;
-      }
-      setSending((s) => ({ ...s, [studentId]: true }));
-      const res = await fetch(
-        `/api/teachers/students/${studentId}/attendance`,
-        {
+        const res = await fetch(`/api/teachers/students/${studentId}/zoom`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            attendance_status:
-              rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
-            surah: rec.surah || undefined,
-            lesson: rec.lesson || undefined,
-            notes: rec.notes || undefined,
+            link: form.link,
+            sent_at: new Date().toISOString(), // Store in UTC
           }),
           credentials: "include",
+        });
+
+        if (!res.ok) {
+          let errorMessage = "Failed to send Zoom link";
+          try {
+            const errorData = await res.json();
+            errorMessage = errorData.error || errorMessage;
+            console.error("Zoom API error:", errorData);
+          } catch {
+            const errorText = await res.text();
+            errorMessage = errorText || errorMessage;
+            console.error("Zoom API error text:", errorText);
+          }
+          throw new Error(errorMessage);
         }
-      );
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Failed to save attendance: ${errorText}`);
+
+        const responseData = await res.json();
+        const successMessage = responseData.notification_sent
+          ? "Zoom link sent successfully via Telegram!"
+          : responseData.notification_error
+          ? `Zoom link saved but notification failed: ${responseData.notification_error}`
+          : "Zoom link sent successfully!";
+
+        toast({
+          title: "Success",
+          description: successMessage,
+          variant: responseData.notification_sent ? "default" : "default",
+        });
+
+        setForms((f) => ({
+          ...f,
+          [studentId]: { link: "" },
+        }));
+        setZoomSent((z) => ({ ...z, [studentId]: true }));
+        setModal({ type: null, studentId: null });
+      } catch (e: any) {
+        console.error("Zoom sending error:", e);
+        toast({
+          title: "Error",
+          description: e.message || "Failed to send Zoom link.",
+          variant: "destructive",
+        });
+      } finally {
+        setSending((s) => ({ ...s, [studentId]: false }));
       }
-      toast({
-        title: "Success",
-        description: "Attendance saved successfully!",
-      });
-      setAttend((a) => ({ ...a, [studentId]: { status: "present" } }));
-      setModal({ type: null, studentId: null });
-    } catch (e: any) {
-      toast({
-        title: "Error",
-        description: e.message || "Failed to save attendance.",
-        variant: "destructive",
-      });
-    } finally {
-      setSending((s) => ({ ...s, [studentId]: false }));
-    }
-  }
+    },
+    [forms, toast]
+  );
+
+  const saveAttendance = useCallback(
+    async (studentId: number) => {
+      try {
+        const rec = attend[studentId];
+        if (!rec?.status) {
+          toast({
+            title: "Error",
+            description: "Attendance status is required.",
+            variant: "destructive",
+          });
+          return;
+        }
+        setSending((s) => ({ ...s, [studentId]: true }));
+        const res = await fetch(
+          `/api/teachers/students/${studentId}/attendance`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              attendance_status:
+                rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
+              surah: rec.surah || undefined,
+              lesson: rec.lesson || undefined,
+              notes: rec.notes || undefined,
+              recorded_at: new Date().toISOString(), // Store in UTC
+            }),
+            credentials: "include",
+          }
+        );
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Failed to save attendance: ${errorText}`);
+        }
+        toast({
+          title: "Success",
+          description: "Attendance saved successfully!",
+        });
+        setAttend((a) => ({ ...a, [studentId]: { status: "present" } }));
+        setModal({ type: null, studentId: null });
+      } catch (e: any) {
+        toast({
+          title: "Error",
+          description: e.message || "Failed to save attendance.",
+          variant: "destructive",
+        });
+      } finally {
+        setSending((s) => ({ ...s, [studentId]: false }));
+      }
+    },
+    [attend, toast]
+  );
 
   const filteredGroups = useMemo(() => {
     const q = String(query ?? "")
@@ -554,7 +593,6 @@ export default function AssignedStudents() {
               </div>
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
               <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
@@ -607,7 +645,6 @@ export default function AssignedStudents() {
             </div>
           </div>
 
-          {/* Controls */}
           <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 sticky top-4 z-10">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
               <div className="lg:col-span-4">
@@ -782,12 +819,21 @@ export default function AssignedStudents() {
                                 Send Zoom
                               </Button>
                               <Button
-                                onClick={() =>
+                                onClick={() => {
+                                  if (!zoomSent[s.id]) {
+                                    toast({
+                                      title: "Zoom Link Required",
+                                      description:
+                                        "Please send the Zoom link first.",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
                                   setModal({
                                     type: "attendance",
                                     studentId: s.id,
-                                  })
-                                }
+                                  });
+                                }}
                                 disabled={!zoomSent[s.id]}
                                 className={`px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 ${
                                   zoomSent[s.id]
@@ -908,9 +954,17 @@ export default function AssignedStudents() {
                           Send Zoom Link
                         </Button>
                         <Button
-                          onClick={() =>
-                            setModal({ type: "attendance", studentId: s.id })
-                          }
+                          onClick={() => {
+                            if (!zoomSent[s.id]) {
+                              toast({
+                                title: "Zoom Link Required",
+                                description: "Please send the Zoom link first.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setModal({ type: "attendance", studentId: s.id });
+                          }}
                           disabled={!zoomSent[s.id]}
                           className={`py-4 rounded-xl font-bold shadow-lg touch-manipulation transition-all duration-200 ${
                             zoomSent[s.id]
@@ -938,7 +992,7 @@ export default function AssignedStudents() {
               onClick={() => setModal({ type: null, studentId: null })}
             />
             <div className="fixed inset-0 flex items-center justify-center z-50 animate-slide-up">
-              <div className="bg-white rounded-2xl shadow-3xl border border-gray-200 w-full max-w-md max-h-[80vh] flex flex-col">
+              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm max-h-[70vh] flex flex-col">
                 <div className="flex items-center justify-between p-4 border-b border-gray-100">
                   <div className="flex items-center gap-3">
                     <div
@@ -960,10 +1014,10 @@ export default function AssignedStudents() {
                           ? "Send Zoom Link"
                           : "Mark Attendance"}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs text-gray-500">
                         {modal.type === "zoom"
-                          ? "Share meeting details with your student"
-                          : "Record student progress and attendance"}
+                          ? "Share meeting details"
+                          : "Record student progress"}
                       </p>
                     </div>
                   </div>
@@ -975,23 +1029,27 @@ export default function AssignedStudents() {
                     <FiX className="h-5 w-5" />
                   </button>
                 </div>
-                <div className="p-4 space-y-4 overflow-y-auto">
+                <div className="p-4 space-y-4">
                   {modal.type === "zoom" && (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           Meeting Link *
                         </label>
                         <div className="flex gap-2">
                           <input
-                            placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+                            placeholder="Enter Zoom or Google Meet link"
                             value={forms[modal.studentId]?.link || ""}
                             onChange={(e) =>
                               updateForm(modal.studentId!, {
                                 link: e.target.value,
                               })
                             }
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400 text-sm transition-all duration-200"
+                            className={`flex-1 px-3 py-2 border ${
+                              forms[modal.studentId]?.link?.trim()
+                                ? "border-gray-300"
+                                : "border-red-300"
+                            } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400 text-sm transition-all duration-200`}
                           />
                           <Button
                             variant="outline"
@@ -1005,31 +1063,20 @@ export default function AssignedStudents() {
                             <FiCopy className="h-4 w-4" />
                           </Button>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Enter your Zoom, Google Meet, or other meeting
-                          platform link
-                        </p>
-                      </div>
-
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <FiClock className="h-4 w-4 text-blue-600" />
-                          <label className="text-sm font-medium text-blue-800">
-                            Sending Time
-                          </label>
-                        </div>
-                        <div className="text-sm font-medium text-blue-900">
-                          {new Date().toLocaleString()}
-                        </div>
+                        {!forms[modal.studentId]?.link?.trim() && (
+                          <p className="text-xs text-red-500 mt-1">
+                            Meeting link is required
+                          </p>
+                        )}
                       </div>
 
                       <Button
                         disabled={
-                          !!sending[modal.studentId] ||
+                          sending[modal.studentId] ||
                           !forms[modal.studentId]?.link?.trim()
                         }
                         onClick={() => sendZoom(modal.studentId!)}
-                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold py-2.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
                       >
                         {sending[modal.studentId] ? (
                           <span className="flex items-center gap-2">
@@ -1051,7 +1098,7 @@ export default function AssignedStudents() {
                                 d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                               />
                             </svg>
-                            Sending Link...
+                            Sending...
                           </span>
                         ) : (
                           <span className="flex items-center gap-2">
@@ -1064,9 +1111,9 @@ export default function AssignedStudents() {
                   )}
 
                   {modal.type === "attendance" && (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           Attendance Status *
                         </label>
                         <div className="grid grid-cols-3 gap-2">
@@ -1114,6 +1161,11 @@ export default function AssignedStudents() {
                             }
                           )}
                         </div>
+                        {!attend[modal.studentId]?.status && (
+                          <p className="text-xs text-red-500 mt-1">
+                            Please select an attendance status
+                          </p>
+                        )}
                       </div>
 
                       {(() => {
@@ -1127,7 +1179,7 @@ export default function AssignedStudents() {
                           <div>
                             {isQaidah ? (
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                   Lesson Topic
                                 </label>
                                 <select
@@ -1149,7 +1201,7 @@ export default function AssignedStudents() {
                               </div>
                             ) : (
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                   Surah
                                 </label>
                                 <select
@@ -1177,10 +1229,10 @@ export default function AssignedStudents() {
                       <Button
                         onClick={() => saveAttendance(modal.studentId!)}
                         disabled={
-                          !!sending[modal.studentId] ||
+                          sending[modal.studentId] ||
                           !attend[modal.studentId]?.status
                         }
-                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-semibold py-2.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-semibold py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
                       >
                         {sending[modal.studentId] ? (
                           <span className="flex items-center gap-2">
@@ -1202,7 +1254,7 @@ export default function AssignedStudents() {
                                 d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                               />
                             </svg>
-                            Saving Attendance...
+                            Saving...
                           </span>
                         ) : (
                           <span className="flex items-center gap-2">
