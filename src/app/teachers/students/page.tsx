@@ -153,18 +153,44 @@ export default function AssignedStudents() {
   ];
   const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
 
-  // Set all students as having zoom sent (temporary fix)
-  useEffect(() => {
-    if (groups.length > 0) {
-      const allStudentIds: Record<number, boolean> = {};
-      groups.forEach((group) => {
-        group.students.forEach((student) => {
-          allStudentIds[student.id] = true;
-        });
+  const checkZoomStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/teachers/students/zoom-status", {
+        credentials: "include",
+        cache: "no-store",
       });
-      setZoomSent(allStudentIds);
+
+      if (res.ok) {
+        const data = await res.json();
+        const zoomStatus: Record<number, boolean> = {};
+
+        // Initialize all students as false
+        groups.forEach((group) => {
+          group.students.forEach((student) => {
+            zoomStatus[student.id] = false;
+          });
+        });
+
+        // Set true for students who have zoom links sent today
+        if (data.sentToday && Array.isArray(data.sentToday)) {
+          data.sentToday.forEach((studentId: number) => {
+            zoomStatus[studentId] = true;
+          });
+        }
+
+        setZoomSent(zoomStatus);
+      }
+    } catch (error) {
+      console.error("Failed to check zoom status:", error);
     }
   }, [groups]);
+
+  // Check zoom status only once when groups are loaded
+  useEffect(() => {
+    if (groups.length > 0) {
+      checkZoomStatus();
+    }
+  }, [groups.length, checkZoomStatus]);
   const [query, setQuery] = useState("");
   const [pkgFilter, setPkgFilter] = useState("all");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -191,46 +217,7 @@ export default function AssignedStudents() {
     loadSurahs();
   }, []);
 
-  // Disabled zoom status checking to prevent infinite refresh
-  // useEffect(() => {
-  //   checkZoomStatus();
-  // }, []);
 
-  // useEffect(() => {
-  //   if (groups.length > 0) {
-  //     checkZoomStatus();
-  //   }
-  // }, [groups]);
-
-  // Disabled to prevent infinite refresh
-  // async function checkZoomStatus() {
-  //   try {
-  //     const res = await fetch("/api/teachers/students/zoom-status", {
-  //       credentials: "include",
-  //       cache: "no-store",
-  //       headers: {
-  //         "Cache-Control": "no-cache, no-store, must-revalidate",
-  //         Pragma: "no-cache",
-  //         Expires: "0",
-  //       },
-  //     });
-
-  //     if (res.ok) {
-  //       const data = await res.json();
-  //       const zoomStatus: Record<number, boolean> = {};
-
-  //       if (data.sentToday && Array.isArray(data.sentToday)) {
-  //         data.sentToday.forEach((studentId: number) => {
-  //           zoomStatus[studentId] = true;
-  //         });
-  //       }
-
-  //       setZoomSent(zoomStatus);
-  //     }
-  //   } catch (error) {
-  //     console.error("Failed to check zoom status:", error);
-  //   }
-  // }
 
   async function loadSurahs() {
     setSurahs([
@@ -463,9 +450,13 @@ export default function AssignedStudents() {
         : "Zoom link sent successfully!";
 
       toast({
-        title: "Success",
-        description: successMessage,
-        variant: responseData.notification_sent ? "default" : "default",
+        title: "🎉 Zoom Link Sent Successfully!",
+        description: responseData.notification_sent
+          ? "📱 Student notified via Telegram"
+          : responseData.notification_error
+          ? `⚠️ Link saved but notification failed: ${responseData.notification_error}`
+          : "✅ Zoom link has been sent to the student",
+        variant: "default",
       });
 
       setForms((f) => ({
@@ -517,9 +508,14 @@ export default function AssignedStudents() {
         const errorText = await res.text();
         throw new Error(`Failed to save attendance: ${errorText}`);
       }
+      const studentName = groups
+        .flatMap(g => g.students)
+        .find(s => s.id === studentId)?.name || "Student";
+      
       toast({
-        title: "Success",
-        description: "Attendance saved successfully!",
+        title: "✅ Attendance Recorded!",
+        description: `📝 ${studentName}'s attendance has been successfully saved`,
+        variant: "default",
       });
       setAttend((a) => ({ ...a, [studentId]: { status: "present" } }));
       setModal({ type: null, studentId: null });
@@ -596,346 +592,163 @@ export default function AssignedStudents() {
   );
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+    <div className="min-h-screen bg-white pb-20 md:pb-0">
+      <div className="space-y-4">
         {/* Header + Stats */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-8 mb-8">
-            <div className="flex items-center gap-6">
-              <div className="p-4 bg-black rounded-2xl shadow-lg">
-                <FiUsers className="h-8 w-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-2">
-                  Student Management
-                </h1>
-                <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
-                  Manage your assigned students, attendance, and class sessions
-                </p>
-              </div>
+        <div className="bg-white rounded-xl shadow-lg border p-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-blue-600 rounded-xl">
+              <FiUsers className="h-5 w-5 text-white" />
             </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:ml-auto">
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiTarget className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">
-                    Total
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-black">
-                  {totalStudents}
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiCalendar className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">
-                    Today
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-black">
-                  {todayStudents}
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiActivity className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">
-                    Groups
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-black">
-                  {filteredGroups.length}
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <FiClock className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-600">
-                    Time
-                  </span>
-                </div>
-                <div className="text-sm font-bold text-black">
-                  {now.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: true,
-                  })}
-                </div>
-              </div>
+            <div>
+              <h1 className="text-lg font-bold text-black">
+                My Students
+              </h1>
+              <p className="text-gray-600 text-sm">
+                Manage classes and attendance
+              </p>
             </div>
           </div>
 
-          {/* Controls */}
-          <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 sticky top-4 z-10">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
-              {/* Search */}
-              <div className="lg:col-span-4">
-                <label className="block text-sm font-bold text-black mb-3">
-                  <FiSearch className="inline h-4 w-4 mr-2" />
-                  Search Students
-                </label>
-                <div className="relative">
-                  <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 h-5 w-5" />
-                  <input
-                    aria-label="Search students"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search by name or subject..."
-                    className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 placeholder-gray-500 shadow-sm transition-all duration-200 text-base"
-                  />
-                </div>
+          {/* Stats */}
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-black">
+                {totalStudents}
               </div>
-
-              {/* Actions */}
+              <div className="text-xs text-gray-600">Total</div>
             </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-black">
+                {todayStudents}
+              </div>
+              <div className="text-xs text-gray-600">Today</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-black">
+                {filteredGroups.length}
+              </div>
+              <div className="text-xs text-gray-600">Groups</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-sm font-bold text-black">
+                {now.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                })}
+              </div>
+              <div className="text-xs text-gray-600">Time</div>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="relative">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 h-4 w-4" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search students..."
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+            />
           </div>
         </div>
 
         {loading && (
-          <div className="space-y-4">
-            <PageLoading />
-            {/* Skeleton shimmer */}
-            <div className="animate-pulse grid grid-cols-1 gap-4">
-              <div className="h-24 bg-gray-100 rounded-2xl" />
-              <div className="h-24 bg-gray-100 rounded-2xl" />
+          <div className="space-y-3">
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+            <div className="animate-pulse space-y-3">
+              <div className="h-16 bg-gray-100 rounded-xl" />
+              <div className="h-16 bg-gray-100 rounded-xl" />
             </div>
           </div>
         )}
 
         {error && (
-          <div className="p-8 bg-white border border-red-200 rounded-3xl shadow-2xl flex items-center gap-6">
-            <div className="p-4 bg-red-100 rounded-2xl">
-              <FiAlertTriangle className="text-red-600 h-8 w-8" />
-            </div>
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+            <FiAlertTriangle className="text-red-600 h-5 w-5" />
             <div>
-              <h3 className="font-bold text-red-800 text-xl mb-2">
+              <h3 className="font-medium text-red-800 text-sm">
                 Error Loading Students
               </h3>
-              <p className="text-red-600 text-lg">{error}</p>
+              <p className="text-red-600 text-sm">{error}</p>
             </div>
           </div>
         )}
 
         {!loading && !error && filteredGroups.length === 0 && (
-          <div className="p-12 text-center bg-white rounded-3xl shadow-2xl border border-gray-200">
-            <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
-              <FiUser className="h-16 w-16 text-gray-500" />
+          <div className="p-8 text-center bg-white rounded-xl shadow-lg border">
+            <div className="p-4 bg-gray-100 rounded-full w-fit mx-auto mb-4">
+              <FiUser className="h-8 w-8 text-gray-500" />
             </div>
-            <h3 className="text-3xl font-bold text-black mb-4">
+            <h3 className="text-lg font-bold text-black mb-2">
               No Students Found
             </h3>
-            <p className="text-gray-600 text-xl mb-6">
-              No students match your current filters. Try adjusting your search
-              criteria.
+            <p className="text-gray-600 text-sm mb-4">
+              No students match your search.
             </p>
             <Button
               onClick={refresh}
-              className="bg-black text-white rounded-xl px-6 py-3 font-bold"
+              className="bg-blue-600 text-white rounded-lg px-4 py-2 font-medium"
             >
               Refresh
             </Button>
           </div>
         )}
 
-        {/* Desktop View */}
-        <div className="hidden lg:block space-y-8">
+        {/* Student Groups */}
+        <div className="space-y-4">
           {filteredGroups.map((g) => (
             <div
               key={g.group}
-              className="rounded-3xl shadow-2xl border border-gray-200 bg-white overflow-hidden hover:shadow-3xl transition-all duration-300"
-            >
-              <div className="p-8 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <div className="p-4 bg-black rounded-2xl shadow-lg">
-                    <FiBookOpen className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-2xl text-black mb-1">
-                      {g.group || "Unknown Package"}
-                    </h2>
-                    <p className="text-gray-600 text-base">
-                      {g.students.length} student
-                      {g.students.length !== 1 ? "s" : ""} assigned
-                    </p>
-                  </div>
-                  <div className="bg-black text-white px-4 py-2 rounded-full font-bold">
-                    {g.students.length}
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-8">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="sticky top-0 bg-white">
-                      <tr className="border-b-2 border-gray-200">
-                        <th className="py-6 text-left font-bold text-black uppercase tracking-wider">
-                          Student Information
-                        </th>
-                        <th className="py-6 text-left font-bold text-black uppercase tracking-wider">
-                          Subject
-                        </th>
-                        <th className="py-6 text-left font-bold text-black uppercase tracking-wider">
-                          Schedule
-                        </th>
-                        <th className="py-6 text-right font-bold text-black uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {g.students.map((s) => (
-                        <tr
-                          key={s.id}
-                          className="border-b border-gray-100 hover:bg-gray-50 transition-all duration-200 group"
-                        >
-                          <td className="py-6">
-                            <div className="flex items-center gap-4">
-                              <div className="p-3 bg-gray-100 rounded-xl">
-                                <FiUser className="h-6 w-6 text-gray-600" />
-                              </div>
-                              <div>
-                                <div className="font-bold text-black text-lg">
-                                  {s.name || "Unnamed Student"}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  ID: {s.id}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-6">
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <FiBookOpen className="h-4 w-4 text-gray-500" />
-                                <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
-                                  {s.subject || "N/A"}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-6">
-                            <div className="flex flex-wrap items-center gap-2 text-gray-700">
-                              <FiClock className="h-4 w-4 text-gray-500" />
-                              {s.occupied?.length ? (
-                                s.occupied.map((o, i) => (
-                                  <span
-                                    key={i}
-                                    className="px-2 py-1 bg-gray-100 rounded-full text-xs font-semibold text-gray-800"
-                                  >
-                                    {convertTo12Hour(o.time_slot)} (
-                                    {o.daypackage})
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="font-medium">No schedule</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-6 text-right">
-                            <div className="flex gap-3 justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                              <Button
-                                onClick={() =>
-                                  setModal({ type: "zoom", studentId: s.id })
-                                }
-                                className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-                              >
-                                <FiLink2 className="h-4 w-4 mr-2" />
-                                Send Zoom
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  if (!zoomSent[s.id]) {
-                                    toast({
-                                      title: "Zoom Link Required",
-                                      description:
-                                        "Please send the Zoom link first before marking attendance.",
-                                      variant: "destructive",
-                                    });
-                                    return;
-                                  }
-                                  setModal({
-                                    type: "attendance",
-                                    studentId: s.id,
-                                  });
-                                }}
-                                disabled={!zoomSent[s.id]}
-                                className={`px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 ${
-                                  zoomSent[s.id]
-                                    ? "bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white"
-                                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                }`}
-                              >
-                                <FiCheck className="h-4 w-4 mr-2" />
-                                Attendance
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Mobile & Tablet View */}
-        <div className="lg:hidden space-y-6">
-          {filteredGroups.map((g) => (
-            <div
-              key={g.group}
-              className="rounded-2xl shadow-xl border border-gray-200 bg-white overflow-hidden"
+              className="rounded-xl shadow-lg border bg-white overflow-hidden"
             >
               <button
-                className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition-colors touch-manipulation"
+                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                 onClick={() => toggleGroup(g.group)}
               >
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-black rounded-xl">
-                    <FiBookOpen className="h-5 w-5 text-white" />
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-600 rounded-lg">
+                    <FiBookOpen className="h-4 w-4 text-white" />
                   </div>
                   <div className="text-left">
-                    <div className="font-bold text-black text-xl">
+                    <div className="font-bold text-black text-base">
                       {g.group || "Unknown Package"}
                     </div>
                     <div className="text-gray-600 text-sm">
-                      {g.students.length} student
-                      {g.students.length !== 1 ? "s" : ""}
+                      {g.students.length} student{g.students.length !== 1 ? "s" : ""}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="bg-black text-white px-3 py-1 rounded-full font-bold text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="bg-blue-600 text-white px-2 py-1 rounded-full font-bold text-sm">
                     {g.students.length}
                   </div>
                   {expanded[g.group] ? (
-                    <FiChevronUp className="text-black h-6 w-6" />
+                    <FiChevronUp className="text-gray-600 h-5 w-5" />
                   ) : (
-                    <FiChevronDown className="text-black h-6 w-6" />
+                    <FiChevronDown className="text-gray-600 h-5 w-5" />
                   )}
                 </div>
               </button>
 
               {expanded[g.group] && (
-                <div className="p-4 space-y-4 bg-gray-50">
+                <div className="p-3 space-y-3 bg-gray-50">
                   {g.students.map((s) => (
                     <div
                       key={s.id}
-                      className="p-6 rounded-2xl border border-gray-200 bg-white shadow-sm"
+                      className="p-4 rounded-xl border bg-white shadow-sm"
                     >
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
+                          <div className="flex items-center gap-3 mb-2">
                             <div className="p-2 bg-gray-100 rounded-lg">
-                              <FiUser className="h-5 w-5 text-gray-600" />
+                              <FiUser className="h-4 w-4 text-gray-600" />
                             </div>
                             <div>
-                              <div className="font-bold text-black text-lg">
+                              <div className="font-bold text-black text-base">
                                 {s.name || "Unnamed Student"}
                               </div>
                               <div className="text-sm text-gray-500">
@@ -944,10 +757,10 @@ export default function AssignedStudents() {
                             </div>
                           </div>
 
-                          <div className="space-y-2 mb-4">
+                          <div className="space-y-2 mb-3">
                             <div className="flex items-center gap-2">
                               <FiBookOpen className="h-4 w-4 text-gray-500" />
-                              <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
+                              <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-sm font-medium">
                                 {s.subject || "N/A"}
                               </span>
                             </div>
@@ -959,9 +772,7 @@ export default function AssignedStudents() {
                                   ? s.occupied
                                       .map(
                                         (o) =>
-                                          `${convertTo12Hour(o.time_slot)} (${
-                                            o.daypackage
-                                          })`
+                                          `${convertTo12Hour(o.time_slot)} (${o.daypackage})`
                                       )
                                       .join(", ")
                                   : "No schedule"}
@@ -971,23 +782,23 @@ export default function AssignedStudents() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <Button
                           onClick={() =>
                             setModal({ type: "zoom", studentId: s.id })
                           }
-                          className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white py-4 rounded-xl font-bold shadow-lg touch-manipulation hover:scale-105 transition-all duration-200"
+                          className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium text-sm"
                         >
                           <FiLink2 className="h-4 w-4 mr-2" />
-                          Send Zoom Link
+                          Send Zoom
                         </Button>
                         <Button
                           onClick={() => {
                             if (!zoomSent[s.id]) {
                               toast({
-                                title: "Zoom Link Required",
+                                title: "🔗 Zoom Link Required",
                                 description:
-                                  "Please send the Zoom link first before marking attendance.",
+                                  "📋 Please send the Zoom link first before marking attendance",
                                 variant: "destructive",
                               });
                               return;
@@ -995,14 +806,14 @@ export default function AssignedStudents() {
                             setModal({ type: "attendance", studentId: s.id });
                           }}
                           disabled={!zoomSent[s.id]}
-                          className={`py-4 rounded-xl font-bold shadow-lg touch-manipulation transition-all duration-200 ${
+                          className={`py-3 rounded-lg font-medium text-sm ${
                             zoomSent[s.id]
-                              ? "bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white hover:scale-105"
+                              ? "bg-green-600 hover:bg-green-700 text-white"
                               : "bg-gray-300 text-gray-500 cursor-not-allowed"
                           }`}
                         >
                           <FiCheck className="h-4 w-4 mr-2" />
-                          Mark Attendance
+                          Attendance
                         </Button>
                       </div>
                     </div>
@@ -1012,6 +823,8 @@ export default function AssignedStudents() {
             </div>
           ))}
         </div>
+
+
 
         {/* Slide Panel Modal */}
         {modal.type && modal.studentId !== null && (
@@ -1309,31 +1122,7 @@ export default function AssignedStudents() {
         )}
       </div>
 
-      {/* Slide Panel Animations */}
-      <style jsx>{`
-        @keyframes slide-up {
-          from {
-            transform: translateY(100%);
-          }
-          to {
-            transform: translateY(0);
-          }
-        }
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        .animate-slide-up {
-          animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .animate-fade-in {
-          animation: fade-in 0.2s ease-out;
-        }
-      `}</style>
+
     </div>
   );
 }

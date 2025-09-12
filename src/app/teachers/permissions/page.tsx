@@ -26,6 +26,7 @@ import {
   FiX,
   FiPlus,
   FiLoader,
+  FiClock,
 } from "react-icons/fi";
 import dayjs from "dayjs";
 
@@ -313,9 +314,10 @@ export default function TeacherPermissions() {
 
       setSubmitted(true);
       toast({
-        title: "Success",
-        description:
-          responseData.message || "Permission request submitted successfully.",
+        title: "✅ Request Submitted!",
+        description: responseData.notifications?.sms_sent > 0 
+          ? `📱 Admin team notified via SMS (${responseData.notifications.sms_sent} messages sent)`
+          : "📧 Admin team has been notified and will review your request",
       });
       setDate("");
       setSelectedTimeSlots([]);
@@ -404,7 +406,7 @@ export default function TeacherPermissions() {
             Request Submitted!
           </h2>
           <p className="text-gray-600 mb-6 text-sm">
-            Your permission request has been sent. You will be notified once reviewed.
+            Your permission request has been sent via SMS to the admin team. You will be notified once reviewed.
           </p>
           <Button
             onClick={() => setSubmitted(false)}
@@ -467,7 +469,7 @@ export default function TeacherPermissions() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label className="text-sm font-medium text-black mb-2 block">
-                    Date of Absence *
+                    📅 Which day do you need permission? *
                   </Label>
                   <Input
                     type="date"
@@ -477,15 +479,18 @@ export default function TeacherPermissions() {
                     min={new Date().toISOString().split("T")[0]}
                     className="w-full"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select the date you need to be absent from work
+                  </p>
                 </div>
 
                 <div>
                   <Label className="text-sm font-medium text-black mb-2 block">
-                    Reason *
+                    🤔 Why do you need permission? *
                   </Label>
                   <Select value={reason} onValueChange={setReason}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select reason" />
+                      <SelectValue placeholder="Choose your reason..." />
                     </SelectTrigger>
                     <SelectContent>
                       {permissionReasons.map((r) => (
@@ -495,65 +500,126 @@ export default function TeacherPermissions() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select the main reason for your absence
+                  </p>
                 </div>
 
-                {/* Time Slots */}
+                {/* Time Slots with Instructions */}
                 {date && availableTimeSlots.length > 0 && (
                   <div>
                     <Label className="text-sm font-medium text-black mb-2 block">
-                      Time Slots *
+                      Choose Your Absence Time *
                     </Label>
-                    <div className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => handleTimeSlotToggle("Whole Day")}
-                        className={`w-full p-3 rounded-lg border text-sm font-medium transition-colors ${
-                          isWholeDaySelected
-                            ? "border-red-500 bg-red-50 text-red-800"
-                            : "border-gray-300 bg-white text-gray-700 hover:bg-red-50"
-                        }`}
-                      >
-                        Whole Day
-                      </button>
+                    
+                    {/* Instructions */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                      <div className="flex items-start gap-2">
+                        <FiInfo className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-xs text-blue-800">
+                          <p className="font-medium mb-1">How to choose:</p>
+                          <p>• <strong>Full Day Off:</strong> Click "Whole Day" if you won't come to work at all</p>
+                          <p>• <strong>Partial Day:</strong> Select specific class times if you only need some hours off</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Whole Day Option */}
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-1">
+                        <button
+                          type="button"
+                          onClick={() => handleTimeSlotToggle("Whole Day")}
+                          className={`w-full p-4 rounded-lg border-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                            isWholeDaySelected
+                              ? "border-red-500 bg-red-50 text-red-800"
+                              : "border-gray-300 bg-white text-gray-700 hover:bg-red-50 hover:border-red-300"
+                          }`}
+                        >
+                          <FiCalendar className="h-4 w-4" />
+                          <span>🏠 Whole Day Off</span>
+                          {isWholeDaySelected && <span className="text-xs">(Selected)</span>}
+                        </button>
+                        <p className="text-xs text-gray-500 text-center mt-1 px-2">
+                          I won't come to work at all on this day
+                        </p>
+                      </div>
                       
+                      {/* Individual Time Slots */}
                       {availableTimeSlots.filter(slot => slot !== "Whole Day").length > 0 && (
-                        <div className="grid grid-cols-2 gap-2">
-                          {availableTimeSlots
-                            .filter((slot) => slot !== "Whole Day")
-                            .map((timeSlot) => (
-                              <button
-                                key={timeSlot}
-                                type="button"
-                                onClick={() => handleTimeSlotToggle(timeSlot)}
-                                disabled={isWholeDaySelected}
-                                className={`p-2 rounded-lg border text-xs font-medium transition-colors ${
-                                  selectedTimeSlots.includes(timeSlot)
-                                    ? "border-green-500 bg-green-50 text-green-800"
-                                    : isWholeDaySelected
-                                    ? "border-gray-200 bg-gray-100 text-gray-400"
-                                    : "border-gray-300 bg-white text-gray-700 hover:bg-blue-50"
-                                }`}
-                              >
-                                {timeSlot}
-                              </button>
-                            ))}
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <FiClock className="h-4 w-4 text-gray-600" />
+                            <span className="text-sm font-medium text-gray-700">⏰ Select Specific Class Times</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mb-3">
+                            Choose only the class times you need to miss
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {availableTimeSlots
+                              .filter((slot) => slot !== "Whole Day")
+                              .map((timeSlot) => (
+                                <button
+                                  key={timeSlot}
+                                  type="button"
+                                  onClick={() => handleTimeSlotToggle(timeSlot)}
+                                  disabled={isWholeDaySelected}
+                                  className={`p-3 rounded-lg border-2 text-xs font-medium transition-colors ${
+                                    selectedTimeSlots.includes(timeSlot)
+                                      ? "border-green-500 bg-green-50 text-green-800"
+                                      : isWholeDaySelected
+                                      ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                                      : "border-gray-300 bg-white text-gray-700 hover:bg-blue-50 hover:border-blue-300"
+                                  }`}
+                                >
+                                  {timeSlot}
+                                  {selectedTimeSlots.includes(timeSlot) && (
+                                    <div className="text-xs mt-1">✓ Selected</div>
+                                  )}
+                                </button>
+                              ))}
+                          </div>
+                          {isWholeDaySelected && (
+                            <p className="text-xs text-gray-400 text-center mt-2">
+                              Individual times disabled when "Whole Day" is selected
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
+                    
+                    {/* Selection Summary */}
+                    {selectedTimeSlots.length > 0 && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <FiCheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-800">Your Selection:</span>
+                        </div>
+                        <p className="text-sm text-green-700">
+                          {isWholeDaySelected 
+                            ? "🏠 You will be absent for the entire day" 
+                            : `⏰ You will miss these class times: ${selectedTimeSlots.join(", ")}`
+                          }
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 <div>
                   <Label className="text-sm font-medium text-black mb-2 block">
-                    Details *
+                    📝 Tell us more details *
                   </Label>
                   <Textarea
                     required
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
-                    placeholder="Provide details about your absence..."
+                    placeholder="Example: I have a doctor appointment at 2 PM, or I am feeling sick and need to rest..."
                     className="min-h-[80px] resize-none"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Explain your situation so admin can understand and approve quickly
+                  </p>
                 </div>
 
                 <Button

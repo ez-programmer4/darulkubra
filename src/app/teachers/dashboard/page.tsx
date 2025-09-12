@@ -293,9 +293,9 @@ ${quality.examinerNotes || "No notes provided."}
                 </div>
                 <div className="text-blue-600 font-bold text-sm flex-shrink-0 ml-2">
                   {(() => {
-                    const [hours, minutes] = c.time.split(':');
+                    const [hours, minutes] = c.time.split(":");
                     const hour = parseInt(hours);
-                    const ampm = hour >= 12 ? 'PM' : 'AM';
+                    const ampm = hour >= 12 ? "PM" : "AM";
                     const displayHour = hour % 12 || 12;
                     return `${displayHour}:${minutes} ${ampm}`;
                   })()}
@@ -316,10 +316,7 @@ ${quality.examinerNotes || "No notes provided."}
             {monthWeeks.map((week, idx) => {
               const isCurrentWeek =
                 week ===
-                dayjs()
-                  .startOf("week")
-                  .add(1, "day")
-                  .format("YYYY-MM-DD");
+                dayjs().startOf("week").add(1, "day").format("YYYY-MM-DD");
               const isSelected = selectedWeek === week;
               return (
                 <Button
@@ -395,7 +392,7 @@ ${quality.examinerNotes || "No notes provided."}
               <FiCheckCircle className="text-blue-600 h-5 w-5" />
               Quality: <span className="text-blue-600">{quality.rating}</span>
             </h2>
-            
+
             {/* Bonus Section */}
             {quality.bonusAmount ? (
               <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4 rounded-xl text-center text-white">
@@ -427,7 +424,7 @@ ${quality.examinerNotes || "No notes provided."}
                 <p className="text-sm font-medium">No bonus this week.</p>
               </div>
             )}
-            
+
             {/* Strengths */}
             <div className="bg-white border rounded-lg">
               <button
@@ -451,7 +448,10 @@ ${quality.examinerNotes || "No notes provided."}
                   {quality.strengths.length > 0 ? (
                     <div className="space-y-2">
                       {quality.strengths.map((s, i) => (
-                        <div key={i} className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <div
+                          key={i}
+                          className="bg-green-50 border border-green-200 rounded-lg p-3"
+                        >
                           <div className="font-medium text-green-800 text-sm">
                             {s.title}
                             {typeof s.rating === "number" && (
@@ -500,7 +500,10 @@ ${quality.examinerNotes || "No notes provided."}
                   {quality.focuses.length > 0 ? (
                     <div className="space-y-2">
                       {quality.focuses.map((f, i) => (
-                        <div key={i} className="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <div
+                          key={i}
+                          className="bg-red-50 border border-red-200 rounded-lg p-3"
+                        >
                           <div className="font-medium text-red-800 text-sm">
                             {f.title}
                             {typeof f.rating === "number" && (
@@ -532,9 +535,7 @@ ${quality.examinerNotes || "No notes provided."}
                 <p className="font-medium text-blue-900 text-sm mb-2">
                   Examiner Notes:
                 </p>
-                <p className="text-gray-700 text-sm">
-                  {quality.examinerNotes}
-                </p>
+                <p className="text-gray-700 text-sm">{quality.examinerNotes}</p>
               </div>
             )}
           </div>
@@ -570,15 +571,12 @@ function StatsCard({
   const classes = colorMap[color] || colorMap.blue;
   return (
     <div className="bg-white p-3 rounded-xl shadow-lg border flex items-center gap-3 hover:shadow-xl transition-all">
-      <div className={`rounded-lg ${classes.bg} p-2 flex-shrink-0`}>
-        {icon}
-      </div>
+      <div className={`rounded-lg ${classes.bg} p-2 flex-shrink-0`}>{icon}</div>
       <div className="min-w-0 flex-1">
-        <h3 className="text-xs font-medium text-gray-600 truncate">
-          {label}
-        </h3>
+        <h3 className="text-xs font-medium text-gray-600 truncate">{label}</h3>
         <p className={`text-lg font-bold ${classes.text} truncate`}>
-          {value}{unit}
+          {value}
+          {unit}
         </p>
       </div>
     </div>

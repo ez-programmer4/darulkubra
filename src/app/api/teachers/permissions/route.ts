@@ -139,7 +139,12 @@ export async function POST(req: NextRequest) {
       where: { phoneno: { not: null } },
     });
 
-    const smsMessage = `New absence permission request from ${teacherName} for ${date}. Please review in the admin panel.`;
+    // Format time slots for SMS
+    const timeSlotText = timeSlots.includes('Whole Day') 
+      ? 'Whole Day'
+      : timeSlots.join(', ');
+    
+    const smsMessage = `New absence request from ${teacherName} for ${date} (${timeSlotText}). Reason: ${reason}. Please review in admin panel.`;
     let smsCount = 0;
 
     for (const admin of adminsWithPhone) {
@@ -165,7 +170,7 @@ export async function POST(req: NextRequest) {
           year: "numeric",
           month: "long",
           day: "numeric",
-        })}. Reason: ${reason}. Click to review and approve/decline.`,
+        })} (${timeSlotText}). Reason: ${reason}. Click to review and approve/decline.`,
         "permission_request"
       );
       notificationCount = notifications.length;

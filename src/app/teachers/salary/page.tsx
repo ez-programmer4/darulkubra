@@ -241,418 +241,375 @@ Additional Information:
   }
 
   return (
-    <div className="flex min-h-screen bg-white text-gray-900">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+    <div className="min-h-screen bg-white pb-20 md:pb-0">
+      <div className="space-y-4">
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-white shadow-xl border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 max-w-7xl mx-auto gap-4">
-            <div className="flex items-center gap-3 sm:gap-6">
-              <button
-                className="md:hidden text-black hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-all duration-200 hover:scale-110 shadow-md"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open sidebar"
-              >
-                <FiMenu size={24} />
-              </button>
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="p-2 sm:p-3 bg-black rounded-xl shadow-lg">
-                  <FiDollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-black">
-                    Salary Overview
-                  </h1>
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium hidden sm:block">
-                    View your salary details and payment history
-                  </p>
-                </div>
-              </div>
+        <div className="bg-white rounded-xl shadow-lg border p-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-blue-600 rounded-xl">
+              <FiDollarSign className="h-5 w-5 text-white" />
             </div>
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-              <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-3 border border-gray-200">
-                <FiCalendar className="h-4 w-4 text-gray-600" />
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="bg-transparent border-none focus:outline-none text-gray-700 font-medium text-sm sm:text-base cursor-pointer"
-                >
-                  {Array.from({ length: 12 }, (_, i) => {
-                    const date = new Date();
-                    date.setMonth(date.getMonth() - i);
-                    const value = `${date.getFullYear()}-${String(
-                      date.getMonth() + 1
-                    ).padStart(2, "0")}`;
-                    const label = date.toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    });
-                    return (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-              <Button
-                onClick={downloadSalaryReport}
-                disabled={!salaryData}
-                className="bg-black hover:bg-gray-800 text-white flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 text-sm sm:text-base flex-1 sm:flex-none justify-center"
-              >
-                <FiDownload className="h-4 w-4" />
-                <span className="hidden sm:inline">Download Report</span>
-                <span className="sm:hidden">Download</span>
-              </Button>
+            <div>
+              <h1 className="text-lg font-bold text-black">
+                My Salary
+              </h1>
+              <p className="text-gray-600 text-sm">
+                View salary details
+              </p>
             </div>
           </div>
-        </header>
 
-        {/* Main Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8 pb-24 md:pb-8">
-          {!salaryVisible ? (
-            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200 p-8 sm:p-12 text-center animate-slide-in">
-              <div className="p-6 bg-yellow-50 rounded-full w-fit mx-auto mb-6 border-2 border-yellow-200">
-                <FiAlertTriangle className="h-16 w-16 text-yellow-500" />
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Salary Access Restricted
-              </h2>
-              <p className="text-gray-600 mb-6 text-lg leading-relaxed max-w-md mx-auto">
-                Access to salary information has been temporarily disabled by
-                the administration.
-              </p>
-              <div className="bg-gray-50 rounded-xl p-4 mb-6 max-w-md mx-auto">
-                <p className="text-sm text-gray-500">
-                  Please contact your administrator for more information or to
-                  request access.
-                </p>
-              </div>
-              <p className="text-xs text-gray-400">
-                You can still access other sections using the navigation menu.
-              </p>
-            </div>
-          ) : loading ? (
-            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200 p-8 sm:p-12 text-center animate-slide-in">
-              <div className="relative">
-                <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
-              </div>
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <FiDollarSign className="h-6 w-6 text-black" />
-                <h3 className="text-xl font-bold text-black">
-                  Loading Salary Data
-                </h3>
-              </div>
-              <p className="text-gray-700 font-medium">
-                Please wait while we fetch your salary information...
-              </p>
-            </div>
-          ) : error ? (
-            <Card className="bg-white border-gray-200 shadow-xl rounded-2xl sm:rounded-3xl animate-slide-in">
-              <CardContent className="p-6 sm:p-8 text-center">
-                <div className="p-4 bg-gray-100 rounded-full w-fit mx-auto mb-6">
-                  <FiAlertTriangle className="h-12 w-12 text-red-500" />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-black mb-3">
-                  Error Loading Salary Data
-                </h3>
-                <p className="text-gray-600 mb-6 text-sm sm:text-base leading-relaxed">
-                  {error}
-                </p>
-                <Button
-                  onClick={fetchSalaryData}
-                  className="bg-black hover:bg-gray-800 text-white rounded-xl px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                >
-                  <FiRefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </Button>
-              </CardContent>
-            </Card>
-          ) : salaryData ? (
-            <div className="space-y-8">
-              {/* Salary Summary Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-                {/* Base Salary */}
-                <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FiDollarSign className="h-4 w-4 text-gray-600" />
-                          <p className="text-xs sm:text-sm font-semibold text-gray-600">
-                            Base Salary
-                          </p>
-                        </div>
-                        <p className="text-xl sm:text-2xl font-bold text-black">
-                          {salaryData.baseSalary} ETB
-                        </p>
-                      </div>
-                      <div className="p-3 bg-gray-100 rounded-xl">
-                        <FiTarget className="h-6 w-6 text-black" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Bonuses */}
-                <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FiGift className="h-4 w-4 text-gray-600" />
-                          <p className="text-xs sm:text-sm font-semibold text-gray-600">
-                            Quality Bonuses
-                          </p>
-                        </div>
-                        <p className="text-xl sm:text-2xl font-bold text-green-600">
-                          +{salaryData.bonuses || 0} ETB
-                        </p>
-                      </div>
-                      <div className="p-3 bg-gray-100 rounded-xl">
-                        <FiAward className="h-6 w-6 text-black" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Lateness Deduction */}
-                <Card
-                  className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in cursor-pointer"
-                  onClick={fetchBreakdown}
-                >
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FiClock className="h-4 w-4 text-gray-600" />
-                          <p className="text-xs sm:text-sm font-semibold text-gray-600">
-                            Lateness Deduction
-                          </p>
-                        </div>
-                        <p className="text-xl sm:text-2xl font-bold text-red-600">
-                          -{salaryData.latenessDeduction} ETB
-                        </p>
-                        <p className="text-xs text-blue-600 font-medium mt-1">
-                          Click for details
-                        </p>
-                      </div>
-                      <div className="p-3 bg-gray-100 rounded-xl">
-                        <FiMinus className="h-6 w-6 text-black" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Absence Deduction */}
-                <Card
-                  className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in cursor-pointer"
-                  onClick={fetchBreakdown}
-                >
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FiTrendingDown className="h-4 w-4 text-gray-600" />
-                          <p className="text-xs sm:text-sm font-semibold text-gray-600">
-                            Absence Deduction
-                          </p>
-                        </div>
-                        <p className="text-xl sm:text-2xl font-bold text-red-600">
-                          -{salaryData.absenceDeduction} ETB
-                        </p>
-                        <p className="text-xs text-blue-600 font-medium mt-1">
-                          Click for details
-                        </p>
-                      </div>
-                      <div className="p-3 bg-gray-100 rounded-xl">
-                        <FiAlertTriangle className="h-6 w-6 text-black" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Final Salary Card */}
-              <Card className="bg-white border-gray-200 shadow-2xl rounded-3xl animate-slide-in hover:shadow-3xl transition-all duration-500">
-                <CardContent className="p-6 sm:p-8 lg:p-12">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-3 mb-4">
-                      <div className="p-4 bg-black rounded-2xl shadow-lg">
-                        <FiDollarSign className="h-8 w-8 text-white" />
-                      </div>
-                      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-black">
-                        Final Salary
-                      </h2>
-                    </div>
-                    <div className="bg-gray-50 rounded-2xl p-6 sm:p-8 mb-6 shadow-lg">
-                      <p className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-black mb-2">
-                        {salaryData.totalSalary} ETB
-                      </p>
-                      <div className="flex items-center justify-center gap-2 text-gray-700">
-                        <FiTrendingUp className="h-5 w-5" />
-                        <span className="text-sm font-medium">
-                          Monthly Salary
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`px-4 py-2 rounded-xl text-sm font-bold shadow-md ${
-                            salaryData.status === "Paid"
-                              ? "bg-green-100 text-green-700 border border-green-300"
-                              : "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                          }`}
-                        >
-                          {salaryData.status === "Paid" ? (
-                            <>
-                              <FiCheckCircle className="inline h-4 w-4 mr-1" />{" "}
-                              Paid
-                            </>
-                          ) : (
-                            <>
-                              <FiClock className="inline h-4 w-4 mr-1" />{" "}
-                              Pending
-                            </>
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <FiCalendar className="h-4 w-4" />
-                        <span className="font-semibold text-sm sm:text-base">
-                          {new Date(selectedMonth + "-01").toLocaleDateString(
-                            "en-US",
-                            { month: "long", year: "numeric" }
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            <Card className="bg-gray-50 border-gray-200">
-              <CardContent className="p-12 text-center">
-                <div className="text-6xl mb-4">💰</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  No Salary Data Available
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Salary information for{" "}
-                  {new Date(selectedMonth + "-01").toLocaleDateString("en-US", {
+          {/* Month Selector */}
+          <div className="flex gap-2 mb-4">
+            <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 flex-1">
+              <FiCalendar className="h-4 w-4 text-gray-600" />
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="bg-transparent border-none focus:outline-none text-gray-700 font-medium text-sm w-full"
+              >
+                {Array.from({ length: 12 }, (_, i) => {
+                  const date = new Date();
+                  date.setMonth(date.getMonth() - i);
+                  const value = `${date.getFullYear()}-${String(
+                    date.getMonth() + 1
+                  ).padStart(2, "0")}`;
+                  const label = date.toLocaleDateString("en-US", {
                     month: "long",
                     year: "numeric",
-                  })}{" "}
-                  is not available yet.
-                </p>
-                <p className="text-sm text-gray-500">
-                  Salary data is typically available after the month ends and
-                  calculations are completed.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </main>
-      </div>
-
-      {/* Breakdown Modal */}
-      {showBreakdown && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl mx-4 my-8 p-6 relative border border-gray-200 max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setShowBreakdown(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 rounded-full p-2 bg-gray-100 hover:bg-gray-200 transition-all hover:scale-110"
-            >
-              <FiX size={20} />
-            </button>
-
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-black rounded-xl">
-                <FiBarChart className="h-6 w-6 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-black">
-                Salary Breakdown Details
-              </h2>
+                  });
+                  return (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
-
-            {breakdownLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
-                <p className="text-black font-medium text-lg">
-                  Loading breakdown...
-                </p>
+            <Button
+              onClick={downloadSalaryReport}
+              disabled={!salaryData}
+              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-4 py-2 rounded-lg font-medium"
+            >
+              <FiDownload className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        {!salaryVisible ? (
+          <div className="bg-white rounded-xl shadow-lg border p-6 text-center">
+            <div className="p-4 bg-yellow-50 rounded-full w-fit mx-auto mb-4">
+              <FiAlertTriangle className="h-8 w-8 text-yellow-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-3">
+              Salary Access Restricted
+            </h2>
+            <p className="text-gray-600 mb-4 text-sm">
+              Access to salary information has been temporarily disabled.
+            </p>
+            <div className="bg-gray-50 rounded-lg p-3 mb-4">
+              <p className="text-xs text-gray-500">
+                Please contact your administrator for access.
+              </p>
+            </div>
+          </div>
+        ) : loading ? (
+          <div className="bg-white rounded-xl shadow-lg border p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-blue-600 mx-auto mb-4"></div>
+            <h3 className="text-base font-bold text-black mb-2">
+              Loading Salary Data
+            </h3>
+            <p className="text-gray-600 text-sm">
+              Please wait...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-xl shadow-lg border p-6 text-center">
+            <div className="p-3 bg-red-50 rounded-full w-fit mx-auto mb-4">
+              <FiAlertTriangle className="h-6 w-6 text-red-500" />
+            </div>
+            <h3 className="text-base font-bold text-black mb-3">
+              Error Loading Data
+            </h3>
+            <p className="text-gray-600 mb-4 text-sm">
+              {error}
+            </p>
+            <Button
+              onClick={fetchSalaryData}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 font-medium"
+            >
+              <FiRefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          </div>
+        ) : salaryData ? (
+          <div className="space-y-4">
+            {/* Salary Summary Cards */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Base Salary */}
+              <div className="bg-white rounded-xl shadow-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1 mb-1">
+                      <FiDollarSign className="h-3 w-3 text-gray-600" />
+                      <p className="text-xs font-medium text-gray-600">
+                        Base Salary
+                      </p>
+                    </div>
+                    <p className="text-lg font-bold text-black">
+                      {salaryData.baseSalary} ETB
+                    </p>
+                  </div>
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <FiTarget className="h-4 w-4 text-black" />
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Lateness Records */}
-                <div className="bg-red-50 rounded-2xl p-6 border border-red-200">
-                  <div className="flex items-center gap-2 mb-4">
-                    <FiClock className="text-red-500 h-5 w-5" />
-                    <h3 className="text-lg font-bold text-red-900">
-                      Lateness Records
-                    </h3>
-                    <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-sm font-semibold">
-                      {breakdown.latenessRecords?.length || 0} incidents
+
+              {/* Bonuses */}
+              <div className="bg-white rounded-xl shadow-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1 mb-1">
+                      <FiGift className="h-3 w-3 text-gray-600" />
+                      <p className="text-xs font-medium text-gray-600">
+                        Bonuses
+                      </p>
+                    </div>
+                    <p className="text-lg font-bold text-green-600">
+                      +{salaryData.bonuses || 0} ETB
+                    </p>
+                  </div>
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <FiAward className="h-4 w-4 text-black" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Lateness Deduction */}
+              <div
+                className="bg-white rounded-xl shadow-lg border p-3 cursor-pointer"
+                onClick={fetchBreakdown}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1 mb-1">
+                      <FiClock className="h-3 w-3 text-gray-600" />
+                      <p className="text-xs font-medium text-gray-600">
+                        Lateness
+                      </p>
+                    </div>
+                    <p className="text-lg font-bold text-red-600">
+                      -{salaryData.latenessDeduction} ETB
+                    </p>
+                    <p className="text-xs text-blue-600 font-medium">
+                      Tap for details
+                    </p>
+                  </div>
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <FiMinus className="h-4 w-4 text-black" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Absence Deduction */}
+              <div
+                className="bg-white rounded-xl shadow-lg border p-3 cursor-pointer"
+                onClick={fetchBreakdown}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1 mb-1">
+                      <FiTrendingDown className="h-3 w-3 text-gray-600" />
+                      <p className="text-xs font-medium text-gray-600">
+                        Absence
+                      </p>
+                    </div>
+                    <p className="text-lg font-bold text-red-600">
+                      -{salaryData.absenceDeduction} ETB
+                    </p>
+                    <p className="text-xs text-blue-600 font-medium">
+                      Tap for details
+                    </p>
+                  </div>
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <FiAlertTriangle className="h-4 w-4 text-black" />
+                  </div>
+                </div>
+              </div>
+              </div>
+
+            {/* Final Salary Card */}
+            <div className="bg-white rounded-xl shadow-lg border p-6">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <div className="p-3 bg-blue-600 rounded-xl">
+                    <FiDollarSign className="h-6 w-6 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-black">
+                    Final Salary
+                  </h2>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-6 mb-4">
+                  <p className="text-3xl font-bold text-black mb-2">
+                    {salaryData.totalSalary} ETB
+                  </p>
+                  <div className="flex items-center justify-center gap-2 text-gray-700">
+                    <FiTrendingUp className="h-4 w-4" />
+                    <span className="text-sm font-medium">
+                      Monthly Salary
                     </span>
                   </div>
-                  {breakdown.latenessRecords?.length === 0 ? (
-                    <p className="text-red-600 text-center py-4">
-                      No lateness records for this period.
-                    </p>
-                  ) : (
-                    <div className="space-y-3 max-h-60 overflow-y-auto">
-                      {breakdown.latenessRecords?.map(
-                        (record: any, index: number) => (
-                          <div
-                            key={index}
-                            className="bg-white rounded-xl p-4 border border-red-200 shadow-sm"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex items-center gap-3">
-                                <div className="text-sm font-mono text-gray-600">
-                                  {new Date(
-                                    record.classDate
-                                  ).toLocaleDateString()}
+                </div>
+                <div className="flex flex-col items-center gap-3">
+                  <span
+                    className={`px-4 py-2 rounded-lg text-sm font-bold ${
+                      salaryData.status === "Paid"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
+                    {salaryData.status === "Paid" ? (
+                      <>
+                        <FiCheckCircle className="inline h-4 w-4 mr-1" />
+                        Paid
+                      </>
+                    ) : (
+                      <>
+                        <FiClock className="inline h-4 w-4 mr-1" />
+                        Pending
+                      </>
+                    )}
+                  </span>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <FiCalendar className="h-4 w-4" />
+                    <span className="font-medium text-sm">
+                      {new Date(selectedMonth + "-01").toLocaleDateString(
+                        "en-US",
+                        { month: "long", year: "numeric" }
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-lg border p-6 text-center">
+            <div className="text-4xl mb-4">💰</div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              No Salary Data Available
+            </h3>
+            <p className="text-gray-600 mb-4 text-sm">
+              Salary information for{" "}
+              {new Date(selectedMonth + "-01").toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+              })}{" "}
+              is not available yet.
+            </p>
+            <p className="text-xs text-gray-500">
+              Data is available after month ends.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile Breakdown Modal */}
+      {showBreakdown && (
+        <div className="fixed inset-0 z-50 bg-black/50">
+          <div className="fixed inset-x-4 top-4 bottom-4 bg-white rounded-2xl shadow-2xl overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-600 rounded-lg">
+                  <FiBarChart className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-lg font-bold text-black">
+                  Salary Breakdown
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowBreakdown(false)}
+                className="p-2 text-gray-500 hover:text-gray-800 rounded-lg bg-gray-100"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+
+            <div className="p-4">
+
+              {breakdownLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-blue-600 mx-auto mb-4"></div>
+                  <p className="text-black font-medium">
+                    Loading breakdown...
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Lateness Records */}
+                  <div className="bg-red-50 rounded-xl p-4 border border-red-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FiClock className="text-red-500 h-4 w-4" />
+                      <h3 className="text-base font-bold text-red-900">
+                        Lateness Records
+                      </h3>
+                      <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
+                        {breakdown.latenessRecords?.length || 0}
+                      </span>
+                    </div>
+                    {breakdown.latenessRecords?.length === 0 ? (
+                      <p className="text-red-600 text-center py-3 text-sm">
+                        No lateness records.
+                      </p>
+                    ) : (
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {breakdown.latenessRecords?.map(
+                          (record: any, index: number) => (
+                            <div
+                              key={index}
+                              className="bg-white rounded-lg p-3 border border-red-200"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex flex-col">
+                                  <div className="text-xs font-mono text-gray-600">
+                                    {new Date(
+                                      record.classDate
+                                    ).toLocaleDateString()}
+                                  </div>
+                                  <div className="text-xs text-gray-700">
+                                    {record.studentName}
+                                  </div>
                                 </div>
-                                <div className="text-sm text-gray-700">
-                                  {record.studentName}
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
+                                    {record.latenessMinutes} min
+                                  </span>
+                                  <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
+                                    -{record.deductionApplied} ETB
+                                  </span>
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold">
-                                  {record.latenessMinutes} min late
-                                </span>
-                                <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold">
-                                  -{record.deductionApplied} ETB
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  ({record.deductionTier})
-                                </span>
                               </div>
                             </div>
-                          </div>
-                        )
-                      )}
+                          )
+                        )}
+                      </div>
+                    )}
+                    <div className="mt-3 pt-3 border-t border-red-200">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-red-900 text-sm">
+                          Total Deduction:
+                        </span>
+                        <span className="text-lg font-bold text-red-600">
+                          -
+                          {breakdown.latenessRecords?.reduce(
+                            (sum: number, r: any) =>
+                              sum + (r.deductionApplied || 0),
+                            0
+                          ) || 0}{" "}
+                          ETB
+                        </span>
+                      </div>
                     </div>
-                  )}
-                  <div className="mt-4 pt-4 border-t border-red-200">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold text-red-900">
-                        Total Lateness Deduction:
-                      </span>
-                      <span className="text-xl font-bold text-red-600">
-                        -
-                        {breakdown.latenessRecords?.reduce(
-                          (sum: number, r: any) =>
-                            sum + (r.deductionApplied || 0),
-                          0
-                        ) || 0}{" "}
-                        ETB
-                      </span>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Absence Records */}
@@ -793,42 +750,20 @@ Additional Information:
               </div>
             )}
 
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <button
-                className="w-full bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
-                onClick={() => setShowBreakdown(false)}
-              >
-                Close Details
-              </button>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <button
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium"
+                  onClick={() => setShowBreakdown(false)}
+                >
+                  Close Details
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Enhanced Animations */}
-      <style jsx>{`
-        @keyframes slide-in {
-          from {
-            opacity: 0;
-            transform: translateY(30px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-        .animate-slide-in {
-          animation: slide-in 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
 
-        /* Mobile touch improvements */
-        @media (max-width: 768px) {
-          .touch-target {
-            min-height: 44px;
-            min-width: 44px;
-          }
-        }
-      `}</style>
     </div>
   );
 }
