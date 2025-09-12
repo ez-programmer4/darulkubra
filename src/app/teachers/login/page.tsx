@@ -10,6 +10,7 @@ import { Suspense } from "react";
 function TeacherLoginPageContent() {
   const { isLoading } = useAuth({
     redirectIfFound: true,
+    redirectTo: "/teachers/dashboard",
   });
 
   const searchParams = useSearchParams();

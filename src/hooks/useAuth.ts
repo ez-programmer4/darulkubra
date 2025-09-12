@@ -39,8 +39,9 @@ export function useAuth(options: UseAuthOptions = {}) {
     }
 
     // If authenticated and redirectIfFound is true
-    if (status === "authenticated" && redirectIfFound && redirectTo) {
-      router.push(redirectTo);
+    if (status === "authenticated" && redirectIfFound) {
+      const redirectUrl = redirectTo || "/teachers/dashboard";
+      router.push(redirectUrl);
       setLoading(false);
       return;
     }
