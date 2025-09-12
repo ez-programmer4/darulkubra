@@ -16,6 +16,7 @@ import {
   FiClock,
   FiLoader,
   FiInfo,
+  FiCheck,
 } from "react-icons/fi";
 
 interface AbsenceRecord {
@@ -323,6 +324,9 @@ export default function AbsenceManagement() {
           </div>
         </div>
 
+        {/* Package Deductions */}
+        <PackageDeductionManager type="absence" />
+
         {/* Configuration */}
         <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
           <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
@@ -332,10 +336,10 @@ export default function AbsenceManagement() {
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-black">
-                  Deduction Configuration
+                  Global Deduction Configuration
                 </h2>
                 <p className="text-gray-600">
-                  Configure absence deduction settings
+                  Configure fallback absence deduction settings
                 </p>
               </div>
             </div>
@@ -957,6 +961,161 @@ export default function AbsenceManagement() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Package Deduction Manager Component
+function PackageDeductionManager({ type }: { type: 'lateness' | 'absence' }) {
+  const [packageDeductions, setPackageDeductions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    fetchPackageDeductions();
+  }, []);
+
+  const fetchPackageDeductions = async () => {
+    try {
+      const response = await fetch('/api/admin/package-deductions');
+      if (response.ok) {
+        const data = await response.json();
+        setPackageDeductions(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch package deductions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (packageName: string, amount: number) => {
+    setSaving(packageName);
+    try {
+      const existing = packageDeductions.find(p => p.packageName === packageName);
+      const payload = {
+        packageName,
+        latenessBaseAmount: type === 'lateness' ? amount : (existing?.latenessBaseAmount || 30),
+        absenceBaseAmount: type === 'absence' ? amount : (existing?.absenceBaseAmount || 25)
+      };
+
+      const response = await fetch('/api/admin/package-deductions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        setNotification({ message: `${packageName} ${type} deduction updated`, type: 'success' });
+        fetchPackageDeductions();
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (error) {
+      setNotification({ message: 'Failed to save package deduction', type: 'error' });
+    } finally {
+      setSaving(null);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const updateAmount = (packageName: string, amount: number) => {
+    setPackageDeductions(prev => {
+      const existing = prev.find(p => p.packageName === packageName);
+      if (existing) {
+        return prev.map(p => 
+          p.packageName === packageName 
+            ? { ...p, [type === 'lateness' ? 'latenessBaseAmount' : 'absenceBaseAmount']: amount }
+            : p
+        );
+      } else {
+        return [...prev, {
+          id: 0,
+          packageName,
+          latenessBaseAmount: type === 'lateness' ? amount : 30,
+          absenceBaseAmount: type === 'absence' ? amount : 25
+        }];
+      }
+    });
+  };
+
+  const commonPackages = ['0 Fee', '3 days', '5 days', 'Europe'];
+
+  if (loading) return <div className="animate-pulse bg-gray-200 h-32 rounded-lg mb-6"></div>;
+
+  return (
+    <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden mb-8">
+      {notification && (
+        <div className={`mb-4 p-3 rounded flex items-center gap-2 ${
+          notification.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
+        }`}>
+          <FiCheck /> {notification.message}
+        </div>
+      )}
+      
+      <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-blue-600 rounded-xl">
+            <FiDollarSign className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-black">
+              Package-Specific Absence Base Deductions
+            </h2>
+            <p className="text-gray-600">
+              Set different base deduction amounts for each package type
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="p-6 sm:p-8 lg:p-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {commonPackages.map((packageName) => {
+            const existing = packageDeductions.find(p => p.packageName === packageName);
+            const currentAmount = existing?.[type === 'lateness' ? 'latenessBaseAmount' : 'absenceBaseAmount'] || (type === 'lateness' ? 30 : 25);
+
+            return (
+              <div key={packageName} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 className="font-semibold text-black mb-2">{packageName}</h3>
+                <div className="space-y-2">
+                  <input
+                    type="number"
+                    value={currentAmount}
+                    onChange={(e) => updateAmount(packageName, Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="0"
+                    step="0.01"
+                  />
+                  <button
+                    onClick={() => handleSave(packageName, currentAmount)}
+                    disabled={saving === packageName}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2 px-3 rounded text-sm flex items-center justify-center gap-1"
+                  >
+                    {saving === packageName ? (
+                      <FiLoader className="animate-spin h-4 w-4" />
+                    ) : (
+                      <FiCheck className="h-4 w-4" />
+                    )}
+                    {saving === packageName ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+          <h4 className="font-semibold text-blue-900 mb-2">How Package-Specific Deductions Work</h4>
+          <ul className="text-blue-800 text-sm space-y-1">
+            <li>• Each package type has its own base deduction amount</li>
+            <li>• When calculating absence deductions, the system uses the student's package rate</li>
+            <li>• For mixed classes, deductions are calculated per student's package</li>
+            <li>• Global settings below are used as fallback for unspecified packages</li>
+          </ul>
         </div>
       </div>
     </div>

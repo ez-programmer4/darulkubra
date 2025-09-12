@@ -11,7 +11,7 @@ CREATE TABLE `wpos_wpdatatable_24` (
     `ustazid` VARCHAR(255) NOT NULL,
     `ustazname` VARCHAR(120) NULL,
     `phone` VARCHAR(32) NULL,
-    `schedule` TEXT NULL,
+    `schedule` VARCHAR(255) NULL,
     `password` VARCHAR(255) NOT NULL,
     `control` VARCHAR(255) NULL,
     `created_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
@@ -41,7 +41,12 @@ CREATE TABLE `wpos_wpdatatable_23` (
     `chat_id` VARCHAR(64) NULL,
     `progress` VARCHAR(64) NULL,
     `u_control` VARCHAR(255) NULL,
+    `exitdate` DATETIME(0) NULL,
+    `isKid` BOOLEAN NULL DEFAULT false,
+    `reason` VARCHAR(255) NULL,
+    `userId` VARCHAR(191) NULL,
 
+    UNIQUE INDEX `wpos_wpdatatable_23_userId_key`(`userId`),
     INDEX `idx_ustaz`(`ustaz`),
     INDEX `wpos_wpdatatable_23_u_control_fkey`(`u_control`),
     PRIMARY KEY (`wdt_ID`)
@@ -95,9 +100,12 @@ CREATE TABLE `admin` (
     `passcode` VARCHAR(120) NOT NULL,
     `phoneno` VARCHAR(32) NULL,
     `role` VARCHAR(20) NULL DEFAULT 'admin',
+    `chat_id` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     UNIQUE INDEX `admin_name_key`(`name`),
     UNIQUE INDEX `admin_username_key`(`username`),
+    UNIQUE INDEX `admin_chat_id_key`(`chat_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -169,6 +177,7 @@ CREATE TABLE `AbsenceRecord` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `teacherId` VARCHAR(191) NOT NULL,
     `classDate` DATETIME(3) NOT NULL,
+    `timeSlots` VARCHAR(191) NULL,
     `permitted` BOOLEAN NOT NULL,
     `permissionRequestId` INTEGER NULL,
     `deductionApplied` DOUBLE NOT NULL,
@@ -299,6 +308,7 @@ CREATE TABLE `LatenessDeductionConfig` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
     `adminId` VARCHAR(191) NULL,
+    `baseDeductionAmount` DECIMAL(65, 30) NOT NULL DEFAULT 30.00,
     `wpos_wpdatatable_28Wdt_ID` INTEGER NULL,
 
     INDEX `LatenessDeductionConfig_admin_fkey`(`adminId`),
@@ -328,7 +338,7 @@ CREATE TABLE `LatenessRecord` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `notification` (
+CREATE TABLE `Notification` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `title` VARCHAR(255) NOT NULL,
     `message` TEXT NOT NULL,
@@ -342,22 +352,17 @@ CREATE TABLE `notification` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `Payment` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `sendername` VARCHAR(120) NOT NULL,
+CREATE TABLE `wpos_wpdatatable_29` (
+    `wdt_ID` INTEGER NOT NULL AUTO_INCREMENT,
     `studentid` INTEGER NOT NULL,
     `studentname` VARCHAR(255) NOT NULL,
     `paymentdate` DATETIME(0) NOT NULL,
-    `transactionid` VARCHAR(191) NOT NULL,
-    `paidamount` DECIMAL(12, 2) NOT NULL,
-    `reason` TEXT NOT NULL,
+    `transactionid` VARCHAR(255) NOT NULL,
+    `paidamount` DECIMAL(10, 0) NOT NULL,
+    `reason` VARCHAR(2000) NOT NULL,
     `status` VARCHAR(20) NOT NULL DEFAULT 'pending',
 
-    UNIQUE INDEX `Payment_transactionid_key`(`transactionid`),
-    INDEX `Payment_paymentdate_idx`(`paymentdate`),
-    INDEX `Payment_sendername_idx`(`sendername`),
-    INDEX `Payment_studentid_idx`(`studentid`),
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`wdt_ID`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
@@ -373,7 +378,8 @@ CREATE TABLE `PermissionReason` (
 CREATE TABLE `PermissionRequest` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `teacherId` VARCHAR(191) NOT NULL,
-    `requestedDates` VARCHAR(191) NOT NULL,
+    `requestedDate` VARCHAR(191) NOT NULL,
+    `timeSlots` VARCHAR(191) NOT NULL,
     `reasonCategory` VARCHAR(191) NOT NULL,
     `reasonDetails` VARCHAR(191) NOT NULL,
     `supportingDocs` VARCHAR(191) NULL,
@@ -440,6 +446,18 @@ CREATE TABLE `setting` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `registralearningsconfig` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `key` VARCHAR(255) NOT NULL,
+    `value` TEXT NOT NULL,
+    `created_at` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `updated_at` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    UNIQUE INDEX `registralearningsconfig_key_key`(`key`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `TeacherSalaryPayment` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `teacherId` VARCHAR(255) NOT NULL,
@@ -462,7 +480,7 @@ CREATE TABLE `TeacherSalaryPayment` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `testappointment` (
+CREATE TABLE `testAppointment` (
     `id` VARCHAR(191) NOT NULL,
     `studentId` INTEGER NOT NULL,
     `testId` VARCHAR(191) NOT NULL,
@@ -485,7 +503,7 @@ CREATE TABLE `testquestion` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `testresult` (
+CREATE TABLE `testResult` (
     `id` VARCHAR(191) NOT NULL,
     `studentId` INTEGER NOT NULL,
     `questionId` VARCHAR(191) NOT NULL,
@@ -493,6 +511,240 @@ CREATE TABLE `testresult` (
 
     INDEX `testResult_questionId_idx`(`questionId`),
     INDEX `testResult_studentId_idx`(`studentId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `coursePackage` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` TEXT NOT NULL,
+    `description` TEXT NULL,
+    `examDurationMinutes` INTEGER NULL,
+    `isPublished` BOOLEAN NOT NULL DEFAULT false,
+    `ustazId` INTEGER NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `subjectPackage` (
+    `id` VARCHAR(191) NOT NULL,
+    `kidpackage` BOOLEAN NULL DEFAULT false,
+    `packageType` VARCHAR(191) NULL,
+    `subject` VARCHAR(191) NULL,
+    `packageId` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `course` (
+    `id` VARCHAR(191) NOT NULL,
+    `title` TEXT NOT NULL,
+    `description` TEXT NULL,
+    `imageUrl` TEXT NULL,
+    `isPublished` BOOLEAN NOT NULL DEFAULT false,
+    `order` INTEGER NOT NULL,
+    `packageId` VARCHAR(191) NOT NULL,
+    `timeLimit` INTEGER NULL,
+    `timeUnit` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `course_packageId_idx`(`packageId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `chapter` (
+    `id` VARCHAR(191) NOT NULL,
+    `title` VARCHAR(191) NOT NULL,
+    `description` TEXT NULL,
+    `videoUrl` TEXT NULL,
+    `position` INTEGER NOT NULL,
+    `isPublished` BOOLEAN NOT NULL DEFAULT false,
+    `courseId` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `chapter_courseId_idx`(`courseId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `question` (
+    `id` VARCHAR(191) NOT NULL,
+    `chapterId` VARCHAR(191) NULL,
+    `packageId` VARCHAR(191) NULL,
+    `question` TEXT NOT NULL,
+
+    INDEX `question_chapterId_idx`(`chapterId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `questionOption` (
+    `id` VARCHAR(191) NOT NULL,
+    `questionId` VARCHAR(191) NOT NULL,
+    `option` VARCHAR(191) NOT NULL,
+
+    INDEX `questionOption_questionId_idx`(`questionId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `questionAnswer` (
+    `id` VARCHAR(191) NOT NULL,
+    `questionId` VARCHAR(191) NOT NULL,
+    `answerId` VARCHAR(191) NOT NULL,
+
+    INDEX `questionAnswer_answerId_idx`(`answerId`),
+    INDEX `questionAnswer_questionId_idx`(`questionId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `studentQuiz` (
+    `id` VARCHAR(191) NOT NULL,
+    `studentId` INTEGER NOT NULL,
+    `questionId` VARCHAR(191) NOT NULL,
+    `isFinalExam` BOOLEAN NOT NULL DEFAULT false,
+    `takenAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `studentQuiz_questionId_idx`(`questionId`),
+    INDEX `studentQuiz_studentId_idx`(`studentId`),
+    UNIQUE INDEX `studentQuiz_studentId_questionId_key`(`studentId`, `questionId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `studentQuizAnswer` (
+    `id` VARCHAR(191) NOT NULL,
+    `studentQuizId` VARCHAR(191) NOT NULL,
+    `selectedOptionId` VARCHAR(191) NOT NULL,
+
+    INDEX `studentQuizAnswer_selectedOptionId_idx`(`selectedOptionId`),
+    INDEX `studentQuizAnswer_studentQuizId_idx`(`studentQuizId`),
+    UNIQUE INDEX `studentQuizAnswer_studentQuizId_selectedOptionId_key`(`studentQuizId`, `selectedOptionId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `studentProgress` (
+    `id` VARCHAR(191) NOT NULL,
+    `studentId` INTEGER NOT NULL,
+    `chapterId` VARCHAR(191) NOT NULL,
+    `isStarted` BOOLEAN NOT NULL DEFAULT true,
+    `isCompleted` BOOLEAN NOT NULL DEFAULT false,
+    `completedAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `studentProgress_chapterId_idx`(`chapterId`),
+    INDEX `studentProgress_studentId_idx`(`studentId`),
+    UNIQUE INDEX `studentProgress_studentId_chapterId_key`(`studentId`, `chapterId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `finalExamResult` (
+    `id` VARCHAR(191) NOT NULL,
+    `studentId` INTEGER NOT NULL,
+    `packageId` VARCHAR(191) NOT NULL,
+    `updationProhibited` BOOLEAN NOT NULL DEFAULT false,
+    `startingTime` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `endingTime` DATETIME(3) NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `tarbiaAttendance` (
+    `id` VARCHAR(191) NOT NULL,
+    `studId` INTEGER NOT NULL,
+    `packageId` VARCHAR(191) NOT NULL,
+    `status` BOOLEAN NOT NULL DEFAULT false,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PackageSalary` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `packageName` VARCHAR(191) NOT NULL,
+    `salaryPerStudent` DECIMAL(10, 2) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `PackageSalary_packageName_key`(`packageName`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `StudentStatus` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(191) NOT NULL,
+    `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `StudentStatus_name_key`(`name`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `StudentPackage` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(191) NOT NULL,
+    `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `StudentPackage_name_key`(`name`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `StudentSubject` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(191) NOT NULL,
+    `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `StudentSubject_name_key`(`name`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PackageDeduction` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `packageName` VARCHAR(191) NOT NULL,
+    `latenessBaseAmount` DECIMAL(10, 2) NOT NULL DEFAULT 30.00,
+    `absenceBaseAmount` DECIMAL(10, 2) NOT NULL DEFAULT 25.00,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `PackageDeduction_packageName_key`(`packageName`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `user` (
+    `id` VARCHAR(191) NOT NULL,
+    `role` ENUM('manager', 'teacher', 'student') NOT NULL,
+    `firstName` VARCHAR(191) NOT NULL DEFAULT '',
+    `lastName` VARCHAR(191) NOT NULL DEFAULT '',
+    `phoneNumber` VARCHAR(191) NOT NULL DEFAULT '',
+    `username` VARCHAR(191) NOT NULL,
+    `password` VARCHAR(191) NOT NULL,
+
+    UNIQUE INDEX `user_username_key`(`username`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -504,6 +756,9 @@ ALTER TABLE `wpos_wpdatatable_23` ADD CONSTRAINT `wpos_wpdatatable_23_u_control_
 
 -- AddForeignKey
 ALTER TABLE `wpos_wpdatatable_23` ADD CONSTRAINT `wpos_wpdatatable_23_ustaz_fkey` FOREIGN KEY (`ustaz`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `wpos_wpdatatable_23` ADD CONSTRAINT `wpos_wpdatatable_23_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `wpos_ustaz_occupied_times` ADD CONSTRAINT `wpos_ustaz_occupied_times_student_id_fkey` FOREIGN KEY (`student_id`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -590,10 +845,7 @@ ALTER TABLE `LatenessRecord` ADD CONSTRAINT `LatenessRecord_teacherId_fkey` FORE
 ALTER TABLE `LatenessRecord` ADD CONSTRAINT `LatenessRecord_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Payment` ADD CONSTRAINT `Payment_sendername_fkey` FOREIGN KEY (`sendername`) REFERENCES `wpos_wpdatatable_28`(`username`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `Payment` ADD CONSTRAINT `Payment_studentid_fkey` FOREIGN KEY (`studentid`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `wpos_wpdatatable_29` ADD CONSTRAINT `Payment_studentid_fkey` FOREIGN KEY (`studentid`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `PermissionRequest` ADD CONSTRAINT `PermissionRequest_admin_fkey` FOREIGN KEY (`adminId`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
@@ -629,16 +881,73 @@ ALTER TABLE `TeacherSalaryPayment` ADD CONSTRAINT `TeacherSalaryPayment_teacherI
 ALTER TABLE `TeacherSalaryPayment` ADD CONSTRAINT `TeacherSalaryPayment_wpos_wpdatatable_28Wdt_ID_fkey` FOREIGN KEY (`wpos_wpdatatable_28Wdt_ID`) REFERENCES `wpos_wpdatatable_28`(`wdt_ID`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `testappointment` ADD CONSTRAINT `testAppointment_studentId_fkey` FOREIGN KEY (`studentId`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `testAppointment` ADD CONSTRAINT `testAppointment_studentId_fkey` FOREIGN KEY (`studentId`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `testappointment` ADD CONSTRAINT `testAppointment_testId_fkey` FOREIGN KEY (`testId`) REFERENCES `test`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `testAppointment` ADD CONSTRAINT `testAppointment_testId_fkey` FOREIGN KEY (`testId`) REFERENCES `test`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `testquestion` ADD CONSTRAINT `testQuestion_testId_fkey` FOREIGN KEY (`testId`) REFERENCES `test`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `testresult` ADD CONSTRAINT `testResult_questionId_fkey` FOREIGN KEY (`questionId`) REFERENCES `testquestion`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `testResult` ADD CONSTRAINT `testResult_questionId_fkey` FOREIGN KEY (`questionId`) REFERENCES `testquestion`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `testresult` ADD CONSTRAINT `testResult_studentId_fkey` FOREIGN KEY (`studentId`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `testResult` ADD CONSTRAINT `testResult_studentId_fkey` FOREIGN KEY (`studentId`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `coursePackage` ADD CONSTRAINT `coursePackage_id_fkey` FOREIGN KEY (`id`) REFERENCES `wpos_wpdatatable_24`(`ustazid`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `subjectPackage` ADD CONSTRAINT `subjectPackage_packageId_fkey` FOREIGN KEY (`packageId`) REFERENCES `coursePackage`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `course` ADD CONSTRAINT `course_packageId_fkey` FOREIGN KEY (`packageId`) REFERENCES `coursePackage`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `chapter` ADD CONSTRAINT `chapter_courseId_fkey` FOREIGN KEY (`courseId`) REFERENCES `course`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `question` ADD CONSTRAINT `question_chapterId_fkey` FOREIGN KEY (`chapterId`) REFERENCES `chapter`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `question` ADD CONSTRAINT `question_packageId_fkey` FOREIGN KEY (`packageId`) REFERENCES `coursePackage`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `questionOption` ADD CONSTRAINT `questionOption_questionId_fkey` FOREIGN KEY (`questionId`) REFERENCES `question`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `questionAnswer` ADD CONSTRAINT `questionAnswer_questionId_fkey` FOREIGN KEY (`questionId`) REFERENCES `question`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `questionAnswer` ADD CONSTRAINT `questionAnswer_answerId_fkey` FOREIGN KEY (`answerId`) REFERENCES `questionOption`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `studentQuiz` ADD CONSTRAINT `studentQuiz_studentId_fkey` FOREIGN KEY (`studentId`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `studentQuiz` ADD CONSTRAINT `studentQuiz_questionId_fkey` FOREIGN KEY (`questionId`) REFERENCES `question`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `studentQuizAnswer` ADD CONSTRAINT `studentQuizAnswer_studentQuizId_fkey` FOREIGN KEY (`studentQuizId`) REFERENCES `studentQuiz`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `studentQuizAnswer` ADD CONSTRAINT `studentQuizAnswer_selectedOptionId_fkey` FOREIGN KEY (`selectedOptionId`) REFERENCES `questionOption`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `studentProgress` ADD CONSTRAINT `studentProgress_studentId_fkey` FOREIGN KEY (`studentId`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `studentProgress` ADD CONSTRAINT `studentProgress_chapterId_fkey` FOREIGN KEY (`chapterId`) REFERENCES `chapter`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `finalExamResult` ADD CONSTRAINT `finalExamResult_studentId_fkey` FOREIGN KEY (`studentId`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `finalExamResult` ADD CONSTRAINT `finalExamResult_packageId_fkey` FOREIGN KEY (`packageId`) REFERENCES `coursePackage`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `tarbiaAttendance` ADD CONSTRAINT `tarbiaAttendance_studId_fkey` FOREIGN KEY (`studId`) REFERENCES `wpos_wpdatatable_23`(`wdt_ID`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `tarbiaAttendance` ADD CONSTRAINT `tarbiaAttendance_packageId_fkey` FOREIGN KEY (`packageId`) REFERENCES `coursePackage`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
