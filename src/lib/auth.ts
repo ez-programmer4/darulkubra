@@ -75,6 +75,11 @@ export const authOptions: NextAuthOptions = {
               return null;
             }
 
+            console.log('Teacher authentication successful:', {
+              id: user.ustazid,
+              name: user.ustazname,
+              username: user.ustazid
+            });
             return {
               id: user.ustazid,
               name: user.ustazname ?? "",

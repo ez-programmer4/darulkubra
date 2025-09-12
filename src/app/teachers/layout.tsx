@@ -74,7 +74,7 @@ export default function TeachersLayout({
             </p>
           </div>
           <button
-            onClick={() => signOut({ callbackUrl: "/teachers/login" })}
+            onClick={() => signOut({ callbackUrl: "/teachers/login", redirect: true })}
             className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium text-sm"
           >
             Sign Out & Try Again
@@ -147,7 +147,9 @@ export default function TeachersLayout({
         
         <div className="px-6 py-6 border-t border-gray-700 bg-black">
           <button
-            onClick={() => signOut({ callbackUrl: "/teachers/login" })}
+            onClick={() => {
+              signOut({ callbackUrl: "/teachers/login", redirect: true });
+            }}
             className="w-full flex items-center gap-4 p-4 text-base font-medium text-gray-300 hover:bg-red-600 hover:text-white rounded-xl transition-all duration-200 hover:transform hover:scale-105 hover:shadow-lg"
             aria-label="Logout"
           >
@@ -206,7 +208,7 @@ export default function TeachersLayout({
                   className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold shadow-lg transition-all duration-200 md:cursor-default text-xs sm:text-sm lg:text-base"
                   onClick={() => {
                     if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                      signOut({ callbackUrl: "/teachers/login" });
+                      signOut({ callbackUrl: "/teachers/login", redirect: true });
                     }
                   }}
                 >
