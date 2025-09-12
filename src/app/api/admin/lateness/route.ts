@@ -25,11 +25,13 @@ export async function GET(req: NextRequest) {
   const controllerFilter = searchParams.get("controllerId") || "";
   const teacherFilter = searchParams.get("teacherId") || ""; // may be id or name
 
-  // Get base deduction amount from lateness config
-  const latenessConfig = await prisma.latenessdeductionconfig.findFirst({
-    select: { baseDeductionAmount: true }
+  // Get package-specific deduction configurations
+  const packageDeductions = await prisma.packageDeduction.findMany();
+  const packageDeductionMap: Record<string, number> = {};
+  packageDeductions.forEach((pkg) => {
+    packageDeductionMap[pkg.packageName] = Number(pkg.latenessBaseAmount);
   });
-  const baseDeductionAmount = Number(latenessConfig?.baseDeductionAmount) || 30;
+  const defaultBaseDeductionAmount = 30;
 
   // Fetch lateness deduction config from DB - no fallback tiers
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
@@ -130,10 +132,14 @@ export async function GET(req: NextRequest) {
         );
         const latenessMinutes = Math.max(0, Number.isFinite(minutesDiff) ? minutesDiff : 0);
 
-        // Deduction logic (configurable base amount)
+        // Deduction logic (package-specific base amount)
         let deductionApplied = 0;
         let deductionTier = "Excused";
         if (latenessMinutes > excusedThreshold) {
+          // Get student's package for package-specific deduction
+          const studentPackage = student.package || "";
+          const baseDeductionAmount = packageDeductionMap[studentPackage] || defaultBaseDeductionAmount;
+          
           let foundTier = false;
           for (const [i, tier] of tiers.entries()) {
             if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {
