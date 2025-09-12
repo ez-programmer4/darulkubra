@@ -384,7 +384,7 @@ ${quality.examinerNotes || "No notes provided."}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-80 md:w-72 bg-black text-white flex flex-col transition-all duration-300 ease-in-out md:static md:translate-x-0 shadow-2xl ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 sm:w-80 md:w-72 bg-black text-white flex flex-col transition-all duration-300 ease-in-out md:static md:translate-x-0 shadow-2xl ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -460,49 +460,47 @@ ${quality.examinerNotes || "No notes provided."}
       <div className="flex-1 flex flex-col pb-16 md:pb-0">
         {/* Header */}
         <header className="sticky top-0 z-40 bg-white shadow-xl border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 max-w-7xl mx-auto gap-4">
-            <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center justify-between p-3 sm:p-4 lg:p-6 max-w-7xl mx-auto">
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
               <button
-                className="md:hidden text-black hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-all duration-200 hover:scale-110 shadow-md"
+                className="md:hidden text-black hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-all duration-200 flex-shrink-0"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open sidebar"
               >
-                <FiMenu size={24} />
+                <FiMenu size={20} className="sm:w-6 sm:h-6" />
               </button>
-              <div className="flex items-center gap-3">
-                <div className="p-2 sm:p-3 bg-black rounded-xl shadow-lg">
-                  <FiUser className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-lg sm:text-xl lg:text-2xl font-extrabold text-black">
-                    Welcome,{" "}
-                    {user && user.name && typeof user.name === "string"
-                      ? user.name.split(" ")[0]
-                      : "Teacher"}
-                  </h1>
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium hidden sm:block">
-                    Teacher Dashboard
-                  </p>
-                </div>
+              <div className="p-2 bg-black rounded-lg sm:rounded-xl shadow-lg flex-shrink-0">
+                <FiUser className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base sm:text-lg lg:text-xl xl:text-2xl font-extrabold text-black truncate">
+                  Welcome,{" "}
+                  {user && user.name && typeof user.name === "string"
+                    ? user.name.split(" ")[0]
+                    : "Teacher"}
+                </h1>
+                <p className="text-gray-600 text-xs sm:text-sm font-medium hidden sm:block">
+                  Teacher Dashboard
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 sm:gap-6 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <div className="relative group">
                 <button
-                  className="text-black hover:text-gray-700 relative p-2 rounded-xl hover:bg-gray-100 focus:ring-2 focus:ring-gray-500 transition-all duration-200 hover:scale-110 shadow-md"
+                  className="text-black hover:text-gray-700 relative p-2 rounded-xl hover:bg-gray-100 transition-all duration-200 flex-shrink-0"
                   onClick={() => setShowNotifications(!showNotifications)}
                   aria-label="Notifications"
                   aria-haspopup="true"
                 >
-                  <FiBell size={20} className="sm:w-6 sm:h-6" />
+                  <FiBell size={18} className="sm:w-5 sm:h-5" />
                   {notifications.length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg animate-pulse">
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center font-bold shadow-lg animate-pulse text-[10px] sm:text-xs">
                       {notifications.length}
                     </span>
                   )}
                 </button>
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-emerald-200 p-4 sm:p-6 z-50 max-h-80 sm:max-h-96 overflow-y-auto animate-fade-in">
+                  <div className="absolute right-0 mt-2 w-64 sm:w-72 lg:w-80 bg-white/95 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-2xl border border-emerald-200 p-3 sm:p-4 lg:p-6 z-50 max-h-72 sm:max-h-80 lg:max-h-96 overflow-y-auto animate-fade-in">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                         Notifications
@@ -558,28 +556,28 @@ ${quality.examinerNotes || "No notes provided."}
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 sm:gap-3 relative group">
+              <div className="flex items-center gap-1 sm:gap-2 relative group flex-shrink-0">
                 <button
-                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 md:cursor-default"
+                  className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold shadow-lg transition-all duration-200 md:cursor-default text-xs sm:text-sm lg:text-base"
                   onClick={() => {
                     // Only show logout on mobile
                     if (window.innerWidth < 768) {
                       signOut({ callbackUrl: "/teachers/login" });
                     }
                   }}
-                  title={window.innerWidth < 768 ? "Tap to logout" : undefined}
+                  title={typeof window !== 'undefined' && window.innerWidth < 768 ? "Tap to logout" : undefined}
                 >
                   {user && user.name && typeof user.name === "string"
                     ? user.name.charAt(0)
                     : "T"}
                 </button>
-                <span className="text-xs sm:text-sm font-semibold text-emerald-900 hidden md:block max-w-24 truncate">
+                <span className="text-xs sm:text-sm font-semibold text-emerald-900 hidden lg:block max-w-20 xl:max-w-24 truncate">
                   {user && user.name && typeof user.name === "string"
                     ? user.name.split(" ")[0]
                     : "Teacher"}
                 </span>
                 {/* Mobile logout tooltip */}
-                <div className="md:hidden absolute -bottom-8 right-0 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                <div className="md:hidden absolute -bottom-7 right-0 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
                   Tap to logout
                 </div>
               </div>
@@ -588,7 +586,7 @@ ${quality.examinerNotes || "No notes provided."}
         </header>
 
         {/* Main content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8 pb-24 md:pb-8">
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8 pb-20 md:pb-6 lg:pb-8">
           {activeTab === "students" && (
             <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-4">
               <AssignedStudents />
@@ -646,9 +644,9 @@ ${quality.examinerNotes || "No notes provided."}
               </div>
 
               {/* Week Selector */}
-              <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-6 mb-8 animate-slide-in">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <label className="font-semibold text-indigo-900 text-lg">
+              <div className="bg-white/95 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-lg border border-indigo-100 p-4 sm:p-6 mb-6 sm:mb-8 animate-slide-in">
+                <div className="flex flex-col gap-3 sm:gap-4">
+                  <label className="font-semibold text-indigo-900 text-base sm:text-lg">
                     Select Week:
                   </label>
                   <div className="flex gap-2 flex-wrap">
@@ -664,19 +662,20 @@ ${quality.examinerNotes || "No notes provided."}
                         <Button
                           key={week}
                           variant={isSelected ? "default" : "outline"}
-                          className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                          className={`rounded-full px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all ${
                             isSelected
-                              ? "bg-indigo-600 text-white"
+                              ? "bg-indigo-600 text-white shadow-md"
                               : isCurrentWeek
                               ? "bg-blue-100 text-blue-700 border-blue-300"
-                              : "bg-white text-indigo-700 border-indigo-300"
+                              : "bg-white text-indigo-700 border-indigo-300 hover:bg-indigo-50"
                           }`}
                           onClick={() => {
                             setSelectedWeek(week);
                           }}
                         >
-                          Week {idx + 1}
-                          {isCurrentWeek && " (Current)"}
+                          <span className="hidden sm:inline">Week {idx + 1}</span>
+                          <span className="sm:hidden">W{idx + 1}</span>
+                          {isCurrentWeek && <span className="hidden sm:inline"> (Current)</span>}
                         </Button>
                       );
                     })}
@@ -695,7 +694,7 @@ ${quality.examinerNotes || "No notes provided."}
               </div>
 
               {/* Stats Cards */}
-              <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+              <div className="w-full grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
                 <StatsCard
                   icon={<FiUsers size={24} className="text-indigo-600" />}
                   label="Total Students"
@@ -727,7 +726,7 @@ ${quality.examinerNotes || "No notes provided."}
               </div>
 
               {/* Quality Overview */}
-              <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-indigo-100 p-8 mb-8 animate-slide-in">
+              <div className="bg-white/95 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-lg border border-indigo-100 p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 animate-slide-in">
                 {qualityLoading ? (
                   <PageLoading />
                 ) : quality ? (
@@ -922,42 +921,42 @@ ${quality.examinerNotes || "No notes provided."}
         </main>
 
         {/* Bottom Navigation (Mobile) */}
-        <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-gray-200 shadow-2xl flex justify-around py-3 z-50">
+        <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-2xl flex justify-around py-2 z-50 safe-area-inset-bottom">
           <button
             onClick={() => setActiveTab("dashboard")}
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
+            className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all duration-200 min-w-0 flex-1 max-w-20 ${
               activeTab === "dashboard"
                 ? "text-black bg-gray-100 transform scale-105"
-                : "text-gray-500 hover:text-black hover:bg-gray-100"
+                : "text-gray-500 hover:text-black hover:bg-gray-50"
             }`}
           >
-            <FiHome className="w-5 h-5" />
-            <span className="text-xs font-medium">Dashboard</span>
+            <FiHome className="w-5 h-5 flex-shrink-0" />
+            <span className="text-xs font-medium truncate">Dashboard</span>
           </button>
           <button
             onClick={() => setActiveTab("students")}
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
+            className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all duration-200 min-w-0 flex-1 max-w-20 ${
               activeTab === "students"
                 ? "text-black bg-gray-100 transform scale-105"
-                : "text-gray-500 hover:text-black hover:bg-gray-100"
+                : "text-gray-500 hover:text-black hover:bg-gray-50"
             }`}
           >
-            <FiUsers className="w-5 h-5" />
-            <span className="text-xs font-medium">Students</span>
+            <FiUsers className="w-5 h-5 flex-shrink-0" />
+            <span className="text-xs font-medium truncate">Students</span>
           </button>
           <Link
             href="/teachers/permissions"
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 text-gray-500 hover:text-black hover:bg-gray-100"
+            className="flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all duration-200 text-gray-500 hover:text-black hover:bg-gray-50 min-w-0 flex-1 max-w-20"
           >
-            <FiClipboard className="w-5 h-5" />
-            <span className="text-xs font-medium">Permissions</span>
+            <FiClipboard className="w-5 h-5 flex-shrink-0" />
+            <span className="text-xs font-medium truncate">Permissions</span>
           </Link>
           <Link
             href="/teachers/salary"
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 text-gray-500 hover:text-black hover:bg-gray-100"
+            className="flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all duration-200 text-gray-500 hover:text-black hover:bg-gray-50 min-w-0 flex-1 max-w-20"
           >
-            <FiTrendingUp className="w-5 h-5" />
-            <span className="text-xs font-medium">Salary</span>
+            <FiTrendingUp className="w-5 h-5 flex-shrink-0" />
+            <span className="text-xs font-medium truncate">Salary</span>
           </Link>
         </nav>
 
@@ -1030,20 +1029,22 @@ function StatsCard({
   const colorMap: Record<string, { bg: string; text: string }> = {
     indigo: { bg: "bg-indigo-100", text: "text-indigo-600" },
     violet: { bg: "bg-violet-100", text: "text-violet-600" },
+    yellow: { bg: "bg-yellow-100", text: "text-yellow-600" },
+    purple: { bg: "bg-purple-100", text: "text-purple-600" },
     rose: { bg: "bg-rose-100", text: "text-rose-600" },
   };
   const classes = colorMap[color] || colorMap.indigo;
   return (
     <div
-      className={`bg-white/95 backdrop-blur-md p-4 sm:p-6 rounded-2xl shadow-lg border border-indigo-100 flex items-center gap-3 sm:gap-4 hover:shadow-xl transition-all hover:scale-[1.02] animate-slide-in min-w-0 relative group`}
+      className={`bg-white/95 backdrop-blur-md p-3 sm:p-4 lg:p-6 rounded-xl sm:rounded-2xl shadow-lg border border-indigo-100 flex flex-col sm:flex-row items-center gap-2 sm:gap-3 lg:gap-4 hover:shadow-xl transition-all hover:scale-[1.02] animate-slide-in min-w-0 relative group`}
       title={tooltip}
     >
       <div
-        className={`rounded-lg ${classes.bg} p-2 sm:p-3 shadow-sm flex-shrink-0`}
+        className={`rounded-lg ${classes.bg} p-2 sm:p-2 lg:p-3 shadow-sm flex-shrink-0`}
       >
         {icon}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 text-center sm:text-left">
         <h3
           className="text-xs sm:text-sm font-semibold text-indigo-600 truncate"
           title={label}
@@ -1051,7 +1052,7 @@ function StatsCard({
           {label}
         </h3>
         <p
-          className={`text-lg sm:text-2xl font-bold ${classes.text} break-words truncate overflow-hidden`}
+          className={`text-base sm:text-lg lg:text-2xl font-bold ${classes.text} break-words truncate overflow-hidden`}
           title={String(value) + (unit || "")}
         >
           {value}
@@ -1059,7 +1060,7 @@ function StatsCard({
         </p>
       </div>
       {tooltip && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap max-w-xs z-10">
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 sm:px-3 py-1 sm:py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap max-w-xs z-10">
           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
           {tooltip}
         </div>
