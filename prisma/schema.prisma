@@ -358,8 +358,6 @@ model latenessdeductionconfig {
   updatedAt        DateTime
   adminId          String?
 
-  baseDeductionAmount Decimal @default(30.00)
-
   wpos_wpdatatable_28Wdt_ID Int?
   admin                     admin?               @relation(fields: [adminId], references: [id], map: "LatenessDeductionConfig_admin_fkey")
   wpos_wpdatatable_24       wpos_wpdatatable_24? @relation(fields: [teacherId], references: [ustazid], map: "LatenessDeductionConfig_teacherId_fkey")

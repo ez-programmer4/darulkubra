@@ -346,62 +346,21 @@ export default function AbsenceManagement() {
           </div>
 
           <div className="p-6 sm:p-8 lg:p-10 space-y-8">
-            {/* Deduction Configuration */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div>
-                <label className="block text-sm font-bold text-black mb-3">
-                  <FiDollarSign className="inline h-4 w-4 mr-2" />
-                  Whole Day Deduction (ETB)
-                </label>
-                <input
-                  type="number"
-                  value={deductionAmount}
-                  onChange={(e) => setDeductionAmount(e.target.value)}
-                  placeholder="50"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
-                  disabled={loading}
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  Applied when teacher is absent for the entire day
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-black mb-3">
-                  <FiClock className="inline h-4 w-4 mr-2" />
-                  Per Time Slot Deduction (ETB)
-                </label>
-                <input
-                  type="number"
-                  value={deductionPerTimeSlot}
-                  onChange={(e) => setDeductionPerTimeSlot(e.target.value)}
-                  placeholder="25"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200 text-base"
-                  disabled={loading}
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  Applied per missed time slot (30-minute periods)
-                </p>
-              </div>
-              <div className="flex items-center justify-center">
-                <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 text-center w-full">
-                  <p className="text-sm font-medium text-gray-600 mb-3">
-                    Deduction Rates
-                  </p>
-                  <div className="space-y-2">
-                    <div className="bg-white rounded-lg p-3 border">
-                      <div className="text-lg font-bold text-black">
-                        {deductionAmount} ETB
-                      </div>
-                      <p className="text-xs text-gray-500">Whole Day</p>
-                    </div>
-                    <div className="bg-white rounded-lg p-3 border">
-                      <div className="text-lg font-bold text-black">
-                        {deductionPerTimeSlot} ETB
-                      </div>
-                      <p className="text-xs text-gray-500">Per Time Slot</p>
-                    </div>
-                  </div>
-                </div>
+            {/* Note about package-specific deductions */}
+            <div className="bg-blue-50 rounded-xl p-6 border border-blue-200 mb-6">
+              <h3 className="text-lg font-bold text-blue-900 mb-3">📦 Package-Based Deduction System</h3>
+              <p className="text-blue-800 mb-3">
+                Deductions are now calculated using package-specific base amounts configured above. 
+                The settings below are only used for system configuration and months when deductions are active.
+              </p>
+              <div className="bg-white rounded-lg p-4 border border-blue-200">
+                <h4 className="font-semibold text-blue-800 mb-2">How it works:</h4>
+                <ul className="text-blue-700 text-sm space-y-1">
+                  <li>• Each student package (0 Fee, 3 days, 5 days, Europe) has its own deduction rate</li>
+                  <li>• When a teacher is absent, deductions are calculated per student's package</li>
+                  <li>• Mixed classes get fair deductions based on each student's package value</li>
+                  <li>• Default fallback rate of 25 ETB is used for unspecified packages</li>
+                </ul>
               </div>
             </div>
 

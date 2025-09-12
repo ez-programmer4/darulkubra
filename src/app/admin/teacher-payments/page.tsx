@@ -906,6 +906,31 @@ export default function TeacherPaymentsPage() {
                 </div>
               </div>
 
+              {/* Package Deduction Configuration */}
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 via-pink-400/20 to-red-400/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+
+                <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-purple-200/50 p-6 hover:shadow-2xl transition-all duration-300">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-purple-600 to-pink-700 rounded-xl blur-sm"></div>
+                      <div className="relative p-3 bg-gradient-to-br from-purple-600 to-pink-700 rounded-xl shadow-lg">
+                        <FiDollarSign className="h-6 w-6 text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-purple-800 to-pink-900 bg-clip-text text-transparent">
+                        Package Deduction Rates
+                      </h3>
+                      <p className="text-purple-700 text-sm">
+                        Configure base deduction amounts per package type
+                      </p>
+                    </div>
+                  </div>
+                  <PackageDeductionManager />
+                </div>
+              </div>
+
               {/* Working Days Configuration */}
               <div className="relative group">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-400/20 via-blue-400/20 to-cyan-400/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
@@ -2707,6 +2732,183 @@ export default function TeacherPaymentsPage() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Package Deduction Manager Component
+function PackageDeductionManager() {
+  const [packageDeductions, setPackageDeductions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'lateness' | 'absence'>('lateness');
+
+  useEffect(() => {
+    fetchPackageDeductions();
+  }, []);
+
+  const fetchPackageDeductions = async () => {
+    try {
+      const response = await fetch('/api/admin/package-deductions');
+      if (response.ok) {
+        const data = await response.json();
+        setPackageDeductions(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch package deductions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (packageName: string, type: 'lateness' | 'absence', amount: number) => {
+    setSaving(`${packageName}-${type}`);
+    try {
+      const existing = packageDeductions.find(p => p.packageName === packageName);
+      const payload = {
+        packageName,
+        latenessBaseAmount: type === 'lateness' ? amount : (existing?.latenessBaseAmount || 30),
+        absenceBaseAmount: type === 'absence' ? amount : (existing?.absenceBaseAmount || 25)
+      };
+
+      const response = await fetch('/api/admin/package-deductions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        toast({ title: 'Success', description: `${packageName} ${type} deduction updated` });
+        fetchPackageDeductions();
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to save package deduction', variant: 'destructive' });
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const updateAmount = (packageName: string, type: 'lateness' | 'absence', amount: number) => {
+    setPackageDeductions(prev => {
+      const existing = prev.find(p => p.packageName === packageName);
+      if (existing) {
+        return prev.map(p => 
+          p.packageName === packageName 
+            ? { ...p, [type === 'lateness' ? 'latenessBaseAmount' : 'absenceBaseAmount']: amount }
+            : p
+        );
+      } else {
+        return [...prev, {
+          id: 0,
+          packageName,
+          latenessBaseAmount: type === 'lateness' ? amount : 30,
+          absenceBaseAmount: type === 'absence' ? amount : 25
+        }];
+      }
+    });
+  };
+
+  const commonPackages = ['0 Fee', '3 days', '5 days', 'Europe'];
+
+  if (loading) return <div className="animate-pulse bg-purple-100 h-32 rounded-lg"></div>;
+
+  return (
+    <div className="space-y-4">
+      {/* Tab Navigation */}
+      <div className="flex bg-purple-100 rounded-xl p-1">
+        <button
+          onClick={() => setActiveTab('lateness')}
+          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+            activeTab === 'lateness'
+              ? 'bg-white text-purple-900 shadow-sm'
+              : 'text-purple-700 hover:text-purple-900'
+          }`}
+        >
+          Lateness Deductions
+        </button>
+        <button
+          onClick={() => setActiveTab('absence')}
+          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+            activeTab === 'absence'
+              ? 'bg-white text-purple-900 shadow-sm'
+              : 'text-purple-700 hover:text-purple-900'
+          }`}
+        >
+          Absence Deductions
+        </button>
+      </div>
+
+      {/* Package Configuration Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {commonPackages.map((packageName) => {
+          const existing = packageDeductions.find(p => p.packageName === packageName);
+          const currentAmount = existing?.[activeTab === 'lateness' ? 'latenessBaseAmount' : 'absenceBaseAmount'] || (activeTab === 'lateness' ? 30 : 25);
+          const savingKey = `${packageName}-${activeTab}`;
+
+          return (
+            <div key={packageName} className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-bold text-purple-900">{packageName}</h4>
+                <span className="text-xs text-purple-600 font-medium">
+                  {activeTab === 'lateness' ? 'Base for % calc' : 'Per time slot'}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <div className="flex-1 relative">
+                  <input
+                    type="number"
+                    value={currentAmount}
+                    onChange={(e) => updateAmount(packageName, activeTab, Number(e.target.value))}
+                    className="w-full border border-purple-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-center font-semibold"
+                    min="0"
+                    step="0.01"
+                  />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-purple-600 font-medium">
+                    ETB
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleSave(packageName, activeTab, currentAmount)}
+                  disabled={saving === savingKey}
+                  className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white p-2 rounded-lg transition-all hover:scale-105"
+                >
+                  {saving === savingKey ? (
+                    <FiLoader className="animate-spin h-4 w-4" />
+                  ) : (
+                    <FiCheck className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Information Panel */}
+      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
+        <h4 className="font-bold text-purple-900 mb-2 flex items-center gap-2">
+          <FiInfo className="h-4 w-4" />
+          {activeTab === 'lateness' ? 'Lateness Calculation' : 'Absence Calculation'}
+        </h4>
+        <div className="text-purple-800 text-sm space-y-1">
+          {activeTab === 'lateness' ? (
+            <>
+              <p>• Base amount × Tier percentage = Final deduction</p>
+              <p>• Each student's package determines their base amount</p>
+              <p>• Tier percentages are configured in Lateness Management</p>
+            </>
+          ) : (
+            <>
+              <p>• Per time slot amount × Number of missed slots = Final deduction</p>
+              <p>• Each student's package determines their slot rate</p>
+              <p>• Mixed classes calculate fairly per student's package</p>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -113,9 +113,8 @@ export async function calculateTeacherSalary(teacherId: string, fromDate: Date, 
     };
   });
   
-  // Get lateness configuration
-  const latenessConfig = await prisma.latenessdeductionconfig.findFirst();
-  const defaultBaseDeductionAmount = Math.round(Number(latenessConfig?.baseDeductionAmount) || 30);
+  // Default fallback for packages without specific deduction amounts
+  const defaultBaseDeductionAmount = 30;
   
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
