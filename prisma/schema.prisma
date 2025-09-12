@@ -41,17 +41,20 @@ model wpos_wpdatatable_24 {
 }
 
 model wpos_wpdatatable_23 {
-  wdt_ID    Int       @id @default(autoincrement())
-  name      String?   @db.VarChar(255)
-  phoneno   String?   @db.VarChar(32)
-  classfee  Float?    @db.Float
-  startdate DateTime? @db.DateTime(0)
-  status    String?   @db.VarChar(255)
-  ustaz     String?   @db.VarChar(255)
-  package   String?   @db.VarChar(255)
-  subject   String?   @db.VarChar(255)
-  country   String?   @db.VarChar(255)
-  rigistral String?   @db.VarChar(255)
+  wdt_ID         Int             @id @default(autoincrement())
+  name           String?         @db.VarChar(255)
+  phoneno        String?         @db.VarChar(32)
+  classfee       Float?          @db.Float
+  startdate      DateTime?       @db.DateTime(0)
+  status         String?         @db.VarChar(255)
+  ustaz          String?         @db.VarChar(255)
+  package        String?         @db.VarChar(255)
+  subject        String?         @db.VarChar(255)
+  country        String?         @db.VarChar(255)
+  rigistral      String?         @db.VarChar(255)
+  packages       coursePackage[] @relation("PackageHistory")
+  activePackage  coursePackage?  @relation("ActivePackage", fields: [youtubeSubject], references: [id])
+  youtubeSubject String?
 
   daypackages         String?                       @db.VarChar(255)
   refer               String?                       @db.VarChar(255)
@@ -63,10 +66,6 @@ model wpos_wpdatatable_23 {
   exitdate            DateTime?                     @db.DateTime(0)
   isKid               Boolean?                      @default(false)
   reason              String?                       @db.VarChar(255)
-  // activePackage       coursePackage?                @relation("ActivePackage", fields: [youtubeSubject], references: [id])
-  // youtubeSubject      String?
-  // coursePackage       coursePackage?                @relation("PackageHistory", fields: [coursePackageId], references: [id])
-  // coursePackageId     String?
   months_table        months_table[]
   payment             payment[]
   attendance_progress student_attendance_progress[]
@@ -569,22 +568,22 @@ model testresult {
 }
 
 model coursePackage {
-  id                  String               @id @default(uuid())
-  name                String               @db.Text
-  description         String?              @db.Text
+  id                  String                @id @default(uuid())
+  name                String                @db.Text
+  description         String?               @db.Text
   courses             course[]
   questions           question[]
   finalExamResult     finalExamResult[]
   examDurationMinutes Int?
-  isPublished         Boolean              @default(false)
-  // students            wpos_wpdatatable_23[] @relation("PackageHistory")
-  // activeStudents      wpos_wpdatatable_23[] @relation("ActivePackage")
+  isPublished         Boolean               @default(false)
+  students            wpos_wpdatatable_23[] @relation("PackageHistory")
+  activeStudents      wpos_wpdatatable_23[] @relation("ActivePackage")
   subjectPackages     subjectPackage[] // <-- Add this line for the relation
   terbiaAttendance    tarbiaAttendance[]
   ustazId             Int?
-  ustaz               wpos_wpdatatable_24? @relation(fields: [id], references: [ustazid])
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  ustaz               wpos_wpdatatable_24?  @relation(fields: [id], references: [ustazid])
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
 }
 
 model subjectPackage {
@@ -776,12 +775,12 @@ model StudentSubject {
 }
 
 model PackageDeduction {
-  id                    Int      @id @default(autoincrement())
-  packageName           String   @unique
-  latenessBaseAmount    Decimal  @default(30.00) @db.Decimal(10, 2)
-  absenceBaseAmount     Decimal  @default(25.00) @db.Decimal(10, 2)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                 Int      @id @default(autoincrement())
+  packageName        String   @unique
+  latenessBaseAmount Decimal  @default(30.00) @db.Decimal(10, 2)
+  absenceBaseAmount  Decimal  @default(25.00) @db.Decimal(10, 2)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 enum role {

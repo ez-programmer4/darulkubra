@@ -20,11 +20,40 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const count = await prisma.wpos_wpdatatable_23.count({
+    const students = await prisma.wpos_wpdatatable_23.findMany({
       where: { ustaz: String(teacherId) },
+      select: {
+        wdt_ID: true,
+        name: true,
+        package: true,
+        daypackages: true,
+        subject: true,
+        status: true,
+        zoom_links: {
+          select: {
+            id: true,
+            sent_time: true,
+          },
+          take: 5,
+          orderBy: {
+            sent_time: 'desc'
+          }
+        },
+        occupiedTimes: {
+          select: {
+            time_slot: true,
+          },
+          take: 1
+        }
+      },
+      orderBy: {
+        name: 'asc'
+      }
     });
 
-    return NextResponse.json({ count });
+    const count = students.length;
+
+    return NextResponse.json({ students, count });
   } catch (error) {
     return NextResponse.json(
       { error: "Internal Server Error" },

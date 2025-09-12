@@ -214,10 +214,11 @@ async function checkingUpdateProhibition(studentId: number, packageId: string) {
     return false; // Re-throw the error to be handled by the caller
   }
 }
-async function getStudentProgressStatus(
+export async function getStudentProgressStatus(
   studentId: number,
   activePackageId: string
 ) {
+  // 1. Get all chapters for the active package
   const chapters = await prisma.chapter.findMany({
     where: { course: { packageId: activePackageId } },
     select: {
@@ -241,6 +242,7 @@ async function getStudentProgressStatus(
       return "completed";
     } else {
       const firstIncomplete = progress.find((p) => !p.isCompleted);
+      // Find the chapter details for that id
       const chapter = chapters.find(
         (ch) => ch.id === firstIncomplete?.chapterId
       );
@@ -248,13 +250,13 @@ async function getStudentProgressStatus(
       const courseTitle = chapter?.course?.title ?? null;
       const packageName = chapter?.course?.package?.name ?? null;
 
-      const percent = getProgressPercent(progress, chapterIds.length);
+      const percent = await getProgressPercent(progress, chapterIds.length);
+
       return `${packageName} > ${courseTitle} > ${chapterTitle} -> ${percent}%`;
     }
   } else {
     return "notstarted";
   }
-}
 
 function getProgressPercent(
   progress: { isCompleted: boolean }[],
@@ -349,6 +351,7 @@ export async function GET(request: NextRequest) {
         subject: true,
         package: true,
         chatId: true,
+              youtubeSubject: true,
         teacher: {
           select: { ustazname: true },
         },
@@ -367,7 +370,9 @@ export async function GET(request: NextRequest) {
             sp.packageType === student.package &&
             sp.kidpackage === student.isKid
         );
-        const activePackageId = matchedSubjectPackage?.packageId ?? "";
+      const activePackageId =
+        student.youtubeSubject ?? matchedSubjectPackage?.packageId;
+      if (!activePackageId) return undefined;
 
         const progress = await getStudentProgressStatus(
           student.wdt_ID,
