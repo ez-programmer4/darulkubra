@@ -8,10 +8,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 function TeacherLoginPageContent() {
-  const { isLoading } = useAuth({
-    redirectIfFound: true,
-    redirectTo: "/teachers/dashboard",
-  });
+  const { isLoading } = useAuth();
 
   const searchParams = useSearchParams();
 
