@@ -18,9 +18,16 @@ export async function POST(req: NextRequest) {
     let totalAbsenceAmount = 0;
 
     if (adjustmentType === 'waive_lateness') {
-      // Calculate lateness deductions dynamically like teacher-payments does
-      const latenessConfig = await prisma.latenessdeductionconfig.findFirst();
-      const baseDeductionAmount = Number(latenessConfig?.baseDeductionAmount) || 30;
+      // Get package-specific deduction configurations like teacher-payments does
+      const packageDeductions = await prisma.packageDeduction.findMany();
+      const packageDeductionMap: Record<string, { lateness: number; absence: number }> = {};
+      packageDeductions.forEach((pkg) => {
+        packageDeductionMap[pkg.packageName] = {
+          lateness: Number(pkg.latenessBaseAmount),
+          absence: Number(pkg.absenceBaseAmount)
+        };
+      });
+      const defaultBaseDeductionAmount = 30;
       
       const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
         orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
@@ -98,17 +105,21 @@ export async function POST(req: NextRequest) {
               
               if (latenessMinutes > excusedThreshold) {
                 let foundTier = false;
+                // Get student's package for package-specific deduction
+                const studentPackage = student.package || "";
+                const baseDeductionAmount = packageDeductionMap[studentPackage]?.lateness || defaultBaseDeductionAmount;
+                
                 for (const [i, tier] of tiers.entries()) {
                   if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {
                     deductionApplied = baseDeductionAmount * (tier.percent / 100);
-                    deductionTier = `Tier ${i + 1}`;
+                    deductionTier = `Tier ${i + 1} (${tier.percent}%) - ${studentPackage}`;
                     foundTier = true;
                     break;
                   }
                 }
                 if (!foundTier && latenessMinutes > maxTierEnd) {
                   deductionApplied = baseDeductionAmount;
-                  deductionTier = "> Max Tier";
+                  deductionTier = `> Max Tier - ${studentPackage}`;
                 }
               }
               

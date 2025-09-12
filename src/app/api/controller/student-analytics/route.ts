@@ -214,7 +214,7 @@ async function checkingUpdateProhibition(studentId: number, packageId: string) {
     return false; // Re-throw the error to be handled by the caller
   }
 }
-export async function getStudentProgressStatus(
+async function getStudentProgressStatus(
   studentId: number,
   activePackageId: string
 ) {
@@ -257,6 +257,7 @@ export async function getStudentProgressStatus(
   } else {
     return "notstarted";
   }
+}
 
 function getProgressPercent(
   progress: { isCompleted: boolean }[],
@@ -362,7 +363,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Process students with progress
-    let studentsWithProgress = await Promise.all(
+    let studentsWithProgress = (await Promise.all(
       students.map(async (student) => {
         const matchedSubjectPackage = subjectPackages.find(
           (sp) =>
@@ -487,7 +488,7 @@ export async function GET(request: NextRequest) {
         );
         return studentResult;
       })
-    );
+    )).filter((student): student is NonNullable<typeof student> => student !== undefined);
 
     // Filter by progress
     if (progressFilter && progressFilter !== "all") {
