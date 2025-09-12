@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 dayjs.extend(weekday);
 import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/ui/LogoutButton";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
@@ -54,12 +54,12 @@ type Notification = {
   timestamp: string;
 };
 
-const navItems = [
-  { href: "/teachers/dashboard", label: "Dashboard", icon: FiHome },
-  { href: "/teachers/permissions", label: "Permissions", icon: FiClipboard },
+// const navItems = [
+//   { href: "/teachers/dashboard", label: "Dashboard", icon: FiHome },
+//   { href: "/teachers/permissions", label: "Permissions", icon: FiClipboard },
 
-  { href: "/teachers/salary", label: "Salary", icon: FiTrendingUp },
-];
+//   { href: "/teachers/salary", label: "Salary", icon: FiTrendingUp },
+// ];
 
 function TeacherDashboardContent() {
   const { user, isLoading: authLoading } = useAuth({
@@ -68,7 +68,7 @@ function TeacherDashboardContent() {
   });
   const router = useRouter();
   const confettiRef = useRef<JSConfetti | null>(null);
-
+  const pathname = usePathname();
   const [availableWeeks, setAvailableWeeks] = useState<string[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<string>("");
   const [quality, setQuality] = useState<QualityData | null>(null);
@@ -565,7 +565,11 @@ ${quality.examinerNotes || "No notes provided."}
                       signOut({ callbackUrl: "/teachers/login" });
                     }
                   }}
-                  title={typeof window !== 'undefined' && window.innerWidth < 768 ? "Tap to logout" : undefined}
+                  title={
+                    typeof window !== "undefined" && window.innerWidth < 768
+                      ? "Tap to logout"
+                      : undefined
+                  }
                 >
                   {user && user.name && typeof user.name === "string"
                     ? user.name.charAt(0)
@@ -630,9 +634,9 @@ ${quality.examinerNotes || "No notes provided."}
                         </div>
                         <div className="text-indigo-700 font-bold">
                           {(() => {
-                            const [hours, minutes] = c.time.split(':');
+                            const [hours, minutes] = c.time.split(":");
                             const hour = parseInt(hours);
-                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                            const ampm = hour >= 12 ? "PM" : "AM";
                             const displayHour = hour % 12 || 12;
                             return `${displayHour}:${minutes} ${ampm}`;
                           })()}
@@ -673,9 +677,13 @@ ${quality.examinerNotes || "No notes provided."}
                             setSelectedWeek(week);
                           }}
                         >
-                          <span className="hidden sm:inline">Week {idx + 1}</span>
+                          <span className="hidden sm:inline">
+                            Week {idx + 1}
+                          </span>
                           <span className="sm:hidden">W{idx + 1}</span>
-                          {isCurrentWeek && <span className="hidden sm:inline"> (Current)</span>}
+                          {isCurrentWeek && (
+                            <span className="hidden sm:inline"> (Current)</span>
+                          )}
                         </Button>
                       );
                     })}
@@ -707,7 +715,9 @@ ${quality.examinerNotes || "No notes provided."}
                   value={quality?.studentsPassed || 0}
                   color="violet"
                   unit="%"
-                  tooltip={`Adjusted pass rate using school average (75%) with 8 imaginary students for fairer evaluation. Sample size: ${quality?.studentsTotal || 0} students.`}
+                  tooltip={`Adjusted pass rate using school average (75%) with 8 imaginary students for fairer evaluation. Sample size: ${
+                    quality?.studentsTotal || 0
+                  } students.`}
                 />
                 <StatsCard
                   icon={<FiAward size={24} className="text-yellow-600" />}
@@ -921,42 +931,50 @@ ${quality.examinerNotes || "No notes provided."}
         </main>
 
         {/* Bottom Navigation (Mobile) */}
-        <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-2xl flex justify-around py-2 z-50 safe-area-inset-bottom">
-          <button
-            onClick={() => setActiveTab("dashboard")}
-            className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all duration-200 min-w-0 flex-1 max-w-20 ${
-              activeTab === "dashboard"
+        <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-gray-200 shadow-2xl flex justify-around py-3 z-50">
+          <Link
+            href="/teachers/dashboard"
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
+              pathname === "/teachers/dashboard"
                 ? "text-black bg-gray-100 transform scale-105"
-                : "text-gray-500 hover:text-black hover:bg-gray-50"
+                : "text-gray-500 hover:text-black hover:bg-gray-100"
             }`}
           >
-            <FiHome className="w-5 h-5 flex-shrink-0" />
-            <span className="text-xs font-medium truncate">Dashboard</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("students")}
-            className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all duration-200 min-w-0 flex-1 max-w-20 ${
-              activeTab === "students"
+            <FiHome className="w-5 h-5" />
+            <span className="text-xs font-medium">Dashboard</span>
+          </Link>
+          <Link
+            href="/teachers/dashboard?tab=students"
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
+              pathname.includes("tab=students")
                 ? "text-black bg-gray-100 transform scale-105"
-                : "text-gray-500 hover:text-black hover:bg-gray-50"
+                : "text-gray-500 hover:text-black hover:bg-gray-100"
             }`}
           >
-            <FiUsers className="w-5 h-5 flex-shrink-0" />
-            <span className="text-xs font-medium truncate">Students</span>
-          </button>
+            <FiUsers className="w-5 h-5" />
+            <span className="text-xs font-medium">Students</span>
+          </Link>
           <Link
             href="/teachers/permissions"
-            className="flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all duration-200 text-gray-500 hover:text-black hover:bg-gray-50 min-w-0 flex-1 max-w-20"
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
+              pathname === "/teachers/permissions"
+                ? "text-black bg-gray-100 transform scale-105"
+                : "text-gray-500 hover:text-black hover:bg-gray-100"
+            }`}
           >
-            <FiClipboard className="w-5 h-5 flex-shrink-0" />
-            <span className="text-xs font-medium truncate">Permissions</span>
+            <FiClipboard className="w-5 h-5" />
+            <span className="text-xs font-medium">Permissions</span>
           </Link>
           <Link
             href="/teachers/salary"
-            className="flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all duration-200 text-gray-500 hover:text-black hover:bg-gray-50 min-w-0 flex-1 max-w-20"
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
+              pathname === "/teachers/salary"
+                ? "text-black bg-gray-100 transform scale-105"
+                : "text-gray-500 hover:text-black hover:bg-gray-100"
+            }`}
           >
-            <FiTrendingUp className="w-5 h-5 flex-shrink-0" />
-            <span className="text-xs font-medium truncate">Salary</span>
+            <FiTrendingUp className="w-5 h-5" />
+            <span className="text-xs font-medium">Salary</span>
           </Link>
         </nav>
 
