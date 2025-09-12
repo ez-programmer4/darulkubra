@@ -317,6 +317,8 @@ export default function TeacherPermissions() {
         title: "✅ Request Submitted!",
         description: responseData.notifications?.sms_sent > 0 
           ? `📱 Admin team notified via SMS (${responseData.notifications.sms_sent} messages sent)`
+          : responseData.notifications?.debug?.sms_attempts > 0
+          ? "📧 Request submitted successfully. Admin team will be notified."
           : "📧 Admin team has been notified and will review your request",
       });
       setDate("");

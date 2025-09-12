@@ -12,6 +12,8 @@ import {
   FiKey,
   FiCalendar,
   FiCheck,
+  FiTrash2,
+  FiUsers,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
@@ -26,6 +28,16 @@ interface Teacher {
   created_at: string;
 }
 
+interface OccupiedTime {
+  id: number;
+  time_slot: string;
+  daypackage: string;
+  student: {
+    wdt_ID: number;
+    name: string;
+  };
+}
+
 export default function ControllerTeachers() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +47,9 @@ export default function ControllerTeachers() {
     message: string;
     type: "success" | "error";
   } | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<string | null>(null);
+  const [occupiedTimes, setOccupiedTimes] = useState<OccupiedTime[]>([]);
+  const [timeSlotsLoading, setTimeSlotsLoading] = useState(false);
 
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -107,6 +122,60 @@ export default function ControllerTeachers() {
   const copyAllCredentials = async (teacher: Teacher) => {
     const credentials = `Teacher: ${teacher.ustazname}\nUsername: ${teacher.ustazid}\nPassword: ${teacher.password}\nPhone: ${teacher.phone || 'Not provided'}\nSchedule: ${teacher.schedule || 'No schedule set'}`;
     await copyToClipboard(credentials, "All credentials");
+  };
+
+  const fetchTimeSlots = async (teacherId: string) => {
+    try {
+      setTimeSlotsLoading(true);
+      const response = await fetch(`/api/controller/teacher-timeslots?teacherId=${teacherId}`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setOccupiedTimes(data.occupiedTimes || []);
+      }
+    } catch (error) {
+      setNotification({
+        message: "Failed to load time slots",
+        type: "error",
+      });
+      setTimeout(() => setNotification(null), 3000);
+    } finally {
+      setTimeSlotsLoading(false);
+    }
+  };
+
+  const deleteTimeSlot = async (id: number) => {
+    try {
+      const response = await fetch(`/api/controller/teacher-timeslots?id=${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (response.ok) {
+        setOccupiedTimes(prev => prev.filter(slot => slot.id !== id));
+        setNotification({
+          message: "Time slot cleared successfully",
+          type: "success",
+        });
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (error) {
+      setNotification({
+        message: "Failed to clear time slot",
+        type: "error",
+      });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const toggleTimeSlots = (teacherId: string) => {
+    if (selectedTeacher === teacherId) {
+      setSelectedTeacher(null);
+      setOccupiedTimes([]);
+    } else {
+      setSelectedTeacher(teacherId);
+      fetchTimeSlots(teacherId);
+    }
   };
 
   if (loading) {
@@ -328,6 +397,136 @@ export default function ControllerTeachers() {
                       <div className="text-sm text-gray-900 bg-white p-3 rounded-lg shadow-sm border">
                         {teacher.schedule || "No schedule set"}
                       </div>
+                    </div>
+
+                    {/* Time Slots Management */}
+                    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 rounded-xl border border-slate-200 overflow-hidden">
+                      <button
+                        onClick={() => toggleTimeSlots(teacher.ustazid)}
+                        className={`w-full p-4 flex items-center justify-between transition-all duration-300 ${
+                          selectedTeacher === teacher.ustazid 
+                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg' 
+                            : 'bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 text-gray-700 hover:text-blue-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2.5 rounded-xl transition-all duration-300 ${
+                            selectedTeacher === teacher.ustazid 
+                              ? 'bg-white/20 backdrop-blur-sm' 
+                              : 'bg-blue-100'
+                          }`}>
+                            <FiClock className={`${
+                              selectedTeacher === teacher.ustazid ? 'text-white' : 'text-blue-600'
+                            }`} size={18} />
+                          </div>
+                          <div className="text-left">
+                            <div className={`text-sm font-semibold ${
+                              selectedTeacher === teacher.ustazid ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              Schedule Management
+                            </div>
+                            <div className={`text-xs ${
+                              selectedTeacher === teacher.ustazid ? 'text-blue-100' : 'text-gray-500'
+                            }`}>
+                              View & manage time slots
+                            </div>
+                          </div>
+                        </div>
+                        <motion.div
+                          animate={{ rotate: selectedTeacher === teacher.ustazid ? 180 : 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <FiUsers className={`${
+                            selectedTeacher === teacher.ustazid ? 'text-white' : 'text-blue-600'
+                          }`} size={18} />
+                        </motion.div>
+                      </button>
+                      
+                      <AnimatePresence>
+                        {selectedTeacher === teacher.ustazid && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                            className="overflow-hidden"
+                          >
+                            <div className="p-4 bg-gradient-to-br from-white to-slate-50 border-t border-slate-200">
+                              {timeSlotsLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                  <div className="flex items-center gap-3">
+                                    <motion.div
+                                      animate={{ rotate: 360 }}
+                                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                                      className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full"
+                                    />
+                                    <span className="text-sm text-gray-600 font-medium">Loading time slots...</span>
+                                  </div>
+                                </div>
+                              ) : occupiedTimes.length === 0 ? (
+                                <div className="text-center py-8">
+                                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <FiClock className="text-gray-400" size={24} />
+                                  </div>
+                                  <p className="text-sm font-medium text-gray-600 mb-1">No Occupied Slots</p>
+                                  <p className="text-xs text-gray-500">This teacher has no assigned time slots</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                                      <FiUsers className="text-blue-600" size={16} />
+                                      Occupied Time Slots ({occupiedTimes.length})
+                                    </h4>
+                                  </div>
+                                  {occupiedTimes.map((slot, index) => (
+                                    <motion.div
+                                      key={slot.id}
+                                      initial={{ opacity: 0, x: -20 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      transition={{ delay: index * 0.1 }}
+                                      className="group bg-white rounded-xl p-4 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-300"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-3 mb-2">
+                                            <div className="p-2 bg-blue-100 rounded-lg">
+                                              <FiClock className="text-blue-600" size={14} />
+                                            </div>
+                                            <div>
+                                              <div className="text-sm font-semibold text-gray-900">
+                                                {slot.time_slot}
+                                              </div>
+                                              <div className="text-xs text-blue-600 font-medium">
+                                                {slot.daypackage}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-2 ml-11">
+                                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                            <span className="text-xs text-gray-600">
+                                              <span className="font-medium">Student:</span> {slot.student.name}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <motion.button
+                                          whileHover={{ scale: 1.1 }}
+                                          whileTap={{ scale: 0.95 }}
+                                          onClick={() => deleteTimeSlot(slot.id)}
+                                          className="opacity-0 group-hover:opacity-100 p-2.5 text-red-500 hover:text-white hover:bg-red-500 rounded-xl transition-all duration-300 shadow-md hover:shadow-lg"
+                                          title="Clear this time slot"
+                                        >
+                                          <FiTrash2 size={16} />
+                                        </motion.button>
+                                      </div>
+                                    </motion.div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
 
                     {/* Created Date */}
