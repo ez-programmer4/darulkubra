@@ -2168,8 +2168,16 @@ export default function TeacherPaymentsPage() {
                 <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200">
                   <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
                     <FiDollarSign className="h-5 w-5" />
-                    Package-Based Salary Breakdown
+                    Package-Based Salary & Deduction System
                   </h3>
+                  <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
+                    <h4 className="font-semibold text-blue-800 mb-2">🎯 Package-Specific Deductions Active</h4>
+                    <div className="text-sm text-blue-700 space-y-1">
+                      <p>• <strong>Lateness:</strong> Base amount varies by student's package (used with tier percentages)</p>
+                      <p>• <strong>Absence:</strong> Per-slot deduction varies by student's package</p>
+                      <p>• <strong>Fair System:</strong> Higher-fee packages = higher deductions, lower-fee packages = lower deductions</p>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {teacherPackageBreakdown.packageBreakdown?.map(
                       (pkg: any, index: number) => {
@@ -2465,13 +2473,23 @@ export default function TeacherPaymentsPage() {
                                 {/* Calculation Details */}
                                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                                   <div className="text-xs font-mono text-gray-700 mb-2">
-                                    Calculation: Package Base Amount × Tier Percentage = {r.deductionApplied} ETB
+                                    Package-Specific Calculation: {r.deductionApplied} ETB
                                   </div>
                                   {r.deductionTier && r.deductionTier.includes(' - ') && (
-                                    <div className="text-xs text-blue-600 mb-1">
-                                      <span className="font-medium">Package:</span> {r.deductionTier.split(' - ')[1]}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                      <div className="bg-blue-100 rounded p-2">
+                                        <span className="font-medium text-blue-800">Student Package:</span>
+                                        <div className="font-bold text-blue-900">{r.deductionTier.split(' - ')[1]}</div>
+                                      </div>
+                                      <div className="bg-purple-100 rounded p-2">
+                                        <span className="font-medium text-purple-800">Tier Applied:</span>
+                                        <div className="font-bold text-purple-900">{r.deductionTier.split(' - ')[0]}</div>
+                                      </div>
                                     </div>
                                   )}
+                                  <div className="text-xs text-green-600 mt-1 font-medium">
+                                    ✓ Deduction calculated using {r.studentName}'s package-specific base rate
+                                  </div>
                                   {r.scheduledTime && r.actualStartTime && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
                                       <div>
@@ -2641,6 +2659,17 @@ export default function TeacherPaymentsPage() {
                                         <div className="text-xs font-mono text-gray-700 mb-2">
                                           {calculationDisplay}
                                         </div>
+                                        
+                                        {/* Package-specific breakdown */}
+                                        <div className="bg-green-50 rounded p-2 mb-2 border border-green-200">
+                                          <div className="text-xs text-green-800 font-medium mb-1">
+                                            ✓ Package-Based Deduction Applied
+                                          </div>
+                                          <div className="text-xs text-green-700">
+                                            Each student's package determines their deduction rate for fair calculation
+                                          </div>
+                                        </div>
+                                        
                                         {r.timeSlots &&
                                           (() => {
                                             try {
