@@ -777,6 +777,15 @@ model StudentSubject {
   updatedAt DateTime @updatedAt
 }
 
+model PackageDeduction {
+  id                    Int      @id @default(autoincrement())
+  packageName           String   @unique
+  latenessBaseAmount    Decimal  @default(30.00) @db.Decimal(10, 2)
+  absenceBaseAmount     Decimal  @default(25.00) @db.Decimal(10, 2)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
 enum role {
   manager
   teacher

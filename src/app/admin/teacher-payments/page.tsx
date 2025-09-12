@@ -2440,9 +2440,13 @@ export default function TeacherPaymentsPage() {
                                 {/* Calculation Details */}
                                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                                   <div className="text-xs font-mono text-gray-700 mb-2">
-                                    Calculation: Base Amount × Tier Percentage ={" "}
-                                    {r.deductionApplied} ETB
+                                    Calculation: Package Base Amount × Tier Percentage = {r.deductionApplied} ETB
                                   </div>
+                                  {r.deductionTier && r.deductionTier.includes(' - ') && (
+                                    <div className="text-xs text-blue-600 mb-1">
+                                      <span className="font-medium">Package:</span> {r.deductionTier.split(' - ')[1]}
+                                    </div>
+                                  )}
                                   {r.scheduledTime && r.actualStartTime && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
                                       <div>
@@ -2593,18 +2597,18 @@ export default function TeacherPaymentsPage() {
                                       try {
                                         const slots = JSON.parse(r.timeSlots);
                                         if (slots.includes("Whole Day")) {
-                                          calculationDisplay = `Whole Day Deduction: ${r.deductionApplied} ETB (Fixed Rate)`;
+                                          calculationDisplay = `Whole Day Deduction: ${r.deductionApplied} ETB (Package-based rate)`;
                                         } else {
                                           const perSlotRate = Math.round(
                                             r.deductionApplied / slots.length
                                           );
-                                          calculationDisplay = `Time Slot Deduction: ${perSlotRate} ETB × ${slots.length} slots = ${r.deductionApplied} ETB`;
+                                          calculationDisplay = `Package-based Time Slot Deduction: ${perSlotRate} ETB × ${slots.length} slots = ${r.deductionApplied} ETB`;
                                         }
                                       } catch {
-                                        calculationDisplay = `Legacy Calculation: ${r.deductionApplied} ETB`;
+                                        calculationDisplay = `Package-based Calculation: ${r.deductionApplied} ETB`;
                                       }
                                     } else {
-                                      calculationDisplay = `Legacy Calculation: ${r.deductionApplied} ETB`;
+                                      calculationDisplay = `Package-based Calculation: ${r.deductionApplied} ETB`;
                                     }
 
                                     return (

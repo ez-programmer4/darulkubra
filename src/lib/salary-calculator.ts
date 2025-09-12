@@ -103,9 +103,19 @@ export async function calculateTeacherSalary(teacherId: string, fromDate: Date, 
   let latenessDeduction = 0;
   const latenessBreakdown = [];
   
+  // Get package-specific deduction configurations
+  const packageDeductions = await prisma.packageDeduction.findMany();
+  const packageDeductionMap: Record<string, { lateness: number; absence: number }> = {};
+  packageDeductions.forEach((pkg) => {
+    packageDeductionMap[pkg.packageName] = {
+      lateness: Number(pkg.latenessBaseAmount),
+      absence: Number(pkg.absenceBaseAmount)
+    };
+  });
+  
   // Get lateness configuration
   const latenessConfig = await prisma.latenessdeductionconfig.findFirst();
-  const baseDeductionAmount = Math.round(Number(latenessConfig?.baseDeductionAmount) || 30);
+  const defaultBaseDeductionAmount = Math.round(Number(latenessConfig?.baseDeductionAmount) || 30);
   
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
@@ -202,11 +212,16 @@ export async function calculateTeacherSalary(teacherId: string, fromDate: Date, 
           let deduction = 0;
           let tier = "No Tier";
           
+          // Get student's package for package-specific deduction
+          const student = allStudents.find(s => s.wdt_ID === link.studentId);
+          const studentPackage = student?.package || "";
+          const baseDeductionAmount = packageDeductionMap[studentPackage]?.lateness || defaultBaseDeductionAmount;
+          
           // Find appropriate tier
           for (const [i, t] of tiers.entries()) {
             if (latenessMinutes >= t.start && latenessMinutes <= t.end) {
               deduction = Math.round(baseDeductionAmount * (t.percent / 100));
-              tier = `Tier ${i + 1} (${t.percent}%)`;
+              tier = `Tier ${i + 1} (${t.percent}%) - ${studentPackage}`;
               break;
             }
           }
@@ -245,18 +260,18 @@ export async function calculateTeacherSalary(teacherId: string, fromDate: Date, 
   const absenceBreakdown = [];
   const absenceConfig = await getAbsenceDeductionConfig();
   
-  // Get time-slot based deduction config
+  // Get time-slot based deduction config (fallback)
   const timeSlotDeductionConfig = await prisma.deductionbonusconfig.findFirst({
     where: { configType: "absence", key: "deduction_per_time_slot" },
   });
-  const deductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
+  const defaultDeductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
   
   // Get teacher's occupied times for day-based calculations
   const teacherOccupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
     where: { ustaz_id: teacherId },
     include: {
       student: {
-        select: { daypackages: true }
+        select: { daypackages: true, package: true }
       }
     }
   });
@@ -290,13 +305,30 @@ export async function calculateTeacherSalary(teacherId: string, fromDate: Date, 
           );
         });
         
-        let dailyDeduction = absenceConfig.deductionAmount;
-        let deductionReason = "No zoom link sent (whole day)";
+        // Calculate package-weighted deduction
+        let dailyDeduction = 0;
+        let deductionReason = "No zoom link sent";
         
         if (dayTimeSlots.length > 0) {
           const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
-          dailyDeduction = deductionPerTimeSlot * uniqueTimeSlots.length;
-          deductionReason = `No zoom link sent (${uniqueTimeSlots.length} time slots)`;
+          
+          // Calculate deduction based on student packages for each time slot
+          const packageCounts = new Map<string, number>();
+          dayTimeSlots.forEach(ot => {
+            const studentPackage = ot.student.package || "default";
+            packageCounts.set(studentPackage, (packageCounts.get(studentPackage) || 0) + 1);
+          });
+          
+          // Sum deductions for each package
+          for (const [pkg, count] of packageCounts.entries()) {
+            const packageDeduction = packageDeductionMap[pkg]?.absence || defaultDeductionPerTimeSlot;
+            dailyDeduction += packageDeduction * count;
+          }
+          
+          deductionReason = `No zoom link sent (${uniqueTimeSlots.length} time slots, package-based)`;
+        } else {
+          dailyDeduction = absenceConfig.deductionAmount;
+          deductionReason = "No zoom link sent (whole day)";
         }
         
         // Check for waiver (only in admin context)
