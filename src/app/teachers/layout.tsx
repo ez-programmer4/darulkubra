@@ -31,11 +31,17 @@ export default function TeachersLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  
+  // Don't apply layout to login page
+  if (pathname === "/teachers/login") {
+    return <>{children}</>;
+  }
+
   const { user, isLoading: authLoading } = useAuth({
     requiredRole: "teacher",
     redirectTo: "/teachers/login",
   });
-  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications] = useState<any[]>([]);
 
