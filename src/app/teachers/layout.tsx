@@ -55,34 +55,10 @@ export default function TeachersLayout({
     return <PageLoading />;
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-white p-4 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg border p-6 text-center max-w-sm mx-auto">
-          <div className="p-4 bg-red-50 rounded-full w-fit mx-auto mb-4">
-            <FiAlertTriangle className="h-8 w-8 text-red-500" />
-          </div>
-          <h2 className="text-lg font-bold text-black mb-3">
-            Account Setup Required
-          </h2>
-          <p className="text-gray-600 mb-4 text-sm">
-            Your teacher account needs to be set up in the system. Please contact the administrator.
-          </p>
-          <div className="bg-gray-50 rounded-lg p-3 mb-4">
-            <p className="text-xs text-gray-500">
-              If you just logged in successfully, your account may need additional setup.
-            </p>
-          </div>
-          <button
-            onClick={() => signOut({ callbackUrl: "/teachers/login", redirect: true })}
-            className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium text-sm"
-          >
-            Sign Out & Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Skip user check - allow access even if user details not found
+  // if (!user) {
+  //   return error page
+  // }
 
   return (
     <div className="flex min-h-screen bg-white text-gray-900">
