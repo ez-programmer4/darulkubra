@@ -126,38 +126,43 @@ export default function TeacherPermissions() {
 
   // Fetch available time slots for selected date
   useEffect(() => {
-    console.log('useEffect triggered for time slots:', { date, userId: user?.id });
+    console.log("useEffect triggered for time slots:", {
+      date,
+      userId: user?.id,
+    });
     const fetchTimeSlots = async () => {
-      if (!date || date.trim() === '' || !user?.id) {
+      if (!date || date.trim() === "" || !user?.id) {
         // Clear time slots if no date selected
         setAvailableTimeSlots([]);
         return;
       }
-      
+
       // Validate date format
       const parsedDate = new Date(date);
       if (isNaN(parsedDate.getTime())) {
-        console.log('Invalid date format:', date);
+        console.log("Invalid date format:", date);
         setAvailableTimeSlots([]);
         return;
       }
       try {
-        console.log('Frontend - Fetching time slots for:', { 
-          date, 
-          userId: user.id, 
+        console.log("Frontend - Fetching time slots for:", {
+          date,
+          userId: user.id,
           dateType: typeof date,
           dateLength: date.length,
-          dateValue: JSON.stringify(date)
+          dateValue: JSON.stringify(date),
         });
         const res = await fetch(
-          `/api/teachers/time-slots?date=${encodeURIComponent(date)}&teacherId=${user.id}`
+          `/api/teachers/time-slots?date=${encodeURIComponent(
+            date
+          )}&teacherId=${user.id}`
         );
         if (res.ok) {
           const data = await res.json();
-          console.log('Time slots response:', data);
+          console.log("Time slots response:", data);
           setAvailableTimeSlots(data.timeSlots || []);
         } else {
-          console.log('Time slots API error:', res.status, res.statusText);
+          console.log("Time slots API error:", res.status, res.statusText);
           setAvailableTimeSlots([]);
         }
       } catch (error) {
@@ -177,27 +182,37 @@ export default function TeacherPermissions() {
         });
         if (res.ok) {
           const data = await res.json();
-          console.log('Permission reasons response:', data);
-          if (data.reasons && Array.isArray(data.reasons) && data.reasons.length > 0) {
+          console.log("Permission reasons response:", data);
+          if (
+            data.reasons &&
+            Array.isArray(data.reasons) &&
+            data.reasons.length > 0
+          ) {
             setPermissionReasons(data.reasons);
           } else {
-            console.log('No reasons found in database, seeding default reasons');
+            console.log(
+              "No reasons found in database, seeding default reasons"
+            );
             // Try to seed default reasons
             try {
-              await fetch('/api/seed-permission-reasons', { method: 'POST' });
+              await fetch("/api/seed-permission-reasons", { method: "POST" });
               // Retry fetching reasons
               const retryRes = await fetch("/api/permission-reasons", {
                 credentials: "include",
               });
               if (retryRes.ok) {
                 const retryData = await retryRes.json();
-                if (retryData.reasons && Array.isArray(retryData.reasons) && retryData.reasons.length > 0) {
+                if (
+                  retryData.reasons &&
+                  Array.isArray(retryData.reasons) &&
+                  retryData.reasons.length > 0
+                ) {
                   setPermissionReasons(retryData.reasons);
                   return;
                 }
               }
             } catch (error) {
-              console.log('Failed to seed reasons, using fallback');
+              console.log("Failed to seed reasons, using fallback");
             }
             setPermissionReasons([
               "Sick Leave",
@@ -208,7 +223,7 @@ export default function TeacherPermissions() {
             ]);
           }
         } else {
-          console.log('API error, using fallback reasons');
+          console.log("API error, using fallback reasons");
           setPermissionReasons([
             "Sick Leave",
             "Personal Emergency",
@@ -364,20 +379,20 @@ export default function TeacherPermissions() {
   };
 
   const handleTimeSlotToggle = (timeSlot: string) => {
-    if (timeSlot === 'Whole Day') {
+    if (timeSlot === "Whole Day") {
       if (isWholeDaySelected) {
         setIsWholeDaySelected(false);
         setSelectedTimeSlots([]);
       } else {
         setIsWholeDaySelected(true);
-        setSelectedTimeSlots(['Whole Day']);
+        setSelectedTimeSlots(["Whole Day"]);
       }
     } else {
       setIsWholeDaySelected(false);
       setSelectedTimeSlots((prev) =>
         prev.includes(timeSlot)
-          ? prev.filter((slot) => slot !== timeSlot && slot !== 'Whole Day')
-          : [...prev.filter(slot => slot !== 'Whole Day'), timeSlot]
+          ? prev.filter((slot) => slot !== timeSlot && slot !== "Whole Day")
+          : [...prev.filter((slot) => slot !== "Whole Day"), timeSlot]
       );
     }
   };
@@ -476,94 +491,6 @@ export default function TeacherPermissions() {
   return (
     <div className="flex min-h-screen bg-white text-gray-900">
       {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-80 md:w-72 bg-black text-white flex flex-col transition-all duration-300 ease-in-out md:static md:translate-x-0 shadow-2xl ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="flex items-center justify-between h-20 md:h-24 px-4 md:px-6 border-b border-gray-700 bg-black">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white rounded-xl shadow-lg">
-              <FiUsers className="h-5 w-5 md:h-6 md:w-6 text-black" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-lg md:text-xl font-extrabold text-white">
-                Teacher Portal
-              </span>
-              <span className="text-xs text-gray-300 hidden md:block">
-                Permission Management
-              </span>
-            </div>
-          </div>
-          <button
-            className="md:hidden text-gray-300 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition-all duration-200 hover:scale-110"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close sidebar"
-          >
-            <FiX size={24} />
-          </button>
-        </div>
-        <nav className="flex-1 px-6 py-8 space-y-3 overflow-y-auto">
-          <Link
-            href="/teachers/dashboard"
-            className={`w-full flex items-center gap-4 rounded-xl px-4 py-4 text-base font-medium transition-all duration-200 ${
-              pathname === "/teachers/dashboard"
-                ? "bg-white text-black shadow-lg transform scale-105"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white hover:transform hover:scale-105"
-            }`}
-          >
-            <FiHome className="h-5 w-5" /> Dashboard
-          </Link>
-          <Link
-            href="/teachers/dashboard?tab=students"
-            className={`w-full flex items-center gap-4 rounded-xl px-4 py-4 text-base font-medium transition-all duration-200 ${
-              pathname.includes("tab=students")
-                ? "bg-white text-black shadow-lg transform scale-105"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white hover:transform hover:scale-105"
-            }`}
-          >
-            <FiUsers className="h-5 w-5" /> Students
-          </Link>
-          <Link
-            href="/teachers/permissions"
-            className={`w-full flex items-center gap-4 rounded-xl px-4 py-4 text-base font-medium transition-all duration-200 ${
-              pathname === "/teachers/permissions"
-                ? "bg-white text-black shadow-lg transform scale-105"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white hover:transform hover:scale-105"
-            }`}
-          >
-            <FiClipboard className="h-5 w-5" /> Permissions
-          </Link>
-          <Link
-            href="/teachers/salary"
-            className={`w-full flex items-center gap-4 rounded-xl px-4 py-4 text-base font-medium transition-all duration-200 ${
-              pathname === "/teachers/salary"
-                ? "bg-white text-black shadow-lg transform scale-105"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white hover:transform hover:scale-105"
-            }`}
-          >
-            <FiTrendingUp className="h-5 w-5" /> Salary
-          </Link>
-        </nav>
-        <div className="px-6 py-6 border-t border-gray-700 bg-black">
-          <button
-            onClick={() => signOut({ callbackUrl: "/teachers/login" })}
-            className="w-full flex items-center gap-4 p-4 text-base font-medium text-gray-300 hover:bg-red-600 hover:text-white rounded-xl transition-all duration-200 hover:transform hover:scale-105 hover:shadow-lg"
-            aria-label="Logout"
-          >
-            <FiLogOut className="w-5 h-5" />
-            Logout
-          </button>
-        </div>
-      </aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
@@ -725,7 +652,7 @@ export default function TeacherPermissions() {
                         required
                         value={date}
                         onChange={(e) => {
-                          console.log('Date input changed:', e.target.value);
+                          console.log("Date input changed:", e.target.value);
                           setDate(e.target.value);
                         }}
                         min={new Date().toISOString().split("T")[0]}
@@ -764,106 +691,124 @@ export default function TeacherPermissions() {
                   </div>
 
                   {/* Time Slot Selection */}
-                  {date && (
-                    availableTimeSlots.length > 0 ? (
-                    <div className="space-y-4">
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-                        <Label className="text-lg font-bold text-blue-900 flex items-center gap-2 mb-2">
-                          <FiCalendar className="h-5 w-5" />
-                          📅 Your Class Schedule for {dayjs(date).format('dddd, MMMM D, YYYY')}
-                        </Label>
-                        <p className="text-sm text-blue-700 mb-4">
-                          ⏰ Select "Whole Day" for full day absence, or choose specific time slots from your actual class schedule.
-                        </p>
-                        
-                        <div className="space-y-4">
-                          {/* Whole Day Option */}
-                          <div>
-                            <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                              📅 Full Day Absence
-                            </h4>
-                            <button
-                              type="button"
-                              onClick={() => handleTimeSlotToggle('Whole Day')}
-                              className={`p-4 rounded-lg border-2 text-sm font-bold transition-all hover:scale-105 w-full ${
-                                isWholeDaySelected
-                                  ? "border-red-500 bg-red-50 text-red-800 shadow-md"
-                                  : "border-gray-300 bg-white text-gray-700 hover:border-red-400 hover:bg-red-50"
-                              }`}
-                            >
-                              🚫 Whole Day - Complete Absence
-                            </button>
-                          </div>
-                          
-                          {/* Individual Time Slots */}
-                          {availableTimeSlots.filter(slot => slot !== 'Whole Day').length > 0 && (
+                  {date &&
+                    (availableTimeSlots.length > 0 ? (
+                      <div className="space-y-4">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+                          <Label className="text-lg font-bold text-blue-900 flex items-center gap-2 mb-2">
+                            <FiCalendar className="h-5 w-5" />
+                            📅 Your Class Schedule for{" "}
+                            {dayjs(date).format("dddd, MMMM D, YYYY")}
+                          </Label>
+                          <p className="text-sm text-blue-700 mb-4">
+                            ⏰ Select "Whole Day" for full day absence, or
+                            choose specific time slots from your actual class
+                            schedule.
+                          </p>
+
+                          <div className="space-y-4">
+                            {/* Whole Day Option */}
                             <div>
                               <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                ⏰ Your Actual Class Schedule
+                                📅 Full Day Absence
                               </h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                                {availableTimeSlots.filter(slot => slot !== 'Whole Day').map((timeSlot) => (
-                                  <button
-                                    key={timeSlot}
-                                    type="button"
-                                    onClick={() => handleTimeSlotToggle(timeSlot)}
-                                    disabled={isWholeDaySelected}
-                                    className={`p-3 rounded-lg border-2 text-sm font-medium transition-all hover:scale-105 ${
-                                      selectedTimeSlots.includes(timeSlot)
-                                        ? "border-green-500 bg-green-50 text-green-800 shadow-md"
-                                        : isWholeDaySelected
-                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                                        : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
-                                    }`}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleTimeSlotToggle("Whole Day")
+                                }
+                                className={`p-4 rounded-lg border-2 text-sm font-bold transition-all hover:scale-105 w-full ${
+                                  isWholeDaySelected
+                                    ? "border-red-500 bg-red-50 text-red-800 shadow-md"
+                                    : "border-gray-300 bg-white text-gray-700 hover:border-red-400 hover:bg-red-50"
+                                }`}
+                              >
+                                🚫 Whole Day - Complete Absence
+                              </button>
+                            </div>
+
+                            {/* Individual Time Slots */}
+                            {availableTimeSlots.filter(
+                              (slot) => slot !== "Whole Day"
+                            ).length > 0 && (
+                              <div>
+                                <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                  ⏰ Your Actual Class Schedule
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                  {availableTimeSlots
+                                    .filter((slot) => slot !== "Whole Day")
+                                    .map((timeSlot) => (
+                                      <button
+                                        key={timeSlot}
+                                        type="button"
+                                        onClick={() =>
+                                          handleTimeSlotToggle(timeSlot)
+                                        }
+                                        disabled={isWholeDaySelected}
+                                        className={`p-3 rounded-lg border-2 text-sm font-medium transition-all hover:scale-105 ${
+                                          selectedTimeSlots.includes(timeSlot)
+                                            ? "border-green-500 bg-green-50 text-green-800 shadow-md"
+                                            : isWholeDaySelected
+                                            ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                                            : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
+                                        }`}
+                                      >
+                                        {timeSlot}
+                                      </button>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {selectedTimeSlots.length > 0 && (
+                            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                              <h4 className="text-sm font-semibold text-green-800 mb-2 flex items-center gap-2">
+                                ✅ Selected Time Slots (
+                                {selectedTimeSlots.length})
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedTimeSlots.map((slot) => (
+                                  <span
+                                    key={slot}
+                                    className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full"
                                   >
-                                    {timeSlot}
-                                  </button>
+                                    {slot}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleTimeSlotToggle(slot)}
+                                      className="ml-1 text-green-600 hover:text-green-800"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
                                 ))}
                               </div>
                             </div>
                           )}
-                        </div>
-                        
-                        {selectedTimeSlots.length > 0 && (
-                          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                            <h4 className="text-sm font-semibold text-green-800 mb-2 flex items-center gap-2">
-                              ✅ Selected Time Slots ({selectedTimeSlots.length})
-                            </h4>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedTimeSlots.map((slot) => (
-                                <span key={slot} className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                                  {slot}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleTimeSlotToggle(slot)}
-                                    className="ml-1 text-green-600 hover:text-green-800"
-                                  >
-                                    ×
-                                  </button>
-                                </span>
-                              ))}
+
+                          {selectedTimeSlots.length === 0 && (
+                            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                              <p className="text-sm text-yellow-800 flex items-center gap-2">
+                                ⚠️ Please select at least one time slot to
+                                continue with your permission request.
+                              </p>
                             </div>
-                          </div>
-                        )}
-                        
-                        {selectedTimeSlots.length === 0 && (
-                          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p className="text-sm text-yellow-800 flex items-center gap-2">
-                              ⚠️ Please select at least one time slot to continue with your permission request.
-                            </p>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    ) : date && (
-                      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <p className="text-sm text-gray-600 flex items-center gap-2">
-                          📅 No class schedule found for {dayjs(date).format('dddd, MMMM D, YYYY')}. 
-                          You may not have any students assigned for this day.
-                        </p>
-                      </div>
-                    )
-                  )}
+                    ) : (
+                      date && (
+                        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                          <p className="text-sm text-gray-600 flex items-center gap-2">
+                            📅 No class schedule found for{" "}
+                            {dayjs(date).format("dddd, MMMM D, YYYY")}. You may
+                            not have any students assigned for this day.
+                          </p>
+                        </div>
+                      )
+                    ))}
 
                   <div className="space-y-3">
                     <Label
@@ -1073,54 +1018,6 @@ export default function TeacherPermissions() {
             )}
           </div>
         </main>
-
-        {/* Bottom Navigation (Mobile) */}
-        <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-gray-200 shadow-2xl flex justify-around py-3 z-50">
-          <Link
-            href="/teachers/dashboard"
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
-              pathname === "/teachers/dashboard"
-                ? "text-black bg-gray-100 transform scale-105"
-                : "text-gray-500 hover:text-black hover:bg-gray-100"
-            }`}
-          >
-            <FiHome className="w-5 h-5" />
-            <span className="text-xs font-medium">Dashboard</span>
-          </Link>
-          <Link
-            href="/teachers/dashboard?tab=students"
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
-              pathname.includes("tab=students")
-                ? "text-black bg-gray-100 transform scale-105"
-                : "text-gray-500 hover:text-black hover:bg-gray-100"
-            }`}
-          >
-            <FiUsers className="w-5 h-5" />
-            <span className="text-xs font-medium">Students</span>
-          </Link>
-          <Link
-            href="/teachers/permissions"
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
-              pathname === "/teachers/permissions"
-                ? "text-black bg-gray-100 transform scale-105"
-                : "text-gray-500 hover:text-black hover:bg-gray-100"
-            }`}
-          >
-            <FiClipboard className="w-5 h-5" />
-            <span className="text-xs font-medium">Permissions</span>
-          </Link>
-          <Link
-            href="/teachers/salary"
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
-              pathname === "/teachers/salary"
-                ? "text-black bg-gray-100 transform scale-105"
-                : "text-gray-500 hover:text-black hover:bg-gray-100"
-            }`}
-          >
-            <FiTrendingUp className="w-5 h-5" />
-            <span className="text-xs font-medium">Salary</span>
-          </Link>
-        </nav>
       </div>
 
       {/* Enhanced Animations */}

@@ -165,7 +165,7 @@ export default function TeacherSalaryPage() {
 
   async function fetchBreakdown() {
     if (!user?.id) return;
-    
+
     setBreakdownLoading(true);
     try {
       const [year, month] = selectedMonth.split("-");
@@ -175,9 +175,11 @@ export default function TeacherSalaryPage() {
       const to = new Date(selectedYear, monthNumber, 0);
 
       const res = await fetch(
-        `/api/admin/teacher-payments?teacherId=${user.id}&from=${from.toISOString()}&to=${to.toISOString()}`
+        `/api/admin/teacher-payments?teacherId=${
+          user.id
+        }&from=${from.toISOString()}&to=${to.toISOString()}`
       );
-      
+
       if (!res.ok) throw new Error("Failed to fetch breakdown");
       const data = await res.json();
       setBreakdown(data);
@@ -240,96 +242,6 @@ Additional Information:
 
   return (
     <div className="flex min-h-screen bg-white text-gray-900">
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-80 md:w-72 bg-black text-white flex flex-col transition-all duration-300 ease-in-out md:static md:translate-x-0 shadow-2xl ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="flex items-center justify-between h-20 md:h-24 px-4 md:px-6 border-b border-gray-700 bg-black">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white rounded-xl shadow-lg">
-              <FiDollarSign className="h-5 w-5 md:h-6 md:w-6 text-black" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-lg md:text-xl font-extrabold text-white">
-                Teacher Portal
-              </span>
-              <span className="text-xs text-gray-300 hidden md:block">
-                Salary Management
-              </span>
-            </div>
-          </div>
-          <button
-            className="md:hidden text-gray-300 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition-all duration-200 hover:scale-110"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close sidebar"
-          >
-            <FiX size={24} />
-          </button>
-        </div>
-        <nav className="flex-1 px-6 py-8 space-y-3 overflow-y-auto">
-          <Link
-            href="/teachers/dashboard"
-            className={`w-full flex items-center gap-4 rounded-xl px-4 py-4 text-base font-medium transition-all duration-200 ${
-              pathname === "/teachers/dashboard"
-                ? "bg-white text-black shadow-lg transform scale-105"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white hover:transform hover:scale-105"
-            }`}
-          >
-            <FiHome className="h-5 w-5" /> Dashboard
-          </Link>
-          <Link
-            href="/teachers/dashboard?tab=students"
-            className={`w-full flex items-center gap-4 rounded-xl px-4 py-4 text-base font-medium transition-all duration-200 ${
-              pathname.includes("tab=students")
-                ? "bg-white text-black shadow-lg transform scale-105"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white hover:transform hover:scale-105"
-            }`}
-          >
-            <FiUsers className="h-5 w-5" /> Students
-          </Link>
-          <Link
-            href="/teachers/permissions"
-            className={`w-full flex items-center gap-4 rounded-xl px-4 py-4 text-base font-medium transition-all duration-200 ${
-              pathname === "/teachers/permissions"
-                ? "bg-white text-black shadow-lg transform scale-105"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white hover:transform hover:scale-105"
-            }`}
-          >
-            <FiClipboard className="h-5 w-5" /> Permissions
-          </Link>
-          <Link
-            href="/teachers/salary"
-            className={`w-full flex items-center gap-4 rounded-xl px-4 py-4 text-base font-medium transition-all duration-200 ${
-              pathname === "/teachers/salary"
-                ? "bg-white text-black shadow-lg transform scale-105"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white hover:transform hover:scale-105"
-            }`}
-          >
-            <FiTrendingUp className="h-5 w-5" /> Salary
-          </Link>
-        </nav>
-        <div className="px-6 py-6 border-t border-gray-700 bg-black">
-          <button
-            onClick={() => signOut({ callbackUrl: "/teachers/login" })}
-            className="w-full flex items-center gap-4 p-4 text-base font-medium text-gray-300 hover:bg-red-600 hover:text-white rounded-xl transition-all duration-200 hover:transform hover:scale-105 hover:shadow-lg"
-            aria-label="Logout"
-          >
-            <FiLogOut className="w-5 h-5" />
-            Logout
-          </button>
-        </div>
-      </aside>
-
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
@@ -505,7 +417,10 @@ Additional Information:
                 </Card>
 
                 {/* Lateness Deduction */}
-                <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in cursor-pointer" onClick={fetchBreakdown}>
+                <Card
+                  className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in cursor-pointer"
+                  onClick={fetchBreakdown}
+                >
                   <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -530,7 +445,10 @@ Additional Information:
                 </Card>
 
                 {/* Absence Deduction */}
-                <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in cursor-pointer" onClick={fetchBreakdown}>
+                <Card
+                  className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl animate-slide-in cursor-pointer"
+                  onClick={fetchBreakdown}
+                >
                   <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -637,38 +555,6 @@ Additional Information:
             </Card>
           )}
         </main>
-
-        {/* Bottom Navigation (Mobile) */}
-        <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-gray-200 shadow-2xl flex justify-around py-3 z-50">
-          <Link
-            href="/teachers/dashboard"
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 text-gray-500 hover:text-black hover:bg-gray-100"
-          >
-            <FiHome className="w-5 h-5" />
-            <span className="text-xs font-medium">Dashboard</span>
-          </Link>
-          <Link
-            href="/teachers/dashboard?tab=students"
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 text-gray-500 hover:text-black hover:bg-gray-100"
-          >
-            <FiUsers className="w-5 h-5" />
-            <span className="text-xs font-medium">Students</span>
-          </Link>
-          <Link
-            href="/teachers/permissions"
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 text-gray-500 hover:text-black hover:bg-gray-100"
-          >
-            <FiClipboard className="w-5 h-5" />
-            <span className="text-xs font-medium">Permissions</span>
-          </Link>
-          <Link
-            href="/teachers/salary"
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 text-black bg-gray-100 transform scale-105"
-          >
-            <FiTrendingUp className="w-5 h-5" />
-            <span className="text-xs font-medium">Salary</span>
-          </Link>
-        </nav>
       </div>
 
       {/* Breakdown Modal */}
@@ -681,18 +567,22 @@ Additional Information:
             >
               <FiX size={20} />
             </button>
-            
+
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-black rounded-xl">
                 <FiBarChart className="h-6 w-6 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-black">Salary Breakdown Details</h2>
+              <h2 className="text-2xl font-bold text-black">
+                Salary Breakdown Details
+              </h2>
             </div>
-            
+
             {breakdownLoading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
-                <p className="text-black font-medium text-lg">Loading breakdown...</p>
+                <p className="text-black font-medium text-lg">
+                  Loading breakdown...
+                </p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -700,45 +590,66 @@ Additional Information:
                 <div className="bg-red-50 rounded-2xl p-6 border border-red-200">
                   <div className="flex items-center gap-2 mb-4">
                     <FiClock className="text-red-500 h-5 w-5" />
-                    <h3 className="text-lg font-bold text-red-900">Lateness Records</h3>
+                    <h3 className="text-lg font-bold text-red-900">
+                      Lateness Records
+                    </h3>
                     <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-sm font-semibold">
                       {breakdown.latenessRecords?.length || 0} incidents
                     </span>
                   </div>
                   {breakdown.latenessRecords?.length === 0 ? (
-                    <p className="text-red-600 text-center py-4">No lateness records for this period.</p>
+                    <p className="text-red-600 text-center py-4">
+                      No lateness records for this period.
+                    </p>
                   ) : (
                     <div className="space-y-3 max-h-60 overflow-y-auto">
-                      {breakdown.latenessRecords?.map((record: any, index: number) => (
-                        <div key={index} className="bg-white rounded-xl p-4 border border-red-200 shadow-sm">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-3">
-                              <div className="text-sm font-mono text-gray-600">
-                                {new Date(record.classDate).toLocaleDateString()}
+                      {breakdown.latenessRecords?.map(
+                        (record: any, index: number) => (
+                          <div
+                            key={index}
+                            className="bg-white rounded-xl p-4 border border-red-200 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-3">
+                                <div className="text-sm font-mono text-gray-600">
+                                  {new Date(
+                                    record.classDate
+                                  ).toLocaleDateString()}
+                                </div>
+                                <div className="text-sm text-gray-700">
+                                  {record.studentName}
+                                </div>
                               </div>
-                              <div className="text-sm text-gray-700">
-                                {record.studentName}
+                              <div className="flex items-center gap-2">
+                                <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                  {record.latenessMinutes} min late
+                                </span>
+                                <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                  -{record.deductionApplied} ETB
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  ({record.deductionTier})
+                                </span>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold">
-                                {record.latenessMinutes} min late
-                              </span>
-                              <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold">
-                                -{record.deductionApplied} ETB
-                              </span>
-                              <span className="text-xs text-gray-500">({record.deductionTier})</span>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
                   )}
                   <div className="mt-4 pt-4 border-t border-red-200">
                     <div className="flex justify-between items-center">
-                      <span className="font-semibold text-red-900">Total Lateness Deduction:</span>
+                      <span className="font-semibold text-red-900">
+                        Total Lateness Deduction:
+                      </span>
                       <span className="text-xl font-bold text-red-600">
-                        -{breakdown.latenessRecords?.reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0) || 0} ETB
+                        -
+                        {breakdown.latenessRecords?.reduce(
+                          (sum: number, r: any) =>
+                            sum + (r.deductionApplied || 0),
+                          0
+                        ) || 0}{" "}
+                        ETB
                       </span>
                     </div>
                   </div>
@@ -748,46 +659,73 @@ Additional Information:
                 <div className="bg-yellow-50 rounded-2xl p-6 border border-yellow-200">
                   <div className="flex items-center gap-2 mb-4">
                     <FiAlertTriangle className="text-yellow-500 h-5 w-5" />
-                    <h3 className="text-lg font-bold text-yellow-900">Absence Records</h3>
+                    <h3 className="text-lg font-bold text-yellow-900">
+                      Absence Records
+                    </h3>
                     <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-sm font-semibold">
                       {breakdown.absenceRecords?.length || 0} days
                     </span>
                   </div>
                   {breakdown.absenceRecords?.length === 0 ? (
-                    <p className="text-yellow-600 text-center py-4">No absence records for this period.</p>
+                    <p className="text-yellow-600 text-center py-4">
+                      No absence records for this period.
+                    </p>
                   ) : (
                     <div className="space-y-3 max-h-60 overflow-y-auto">
-                      {breakdown.absenceRecords?.map((record: any, index: number) => (
-                        <div key={index} className="bg-white rounded-xl p-4 border border-yellow-200 shadow-sm">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-3">
-                              <div className="text-sm font-mono text-gray-600">
-                                {new Date(record.classDate).toLocaleDateString()}
+                      {breakdown.absenceRecords?.map(
+                        (record: any, index: number) => (
+                          <div
+                            key={index}
+                            className="bg-white rounded-xl p-4 border border-yellow-200 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-3">
+                                <div className="text-sm font-mono text-gray-600">
+                                  {new Date(
+                                    record.classDate
+                                  ).toLocaleDateString()}
+                                </div>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    record.permitted
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-red-100 text-red-700"
+                                  }`}
+                                >
+                                  {record.permitted
+                                    ? "Permitted"
+                                    : "Unpermitted"}
+                                </span>
                               </div>
-                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                record.permitted ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                              }`}>
-                                {record.permitted ? "Permitted" : "Unpermitted"}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-semibold">
-                                -{record.deductionApplied} ETB
-                              </span>
-                              {record.reviewNotes && (
-                                <span className="text-xs text-gray-500">({record.reviewNotes})</span>
-                              )}
+                              <div className="flex items-center gap-2">
+                                <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                  -{record.deductionApplied} ETB
+                                </span>
+                                {record.reviewNotes && (
+                                  <span className="text-xs text-gray-500">
+                                    ({record.reviewNotes})
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
                   )}
                   <div className="mt-4 pt-4 border-t border-yellow-200">
                     <div className="flex justify-between items-center">
-                      <span className="font-semibold text-yellow-900">Total Absence Deduction:</span>
+                      <span className="font-semibold text-yellow-900">
+                        Total Absence Deduction:
+                      </span>
                       <span className="text-xl font-bold text-yellow-600">
-                        -{breakdown.absenceRecords?.reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0) || 0} ETB
+                        -
+                        {breakdown.absenceRecords?.reduce(
+                          (sum: number, r: any) =>
+                            sum + (r.deductionApplied || 0),
+                          0
+                        ) || 0}{" "}
+                        ETB
                       </span>
                     </div>
                   </div>
@@ -797,46 +735,64 @@ Additional Information:
                 <div className="bg-green-50 rounded-2xl p-6 border border-green-200">
                   <div className="flex items-center gap-2 mb-4">
                     <FiAward className="text-green-500 h-5 w-5" />
-                    <h3 className="text-lg font-bold text-green-900">Bonus Records</h3>
+                    <h3 className="text-lg font-bold text-green-900">
+                      Bonus Records
+                    </h3>
                     <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-sm font-semibold">
                       {breakdown.bonusRecords?.length || 0} bonuses
                     </span>
                   </div>
                   {breakdown.bonusRecords?.length === 0 ? (
-                    <p className="text-green-600 text-center py-4">No bonus records for this period.</p>
+                    <p className="text-green-600 text-center py-4">
+                      No bonus records for this period.
+                    </p>
                   ) : (
                     <div className="space-y-3 max-h-60 overflow-y-auto">
-                      {breakdown.bonusRecords?.map((record: any, index: number) => (
-                        <div key={index} className="bg-white rounded-xl p-4 border border-green-200 shadow-sm">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-3">
-                              <div className="text-sm font-mono text-gray-600">
-                                {new Date(record.createdAt).toLocaleDateString()}
+                      {breakdown.bonusRecords?.map(
+                        (record: any, index: number) => (
+                          <div
+                            key={index}
+                            className="bg-white rounded-xl p-4 border border-green-200 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-3">
+                                <div className="text-sm font-mono text-gray-600">
+                                  {new Date(
+                                    record.createdAt
+                                  ).toLocaleDateString()}
+                                </div>
+                                <div className="text-sm text-gray-700">
+                                  {record.reason}
+                                </div>
                               </div>
-                              <div className="text-sm text-gray-700">
-                                {record.reason}
-                              </div>
+                              <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                +{record.amount} ETB
+                              </span>
                             </div>
-                            <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
-                              +{record.amount} ETB
-                            </span>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
                   )}
                   <div className="mt-4 pt-4 border-t border-green-200">
                     <div className="flex justify-between items-center">
-                      <span className="font-semibold text-green-900">Total Bonuses:</span>
+                      <span className="font-semibold text-green-900">
+                        Total Bonuses:
+                      </span>
                       <span className="text-xl font-bold text-green-600">
-                        +{breakdown.bonusRecords?.reduce((sum: number, r: any) => sum + (r.amount || 0), 0) || 0} ETB
+                        +
+                        {breakdown.bonusRecords?.reduce(
+                          (sum: number, r: any) => sum + (r.amount || 0),
+                          0
+                        ) || 0}{" "}
+                        ETB
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-            
+
             <div className="mt-6 pt-6 border-t border-gray-200">
               <button
                 className="w-full bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
