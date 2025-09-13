@@ -512,218 +512,211 @@ export default function AdminLatenessAnalyticsPage() {
         </div>
 
         {/* Enhanced Lateness Configuration */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-8 lg:p-10">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-700 rounded-xl">
-              <FiClock className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-black">
-                Enhanced Lateness Configuration
-              </h2>
-              <p className="text-gray-600">
-                Flexible deduction system with unlimited tiers and custom rates
-              </p>
+        <div className="bg-gradient-to-br from-white via-blue-50 to-indigo-50 rounded-3xl shadow-2xl border border-blue-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 p-8">
+            <div className="flex items-center gap-4 text-white">
+              <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl">
+                <FiClock className="h-8 w-8" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold mb-2">
+                  🚀 Advanced Lateness System
+                </h2>
+                <p className="text-blue-100 text-lg">
+                  Unlimited tiers • Package-specific rates • Real-time calculations
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Base Configuration */}
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
-              <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
-                <FiDollarSign className="h-5 w-5" />
-                Base Configuration
-              </h3>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-blue-800 mb-2">
-                    Base Deduction Amount (ETB)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={baseDeductionAmount}
-                    onChange={(e) =>
-                      setBaseDeductionAmount(parseFloat(e.target.value) || 0)
-                    }
-                    className="w-full px-4 py-3 border border-blue-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 shadow-sm transition-all duration-200"
-                    placeholder="Enter base amount"
-                  />
-                  <p className="text-xs text-blue-600 mt-1">
-                    This is the maximum deduction amount (100% tier)
-                  </p>
+          <div className="p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Base Configuration */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-6 border-2 border-blue-200 shadow-lg">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-blue-600 rounded-xl">
+                    <FiDollarSign className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-blue-900">
+                      Global Base Amount
+                    </h3>
+                    <p className="text-blue-700 text-sm">Default deduction rate</p>
+                  </div>
                 </div>
 
-                <button
-                  onClick={saveBaseDeduction}
-                  disabled={savingBaseDeduction}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {savingBaseDeduction ? (
-                    <>
-                      <FiRefreshCw className="h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <FiCheckCircle className="h-4 w-4" />
-                      Save Base Amount
-                    </>
-                  )}
-                </button>
+                <div className="space-y-4">
+                  <div className="relative">
+                    <label className="block text-sm font-bold text-blue-800 mb-3">
+                      Base Deduction Amount (ETB)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={baseDeductionAmount}
+                        onChange={(e) =>
+                          setBaseDeductionAmount(parseFloat(e.target.value) || 0)
+                        }
+                        className="w-full px-6 py-4 border-2 border-blue-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-blue-500 bg-white text-gray-900 shadow-sm transition-all duration-300 text-lg font-semibold"
+                        placeholder="Enter base amount"
+                      />
+                      <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-600 font-bold">
+                        ETB
+                      </div>
+                    </div>
+                    <div className="bg-blue-100 rounded-lg p-3 mt-3">
+                      <p className="text-xs text-blue-800 font-medium">
+                        💡 This is the 100% tier amount. All percentage tiers calculate from this base.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={saveBaseDeduction}
+                    disabled={savingBaseDeduction}
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-4 rounded-2xl font-bold transition-all duration-300 hover:scale-105 hover:shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    {savingBaseDeduction ? (
+                      <>
+                        <FiRefreshCw className="h-5 w-5 animate-spin" />
+                        <span>Saving Changes...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiCheckCircle className="h-5 w-5" />
+                        <span>Save Base Amount</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Calculation Examples */}
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
-              <h3 className="text-lg font-bold text-green-900 mb-4 flex items-center gap-2">
-                <FiTrendingUp className="h-5 w-5" />
-                Calculation Examples
-              </h3>
-
-              <div className="space-y-3">
-                <div className="bg-white rounded-lg p-3 border border-green-200">
-                  <div className="text-sm font-semibold text-green-800 mb-1">
-                    Example Tier: 5-15 minutes @ 25%
+              {/* Live Calculation Examples */}
+              <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl p-6 border-2 border-green-200 shadow-lg">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-green-600 rounded-xl">
+                    <FiTrendingUp className="h-6 w-6 text-white" />
                   </div>
-                  <div className="text-xs text-green-700">
-                    Deduction = {baseDeductionAmount} × 0.25 ={" "}
-                    {(baseDeductionAmount * 0.25).toFixed(2)} ETB
+                  <div>
+                    <h3 className="text-xl font-bold text-green-900">
+                      Live Calculations
+                    </h3>
+                    <p className="text-green-700 text-sm">Real-time examples</p>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg p-3 border border-green-200">
-                  <div className="text-sm font-semibold text-green-800 mb-1">
-                    Example Tier: 16-30 minutes @ 50%
+                <div className="space-y-4">
+                  <div className="bg-white rounded-xl p-4 border-2 border-green-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-green-800">Tier 1: 4-10 min @ 25%</span>
+                      <div className="px-3 py-1 bg-green-100 rounded-full">
+                        <span className="text-xs font-bold text-green-700">LIGHT</span>
+                      </div>
+                    </div>
+                    <div className="text-lg font-bold text-green-900">
+                      {(baseDeductionAmount * 0.25).toFixed(2)} ETB
+                    </div>
+                    <div className="text-xs text-green-600 mt-1">
+                      {baseDeductionAmount} × 25% = {(baseDeductionAmount * 0.25).toFixed(2)}
+                    </div>
                   </div>
-                  <div className="text-xs text-green-700">
-                    Deduction = {baseDeductionAmount} × 0.50 ={" "}
-                    {(baseDeductionAmount * 0.5).toFixed(2)} ETB
+
+                  <div className="bg-white rounded-xl p-4 border-2 border-orange-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-orange-800">Tier 2: 11-20 min @ 50%</span>
+                      <div className="px-3 py-1 bg-orange-100 rounded-full">
+                        <span className="text-xs font-bold text-orange-700">MEDIUM</span>
+                      </div>
+                    </div>
+                    <div className="text-lg font-bold text-orange-900">
+                      {(baseDeductionAmount * 0.5).toFixed(2)} ETB
+                    </div>
+                    <div className="text-xs text-orange-600 mt-1">
+                      {baseDeductionAmount} × 50% = {(baseDeductionAmount * 0.5).toFixed(2)}
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 border-2 border-red-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-red-800">Tier 3: 21+ min @ 100%</span>
+                      <div className="px-3 py-1 bg-red-100 rounded-full">
+                        <span className="text-xs font-bold text-red-700">HEAVY</span>
+                      </div>
+                    </div>
+                    <div className="text-lg font-bold text-red-900">
+                      {baseDeductionAmount.toFixed(2)} ETB
+                    </div>
+                    <div className="text-xs text-red-600 mt-1">
+                      {baseDeductionAmount} × 100% = {baseDeductionAmount.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* System Features */}
+              <div className="bg-gradient-to-br from-purple-50 to-pink-100 rounded-2xl p-6 border-2 border-purple-200 shadow-lg">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-purple-600 rounded-xl">
+                    <FiSettings className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-purple-900">
+                      System Features
+                    </h3>
+                    <p className="text-purple-700 text-sm">Advanced capabilities</p>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg p-3 border border-green-200">
-                  <div className="text-sm font-semibold text-green-800 mb-1">
-                    Example Tier: 31+ minutes @ 100%
-                  </div>
-                  <div className="text-xs text-green-700">
-                    Deduction = {baseDeductionAmount} × 1.00 ={" "}
-                    {baseDeductionAmount.toFixed(2)} ETB
-                  </div>
-                </div>
-
-                <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200 mt-4">
-                  <div className="text-xs text-yellow-800">
-                    <strong>💡 Tip:</strong> For "30+ minutes" tiers, use start=31 and end=999 to cover all lateness above 30 minutes
-                  </div>
+                <div className="space-y-3">
+                  {[
+                    { icon: "🚀", title: "Unlimited Tiers", desc: "Create as many tiers as needed" },
+                    { icon: "📦", title: "Package-Specific", desc: "Different rates per package" },
+                    { icon: "⚡", title: "Real-time Updates", desc: "Changes apply immediately" },
+                    { icon: "🎯", title: "Percentage Based", desc: "Flexible calculation system" },
+                    { icon: "🛡️", title: "Grace Period", desc: "Configurable excused time" },
+                    { icon: "📊", title: "Analytics Ready", desc: "Full reporting integration" }
+                  ].map((feature, index) => (
+                    <div key={index} className="bg-white rounded-lg p-3 border border-purple-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">{feature.icon}</span>
+                        <div>
+                          <div className="font-semibold text-purple-800 text-sm">
+                            {feature.title}
+                          </div>
+                          <div className="text-xs text-purple-600">
+                            {feature.desc}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Enhanced Lateness Deduction Config Manager */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
-          <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl">
-                <FiSettings className="h-6 w-6 text-white" />
+        {/* Advanced Tier Configuration */}
+        <div className="bg-gradient-to-br from-white via-purple-50 to-pink-50 rounded-3xl shadow-2xl border border-purple-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 p-8">
+            <div className="flex items-center gap-4 text-white">
+              <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl">
+                <FiSettings className="h-8 w-8" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-black">
-                  Advanced Tier Configuration
+                <h2 className="text-3xl font-bold mb-2">
+                  ⚙️ Tier Configuration Center
                 </h2>
-                <p className="text-gray-600">
-                  Create unlimited custom deduction tiers with flexible rules
+                <p className="text-purple-100 text-lg">
+                  Unlimited tiers • Custom rules • Package-specific rates
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="p-6 sm:p-8 lg:p-10">
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200 mb-6">
-              <h3 className="text-lg font-bold text-purple-900 mb-4 flex items-center gap-2">
-                <FiInfo className="h-5 w-5" />
-                System Features
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="bg-white rounded-lg p-4 border border-purple-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">
-                      Unlimited Tiers
-                    </span>
-                  </div>
-                  <p className="text-xs text-purple-700">
-                    Create as many deduction tiers as needed
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 border border-purple-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">
-                      Flexible Ranges
-                    </span>
-                  </div>
-                  <p className="text-xs text-purple-700">
-                    Custom minute ranges for each tier
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 border border-purple-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">
-                      Percentage Based
-                    </span>
-                  </div>
-                  <p className="text-xs text-purple-700">
-                    Set deduction as % of base amount
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 border border-purple-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">
-                      Grace Period
-                    </span>
-                  </div>
-                  <p className="text-xs text-purple-700">
-                    Configurable excused threshold
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 border border-purple-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">
-                      Real-time Updates
-                    </span>
-                  </div>
-                  <p className="text-xs text-purple-700">
-                    Changes apply immediately
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 border border-purple-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="font-semibold text-purple-800 text-sm">
-                      No Hardcoded Limits
-                    </span>
-                  </div>
-                  <p className="text-xs text-purple-700">
-                    Completely configurable system
-                  </p>
-                </div>
-              </div>
-            </div>
-
+          <div className="p-8">
             <LatenessDeductionConfigManager />
           </div>
         </div>

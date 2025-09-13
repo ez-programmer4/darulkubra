@@ -148,39 +148,52 @@ export default function LatenessDeductionConfigManager() {
       <PackageDeductionManager type="lateness" />
       
       <section className="mb-10">
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200 mb-6">
-          <h2 className="text-2xl font-bold text-purple-900 mb-4 flex items-center gap-2">
-            <FiClock className="h-6 w-6" /> Unlimited Deduction Tiers
-          </h2>
-        <p className="text-purple-700 text-sm mb-4">
-          Create unlimited custom deduction tiers with flexible minute ranges and percentage-based calculations. No more hardcoded limits!
-        </p>
+        <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-3xl p-8 border-2 border-purple-200 mb-8 shadow-xl">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-4 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl shadow-lg">
+              <FiClock className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold text-purple-900 mb-2">
+                🎯 Unlimited Deduction Tiers
+              </h2>
+              <p className="text-purple-700 text-lg">
+                Create unlimited custom deduction tiers with flexible minute ranges and percentage-based calculations.
+              </p>
+            </div>
+          </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg p-4 border border-purple-200">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="font-semibold text-green-800 text-sm">✅ Unlimited Tiers</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-2xl p-6 border-2 border-green-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-green-500 rounded-xl">
+                  <span className="text-white font-bold text-sm">∞</span>
+                </div>
+                <span className="font-bold text-green-800 text-lg">✅ Unlimited Tiers</span>
+              </div>
+              <p className="text-sm text-green-700 leading-relaxed">Add as many deduction tiers as needed with no system limitations</p>
             </div>
-            <p className="text-xs text-green-700">Add as many deduction tiers as needed</p>
-          </div>
-          
-          <div className="bg-white rounded-lg p-4 border border-purple-200">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-              <span className="font-semibold text-blue-800 text-sm">🎯 Percentage Based</span>
+            
+            <div className="bg-white rounded-2xl p-6 border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-blue-500 rounded-xl">
+                  <span className="text-white font-bold text-sm">%</span>
+                </div>
+                <span className="font-bold text-blue-800 text-lg">🎯 Percentage Based</span>
+              </div>
+              <p className="text-sm text-blue-700 leading-relaxed">Set deduction as percentage of base amount for flexible calculations</p>
             </div>
-            <p className="text-xs text-blue-700">Set deduction as % of base amount</p>
-          </div>
-          
-          <div className="bg-white rounded-lg p-4 border border-purple-200">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-              <span className="font-semibold text-orange-800 text-sm">⚡ Real-time</span>
+            
+            <div className="bg-white rounded-2xl p-6 border-2 border-orange-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-orange-500 rounded-xl">
+                  <span className="text-white font-bold text-sm">⚡</span>
+                </div>
+                <span className="font-bold text-orange-800 text-lg">⚡ Real-time</span>
+              </div>
+              <p className="text-sm text-orange-700 leading-relaxed">Changes apply immediately across the entire system</p>
             </div>
-            <p className="text-xs text-orange-700">Changes apply immediately</p>
           </div>
-        </div>
       </div>
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded flex items-center gap-2">
@@ -192,11 +205,28 @@ export default function LatenessDeductionConfigManager() {
           <FiCheck /> {success}
         </div>
       )}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 mb-8">
-        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <FiPlus className="h-5 w-5" />
-          {editingId ? 'Edit Deduction Tier' : 'Add New Deduction Tier'}
-        </h3>
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-2xl border-2 border-gray-200 p-8 mb-10">
+        <div className="flex items-center gap-4 mb-8">
+          <div className={`p-4 rounded-2xl shadow-lg ${
+            editingId 
+              ? 'bg-gradient-to-br from-yellow-500 to-orange-500' 
+              : 'bg-gradient-to-br from-green-500 to-emerald-500'
+          }`}>
+            {editingId ? (
+              <FiEdit className="h-8 w-8 text-white" />
+            ) : (
+              <FiPlus className="h-8 w-8 text-white" />
+            )}
+          </div>
+          <div>
+            <h3 className="text-3xl font-bold text-gray-900 mb-2">
+              {editingId ? '✏️ Edit Deduction Tier' : '➕ Add New Deduction Tier'}
+            </h3>
+            <p className="text-gray-600 text-lg">
+              {editingId ? 'Modify existing tier configuration' : 'Create a new deduction tier with custom rules'}
+            </p>
+          </div>
+        </div>
         
       <form
         onSubmit={handleSubmit}
