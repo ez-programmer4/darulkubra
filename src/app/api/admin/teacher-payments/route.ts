@@ -692,6 +692,8 @@ export async function GET(req: NextRequest) {
           });
         }
         
+        console.log(`Teacher ${t.ustazname}: Found ${teacherAbsenceRecords.length} absence records, total deduction so far: ${absenceDeduction} ETB`);
+        
         // If no database records, check for computed absences using absence detection logic
         if (teacherAbsenceRecords.length === 0) {
           try {
