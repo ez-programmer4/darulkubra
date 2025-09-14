@@ -711,7 +711,7 @@ export async function GET(req: NextRequest) {
               // Calculate package-based deduction
               let dailyDeduction = 0;
               for (const student of scheduledStudents) {
-                const packageRate = packageDeductionMap[student.package]?.absence || 25;
+                const packageRate = student.package ? packageDeductionMap[student.package]?.absence || 25 : 25;
                 dailyDeduction += packageRate;
               }
               
