@@ -692,40 +692,87 @@ export async function GET(req: NextRequest) {
           });
         }
         
-        // Add computed absences if no records exist
+        // If no database records, check for computed absences using absence detection logic
         if (teacherAbsenceRecords.length === 0) {
-          // Check for missing days and calculate deductions
-          for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-            // Skip Sundays if not included
-            if (!includeSundays && d.getDay() === 0) continue;
+          try {
+            const { isTeacherAbsent } = await import('@/lib/absence-utils');
             
-            const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
-            
-            // Check if teacher was scheduled but didn't send zoom links
-            const scheduledStudents = currentStudents.filter(student => {
-              // Simple day check - you may need to adjust based on your daypackages logic
-              return student.zoom_links.length === 0; // No zoom links sent
-            });
-            
-            if (scheduledStudents.length > 0) {
-              // Calculate package-based deduction
-              let dailyDeduction = 0;
-              for (const student of scheduledStudents) {
-                const packageRate = student.package ? packageDeductionMap[student.package]?.absence || 25 : 25;
-                dailyDeduction += packageRate;
-              }
+            for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+              // Skip Sundays if not included
+              if (!includeSundays && d.getDay() === 0) continue;
               
-              if (dailyDeduction > 0) {
-                absenceDeduction += dailyDeduction;
-                absenceBreakdown.push({
-                  date: format(d, "yyyy-MM-dd"),
-                  reason: "Auto-detected absence (no zoom links)",
-                  deduction: dailyDeduction,
-                  timeSlots: 1,
-                  uniqueTimeSlots: ['Whole Day'],
-                  permitted: false,
-                  reviewNotes: `Computed absence for ${scheduledStudents.length} students`
+              const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
+              if (absenceResult.isAbsent) {
+                // Calculate package-based deduction for this day
+                let dailyDeduction = 0;
+                
+                // Get students scheduled for this day
+                const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+                const scheduledStudents = currentStudents.filter(student => {
+                  // Check if student has zoom links for this specific day
+                  const dayLinks = student.zoom_links.filter(link => {
+                    if (!link.sent_time) return false;
+                    const linkDate = format(link.sent_time, 'yyyy-MM-dd');
+                    const checkDate = format(d, 'yyyy-MM-dd');
+                    return linkDate === checkDate;
+                  });
+                  return dayLinks.length === 0; // No zoom links for this day
                 });
+                
+                // Calculate deduction based on affected students
+                for (const student of scheduledStudents) {
+                  const packageRate = student.package ? packageDeductionMap[student.package]?.absence || 25 : 25;
+                  dailyDeduction += packageRate;
+                }
+                
+                if (dailyDeduction > 0) {
+                  absenceDeduction += dailyDeduction;
+                  absenceBreakdown.push({
+                    date: format(d, "yyyy-MM-dd"),
+                    reason: "Auto-detected absence (no zoom links sent)",
+                    deduction: dailyDeduction,
+                    timeSlots: 1,
+                    uniqueTimeSlots: ['Whole Day'],
+                    permitted: false,
+                    reviewNotes: `Computed absence: ${scheduledStudents.length} students affected`
+                  });
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error in absence detection:', error);
+            // Fallback: simple check for days without any zoom links
+            for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+              if (!includeSundays && d.getDay() === 0) continue;
+              
+              const dayLinks = currentStudents.some(student => 
+                student.zoom_links.some(link => {
+                  if (!link.sent_time) return false;
+                  const linkDate = format(link.sent_time, 'yyyy-MM-dd');
+                  const checkDate = format(d, 'yyyy-MM-dd');
+                  return linkDate === checkDate;
+                })
+              );
+              
+              if (!dayLinks && currentStudents.length > 0) {
+                let dailyDeduction = 0;
+                for (const student of currentStudents) {
+                  const packageRate = student.package ? packageDeductionMap[student.package]?.absence || 25 : 25;
+                  dailyDeduction += packageRate;
+                }
+                
+                if (dailyDeduction > 0) {
+                  absenceDeduction += dailyDeduction;
+                  absenceBreakdown.push({
+                    date: format(d, "yyyy-MM-dd"),
+                    reason: "Fallback absence detection",
+                    deduction: dailyDeduction,
+                    timeSlots: 1,
+                    uniqueTimeSlots: ['Whole Day'],
+                    permitted: false,
+                    reviewNotes: `No zoom links detected for ${currentStudents.length} students`
+                  });
+                }
               }
             }
           }
@@ -749,9 +796,13 @@ export async function GET(req: NextRequest) {
         const finalBonusAmount = Math.round(bonusAmount);
         const totalSalary = Math.round(finalBaseSalary - finalLatenessDeduction - finalAbsenceDeduction + finalBonusAmount);
         
-        // Debug log to ensure absence deduction is calculated
+        // Debug log to track absence deduction calculation
+        console.log(`Teacher ${t.ustazname}: Records=${teacherAbsenceRecords.length}, Computed=${absenceBreakdown.length}, Final Absence Deduction=${finalAbsenceDeduction} ETB`);
+        
         if (finalAbsenceDeduction > 0) {
-          console.log(`Teacher ${t.ustazname}: Absence deduction = ${finalAbsenceDeduction} ETB`);
+          console.log(`✓ Teacher ${t.ustazname} has absence deduction: ${finalAbsenceDeduction} ETB`);
+        } else {
+          console.log(`- Teacher ${t.ustazname} has no absence deduction`);
         }
         
         // === STEP 7: GET PAYMENT STATUS ===
