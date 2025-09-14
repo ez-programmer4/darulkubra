@@ -820,67 +820,95 @@ export default function TeacherPaymentsPage() {
                         • Deduction adjustments are automatically integrated
                       </li>
                     </ul>
+                    <div className="mt-3 p-2 bg-white rounded-lg border border-blue-300">
+                      <div className="text-xs text-blue-700">
+                        <strong>
+                          📦 Active Packages ({availablePackages.length}):
+                        </strong>{" "}
+                        {availablePackages.length > 0
+                          ? availablePackages.join(", ")
+                          : "Loading from database..."}
+                      </div>
+                      <div className="text-xs text-blue-600 mt-1">
+                        Packages automatically detected from active students in
+                        the system
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-                    {availablePackages.map((packageName, index) => {
-                      return (
-                        <div
-                          key={packageName}
-                          className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-all"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                              <span className="font-bold text-blue-900 text-sm">
-                                {packageName}
+                    {availablePackages.length === 0 ? (
+                      <div className="col-span-2 text-center py-8">
+                        <div className="text-blue-600 mb-2">
+                          <FiLoader className="animate-spin h-8 w-8 mx-auto" />
+                        </div>
+                        <p className="text-blue-700 font-medium">
+                          Loading packages from database...
+                        </p>
+                        <p className="text-blue-600 text-sm mt-1">
+                          Fetching packages from active students
+                        </p>
+                      </div>
+                    ) : (
+                      availablePackages.map((packageName, index) => {
+                        return (
+                          <div
+                            key={packageName}
+                            className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-all"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                <span className="font-bold text-blue-900 text-sm">
+                                  {packageName}
+                                </span>
+                              </div>
+                              <span className="text-xs text-blue-700 font-medium">
+                                ETB per student
                               </span>
                             </div>
-                            <span className="text-xs text-blue-700 font-medium">
-                              ETB per student
-                            </span>
-                          </div>
 
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1">
-                              <input
-                                type="number"
-                                min={0}
-                                value={packageSalaryInputs[packageName] || ""}
-                                onChange={(e) =>
-                                  setPackageSalaryInputs((prev) => ({
-                                    ...prev,
-                                    [packageName]: e.target.value,
-                                  }))
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={packageSalaryInputs[packageName] || ""}
+                                  onChange={(e) =>
+                                    setPackageSalaryInputs((prev) => ({
+                                      ...prev,
+                                      [packageName]: e.target.value,
+                                    }))
+                                  }
+                                  placeholder={String(
+                                    packageSalaries[packageName] || 0
+                                  )}
+                                  className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 font-semibold text-center"
+                                  disabled={packageSalaryLoading}
+                                />
+                              </div>
+
+                              <button
+                                onClick={() =>
+                                  handleUpdatePackageSalary(packageName)
                                 }
-                                placeholder={String(
-                                  packageSalaries[packageName] || 0
-                                )}
-                                className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 font-semibold text-center"
+                                className={`bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 flex items-center gap-1 ${
+                                  packageSalaryLoading ? "opacity-75" : ""
+                                }`}
                                 disabled={packageSalaryLoading}
-                              />
+                              >
+                                {packageSalaryLoading ? (
+                                  <FiLoader className="animate-spin h-4 w-4" />
+                                ) : (
+                                  <FiCheck className="h-4 w-4" />
+                                )}
+                                Save
+                              </button>
                             </div>
-
-                            <button
-                              onClick={() =>
-                                handleUpdatePackageSalary(packageName)
-                              }
-                              className={`bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 flex items-center gap-1 ${
-                                packageSalaryLoading ? "opacity-75" : ""
-                              }`}
-                              disabled={packageSalaryLoading}
-                            >
-                              {packageSalaryLoading ? (
-                                <FiLoader className="animate-spin h-4 w-4" />
-                              ) : (
-                                <FiCheck className="h-4 w-4" />
-                              )}
-                              Save
-                            </button>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    )}
                   </div>
                   {/* Status Messages */}
                   {(packageSalaryError || packageSalarySuccess) && (
@@ -2171,11 +2199,22 @@ export default function TeacherPaymentsPage() {
                     Package-Based Salary & Deduction System
                   </h3>
                   <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
-                    <h4 className="font-semibold text-blue-800 mb-2">🎯 Package-Specific Deductions Active</h4>
+                    <h4 className="font-semibold text-blue-800 mb-2">
+                      🎯 Package-Specific Deductions Active
+                    </h4>
                     <div className="text-sm text-blue-700 space-y-1">
-                      <p>• <strong>Lateness:</strong> Base amount varies by student's package (used with tier percentages)</p>
-                      <p>• <strong>Absence:</strong> Per-slot deduction varies by student's package</p>
-                      <p>• <strong>Fair System:</strong> Higher-fee packages = higher deductions, lower-fee packages = lower deductions</p>
+                      <p>
+                        • <strong>Lateness:</strong> Base amount varies by
+                        student's package (used with tier percentages)
+                      </p>
+                      <p>
+                        • <strong>Absence:</strong> Per-slot deduction varies by
+                        student's package
+                      </p>
+                      <p>
+                        • <strong>Fair System:</strong> Higher-fee packages =
+                        higher deductions, lower-fee packages = lower deductions
+                      </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2473,22 +2512,33 @@ export default function TeacherPaymentsPage() {
                                 {/* Calculation Details */}
                                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                                   <div className="text-xs font-mono text-gray-700 mb-2">
-                                    Package-Specific Calculation: {r.deductionApplied} ETB
+                                    Package-Specific Calculation:{" "}
+                                    {r.deductionApplied} ETB
                                   </div>
-                                  {r.deductionTier && r.deductionTier.includes(' - ') && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                                      <div className="bg-blue-100 rounded p-2">
-                                        <span className="font-medium text-blue-800">Student Package:</span>
-                                        <div className="font-bold text-blue-900">{r.deductionTier.split(' - ')[1]}</div>
+                                  {r.deductionTier &&
+                                    r.deductionTier.includes(" - ") && (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                        <div className="bg-blue-100 rounded p-2">
+                                          <span className="font-medium text-blue-800">
+                                            Student Package:
+                                          </span>
+                                          <div className="font-bold text-blue-900">
+                                            {r.deductionTier.split(" - ")[1]}
+                                          </div>
+                                        </div>
+                                        <div className="bg-purple-100 rounded p-2">
+                                          <span className="font-medium text-purple-800">
+                                            Tier Applied:
+                                          </span>
+                                          <div className="font-bold text-purple-900">
+                                            {r.deductionTier.split(" - ")[0]}
+                                          </div>
+                                        </div>
                                       </div>
-                                      <div className="bg-purple-100 rounded p-2">
-                                        <span className="font-medium text-purple-800">Tier Applied:</span>
-                                        <div className="font-bold text-purple-900">{r.deductionTier.split(' - ')[0]}</div>
-                                      </div>
-                                    </div>
-                                  )}
+                                    )}
                                   <div className="text-xs text-green-600 mt-1 font-medium">
-                                    ✓ Deduction calculated using {r.studentName}'s package-specific base rate
+                                    ✓ Deduction calculated using {r.studentName}
+                                    's package-specific base rate
                                   </div>
                                   {r.scheduledTime && r.actualStartTime && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
@@ -2557,7 +2607,25 @@ export default function TeacherPaymentsPage() {
                           {breakdown.absenceRecords.map((r: any) => {
                             let timeSlotsInfo = "Full Day";
                             let slotsCount = 0;
-                            if (r.timeSlots) {
+                            let packageInfo = "";
+
+                            // Enhanced time slot and package information
+                            if (
+                              r.packageBreakdown &&
+                              Array.isArray(r.packageBreakdown)
+                            ) {
+                              slotsCount = r.packageBreakdown.reduce(
+                                (sum: number, p: any) => sum + p.timeSlots,
+                                0
+                              );
+                              const packageCount = r.packageBreakdown.length;
+                              timeSlotsInfo = `⏰ ${slotsCount} Time Slot${
+                                slotsCount > 1 ? "s" : ""
+                              }`;
+                              packageInfo = `📦 ${packageCount} Package${
+                                packageCount > 1 ? "s" : ""
+                              }`;
+                            } else if (r.timeSlots) {
                               try {
                                 const slots = JSON.parse(r.timeSlots);
                                 if (slots.includes("Whole Day")) {
@@ -2598,7 +2666,7 @@ export default function TeacherPaymentsPage() {
                                     </span>
                                   </div>
 
-                                  {/* Time Slots & Status Row */}
+                                  {/* Time Slots & Package Info Row */}
                                   <div className="flex items-center gap-3 flex-wrap">
                                     <span
                                       className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
@@ -2609,6 +2677,11 @@ export default function TeacherPaymentsPage() {
                                     >
                                       {timeSlotsInfo}
                                     </span>
+                                    {packageInfo && (
+                                      <span className="inline-block px-3 py-1 rounded-full bg-purple-100 text-purple-800 font-semibold text-xs">
+                                        {packageInfo}
+                                      </span>
+                                    )}
                                     <span
                                       className={`inline-block px-3 py-1 rounded-full font-semibold text-xs ${
                                         r.permitted
@@ -2633,73 +2706,107 @@ export default function TeacherPaymentsPage() {
                                     </span>
                                   </div>
 
-                                  {/* Calculation Details */}
+                                  {/* Enhanced Calculation Details */}
                                   {(() => {
                                     let calculationDisplay = "";
-                                    if (r.timeSlots) {
+                                    let packageDetails = null;
+
+                                    // Check if we have package breakdown informationkage breakdown information
+                                    if (
+                                      r.packageBreakdown &&
+                                      Array.isArray(r.packageBreakdown)
+                                    ) {
+                                      const totalSlots =
+                                        r.packageBreakdown.reduce(
+                                          (sum: number, p: any) => sum + p.timeSlots,
+                                          0
+                                        );
+                                      calculationDisplay = `Whole Day Absence: ${totalSlots} time slots across ${r.packageBreakdown.length} package type(s) = ${r.deductionApplied} ETB`;
+                                      packageDetails = r.packageBreakdown;
+                                    } else if (r.timeSlots) {
                                       try {
                                         const slots = JSON.parse(r.timeSlots);
                                         if (slots.includes("Whole Day")) {
-                                          calculationDisplay = `Whole Day Deduction: ${r.deductionApplied} ETB (Package-based rate)`;
+                                          calculationDisplay = `Whole Day Absence: ${r.deductionApplied} ETB (Package-based rates)`;
                                         } else {
-                                          const perSlotRate = Math.round(
+                                          const avgRate = Math.round(
                                             r.deductionApplied / slots.length
                                           );
-                                          calculationDisplay = `Package-based Time Slot Deduction: ${perSlotRate} ETB × ${slots.length} slots = ${r.deductionApplied} ETB`;
+                                          calculationDisplay = `Package-based Time Slot Deduction: ~${avgRate} ETB avg × ${slots.length} slots = ${r.deductionApplied} ETB`;
                                         }
                                       } catch {
                                         calculationDisplay = `Package-based Calculation: ${r.deductionApplied} ETB`;
                                       }
                                     } else {
-                                      calculationDisplay = `Package-based Calculation: ${r.deductionApplied} ETB`;
+                                      calculationDisplay = `Whole Day Absence: ${r.deductionApplied} ETB (Package-based rates)`;
                                     }
 
                                     return (
                                       <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                                        <div className="text-xs font-mono text-gray-700 mb-2">
+                                        <div className="text-xs font-mono text-gray-700 mb-2 font-semibold">
                                           {calculationDisplay}
                                         </div>
-                                        
+
                                         {/* Package-specific breakdown */}
+                                        {packageDetails &&
+                                          packageDetails.length > 0 && (
+                                            <div className="bg-blue-50 rounded p-2 mb-2 border border-blue-200">
+                                              <div className="text-xs text-blue-800 font-medium mb-2">
+                                                📊 Package-Specific Breakdown:
+                                              </div>
+                                              <div className="grid grid-cols-1 gap-1">
+                                                {packageDetails.map(
+                                                  (pkg: any, idx: number) => (
+                                                    <div
+                                                      key={idx}
+                                                      className="flex justify-between items-center bg-white rounded px-2 py-1 border border-blue-200"
+                                                    >
+                                                      <span className="font-medium text-blue-900 text-xs">
+                                                        {pkg.package}
+                                                      </span>
+                                                      <span className="text-xs text-blue-700 font-mono">
+                                                        {pkg.timeSlots} slots ×{" "}
+                                                        {pkg.ratePerSlot} ETB ={" "}
+                                                        {pkg.total} ETB
+                                                      </span>
+                                                    </div>
+                                                  )
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+
                                         <div className="bg-green-50 rounded p-2 mb-2 border border-green-200">
                                           <div className="text-xs text-green-800 font-medium mb-1">
-                                            ✓ Package-Based Deduction Applied
+                                            ✓ Fair Package-Based System Active
                                           </div>
                                           <div className="text-xs text-green-700">
-                                            Each student's package determines their deduction rate for fair calculation
+                                            {packageDetails &&
+                                            packageDetails.length > 1
+                                              ? `Mixed packages handled fairly: ${packageDetails
+                                                  .map((p) => p.package)
+                                                  .join(", ")}`
+                                              : "Each student's package determines their absence deduction rate"}
                                           </div>
                                         </div>
-                                        
-                                        {r.timeSlots &&
-                                          (() => {
-                                            try {
-                                              const slots = JSON.parse(
-                                                r.timeSlots
-                                              );
-                                              if (
-                                                !slots.includes("Whole Day") &&
-                                                slots.length > 0
-                                              ) {
-                                                return (
-                                                  <div className="text-xs text-gray-600">
-                                                    <span className="font-medium">
-                                                      Affected time slots:{" "}
-                                                    </span>
-                                                    <span className="font-mono">
-                                                      {slots
-                                                        .slice(0, 2)
-                                                        .join(", ")}
-                                                      {slots.length > 2 &&
-                                                        ` +${
-                                                          slots.length - 2
-                                                        } more`}
-                                                    </span>
-                                                  </div>
-                                                );
-                                              }
-                                            } catch {}
-                                            return null;
-                                          })()}
+
+                                        {r.uniqueTimeSlots &&
+                                          r.uniqueTimeSlots.length > 0 && (
+                                            <div className="text-xs text-gray-600">
+                                              <span className="font-medium">
+                                                Time slots affected:{" "}
+                                              </span>
+                                              <span className="font-mono">
+                                                {r.uniqueTimeSlots
+                                                  .slice(0, 3)
+                                                  .join(", ")}
+                                                {r.uniqueTimeSlots.length > 3 &&
+                                                  ` +${
+                                                    r.uniqueTimeSlots.length - 3
+                                                  } more`}
+                                              </span>
+                                            </div>
+                                          )}
                                       </div>
                                     );
                                   })()}
@@ -2769,101 +2876,146 @@ export default function TeacherPaymentsPage() {
 // Package Deduction Manager Component
 function PackageDeductionManager() {
   const [packageDeductions, setPackageDeductions] = useState<any[]>([]);
+  const [activePackages, setActivePackages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'lateness' | 'absence'>('lateness');
+  const [activeTab, setActiveTab] = useState<"lateness" | "absence">(
+    "lateness"
+  );
 
   useEffect(() => {
     fetchPackageDeductions();
+    fetchActivePackages();
   }, []);
 
   const fetchPackageDeductions = async () => {
     try {
-      const response = await fetch('/api/admin/package-deductions');
+      const response = await fetch("/api/admin/package-deductions");
       if (response.ok) {
         const data = await response.json();
         setPackageDeductions(data);
       }
     } catch (error) {
-      console.error('Failed to fetch package deductions:', error);
+      console.error("Failed to fetch package deductions:", error);
+    }
+  };
+
+  const fetchActivePackages = async () => {
+    try {
+      // Fetch packages from active students (same source as base salary calculation)
+      const response = await fetch("/api/admin/packages");
+      if (response.ok) {
+        const packages = await response.json();
+        setActivePackages(packages);
+      }
+    } catch (error) {
+      console.error("Failed to fetch active packages:", error);
+      // Fallback to common packages if API fails
+      setActivePackages(["0 Fee", "3 days", "5 days", "Europe"]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = async (packageName: string, type: 'lateness' | 'absence', amount: number) => {
+  const handleSave = async (
+    packageName: string,
+    type: "lateness" | "absence",
+    amount: number
+  ) => {
     setSaving(`${packageName}-${type}`);
     try {
-      const existing = packageDeductions.find(p => p.packageName === packageName);
+      const existing = packageDeductions.find(
+        (p) => p.packageName === packageName
+      );
       const payload = {
         packageName,
-        latenessBaseAmount: type === 'lateness' ? amount : (existing?.latenessBaseAmount || 30),
-        absenceBaseAmount: type === 'absence' ? amount : (existing?.absenceBaseAmount || 25)
+        latenessBaseAmount:
+          type === "lateness" ? amount : existing?.latenessBaseAmount || 30,
+        absenceBaseAmount:
+          type === "absence" ? amount : existing?.absenceBaseAmount || 25,
       };
 
-      const response = await fetch('/api/admin/package-deductions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const response = await fetch("/api/admin/package-deductions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        toast({ title: 'Success', description: `${packageName} ${type} deduction updated` });
+        toast({
+          title: "Success",
+          description: `${packageName} ${type} deduction updated`,
+        });
         fetchPackageDeductions();
       } else {
-        throw new Error('Failed to save');
+        throw new Error("Failed to save");
       }
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to save package deduction', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "Failed to save package deduction",
+        variant: "destructive",
+      });
     } finally {
       setSaving(null);
     }
   };
 
-  const updateAmount = (packageName: string, type: 'lateness' | 'absence', amount: number) => {
-    setPackageDeductions(prev => {
-      const existing = prev.find(p => p.packageName === packageName);
+  const updateAmount = (
+    packageName: string,
+    type: "lateness" | "absence",
+    amount: number
+  ) => {
+    setPackageDeductions((prev) => {
+      const existing = prev.find((p) => p.packageName === packageName);
       if (existing) {
-        return prev.map(p => 
-          p.packageName === packageName 
-            ? { ...p, [type === 'lateness' ? 'latenessBaseAmount' : 'absenceBaseAmount']: amount }
+        return prev.map((p) =>
+          p.packageName === packageName
+            ? {
+                ...p,
+                [type === "lateness"
+                  ? "latenessBaseAmount"
+                  : "absenceBaseAmount"]: amount,
+              }
             : p
         );
       } else {
-        return [...prev, {
-          id: 0,
-          packageName,
-          latenessBaseAmount: type === 'lateness' ? amount : 30,
-          absenceBaseAmount: type === 'absence' ? amount : 25
-        }];
+        return [
+          ...prev,
+          {
+            id: 0,
+            packageName,
+            latenessBaseAmount: type === "lateness" ? amount : 30,
+            absenceBaseAmount: type === "absence" ? amount : 25,
+          },
+        ];
       }
     });
   };
 
-  const commonPackages = ['0 Fee', '3 days', '5 days', 'Europe'];
-
-  if (loading) return <div className="animate-pulse bg-purple-100 h-32 rounded-lg"></div>;
+  if (loading)
+    return <div className="animate-pulse bg-purple-100 h-32 rounded-lg"></div>;
 
   return (
     <div className="space-y-4">
       {/* Tab Navigation */}
       <div className="flex bg-purple-100 rounded-xl p-1">
         <button
-          onClick={() => setActiveTab('lateness')}
+          onClick={() => setActiveTab("lateness")}
           className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
-            activeTab === 'lateness'
-              ? 'bg-white text-purple-900 shadow-sm'
-              : 'text-purple-700 hover:text-purple-900'
+            activeTab === "lateness"
+              ? "bg-white text-purple-900 shadow-sm"
+              : "text-purple-700 hover:text-purple-900"
           }`}
         >
           Lateness Deductions
         </button>
         <button
-          onClick={() => setActiveTab('absence')}
+          onClick={() => setActiveTab("absence")}
           className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
-            activeTab === 'absence'
-              ? 'bg-white text-purple-900 shadow-sm'
-              : 'text-purple-700 hover:text-purple-900'
+            activeTab === "absence"
+              ? "bg-white text-purple-900 shadow-sm"
+              : "text-purple-700 hover:text-purple-900"
           }`}
         >
           Absence Deductions
@@ -2872,26 +3024,44 @@ function PackageDeductionManager() {
 
       {/* Package Configuration Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {commonPackages.map((packageName) => {
-          const existing = packageDeductions.find(p => p.packageName === packageName);
-          const currentAmount = existing?.[activeTab === 'lateness' ? 'latenessBaseAmount' : 'absenceBaseAmount'] || (activeTab === 'lateness' ? 30 : 25);
+        {activePackages.map((packageName) => {
+          const existing = packageDeductions.find(
+            (p) => p.packageName === packageName
+          );
+          const currentAmount =
+            existing?.[
+              activeTab === "lateness"
+                ? "latenessBaseAmount"
+                : "absenceBaseAmount"
+            ] || (activeTab === "lateness" ? 30 : 25);
           const savingKey = `${packageName}-${activeTab}`;
 
           return (
-            <div key={packageName} className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
+            <div
+              key={packageName}
+              className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200"
+            >
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-bold text-purple-900">{packageName}</h4>
                 <span className="text-xs text-purple-600 font-medium">
-                  {activeTab === 'lateness' ? 'Base for % calc' : 'Per time slot'}
+                  {activeTab === "lateness"
+                    ? "Base for % calc"
+                    : "Per time slot"}
                 </span>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <div className="flex-1 relative">
                   <input
                     type="number"
                     value={currentAmount}
-                    onChange={(e) => updateAmount(packageName, activeTab, Number(e.target.value))}
+                    onChange={(e) =>
+                      updateAmount(
+                        packageName,
+                        activeTab,
+                        Number(e.target.value)
+                      )
+                    }
                     className="w-full border border-purple-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-center font-semibold"
                     min="0"
                     step="0.01"
@@ -2901,7 +3071,9 @@ function PackageDeductionManager() {
                   </span>
                 </div>
                 <button
-                  onClick={() => handleSave(packageName, activeTab, currentAmount)}
+                  onClick={() =>
+                    handleSave(packageName, activeTab, currentAmount)
+                  }
                   disabled={saving === savingKey}
                   className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white p-2 rounded-lg transition-all hover:scale-105"
                 >
@@ -2921,10 +3093,12 @@ function PackageDeductionManager() {
       <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
         <h4 className="font-bold text-purple-900 mb-2 flex items-center gap-2">
           <FiInfo className="h-4 w-4" />
-          {activeTab === 'lateness' ? 'Lateness Calculation' : 'Absence Calculation'}
+          {activeTab === "lateness"
+            ? "Lateness Calculation"
+            : "Absence Calculation"}
         </h4>
         <div className="text-purple-800 text-sm space-y-1">
-          {activeTab === 'lateness' ? (
+          {activeTab === "lateness" ? (
             <>
               <p>• Base amount × Tier percentage = Final deduction</p>
               <p>• Each student's package determines their base amount</p>
@@ -2932,11 +3106,26 @@ function PackageDeductionManager() {
             </>
           ) : (
             <>
-              <p>• Per time slot amount × Number of missed slots = Final deduction</p>
+              <p>
+                • Per time slot amount × Number of missed slots = Final
+                deduction
+              </p>
               <p>• Each student's package determines their slot rate</p>
               <p>• Mixed classes calculate fairly per student's package</p>
             </>
           )}
+        </div>
+        <div className="mt-3 p-2 bg-white rounded-lg border border-purple-300">
+          <div className="text-xs text-purple-700">
+            <strong>📦 Active Packages:</strong>{" "}
+            {activePackages.length > 0
+              ? activePackages.join(", ")
+              : "Loading..."}
+          </div>
+          <div className="text-xs text-purple-600 mt-1">
+            Packages are automatically detected from active students with
+            configured salaries
+          </div>
         </div>
       </div>
     </div>

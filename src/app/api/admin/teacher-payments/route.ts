@@ -237,19 +237,19 @@ export async function GET(req: NextRequest) {
         if (existingAbsenceDates.has(dateKey)) continue;
         const res = await isTeacherAbsent(teacherId as string, new Date(d));
         if (res.isAbsent) {
-          // Calculate time-slot based deduction for computed absences
+          // Calculate package-based time-slot deduction for computed absences
           const timeSlotDeductionConfig = await prisma.deductionbonusconfig.findFirst({
             where: { configType: "absence", key: "deduction_per_time_slot" },
           });
-          const deductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
+          const defaultDeductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
           
-          // Get teacher's time slots for this day
+          // Get teacher's time slots for this day with package information
           const dayName = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
           const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
             where: { ustaz_id: teacherId as string },
             include: {
               student: {
-                select: { daypackages: true }
+                select: { daypackages: true, package: true }
               }
             }
           });
@@ -267,7 +267,24 @@ export async function GET(req: NextRequest) {
           
           if (dayTimeSlots.length > 0) {
             const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
-            calculatedDeduction = deductionPerTimeSlot * uniqueTimeSlots.length;
+            
+            // Calculate package-based deduction for each time slot
+            const packageTimeSlotMap = new Map<string, Set<string>>();
+            dayTimeSlots.forEach(ot => {
+              const studentPackage = ot.student.package || "default";
+              if (!packageTimeSlotMap.has(studentPackage)) {
+                packageTimeSlotMap.set(studentPackage, new Set());
+              }
+              packageTimeSlotMap.get(studentPackage)!.add(ot.time_slot);
+            });
+            
+            // Sum deductions for all packages and their time slots
+            calculatedDeduction = 0;
+            for (const [pkg, slots] of packageTimeSlotMap.entries()) {
+              const packageDeduction = packageDeductionMap[pkg]?.absence || defaultDeductionPerTimeSlot;
+              calculatedDeduction += packageDeduction * slots.size;
+            }
+            
             timeSlots = JSON.stringify(uniqueTimeSlots);
           }
           
@@ -644,30 +661,44 @@ export async function GET(req: NextRequest) {
               );
             });
             
-            // Calculate package-weighted deduction
+            // Calculate package-weighted deduction for whole day absence
             let dailyDeduction = 0;
             let deductionReason = "No zoom link sent";
+            let packageBreakdown = [];
             
             if (dayTimeSlots.length > 0) {
               const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
               
-              // Calculate deduction based on student packages for each time slot
-              const packageCounts = new Map<string, number>();
+              // Group students by package for each time slot
+              const packageTimeSlotMap = new Map<string, Set<string>>();
               dayTimeSlots.forEach(ot => {
                 const studentPackage = ot.student.package || "default";
-                packageCounts.set(studentPackage, (packageCounts.get(studentPackage) || 0) + 1);
+                if (!packageTimeSlotMap.has(studentPackage)) {
+                  packageTimeSlotMap.set(studentPackage, new Set());
+                }
+                packageTimeSlotMap.get(studentPackage)!.add(ot.time_slot);
               });
               
-              // Sum deductions for each package
-              for (const [pkg, count] of packageCounts.entries()) {
+              // Calculate deduction for each package across all their time slots
+              for (const [pkg, timeSlots] of packageTimeSlotMap.entries()) {
                 const packageDeduction = packageDeductionMap[pkg]?.absence || deductionPerTimeSlot;
-                dailyDeduction += packageDeduction * count;
+                const slotsCount = timeSlots.size;
+                const packageTotal = packageDeduction * slotsCount;
+                dailyDeduction += packageTotal;
+                
+                packageBreakdown.push({
+                  package: pkg,
+                  timeSlots: slotsCount,
+                  ratePerSlot: packageDeduction,
+                  total: packageTotal
+                });
               }
               
-              deductionReason = `No zoom link sent (${uniqueTimeSlots.length} time slots, package-based)`;
+              deductionReason = `Whole day absence: ${uniqueTimeSlots.length} time slots (${packageBreakdown.map(p => `${p.package}: ${p.timeSlots}×${p.ratePerSlot}=${p.total} ETB`).join(', ')})`;
             } else {
+              // Fallback to default deduction if no time slots found
               dailyDeduction = absenceConfig.deductionAmount;
-              deductionReason = "No zoom link sent (whole day)";
+              deductionReason = "Whole day absence (no specific time slots)";
             }
             
             // Check for waiver
@@ -688,7 +719,9 @@ export async function GET(req: NextRequest) {
                 date: format(d, "yyyy-MM-dd"),
                 reason: deductionReason,
                 deduction: Math.round(dailyDeduction),
-                timeSlots: dayTimeSlots.length > 0 ? dayTimeSlots.length : null
+                timeSlots: dayTimeSlots.length > 0 ? dayTimeSlots.length : null,
+                packageBreakdown: packageBreakdown.length > 0 ? packageBreakdown : null,
+                uniqueTimeSlots: dayTimeSlots.length > 0 ? [...new Set(dayTimeSlots.map(ot => ot.time_slot))] : null
               });
             }
           }
