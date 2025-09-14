@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { adjustmentType, dateRange, teacherIds, timeSlots, reason } = await req.json();
+    console.log('🔧 ADJUSTMENT API CALLED:', { adjustmentType, dateRange, teacherIds: teacherIds?.length, reason: reason?.substring(0, 50) });
     
     if (!dateRange?.startDate || !dateRange?.endDate || !teacherIds?.length || !reason?.trim()) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -24,7 +25,9 @@ export async function POST(req: NextRequest) {
     let totalAmountWaived = 0;
 
     // Use transaction to ensure data consistency
+    console.log('💾 Starting database transaction...');
     const result = await prisma.$transaction(async (tx) => {
+      console.log('💾 Inside transaction, processing:', adjustmentType);
       if (adjustmentType === "waive_absence") {
         // Get absence records to waive
         const absenceRecords = await tx.absencerecord.findMany({
@@ -123,8 +126,11 @@ export async function POST(req: NextRequest) {
         }
       });
 
+      console.log('✅ Transaction completed:', { recordsAffected, totalAmountWaived });
       return { recordsAffected, totalAmountWaived };
     });
+    
+    console.log('🎉 ADJUSTMENT SUCCESSFUL:', result);
 
     return NextResponse.json({
       success: true,
