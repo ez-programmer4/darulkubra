@@ -1,16 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import {
-  FiCalendar,
-  FiUsers,
-  FiAlertTriangle,
-  FiCheck,
-  FiSearch,
-  FiClock,
-  FiInfo,
-  FiRefreshCw,
-  FiSettings,
-} from "react-icons/fi";
+import { FiCalendar, FiUsers, FiCheck, FiSearch, FiSettings, FiAlertTriangle, FiRefreshCw } from "react-icons/fi";
 import { toast } from "@/components/ui/use-toast";
 
 export default function DeductionAdjustmentsPage() {
@@ -18,13 +8,8 @@ export default function DeductionAdjustmentsPage() {
   const [filteredTeachers, setFilteredTeachers] = useState<any[]>([]);
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
   const [teacherSearch, setTeacherSearch] = useState("");
-  const [dateRange, setDateRange] = useState({
-    startDate: "",
-    endDate: "",
-  });
-  const [timeSlots, setTimeSlots] = useState<string[]>([]);
-  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
-  const [adjustmentType, setAdjustmentType] = useState("waive_lateness");
+  const [dateRange, setDateRange] = useState({ startDate: "", endDate: "" });
+  const [adjustmentType, setAdjustmentType] = useState("waive_absence");
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [previewData, setPreviewData] = useState<any[]>([]);
@@ -33,7 +18,6 @@ export default function DeductionAdjustmentsPage() {
 
   useEffect(() => {
     fetchTeachers();
-    fetchTimeSlots();
   }, []);
 
   useEffect(() => {
@@ -56,26 +40,10 @@ export default function DeductionAdjustmentsPage() {
     }
   };
 
-  const fetchTimeSlots = async () => {
-    try {
-      const res = await fetch("/api/admin/time-slots");
-      if (res.ok) {
-        const data = await res.json();
-        setTimeSlots(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch time slots");
-    }
-  };
-
   const previewAdjustments = async () => {
-    if (
-      !dateRange.startDate ||
-      !dateRange.endDate ||
-      selectedTeachers.length === 0
-    ) {
+    if (!dateRange.startDate || !dateRange.endDate || selectedTeachers.length === 0) {
       toast({
-        title: "❌ Missing Information",
+        title: "Missing Information",
         description: "Please select date range and at least one teacher",
         variant: "destructive",
       });
@@ -87,12 +55,7 @@ export default function DeductionAdjustmentsPage() {
       const res = await fetch("/api/admin/deduction-adjustments/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          adjustmentType,
-          dateRange,
-          teacherIds: selectedTeachers,
-          timeSlots: selectedTimeSlots,
-        }),
+        body: JSON.stringify({ adjustmentType, dateRange, teacherIds: selectedTeachers }),
       });
 
       if (res.ok) {
@@ -100,27 +63,18 @@ export default function DeductionAdjustmentsPage() {
         setPreviewData(data.records || []);
         setPreviewSummary(data.summary || {});
         setShowPreview(true);
-
-        if (data.records?.length > 0) {
-          toast({
-            title: "📋 Preview Ready",
-            description: `Found ${
-              data.records.length
-            } deduction records totaling ${data.summary?.totalAmount || 0} ETB`,
-          });
-        } else {
-          toast({
-            title: "ℹ️ No Records Found",
-            description:
-              "No deduction records match your criteria. This may be normal.",
-          });
-        }
+        
+        toast({
+          title: "Preview Ready",
+          description: `Found ${data.records?.length || 0} records totaling ${data.summary?.totalAmount || 0} ETB`,
+        });
       } else {
-        throw new Error("Failed to fetch preview");
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to fetch preview");
       }
     } catch (error: any) {
       toast({
-        title: "❌ Preview Failed",
+        title: "Preview Failed",
         description: error.message || "Failed to preview adjustments",
         variant: "destructive",
       });
@@ -132,15 +86,10 @@ export default function DeductionAdjustmentsPage() {
   };
 
   const handleAdjustment = async () => {
-    if (
-      !dateRange.startDate ||
-      !dateRange.endDate ||
-      selectedTeachers.length === 0 ||
-      !reason
-    ) {
+    if (!reason.trim()) {
       toast({
-        title: "Error",
-        description: "Please fill all required fields",
+        title: "Missing Reason",
+        description: "Please provide a reason for the adjustment",
         variant: "destructive",
       });
       return;
@@ -148,7 +97,7 @@ export default function DeductionAdjustmentsPage() {
 
     if (previewData.length === 0) {
       toast({
-        title: "Error",
+        title: "No Records",
         description: "Please preview adjustments first",
         variant: "destructive",
       });
@@ -156,9 +105,8 @@ export default function DeductionAdjustmentsPage() {
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to adjust ${previewData.length} deduction record(s)?\n\nReason: ${reason}\n\nThis action cannot be undone.`
+      `🚨 CRITICAL ACTION\n\nYou are about to waive ${previewData.length} deduction records totaling ${previewSummary.totalAmount || 0} ETB.\n\nReason: ${reason}\n\nThis will:\n✅ Increase teacher salaries immediately\n✅ Update all payment calculations\n✅ Create permanent audit records\n\n⚠️ This action CANNOT be undone!\n\nProceed?`
     );
-
     if (!confirmed) return;
 
     setLoading(true);
@@ -166,20 +114,14 @@ export default function DeductionAdjustmentsPage() {
       const res = await fetch("/api/admin/deduction-adjustments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          adjustmentType,
-          dateRange,
-          teacherIds: selectedTeachers,
-          timeSlots: selectedTimeSlots,
-          reason,
-        }),
+        body: JSON.stringify({ adjustmentType, dateRange, teacherIds: selectedTeachers, reason }),
       });
 
       if (res.ok) {
         const data = await res.json();
         toast({
-          title: "✅ Adjustment Completed",
-          description: `${data.recordsAffected} records waived. ${data.financialImpact?.totalAmountWaived || 0} ETB returned to salaries.`,
+          title: "✅ Adjustment Completed Successfully!",
+          description: `${data.recordsAffected} records waived. ${data.financialImpact?.totalAmountWaived || 0} ETB returned to teacher salaries.`,
         });
         
         // Reset form
@@ -189,14 +131,21 @@ export default function DeductionAdjustmentsPage() {
         setPreviewData([]);
         setPreviewSummary({});
         setShowPreview(false);
-        setSelectedTimeSlots([]);
+
+        // Show integration message
+        setTimeout(() => {
+          toast({
+            title: "🔄 System Integration Complete",
+            description: "Teacher payment calculations have been updated. Changes are now live in the Teacher Payments page.",
+          });
+        }, 2000);
       } else {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to adjust deductions");
       }
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "❌ Adjustment Failed",
         description: error.message || "Failed to adjust deductions",
         variant: "destructive",
       });
@@ -215,123 +164,94 @@ export default function DeductionAdjustmentsPage() {
               <FiSettings className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Deduction Adjustments
-              </h1>
-              <p className="text-gray-600">
-                Waive deductions for system issues or special circumstances
-              </p>
+              <h1 className="text-3xl font-bold text-gray-900">Deduction Adjustments</h1>
+              <p className="text-gray-600">Waive deductions for system issues or special circumstances</p>
             </div>
           </div>
 
-          {/* Configuration Section */}
+          {/* Warning Banner */}
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
+            <div className="flex items-center">
+              <FiAlertTriangle className="h-5 w-5 text-yellow-400 mr-3" />
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">Critical System Function</h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  This tool directly modifies teacher salary calculations. All changes are permanent and immediately reflected in payment systems.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Left Column - Filters */}
+            {/* Left Column - Configuration */}
             <div className="space-y-6">
               {/* Date Range */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-3">
                   <FiCalendar className="inline h-4 w-4 mr-2" />
-                  Date Range
+                  Date Range *
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <input
                     type="date"
                     value={dateRange.startDate}
-                    onChange={(e) =>
-                      setDateRange((prev) => ({
-                        ...prev,
-                        startDate: e.target.value,
-                      }))
-                    }
+                    onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
                     className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
                   />
                   <input
                     type="date"
                     value={dateRange.endDate}
-                    onChange={(e) =>
-                      setDateRange((prev) => ({
-                        ...prev,
-                        endDate: e.target.value,
-                      }))
-                    }
+                    onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
                     className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
                   />
                 </div>
               </div>
 
               {/* Adjustment Type */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-3">
-                  Adjustment Type
-                </label>
+                <label className="block text-sm font-bold text-gray-700 mb-3">Adjustment Type *</label>
                 <select
                   value={adjustmentType}
                   onChange={(e) => setAdjustmentType(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="waive_lateness">Waive Lateness Deductions</option>
                   <option value="waive_absence">Waive Absence Deductions</option>
+                  <option value="waive_lateness">Waive Lateness Deductions</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-2">
+                  {adjustmentType === "waive_absence" 
+                    ? "Removes deductions from recorded absence events" 
+                    : "Removes deductions from late class starts"}
+                </p>
               </div>
 
-              {/* Time Slots */}
+              {/* Reason */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-3">
-                  <FiClock className="inline h-4 w-4 mr-2" />
-                  Time Slots (Optional)
-                </label>
-                <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto">
-                  <div className="mb-2">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedTimeSlots.length === 0}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedTimeSlots([]);
-                          }
-                        }}
-                        className="rounded border-gray-300"
-                      />
-                      <span className="text-sm font-medium text-blue-600">All Time Slots</span>
-                    </label>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {timeSlots.map((slot) => (
-                      <label key={slot} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedTimeSlots.includes(slot)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedTimeSlots((prev) => [...prev, slot]);
-                            } else {
-                              setSelectedTimeSlots((prev) =>
-                                prev.filter((s) => s !== slot)
-                              );
-                            }
-                          }}
-                          className="rounded border-gray-300"
-                        />
-                        <span className="text-sm">{slot}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+                <label className="block text-sm font-bold text-gray-700 mb-3">Reason for Adjustment *</label>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="e.g., Server downtime on [date] prevented normal operations, causing system-related absences/lateness that should not be penalized."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={4}
+                  required
+                />
                 <p className="text-xs text-gray-500 mt-2">
-                  Leave empty to include all time slots
+                  This reason will be permanently recorded in audit logs and waiver records.
                 </p>
               </div>
             </div>
 
-            {/* Right Column - Teachers */}
+            {/* Right Column - Teacher Selection */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-3">
                 <FiUsers className="inline h-4 w-4 mr-2" />
-                Select Teachers ({selectedTeachers.length} selected)
+                Select Teachers * ({selectedTeachers.length} selected)
               </label>
-
+              
               {/* Search */}
               <div className="relative mb-3">
                 <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -345,52 +265,45 @@ export default function DeductionAdjustmentsPage() {
               </div>
 
               {/* Teacher Selection */}
-              <div className="border border-gray-300 rounded-lg p-4">
+              <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
                 <div className="flex gap-2 mb-4">
                   <button
-                    onClick={() =>
-                      setSelectedTeachers(filteredTeachers.map((t) => t.id))
-                    }
-                    className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                    onClick={() => setSelectedTeachers(filteredTeachers.map(t => t.id))}
+                    className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
                   >
-                    Select All
+                    Select All ({filteredTeachers.length})
                   </button>
                   <button
                     onClick={() => setSelectedTeachers([])}
-                    className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                    className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 transition-colors"
                   >
                     Clear All
                   </button>
                 </div>
 
-                <div className="max-h-60 overflow-y-auto">
-                  <div className="grid grid-cols-1 gap-2">
+                <div className="max-h-64 overflow-y-auto bg-white rounded border">
+                  <div className="space-y-1 p-2">
                     {filteredTeachers.map((teacher) => (
-                      <label
-                        key={teacher.id}
-                        className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                      >
+                      <label key={teacher.id} className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded cursor-pointer transition-colors">
                         <input
                           type="checkbox"
                           checked={selectedTeachers.includes(teacher.id)}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedTeachers((prev) => [...prev, teacher.id]);
+                              setSelectedTeachers(prev => [...prev, teacher.id]);
                             } else {
-                              setSelectedTeachers((prev) =>
-                                prev.filter((id) => id !== teacher.id)
-                              );
+                              setSelectedTeachers(prev => prev.filter(id => id !== teacher.id));
                             }
                           }}
-                          className="rounded border-gray-300"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="text-sm">{teacher.name}</span>
+                        <span className="text-sm font-medium">{teacher.name}</span>
                       </label>
                     ))}
                   </div>
 
                   {filteredTeachers.length === 0 && (
-                    <div className="text-center text-gray-500 py-4">
+                    <div className="text-center text-gray-500 py-8">
                       No teachers found matching "{teacherSearch}"
                     </div>
                   )}
@@ -399,54 +312,34 @@ export default function DeductionAdjustmentsPage() {
             </div>
           </div>
 
-          {/* Reason */}
-          <div className="mb-8">
-            <label className="block text-sm font-bold text-gray-700 mb-3">
-              Reason for Adjustment *
-            </label>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g., Server downtime from 9:00 AM to 11:30 AM on [date] caused system issues preventing normal operations"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows={3}
-              required
-            />
-          </div>
-
           {/* Action Buttons */}
           <div className="flex gap-4 mb-8">
             <button
               onClick={previewAdjustments}
-              disabled={
-                loading ||
-                !dateRange.startDate ||
-                !dateRange.endDate ||
-                selectedTeachers.length === 0
-              }
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              disabled={loading || !dateRange.startDate || !dateRange.endDate || selectedTeachers.length === 0}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
             >
               {loading ? (
                 <FiRefreshCw className="h-4 w-4 animate-spin" />
               ) : (
                 <FiSearch className="h-4 w-4" />
               )}
-              Preview Adjustments
+              1. Preview Adjustments
             </button>
 
             <button
               onClick={handleAdjustment}
               disabled={loading || previewData.length === 0 || !reason.trim()}
-              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
             >
               <FiCheck className="h-4 w-4" />
-              Apply Adjustments
+              2. Apply Adjustments
             </button>
           </div>
 
           {/* Preview Section */}
           {showPreview && (
-            <div className="bg-white rounded-xl p-6 border-2 border-blue-200 shadow-lg">
+            <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <FiSearch className="h-5 w-5 text-blue-600" />
@@ -456,139 +349,100 @@ export default function DeductionAdjustmentsPage() {
                     📋 Preview Results: {previewData.length} records found
                   </h3>
                   <p className="text-gray-600">
-                    These deductions will be set to 0 ETB (waived)
+                    Total amount to be waived: <span className="font-bold text-green-600">{previewSummary.totalAmount || 0} ETB</span>
                   </p>
                 </div>
               </div>
-
+              
               {previewData.length > 0 ? (
                 <>
-                  <div className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-200 rounded-xl p-6 mb-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-red-100 rounded-lg">
-                        <FiAlertTriangle className="h-5 w-5 text-red-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-red-800 text-lg">
-                          📊 Financial Impact Analysis
-                        </h4>
-                        <p className="text-red-600 text-sm">
-                          Actual deduction amounts from database records
-                        </p>
-                      </div>
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-white rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-blue-600">{previewSummary.totalRecords}</div>
+                      <div className="text-sm text-gray-600">Total Records</div>
                     </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                      <div className="text-center bg-white rounded-lg p-3 border border-red-100">
-                        <div className="font-bold text-xl text-red-700">
-                          {previewSummary.totalRecords || previewData.length}
-                        </div>
-                        <div className="text-red-600 font-medium">
-                          Deduction Records
-                        </div>
-                      </div>
-                      <div className="text-center bg-white rounded-lg p-3 border border-red-100">
-                        <div className="font-bold text-xl text-red-700">
-                          {previewSummary.totalTeachers ||
-                            [...new Set(previewData.map((r) => r.teacherName))]
-                              .length}
-                        </div>
-                        <div className="text-red-600 font-medium">
-                          Affected Teachers
-                        </div>
-                      </div>
-                      <div className="text-center bg-white rounded-lg p-3 border border-orange-100">
-                        <div className="font-bold text-xl text-orange-700">
-                          {previewSummary.totalLatenessAmount || 0} ETB
-                        </div>
-                        <div className="text-orange-600 font-medium">
-                          Lateness Deductions
-                        </div>
-                      </div>
-                      <div className="text-center bg-white rounded-lg p-3 border border-red-100">
-                        <div className="font-bold text-xl text-red-700">
-                          {previewSummary.totalAbsenceAmount || 0} ETB
-                        </div>
-                        <div className="text-red-600 font-medium">
-                          Absence Deductions
-                        </div>
-                      </div>
-                      <div className="text-center bg-green-50 rounded-lg p-3 border-2 border-green-200">
-                        <div className="font-bold text-2xl text-green-700">
-                          +{previewSummary.totalAmount ||
-                            previewData.reduce(
-                              (sum, r) => sum + (r.deduction || 0),
-                              0
-                            )} ETB
-                        </div>
-                        <div className="text-green-600 font-bold">
-                          💰 SALARY INCREASE
-                        </div>
-                      </div>
+                    <div className="bg-white rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-green-600">{previewSummary.totalTeachers}</div>
+                      <div className="text-sm text-gray-600">Affected Teachers</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-orange-600">{previewSummary.totalLatenessAmount || 0}</div>
+                      <div className="text-sm text-gray-600">Lateness ETB</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-red-600">{previewSummary.totalAbsenceAmount || 0}</div>
+                      <div className="text-sm text-gray-600">Absence ETB</div>
                     </div>
                   </div>
 
-                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-100 sticky top-0">
-                        <tr>
-                          <th className="text-left p-3 font-bold">Teacher</th>
-                          <th className="text-left p-3 font-bold">Date</th>
-                          <th className="text-left p-3 font-bold">Type</th>
-                          <th className="text-right p-3 font-bold">
-                            Deduction to Waive
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {previewData.map((record, index) => (
-                          <tr key={index} className="border-b hover:bg-gray-50">
-                            <td className="p-3 font-medium">
-                              {record.teacherName}
-                            </td>
-                            <td className="p-3">
-                              {new Date(record.date).toLocaleDateString()}
-                            </td>
-                            <td className="p-3">
-                              <span
-                                className={`px-2 py-1 rounded text-xs font-bold ${
-                                  record.type === "Lateness"
-                                    ? "bg-orange-100 text-orange-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
-                              >
-                                {record.type}
-                              </span>
-                            </td>
-                            <td className="p-3 text-right">
-                              <div className="font-mono font-bold">
-                                <span className="text-red-600">
-                                  -{record.deduction} ETB
-                                </span>
-                                <span className="text-gray-400 mx-2">→</span>
-                                <span className="text-green-600">0 ETB</span>
-                              </div>
-                              <div className="text-xs text-green-600 font-medium">
-                                +{record.deduction} ETB to salary
-                              </div>
-                            </td>
+                  {/* Records Table */}
+                  <div className="bg-white rounded-lg overflow-hidden">
+                    <div className="max-h-80 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100 sticky top-0">
+                          <tr>
+                            <th className="text-left p-3 font-bold">Teacher</th>
+                            <th className="text-left p-3 font-bold">Date</th>
+                            <th className="text-left p-3 font-bold">Type</th>
+                            <th className="text-left p-3 font-bold">Details</th>
+                            <th className="text-right p-3 font-bold">Amount (ETB)</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {previewData.map((record, index) => (
+                            <tr key={index} className="border-b hover:bg-gray-50">
+                              <td className="p-3 font-medium">{record.teacherName}</td>
+                              <td className="p-3">{new Date(record.date).toLocaleDateString()}</td>
+                              <td className="p-3">
+                                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                  record.type === 'Lateness' 
+                                    ? 'bg-orange-100 text-orange-800' 
+                                    : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {record.type}
+                                </span>
+                              </td>
+                              <td className="p-3 text-xs text-gray-600">{record.details}</td>
+                              <td className="p-3 text-right font-mono font-bold text-green-600">
+                                +{record.deduction}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
+
+                  {/* Teacher Breakdown */}
+                  {previewSummary.teacherBreakdown && previewSummary.teacherBreakdown.length > 0 && (
+                    <div className="mt-6 bg-white rounded-lg p-4">
+                      <h4 className="font-bold text-gray-800 mb-3">👥 Per-Teacher Impact:</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {previewSummary.teacherBreakdown.map((teacher: any, index: number) => (
+                          <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                            <span className="font-medium text-sm">{teacher.teacherName}</span>
+                            <span className="font-bold text-green-600">+{teacher.totalDeduction} ETB</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="text-center py-8">
                   <div className="p-4 bg-green-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                     <FiCheck className="h-8 w-8 text-green-600" />
                   </div>
-                  <h4 className="text-lg font-bold text-gray-900 mb-2">
-                    No Records Found
-                  </h4>
+                  <h4 className="text-lg font-bold text-gray-900 mb-2">No Records Found</h4>
                   <p className="text-gray-600">
-                    No deduction records match your criteria.
+                    No deduction records match your criteria. This could mean:
                   </p>
+                  <ul className="text-sm text-gray-500 mt-2 space-y-1">
+                    <li>• No deductions exist for the selected date range</li>
+                    <li>• Selected teachers had no deductions</li>
+                    <li>• Deductions were already waived previously</li>
+                  </ul>
                 </div>
               )}
             </div>

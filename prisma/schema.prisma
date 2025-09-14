@@ -238,6 +238,8 @@ model absencerecord {
   deductionApplied          Float
   reviewedByManager         Boolean
   reviewNotes               String?
+  isWaived                  Boolean?             @default(false)
+  waiverReason              String?              @db.Text
   createdAt                 DateTime             @default(now())
   adminId                   String?
   wpos_wpdatatable_28Wdt_ID Int?

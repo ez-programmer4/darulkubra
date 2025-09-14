@@ -522,8 +522,16 @@ export async function GET(req: NextRequest) {
             };
           });
 
-          // Note: Waiver checking will be added once deduction_waivers table is created
-          const waivedLatenessDates = new Set<string>();
+          // Get lateness waiver records for this teacher and period
+          const latenessWaivers = await prisma.deduction_waivers.findMany({
+            where: {
+              teacherId: t.ustazid,
+              deductionType: 'lateness',
+              deductionDate: { gte: from, lte: to }
+            }
+          });
+          
+          const waivedLatenessDates = new Set(latenessWaivers.map(w => w.deductionDate.toISOString().split('T')[0]));
           const defaultBaseDeductionAmount = 30;
 
           const latenessConfigs = await prisma.latenessdeductionconfig.findMany(
@@ -725,8 +733,16 @@ export async function GET(req: NextRequest) {
             orderBy: { classDate: "asc" },
           });
 
-          // Note: Waiver checking will be added once deduction_waivers table is created
-          const waivedDates = new Set<string>();
+          // Get absence waiver records for this teacher and period
+          const absenceWaivers = await prisma.deduction_waivers.findMany({
+            where: {
+              teacherId: t.ustazid,
+              deductionType: 'absence',
+              deductionDate: { gte: from, lte: to }
+            }
+          });
+          
+          const waivedDates = new Set(absenceWaivers.map(w => w.deductionDate.toISOString().split('T')[0]));
 
           // Create a set of dates that already have absence records
           const existingAbsenceDates = new Set(

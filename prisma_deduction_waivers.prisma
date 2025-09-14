@@ -1,0 +1,27 @@
+// Add this model to your schema.prisma file
+
+model DeductionWaiver {
+  id             Int      @id @default(autoincrement())
+  teacherId      String
+  deductionType  String   // 'lateness' or 'absence'
+  deductionDate  DateTime @db.Date
+  originalAmount Float
+  reason         String   @db.Text
+  adminId        String
+  createdAt      DateTime @default(now())
+
+  // Relations
+  teacher        wpos_wpdatatable_24 @relation(fields: [teacherId], references: [ustazid])
+
+  @@unique([teacherId, deductionType, deductionDate])
+  @@index([teacherId, deductionDate])
+  @@index([deductionType, deductionDate])
+  @@map("deduction_waivers")
+}
+
+// Also add this relation to wpos_wpdatatable_24 model:
+// deductionWaivers DeductionWaiver[]
+
+// And update absencerecord model to add:
+// isWaived      Boolean? @default(false)
+// waiverReason  String?  @db.Text
