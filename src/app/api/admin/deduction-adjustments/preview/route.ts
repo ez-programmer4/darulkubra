@@ -1,172 +1,156 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getToken } from "next-auth/jwt";
+import { format } from "date-fns";
 
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || (session.user as { role: string }).role !== "admin") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    if (!token || token.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { adjustmentType, dateRange, teacherIds, timeSlots } = await req.json();
+    
+    if (!dateRange?.startDate || !dateRange?.endDate || !teacherIds?.length) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const body = await req.json();
-    const { adjustmentType, dateRange, teacherIds, timeSlots } = body;
-    const { startDate, endDate } = dateRange;
-
-    let records: any[] = [];
-    let totalLatenessAmount = 0;
-    let totalAbsenceAmount = 0;
+    const startDate = new Date(dateRange.startDate);
+    const endDate = new Date(dateRange.endDate);
+    const records = [];
+    let totalAmount = 0;
 
     if (adjustmentType === "waive_lateness") {
-      // Get package-specific deduction configurations like teacher-payments does
-      const packageDeductions = await prisma.packageDeduction.findMany();
-      const packageDeductionMap: Record<
-        string,
-        { lateness: number; absence: number }
-      > = {};
-      packageDeductions.forEach((pkg) => {
-        packageDeductionMap[pkg.packageName] = {
-          lateness: Number(pkg.latenessBaseAmount),
-          absence: Number(pkg.absenceBaseAmount),
-        };
-      });
-      const defaultBaseDeductionAmount = 30;
+      // Get real lateness records from teacher payments calculation
+      for (const teacherId of teacherIds) {
+        const teacher = await prisma.wpos_wpdatatable_24.findUnique({
+          where: { ustazid: teacherId },
+          select: { ustazname: true }
+        });
 
-      const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
-        orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
-      });
+        if (!teacher) continue;
 
-      if (latenessConfigs.length === 0) {
-        records = [];
-      } else {
-        const excusedThreshold = Math.min(
-          ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
-        );
-        const tiers = latenessConfigs.map((c) => ({
+        // Get teacher's students and their zoom links for lateness calculation
+        const students = await prisma.wpos_wpdatatable_23.findMany({
+          where: { ustaz: teacherId, status: { in: ["active", "Active"] } },
+          select: {
+            wdt_ID: true,
+            name: true,
+            package: true,
+            zoom_links: {
+              where: {
+                sent_time: { gte: startDate, lte: endDate }
+              },
+              select: { sent_time: true }
+            },
+            occupiedTimes: { select: { time_slot: true } }
+          }
+        });
+
+        // Get package deduction rates
+        const packageDeductions = await prisma.packageDeduction.findMany();
+        const packageDeductionMap: Record<string, number> = {};
+        packageDeductions.forEach((pkg) => {
+          packageDeductionMap[pkg.packageName] = Number(pkg.latenessBaseAmount) || 30;
+        });
+
+        // Get lateness configuration
+        const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
+          orderBy: [{ tier: "asc" }, { startMinute: "asc" }]
+        });
+
+        if (latenessConfigs.length === 0) continue;
+
+        const excusedThreshold = Math.min(...latenessConfigs.map(c => c.excusedThreshold ?? 0));
+        const tiers = latenessConfigs.map(c => ({
           start: c.startMinute,
           end: c.endMinute,
-          percent: c.deductionPercent,
+          percent: c.deductionPercent
         }));
-        const maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
 
-        for (const teacherId of teacherIds) {
-          const teacher = await prisma.wpos_wpdatatable_24.findUnique({
-            where: { ustazid: teacherId },
-            select: { ustazname: true },
-          });
+        // Calculate lateness for each day
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+          const dateStr = format(d, "yyyy-MM-dd");
+          
+          for (const student of students) {
+            const timeSlot = student.occupiedTimes?.[0]?.time_slot;
+            if (!timeSlot) continue;
 
-          const students = await prisma.wpos_wpdatatable_23.findMany({
-            where: { ustaz: teacherId },
-            include: {
-              zoom_links: true,
-              occupiedTimes: { select: { time_slot: true } },
-            },
-          });
+            // Convert time to 24-hour format
+            function to24Hour(time12h: string) {
+              if (!time12h) return "00:00";
+              if (time12h.includes("AM") || time12h.includes("PM")) {
+                const [time, modifier] = time12h.split(" ");
+                let [hours, minutes] = time.split(":");
+                if (hours === "12") hours = modifier === "AM" ? "00" : "12";
+                else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
+                return `${hours.padStart(2, "0")}:${minutes}`;
+              }
+              if (time12h.includes(":")) {
+                const parts = time12h.split(":");
+                return `${parts[0].padStart(2, "0")}:${(parts[1] || "00").padStart(2, "0")}`;
+              }
+              return "00:00";
+            }
 
-          // Calculate lateness for each day/student like teacher-payments does
-          for (
-            let d = new Date(startDate);
-            d <= new Date(endDate);
-            d.setDate(d.getDate() + 1)
-          ) {
-            const dateStr = d.toISOString().split("T")[0];
+            const time24 = to24Hour(timeSlot);
+            const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
 
-            for (const student of students) {
-              const timeSlot = student.occupiedTimes?.[0]?.time_slot;
-              if (!timeSlot) continue;
+            // Find zoom links for this day
+            const dayLinks = student.zoom_links.filter(link => {
+              if (!link.sent_time) return false;
+              return format(link.sent_time, "yyyy-MM-dd") === dateStr;
+            });
 
-              // Convert time slot to 24h format
-              function to24Hour(time12h: string) {
-                if (!time12h) return "00:00";
-                if (time12h.includes("AM") || time12h.includes("PM")) {
-                  const [time, modifier] = time12h.split(" ");
-                  let [hours, minutes] = time.split(":");
-                  if (hours === "12") hours = modifier === "AM" ? "00" : "12";
-                  else if (modifier === "PM")
-                    hours = String(parseInt(hours, 10) + 12);
-                  return `${hours.padStart(2, "0")}:${minutes}`;
+            if (dayLinks.length === 0) continue;
+
+            const actualStartTime = dayLinks.sort((a, b) => 
+              a.sent_time!.getTime() - b.sent_time!.getTime()
+            )[0].sent_time!;
+
+            const latenessMinutes = Math.max(0, 
+              Math.round((actualStartTime.getTime() - scheduledTime.getTime()) / 60000)
+            );
+
+            if (latenessMinutes > excusedThreshold) {
+              const studentPackage = student.package || "";
+              const baseDeductionAmount = packageDeductionMap[studentPackage] || 30;
+
+              let deduction = 0;
+              for (const [i, tier] of tiers.entries()) {
+                if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {
+                  deduction = baseDeductionAmount * (tier.percent / 100);
+                  break;
                 }
-                if (time12h.includes(":")) {
-                  const parts = time12h.split(":");
-                  const hours = parts[0].padStart(2, "0");
-                  const minutes = (parts[1] || "00").padStart(2, "0");
-                  return `${hours}:${minutes}`;
-                }
-                return "00:00";
               }
 
-              const time24 = to24Hour(timeSlot);
-              const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
-
-              // Find zoom link sent time for this date
-              const sentTimes = (student.zoom_links || [])
-                .filter(
-                  (zl) =>
-                    zl.sent_time &&
-                    zl.sent_time.toISOString().split("T")[0] === dateStr
-                )
-                .map((zl) => zl.sent_time)
-                .sort((a, b) => a!.getTime() - b!.getTime());
-
-              const actualStartTime =
-                sentTimes.length > 0 ? sentTimes[0] : null;
-              if (!actualStartTime) continue;
-
-              const latenessMinutes = Math.max(
-                0,
-                Math.round(
-                  (actualStartTime.getTime() - scheduledTime.getTime()) / 60000
-                )
-              );
-
-              // Calculate deduction using same logic as teacher-payments
-              let deductionApplied = 0;
-              let deductionTier = "Excused";
-
-              if (latenessMinutes > excusedThreshold) {
-                let foundTier = false;
-                // Get student's package for package-specific deduction
-                const studentPackage = student.package || "";
-                const baseDeductionAmount =
-                  packageDeductionMap[studentPackage]?.lateness ||
-                  defaultBaseDeductionAmount;
-
-                for (const [i, tier] of tiers.entries()) {
-                  if (
-                    latenessMinutes >= tier.start &&
-                    latenessMinutes <= tier.end
-                  ) {
-                    deductionApplied =
-                      baseDeductionAmount * (tier.percent / 100);
-                    deductionTier = `Tier ${i + 1} (${
-                      tier.percent
-                    }%) - ${studentPackage}`;
-                    foundTier = true;
-                    break;
+              if (deduction > 0) {
+                // Check if already waived
+                const existingWaiver = await prisma.deduction_waivers.findFirst({
+                  where: {
+                    teacherId,
+                    deductionType: 'lateness',
+                    deductionDate: d
                   }
-                }
-                if (!foundTier && latenessMinutes > maxTierEnd) {
-                  deductionApplied = baseDeductionAmount;
-                  deductionTier = `> Max Tier - ${studentPackage}`;
-                }
-              }
-
-              if (deductionApplied > 0) {
-                totalLatenessAmount += deductionApplied;
-                records.push({
-                  id: `${teacherId}-${student.wdt_ID}-${dateStr}`,
-                  teacherId,
-                  teacherName: teacher?.ustazname || "Unknown Teacher",
-                  date: scheduledTime,
-                  type: "Lateness",
-                  deduction: deductionApplied,
-                  originalAmount: deductionApplied,
-                  details: `${latenessMinutes} min late - ${deductionTier} (Student: ${student.name})`,
-                  scheduledTime,
-                  actualTime: actualStartTime,
-                  studentId: student.wdt_ID,
-                  studentName: student.name,
                 });
+
+                if (!existingWaiver) {
+                  records.push({
+                    id: `lateness_${teacherId}_${dateStr}_${student.wdt_ID}`,
+                    teacherId,
+                    teacherName: teacher.ustazname,
+                    studentName: student.name,
+                    date: d,
+                    type: "Lateness",
+                    deduction: Math.round(deduction),
+                    latenessMinutes,
+                    timeSlot,
+                    package: studentPackage
+                  });
+                  totalAmount += Math.round(deduction);
+                }
               }
             }
           }
@@ -175,155 +159,78 @@ export async function POST(req: NextRequest) {
     }
 
     if (adjustmentType === "waive_absence") {
-      // Import absence detection function
-      const {
-        isTeacherAbsent,
-        getAbsenceDeductionConfig,
-      } = require("@/lib/absence-utils");
-      const absenceConfig = await getAbsenceDeductionConfig();
-
-      // Get time slot deduction config
-      const timeSlotDeductionConfig =
-        await prisma.deductionbonusconfig.findFirst({
-          where: { configType: "absence", key: "deduction_per_time_slot" },
-        });
-      const deductionPerTimeSlot = timeSlotDeductionConfig
-        ? Number(timeSlotDeductionConfig.value)
-        : 25;
-
-      for (const teacherId of teacherIds) {
-        const teacher = await prisma.wpos_wpdatatable_24.findUnique({
-          where: { ustazid: teacherId },
-          select: { ustazname: true },
-        });
-
-        for (
-          let d = new Date(startDate);
-          d <= new Date(endDate);
-          d.setDate(d.getDate() + 1)
-        ) {
-          const monthNumber = String(d.getMonth() + 1);
-          if (
-            absenceConfig.effectiveMonths.length > 0 &&
-            !absenceConfig.effectiveMonths.includes(monthNumber)
-          ) {
-            continue;
+      // Get real absence records from database
+      const absenceRecords = await prisma.absencerecord.findMany({
+        where: {
+          teacherId: { in: teacherIds },
+          classDate: { gte: startDate, lte: endDate },
+          isWaived: false // Only non-waived records
+        },
+        include: {
+          wpos_wpdatatable_24: {
+            select: { ustazname: true }
           }
+        }
+      });
 
-          // Check for existing absence record first
-          const existingAbsence = await prisma.absencerecord.findFirst({
-            where: {
-              teacherId,
-              classDate: {
-                gte: new Date(d.getFullYear(), d.getMonth(), d.getDate()),
-                lt: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1),
-              },
-            },
+      for (const record of absenceRecords) {
+        // Check if already waived
+        const existingWaiver = await prisma.deduction_waivers.findFirst({
+          where: {
+            teacherId: record.teacherId,
+            deductionType: 'absence',
+            deductionDate: record.classDate
+          }
+        });
+
+        if (!existingWaiver) {
+          records.push({
+            id: `absence_${record.id}`,
+            teacherId: record.teacherId,
+            teacherName: record.wpos_wpdatatable_24?.ustazname || 'Unknown',
+            date: record.classDate,
+            type: "Absence",
+            deduction: record.deductionApplied,
+            permitted: record.permitted
           });
-
-          let deductionAmount = 0;
-          let details = "";
-
-          if (existingAbsence && existingAbsence.deductionApplied > 0) {
-            // Use existing record deduction
-            deductionAmount = existingAbsence.deductionApplied;
-            details = `Recorded absence - ${
-              existingAbsence.timeSlots || "Full day"
-            }`;
-          } else {
-            // Check for auto-detected absence
-            const absenceResult = await isTeacherAbsent(teacherId, new Date(d));
-            if (absenceResult.isAbsent) {
-              // Calculate deduction based on time slots like teacher-payments does
-              const dayName = new Date(d).toLocaleDateString("en-US", {
-                weekday: "long",
-              });
-              const occupiedTimes =
-                await prisma.wpos_ustaz_occupied_times.findMany({
-                  where: { ustaz_id: teacherId },
-                  include: {
-                    student: { select: { daypackages: true } },
-                  },
-                });
-
-              const dayTimeSlots = occupiedTimes.filter((ot) => {
-                const studentDayPackages = ot.student.daypackages;
-                return (
-                  studentDayPackages &&
-                  (studentDayPackages.includes("All days") ||
-                    studentDayPackages.includes(dayName))
-                );
-              });
-
-              if (dayTimeSlots.length > 0) {
-                const uniqueTimeSlots = [
-                  ...new Set(dayTimeSlots.map((ot) => ot.time_slot)),
-                ];
-                deductionAmount = deductionPerTimeSlot * uniqueTimeSlots.length;
-                details = `Auto-detected absence - ${uniqueTimeSlots.length} time slots`;
-              } else {
-                deductionAmount = absenceConfig.deductionAmount;
-                details = "Auto-detected absence - whole day";
-              }
-            }
-          }
-
-          if (deductionAmount > 0) {
-            totalAbsenceAmount += deductionAmount;
-            records.push({
-              id: `${teacherId}-absence-${d.toISOString().split("T")[0]}`,
-              teacherId,
-              teacherName: teacher?.ustazname || "Unknown Teacher",
-              date: new Date(d),
-              type: "Absence",
-              deduction: deductionAmount,
-              originalAmount: deductionAmount,
-              details,
-              existingRecord: !!existingAbsence,
-            });
-          }
+          totalAmount += record.deductionApplied;
         }
       }
     }
 
-    // Group records by teacher for better analysis
-    const teacherSummary = records.reduce((acc, record) => {
-      if (!acc[record.teacherId]) {
-        acc[record.teacherId] = {
-          teacherName: record.teacherName,
-          totalDeduction: 0,
-          recordCount: 0,
-          records: [],
-        };
-      }
-      acc[record.teacherId].totalDeduction += record.deduction;
-      acc[record.teacherId].recordCount += 1;
-      acc[record.teacherId].records.push(record);
-      return acc;
-    }, {});
+    // Calculate summary
+    const teacherBreakdown = teacherIds.map(teacherId => {
+      const teacherRecords = records.filter(r => r.teacherId === teacherId);
+      const teacherTotal = teacherRecords.reduce((sum, r) => sum + r.deduction, 0);
+      const teacherName = teacherRecords[0]?.teacherName || 'Unknown';
+      
+      return {
+        teacherId,
+        teacherName,
+        recordCount: teacherRecords.length,
+        totalDeduction: teacherTotal
+      };
+    }).filter(t => t.recordCount > 0);
+
+    const summary = {
+      totalRecords: records.length,
+      totalTeachers: teacherBreakdown.length,
+      totalAmount,
+      totalLatenessAmount: records.filter(r => r.type === 'Lateness').reduce((sum, r) => sum + r.deduction, 0),
+      totalAbsenceAmount: records.filter(r => r.type === 'Absence').reduce((sum, r) => sum + r.deduction, 0),
+      teacherBreakdown
+    };
 
     return NextResponse.json({
       records,
-      summary: {
-        totalRecords: records.length,
-        totalTeachers: Object.keys(teacherSummary).length,
-        totalLatenessAmount,
-        totalAbsenceAmount,
-        totalAmount: totalLatenessAmount + totalAbsenceAmount,
-        teacherBreakdown: Object.values(teacherSummary),
-      },
-      debug: {
-        searchCriteria: {
-          adjustmentType,
-          teacherIds,
-          dateRange: { startDate, endDate },
-        },
-        tablesChecked: ["latenessrecord", "absencerecord"],
-      },
+      summary,
+      message: `Found ${records.length} deduction records totaling ${totalAmount} ETB`
     });
-  } catch (error: any) {
+
+  } catch (error) {
+    console.error("Preview error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to preview adjustments", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

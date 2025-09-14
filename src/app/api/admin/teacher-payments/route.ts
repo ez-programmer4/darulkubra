@@ -475,6 +475,17 @@ export async function GET(req: NextRequest) {
             absence: Number(pkg.absenceBaseAmount)
           };
         });
+        
+        // Get lateness waiver records for this teacher and period
+        const latenessWaivers = await prisma.deduction_waivers.findMany({
+          where: {
+            teacherId: t.ustazid,
+            deductionType: 'lateness',
+            deductionDate: { gte: from, lte: to }
+          }
+        });
+        
+        const waivedLatenessDates = new Set(latenessWaivers.map(w => w.deductionDate.toISOString().split('T')[0]));
         const defaultBaseDeductionAmount = 30;
         
         const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
@@ -600,16 +611,30 @@ export async function GET(req: NextRequest) {
                 }
                 
                 if (deduction > 0) {
-                  latenessDeduction += deduction;
-                  latenessBreakdown.push({
-                    date: dateStr,
-                    studentName: link.studentName,
-                    scheduledTime: link.timeSlot,
-                    actualTime: format(link.sent_time, "HH:mm"),
-                    latenessMinutes,
-                    tier,
-                    deduction
-                  });
+                  // Check if this date is waived for lateness
+                  if (!waivedLatenessDates.has(dateStr)) {
+                    latenessDeduction += deduction;
+                    latenessBreakdown.push({
+                      date: dateStr,
+                      studentName: link.studentName,
+                      scheduledTime: link.timeSlot,
+                      actualTime: format(link.sent_time, "HH:mm"),
+                      latenessMinutes,
+                      tier,
+                      deduction
+                    });
+                  } else {
+                    // Add waived lateness to breakdown with 0 deduction
+                    latenessBreakdown.push({
+                      date: dateStr,
+                      studentName: link.studentName,
+                      scheduledTime: link.timeSlot,
+                      actualTime: format(link.sent_time, "HH:mm"),
+                      latenessMinutes,
+                      tier: tier + " (WAIVED)",
+                      deduction: 0
+                    });
+                  }
                 }
               }
             }
@@ -624,14 +649,26 @@ export async function GET(req: NextRequest) {
         // ALWAYS check both database records AND compute missing absences
         // This ensures consistency between table and detail views
         
-        // Step 4A: Get existing absence records from database
+        // Step 4A: Get existing absence records from database (excluding waived ones)
         const teacherAbsenceRecords = await prisma.absencerecord.findMany({
           where: {
             teacherId: t.ustazid,
             classDate: { gte: from, lte: to },
+            isWaived: false // Only include non-waived records
           },
           orderBy: { classDate: "asc" },
         });
+        
+        // Get waiver records for this teacher and period
+        const waiverRecords = await prisma.deduction_waivers.findMany({
+          where: {
+            teacherId: t.ustazid,
+            deductionType: 'absence',
+            deductionDate: { gte: from, lte: to }
+          }
+        });
+        
+        const waivedDates = new Set(waiverRecords.map(w => w.deductionDate.toISOString().split('T')[0]));
         
         // Create a set of dates that already have absence records
         const existingAbsenceDates = new Set(
@@ -680,30 +717,44 @@ export async function GET(req: NextRequest) {
           
           // If no zoom links were sent and teacher has students, it's an absence
           if (!dayHasZoomLinks && currentStudents.length > 0) {
-            // Calculate package-based deduction for this absence
-            let dailyDeduction = 0;
-            const affectedStudents = [];
-            
-            for (const student of currentStudents) {
-              const packageRate = student.package ? packageDeductionMap[student.package]?.absence || 25 : 25;
-              dailyDeduction += packageRate;
-              affectedStudents.push({
-                name: student.name,
-                package: student.package || 'Unknown',
-                rate: packageRate
-              });
-            }
-            
-            if (dailyDeduction > 0) {
-              absenceDeduction += dailyDeduction;
+            // Check if this date is waived
+            if (!waivedDates.has(dateStr)) {
+              // Calculate package-based deduction for this absence
+              let dailyDeduction = 0;
+              const affectedStudents = [];
+              
+              for (const student of currentStudents) {
+                const packageRate = student.package ? packageDeductionMap[student.package]?.absence || 25 : 25;
+                dailyDeduction += packageRate;
+                affectedStudents.push({
+                  name: student.name,
+                  package: student.package || 'Unknown',
+                  rate: packageRate
+                });
+              }
+              
+              if (dailyDeduction > 0) {
+                absenceDeduction += dailyDeduction;
+                absenceBreakdown.push({
+                  date: dateStr,
+                  reason: "Computed absence (no zoom links sent)",
+                  deduction: dailyDeduction,
+                  timeSlots: 1,
+                  uniqueTimeSlots: ['Whole Day'],
+                  permitted: false,
+                  reviewNotes: `Auto-detected: ${affectedStudents.length} students, packages: ${affectedStudents.map(s => s.package).join(', ')}`
+                });
+              }
+            } else {
+              // Add waived absence to breakdown with 0 deduction
               absenceBreakdown.push({
                 date: dateStr,
-                reason: "Computed absence (no zoom links sent)",
-                deduction: dailyDeduction,
+                reason: "Waived absence (admin adjustment)",
+                deduction: 0,
                 timeSlots: 1,
                 uniqueTimeSlots: ['Whole Day'],
                 permitted: false,
-                reviewNotes: `Auto-detected: ${affectedStudents.length} students, packages: ${affectedStudents.map(s => s.package).join(', ')}`
+                reviewNotes: "Deduction waived by admin"
               });
             }
           }

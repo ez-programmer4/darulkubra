@@ -185,6 +185,22 @@ model student_attendance_progress {
   @@index([date], map: "idx_date")
 }
 
+model deduction_waivers {
+  id             Int      @id @default(autoincrement())
+  teacherId      String   @db.VarChar(255)
+  deductionType  String   @db.VarChar(50) // 'lateness' or 'absence'
+  deductionDate  DateTime @db.Date
+  originalAmount Decimal  @db.Decimal(10, 2)
+  reason         String   @db.Text
+  adminId        String   @db.VarChar(255)
+  createdAt      DateTime @default(now())
+
+  @@unique([teacherId, deductionType, deductionDate], name: "unique_waiver")
+  @@index([teacherId, deductionDate], name: "idx_teacher_date")
+  @@index([deductionType, deductionDate], name: "idx_type_date")
+  @@index([adminId], name: "idx_admin")
+}
+
 model wpos_zoom_links {
   id                  Int                  @id @default(autoincrement())
   studentid           Int
