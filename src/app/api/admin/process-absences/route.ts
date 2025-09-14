@@ -38,10 +38,17 @@ export async function POST() {
 
     let processed = 0;
 
-    // Process last 7 days
+    // Process last 7 days (only past dates)
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    
     for (let i = 1; i <= 7; i++) {
       const checkDate = new Date();
       checkDate.setDate(checkDate.getDate() - i);
+      
+      // Skip if date is in the future (should not happen, but safety check)
+      if (checkDate > today) continue;
+      
       const dateStr = checkDate.toISOString().split("T")[0];
       const dayName = checkDate.toLocaleDateString("en-US", {
         weekday: "long",

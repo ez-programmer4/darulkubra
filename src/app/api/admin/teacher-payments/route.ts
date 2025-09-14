@@ -654,7 +654,13 @@ export async function GET(req: NextRequest) {
         
         // Step 4C: Check for additional absences not in database
         // This is the CRITICAL part that was missing!
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // End of today
+        
         for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+          // Skip future dates - only process past dates
+          if (d > today) continue;
+          
           // Skip Sundays if not included
           if (!includeSundays && d.getDay() === 0) continue;
           
