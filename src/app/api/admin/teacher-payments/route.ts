@@ -207,15 +207,9 @@ export async function GET(req: NextRequest) {
         }).then(records => records.map(record => ({
           ...record,
           // Parse JSON fields properly
-          packageBreakdown: record.packageBreakdown ? 
-            (typeof record.packageBreakdown === 'string' ? 
-              JSON.parse(record.packageBreakdown) : record.packageBreakdown) : null,
           timeSlots: record.timeSlots ? 
             (typeof record.timeSlots === 'string' ? 
               JSON.parse(record.timeSlots) : record.timeSlots) : null,
-          uniqueTimeSlots: record.uniqueTimeSlots ? 
-            (typeof record.uniqueTimeSlots === 'string' ? 
-              JSON.parse(record.uniqueTimeSlots) : record.uniqueTimeSlots) : null
         })));
         bonusRecords = await prisma.bonusrecord.findMany({
           where: {
@@ -675,17 +669,8 @@ export async function GET(req: NextRequest) {
         for (const record of teacherAbsenceRecords) {
           absenceDeduction += record.deductionApplied;
           
-          // Parse package breakdown if available
+          // Package breakdown not available in current schema
           let packageBreakdown = null;
-          if (record.packageBreakdown) {
-            try {
-              packageBreakdown = typeof record.packageBreakdown === 'string' 
-                ? JSON.parse(record.packageBreakdown)
-                : record.packageBreakdown;
-            } catch {
-              packageBreakdown = null;
-            }
-          }
           
           // Parse time slots if available
           let timeSlots = null;
