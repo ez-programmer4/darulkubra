@@ -2784,7 +2784,7 @@ export default function TeacherPaymentsPage() {
                                             {packageDetails &&
                                             packageDetails.length > 1
                                               ? `Mixed packages handled fairly: ${packageDetails
-                                                  .map((p) => p.package)
+                                                  .map((p: any) => p.package)
                                                   .join(", ")}`
                                               : "Each student's package determines their absence deduction rate"}
                                           </div>
