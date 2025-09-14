@@ -11,15 +11,19 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { adjustmentType, dateRange, teacherIds, timeSlots } = await req.json();
-    
+    const { adjustmentType, dateRange, teacherIds, timeSlots } =
+      await req.json();
+
     if (!dateRange?.startDate || !dateRange?.endDate || !teacherIds?.length) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
     const startDate = new Date(dateRange.startDate);
     const endDate = new Date(dateRange.endDate);
-    const records = [];
+    const records: any[] = [];
     let totalAmount = 0;
 
     if (adjustmentType === "waive_lateness") {
@@ -27,7 +31,7 @@ export async function POST(req: NextRequest) {
       for (const teacherId of teacherIds) {
         const teacher = await prisma.wpos_wpdatatable_24.findUnique({
           where: { ustazid: teacherId },
-          select: { ustazname: true }
+          select: { ustazname: true },
         });
 
         if (!teacher) continue;
@@ -41,39 +45,46 @@ export async function POST(req: NextRequest) {
             package: true,
             zoom_links: {
               where: {
-                sent_time: { gte: startDate, lte: endDate }
+                sent_time: { gte: startDate, lte: endDate },
               },
-              select: { sent_time: true }
+              select: { sent_time: true },
             },
-            occupiedTimes: { select: { time_slot: true } }
-          }
+            occupiedTimes: { select: { time_slot: true } },
+          },
         });
 
         // Get package deduction rates
         const packageDeductions = await prisma.packageDeduction.findMany();
         const packageDeductionMap: Record<string, number> = {};
         packageDeductions.forEach((pkg) => {
-          packageDeductionMap[pkg.packageName] = Number(pkg.latenessBaseAmount) || 30;
+          packageDeductionMap[pkg.packageName] =
+            Number(pkg.latenessBaseAmount) || 30;
         });
 
         // Get lateness configuration
         const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
-          orderBy: [{ tier: "asc" }, { startMinute: "asc" }]
+          orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
         });
 
         if (latenessConfigs.length === 0) continue;
 
-        const excusedThreshold = Math.min(...latenessConfigs.map(c => c.excusedThreshold ?? 0));
-        const tiers = latenessConfigs.map(c => ({
+        const excusedThreshold = Math.min(
+          ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
+        );
+        const tiers = latenessConfigs.map((c) => ({
           start: c.startMinute,
           end: c.endMinute,
-          percent: c.deductionPercent
+          percent: c.deductionPercent,
         }));
 
         // Calculate lateness for each day
-        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        for (
+          let d = new Date(startDate);
+          d <= endDate;
+          d.setDate(d.getDate() + 1)
+        ) {
           const dateStr = format(d, "yyyy-MM-dd");
-          
+
           for (const student of students) {
             const timeSlot = student.occupiedTimes?.[0]?.time_slot;
             if (!timeSlot) continue;
@@ -85,12 +96,15 @@ export async function POST(req: NextRequest) {
                 const [time, modifier] = time12h.split(" ");
                 let [hours, minutes] = time.split(":");
                 if (hours === "12") hours = modifier === "AM" ? "00" : "12";
-                else if (modifier === "PM") hours = String(parseInt(hours, 10) + 12);
+                else if (modifier === "PM")
+                  hours = String(parseInt(hours, 10) + 12);
                 return `${hours.padStart(2, "0")}:${minutes}`;
               }
               if (time12h.includes(":")) {
                 const parts = time12h.split(":");
-                return `${parts[0].padStart(2, "0")}:${(parts[1] || "00").padStart(2, "0")}`;
+                return `${parts[0].padStart(2, "0")}:${(
+                  parts[1] || "00"
+                ).padStart(2, "0")}`;
               }
               return "00:00";
             }
@@ -99,58 +113,54 @@ export async function POST(req: NextRequest) {
             const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
 
             // Find zoom links for this day
-            const dayLinks = student.zoom_links.filter(link => {
+            const dayLinks = student.zoom_links.filter((link) => {
               if (!link.sent_time) return false;
               return format(link.sent_time, "yyyy-MM-dd") === dateStr;
             });
 
             if (dayLinks.length === 0) continue;
 
-            const actualStartTime = dayLinks.sort((a, b) => 
-              a.sent_time!.getTime() - b.sent_time!.getTime()
+            const actualStartTime = dayLinks.sort(
+              (a, b) => a.sent_time!.getTime() - b.sent_time!.getTime()
             )[0].sent_time!;
 
-            const latenessMinutes = Math.max(0, 
-              Math.round((actualStartTime.getTime() - scheduledTime.getTime()) / 60000)
+            const latenessMinutes = Math.max(
+              0,
+              Math.round(
+                (actualStartTime.getTime() - scheduledTime.getTime()) / 60000
+              )
             );
 
             if (latenessMinutes > excusedThreshold) {
               const studentPackage = student.package || "";
-              const baseDeductionAmount = packageDeductionMap[studentPackage] || 30;
+              const baseDeductionAmount =
+                packageDeductionMap[studentPackage] || 30;
 
               let deduction = 0;
               for (const [i, tier] of tiers.entries()) {
-                if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {
+                if (
+                  latenessMinutes >= tier.start &&
+                  latenessMinutes <= tier.end
+                ) {
                   deduction = baseDeductionAmount * (tier.percent / 100);
                   break;
                 }
               }
 
               if (deduction > 0) {
-                // Check if already waived
-                const existingWaiver = await prisma.deduction_waivers.findFirst({
-                  where: {
-                    teacherId,
-                    deductionType: 'lateness',
-                    deductionDate: d
-                  }
+                records.push({
+                  id: `lateness_${teacherId}_${dateStr}_${student.wdt_ID}`,
+                  teacherId,
+                  teacherName: teacher.ustazname,
+                  studentName: student.name,
+                  date: d,
+                  type: "Lateness",
+                  deduction: Math.round(deduction),
+                  latenessMinutes,
+                  timeSlot,
+                  package: studentPackage,
                 });
-
-                if (!existingWaiver) {
-                  records.push({
-                    id: `lateness_${teacherId}_${dateStr}_${student.wdt_ID}`,
-                    teacherId,
-                    teacherName: teacher.ustazname,
-                    studentName: student.name,
-                    date: d,
-                    type: "Lateness",
-                    deduction: Math.round(deduction),
-                    latenessMinutes,
-                    timeSlot,
-                    package: studentPackage
-                  });
-                  totalAmount += Math.round(deduction);
-                }
+                totalAmount += Math.round(deduction);
               }
             }
           }
@@ -164,73 +174,72 @@ export async function POST(req: NextRequest) {
         where: {
           teacherId: { in: teacherIds },
           classDate: { gte: startDate, lte: endDate },
-          isWaived: false // Only non-waived records
         },
         include: {
           wpos_wpdatatable_24: {
-            select: { ustazname: true }
-          }
-        }
+            select: { ustazname: true },
+          },
+        },
       });
 
       for (const record of absenceRecords) {
-        // Check if already waived
-        const existingWaiver = await prisma.deduction_waivers.findFirst({
-          where: {
-            teacherId: record.teacherId,
-            deductionType: 'absence',
-            deductionDate: record.classDate
-          }
+        records.push({
+          id: `absence_${record.id}`,
+          teacherId: record.teacherId,
+          teacherName: record.wpos_wpdatatable_24?.ustazname || "Unknown",
+          date: record.classDate,
+          type: "Absence",
+          deduction: record.deductionApplied,
+          permitted: record.permitted,
         });
-
-        if (!existingWaiver) {
-          records.push({
-            id: `absence_${record.id}`,
-            teacherId: record.teacherId,
-            teacherName: record.wpos_wpdatatable_24?.ustazname || 'Unknown',
-            date: record.classDate,
-            type: "Absence",
-            deduction: record.deductionApplied,
-            permitted: record.permitted
-          });
-          totalAmount += record.deductionApplied;
-        }
+        totalAmount += record.deductionApplied;
       }
     }
 
     // Calculate summary
-    const teacherBreakdown = teacherIds.map(teacherId => {
-      const teacherRecords = records.filter(r => r.teacherId === teacherId);
-      const teacherTotal = teacherRecords.reduce((sum, r) => sum + r.deduction, 0);
-      const teacherName = teacherRecords[0]?.teacherName || 'Unknown';
-      
-      return {
-        teacherId,
-        teacherName,
-        recordCount: teacherRecords.length,
-        totalDeduction: teacherTotal
-      };
-    }).filter(t => t.recordCount > 0);
+    const teacherBreakdown = teacherIds
+      .map((teacherId: string) => {
+        const teacherRecords = records.filter((r) => r.teacherId === teacherId);
+        const teacherTotal = teacherRecords.reduce(
+          (sum, r) => sum + r.deduction,
+          0
+        );
+        const teacherName = teacherRecords[0]?.teacherName || "Unknown";
+
+        return {
+          teacherId,
+          teacherName,
+          recordCount: teacherRecords.length,
+          totalDeduction: teacherTotal,
+        };
+      })
+      .filter((t: any) => t.recordCount > 0);
 
     const summary = {
       totalRecords: records.length,
       totalTeachers: teacherBreakdown.length,
       totalAmount,
-      totalLatenessAmount: records.filter(r => r.type === 'Lateness').reduce((sum, r) => sum + r.deduction, 0),
-      totalAbsenceAmount: records.filter(r => r.type === 'Absence').reduce((sum, r) => sum + r.deduction, 0),
-      teacherBreakdown
+      totalLatenessAmount: records
+        .filter((r) => r.type === "Lateness")
+        .reduce((sum, r) => sum + r.deduction, 0),
+      totalAbsenceAmount: records
+        .filter((r) => r.type === "Absence")
+        .reduce((sum, r) => sum + r.deduction, 0),
+      teacherBreakdown,
     };
 
     return NextResponse.json({
       records,
       summary,
-      message: `Found ${records.length} deduction records totaling ${totalAmount} ETB`
+      message: `Found ${records.length} deduction records totaling ${totalAmount} ETB`,
     });
-
   } catch (error) {
     console.error("Preview error:", error);
     return NextResponse.json(
-      { error: "Failed to preview adjustments", details: error instanceof Error ? error.message : "Unknown error" },
+      {
+        error: "Failed to preview adjustments",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
