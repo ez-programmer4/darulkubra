@@ -66,34 +66,164 @@ export async function POST(req: NextRequest) {
       }
 
       if (adjustmentType === "waive_lateness") {
-        // Create lateness waivers for each teacher and date
+        // Create detailed lateness waivers matching preview records
         const waiverData = [];
         
         for (const teacherId of teacherIds) {
-          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-            // Check if waiver already exists
-            const existing = await tx.deduction_waivers.findFirst({
-              where: { 
-                teacherId, 
-                deductionType: 'lateness', 
-                deductionDate: new Date(d) 
-              }
+          // Get package deduction rates
+          const packageDeductions = await tx.packageDeduction.findMany();
+          const packageDeductionMap: Record<string, { lateness: number; absence: number }> = {};
+          packageDeductions.forEach((pkg) => {
+            packageDeductionMap[pkg.packageName] = {
+              lateness: Number(pkg.latenessBaseAmount),
+              absence: Number(pkg.absenceBaseAmount),
+            };
+          });
+
+          const latenessConfigs = await tx.latenessdeductionconfig.findMany({
+            orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
+          });
+
+          if (latenessConfigs.length > 0) {
+            const excusedThreshold = Math.min(
+              ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
+            );
+            const tiers = latenessConfigs.map((c) => ({
+              start: c.startMinute,
+              end: c.endMinute,
+              percent: c.deductionPercent,
+            }));
+
+            // Get ALL students for this teacher
+            const allStudents = await tx.wpos_wpdatatable_23.findMany({
+              where: { ustaz: teacherId },
+              select: {
+                wdt_ID: true,
+                name: true,
+                package: true,
+                zoom_links: true,
+                occupiedTimes: { select: { time_slot: true } },
+              },
             });
 
-            if (!existing) {
-              // Calculate estimated deduction amount for this date
-              const estimatedAmount = await calculateLatenessDeduction(tx, teacherId, new Date(d));
-              
-              if (estimatedAmount > 0) {
+            // Group zoom links by date
+            const dailyZoomLinks = new Map();
+            for (const student of allStudents) {
+              student.zoom_links.forEach((link) => {
+                if (link.sent_time) {
+                  const dateStr = new Date(link.sent_time).toISOString().split('T')[0];
+                  if (!dailyZoomLinks.has(dateStr)) {
+                    dailyZoomLinks.set(dateStr, []);
+                  }
+                  dailyZoomLinks.get(dateStr).push({
+                    ...link,
+                    studentId: student.wdt_ID,
+                    studentName: student.name,
+                    timeSlot: student.occupiedTimes?.[0]?.time_slot,
+                  });
+                }
+              });
+            }
+
+            // Process each day and create waivers for actual lateness records
+            for (const [dateStr, links] of dailyZoomLinks.entries()) {
+              const date = new Date(dateStr);
+              if (date < startDate || date > endDate) continue;
+
+              // Check if waiver already exists for this date
+              const existingWaiver = await tx.deduction_waivers.findFirst({
+                where: {
+                  teacherId,
+                  deductionType: 'lateness',
+                  deductionDate: date
+                }
+              });
+
+              if (existingWaiver) continue;
+
+              // Group by student and take earliest link per student per day
+              const studentLinks = new Map<number, any>();
+              links.forEach((link: any) => {
+                const key = link.studentId;
+                if (
+                  !studentLinks.has(key) ||
+                  link.sent_time < studentLinks.get(key).sent_time
+                ) {
+                  studentLinks.set(key, link);
+                }
+              });
+
+              let dailyTotalDeduction = 0;
+              const dailyDetails = [];
+
+              // Calculate lateness for each student on this date
+              for (const link of studentLinks.values()) {
+                if (!link.timeSlot) continue;
+
+                // Filter by time slots if specified
+                if (
+                  timeSlots &&
+                  timeSlots.length > 0 &&
+                  !timeSlots.includes(link.timeSlot)
+                ) {
+                  continue;
+                }
+
+                // Parse time and calculate lateness
+                const parseTime = (timeStr: string) => {
+                  if (timeStr.includes('AM') || timeStr.includes('PM')) {
+                    const [time, period] = timeStr.split(' ');
+                    let [hours, minutes] = time.split(':').map(Number);
+                    if (period === 'PM' && hours !== 12) hours += 12;
+                    if (period === 'AM' && hours === 12) hours = 0;
+                    return { hours, minutes };
+                  }
+                  const [hours, minutes] = timeStr.split(':').map(Number);
+                  return { hours, minutes };
+                };
+
+                const scheduled = parseTime(link.timeSlot);
+                const scheduledTime = new Date(dateStr);
+                scheduledTime.setHours(scheduled.hours, scheduled.minutes, 0, 0);
+                const latenessMinutes = Math.max(
+                  0,
+                  Math.round(
+                    (link.sent_time.getTime() - scheduledTime.getTime()) / 60000
+                  )
+                );
+
+                if (latenessMinutes > excusedThreshold) {
+                  const student = allStudents.find((s) => s.wdt_ID === link.studentId);
+                  const studentPackage = student?.package || "";
+                  const baseDeductionAmount =
+                    packageDeductionMap[studentPackage]?.lateness || 30;
+
+                  let deduction = 0;
+                  for (const [i, t] of tiers.entries()) {
+                    if (latenessMinutes >= t.start && latenessMinutes <= t.end) {
+                      deduction = Math.round(baseDeductionAmount * (t.percent / 100));
+                      break;
+                    }
+                  }
+
+                  if (deduction > 0) {
+                    dailyTotalDeduction += deduction;
+                    dailyDetails.push(`${link.studentName}: ${latenessMinutes}min late, ${deduction} ETB`);
+                  }
+                }
+              }
+
+              // Create waiver record for this date if there were deductions
+              if (dailyTotalDeduction > 0) {
                 waiverData.push({
                   teacherId,
                   deductionType: 'lateness',
-                  deductionDate: new Date(d),
-                  originalAmount: estimatedAmount,
-                  reason,
+                  deductionDate: date,
+                  originalAmount: dailyTotalDeduction,
+                  reason: `${reason} | ${dailyDetails.join('; ')}`.substring(0, 500),
                   adminId
                 });
-                totalAmountWaived += estimatedAmount;
+                totalAmountWaived += dailyTotalDeduction;
               }
             }
           }
