@@ -112,9 +112,9 @@ export async function POST() {
           
           if (!isPermitted) {
             // Get package deduction rates
-            const packageDeductions = await prisma.packagededuction.findMany();
+            const packageDeductions = await prisma.packageDeduction.findMany();
             const packageRateMap = packageDeductions.reduce((acc, pd) => {
-              acc[pd.packageName] = pd.absenceBaseAmount || 25;
+              acc[pd.packageName] = Number(pd.absenceBaseAmount) || 25;
               return acc;
             }, {} as Record<string, number>);
             
@@ -140,7 +140,7 @@ export async function POST() {
           
           const deduction = totalDeduction;
 
-          // Create absence record with package breakdown
+          // Create absence record
           await prisma.absencerecord.create({
             data: {
               teacherId: teacher.ustazid,
@@ -151,7 +151,6 @@ export async function POST() {
               reviewedByManager: true, // Auto-detected
               adminId: (session.user as { id: string }).id,
               timeSlots: JSON.stringify(['Whole Day']),
-              packageBreakdown: packageBreakdown.length > 0 ? JSON.stringify(packageBreakdown) : null,
             },
           });
 
