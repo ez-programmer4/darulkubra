@@ -69,34 +69,95 @@ export async function POST() {
         });
         if (existing) continue;
 
-        // Check scheduled students for this day
-        const scheduledStudents = teacher.students.filter((student) => {
-          if (!student.daypackages || student.status === "inactive")
-            return false;
+        // Skip Sundays if configured
+        const sundayConfig = await prisma.setting.findUnique({
+          where: { key: "include_sundays_in_salary" }
+        });
+        const includeSundays = sundayConfig?.value === "true" || false;
+        if (!includeSundays && checkDate.getDay() === 0) continue;
+
+        // Get teacher's scheduled time slots for this day
+        const teacherTimeSlots = await prisma.wpos_ustaz_occupied_times.findMany({
+          where: { ustaz_id: teacher.ustazid },
+          include: {
+            student: {
+              select: { 
+                wdt_ID: true, 
+                name: true, 
+                package: true, 
+                daypackages: true, 
+                status: true 
+              }
+            }
+          }
+        });
+
+        // Filter for students scheduled on this day
+        const dayScheduledSlots = teacherTimeSlots.filter(slot => {
+          const student = slot.student;
+          if (!student || student.status === "inactive" || !student.daypackages) return false;
+          
           return (
             student.daypackages.includes("All days") ||
-            student.daypackages.includes(dayName)
+            student.daypackages.includes(dayName) ||
+            (student.daypackages.includes("MWF") && ["Monday", "Wednesday", "Friday"].includes(dayName)) ||
+            (student.daypackages.includes("TTS") && ["Tuesday", "Thursday", "Saturday"].includes(dayName))
           );
         });
-        if (scheduledStudents.length === 0) continue;
 
-        // Check zoom links
+        if (dayScheduledSlots.length === 0) continue;
+
+        // Get all zoom links sent by this teacher on this day
         const dayStart = new Date(checkDate);
         dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date(checkDate);
         dayEnd.setHours(23, 59, 59, 999);
 
-        const zoomLinks = await prisma.wpos_zoom_links.findMany({
+        const allZoomLinks = await prisma.wpos_zoom_links.findMany({
           where: {
             ustazid: teacher.ustazid,
-            studentid: { in: scheduledStudents.map((s) => s.wdt_ID) },
             sent_time: { gte: dayStart, lt: dayEnd },
           },
+          select: {
+            studentid: true,
+            sent_time: true
+          }
         });
 
-        // If no zoom links = absent
-        if (zoomLinks.length === 0) {
-          // Check permission
+        // Group scheduled slots by time slot
+        const timeSlotGroups = new Map<string, any[]>();
+        dayScheduledSlots.forEach(slot => {
+          const timeSlot = slot.time_slot;
+          if (!timeSlotGroups.has(timeSlot)) {
+            timeSlotGroups.set(timeSlot, []);
+          }
+          timeSlotGroups.get(timeSlot)!.push(slot);
+        });
+
+        // Check each time slot for absences
+        const absentTimeSlots: string[] = [];
+        const affectedStudents = new Map<number, any>();
+
+        for (const [timeSlot, slotsInTime] of timeSlotGroups.entries()) {
+          // Check if teacher sent zoom links for students in this time slot
+          const studentsInSlot = slotsInTime.map(s => s.student.wdt_ID);
+          const linksForSlot = allZoomLinks.filter(link => 
+            studentsInSlot.includes(link.studentid)
+          );
+
+          // If no zoom links sent for this time slot = absent for this time slot
+          if (linksForSlot.length === 0) {
+            absentTimeSlots.push(timeSlot);
+            // Add affected students
+            slotsInTime.forEach(slot => {
+              affectedStudents.set(slot.student.wdt_ID, slot.student);
+            });
+          }
+        }
+
+        // Determine absence type and calculate deduction
+        if (absentTimeSlots.length > 0) {
+          // Check for permissions (whole day or specific time slots)
           const permission = await prisma.permissionrequest.findFirst({
             where: {
               teacherId: teacher.ustazid,
@@ -104,83 +165,126 @@ export async function POST() {
             },
           });
 
-          const isPermitted = permission?.status === "Approved";
-          
-          // Calculate package-based deduction
-          let totalDeduction = 0;
-          const packageBreakdown = [];
-          
-          if (!isPermitted) {
+          let isPermitted = false;
+          let permittedTimeSlots: string[] = [];
+
+          if (permission?.status === "Approved") {
+            if (permission.timeSlots) {
+              try {
+                const requestedSlots = JSON.parse(permission.timeSlots);
+                if (requestedSlots.includes("Whole Day")) {
+                  isPermitted = true; // Whole day permission
+                } else {
+                  // Check if absent time slots are covered by permission
+                  permittedTimeSlots = requestedSlots.filter((slot: string) => 
+                    absentTimeSlots.includes(slot)
+                  );
+                }
+              } catch {
+                // If can't parse, treat as whole day permission
+                isPermitted = true;
+              }
+            } else {
+              isPermitted = true; // Default to whole day permission
+            }
+          }
+
+          // Calculate unpermitted absent time slots
+          const unpermittedTimeSlots = absentTimeSlots.filter(slot => 
+            !permittedTimeSlots.includes(slot)
+          );
+
+          // Only create absence record if there are unpermitted absences
+          if (!isPermitted && unpermittedTimeSlots.length > 0) {
             // Get package deduction rates
             const packageDeductions = await prisma.packageDeduction.findMany();
             const packageRateMap = packageDeductions.reduce((acc, pd) => {
               acc[pd.packageName] = Number(pd.absenceBaseAmount) || 25;
               return acc;
             }, {} as Record<string, number>);
+
+            // Calculate deduction based on affected students and time slots
+            let totalDeduction = 0;
+            const affectedStudentsList = Array.from(affectedStudents.values());
+
+            // Determine if it's whole day absence or partial
+            const isWholeDayAbsence = unpermittedTimeSlots.length === timeSlotGroups.size;
             
-            // Calculate per-student package-based deduction
-            for (const student of scheduledStudents) {
-              const studentData = await prisma.wpos_wpdatatable_23.findUnique({
-                where: { wdt_ID: student.wdt_ID },
-                select: { package: true }
-              });
-              
-              const packageRate = packageRateMap[studentData?.package || ''] || 25;
-              totalDeduction += packageRate;
-              
-              packageBreakdown.push({
-                studentId: student.wdt_ID,
-                package: studentData?.package || 'Unknown',
-                ratePerSlot: packageRate,
-                timeSlots: 1, // Full day absence
-                total: packageRate
-              });
+            if (isWholeDayAbsence) {
+              // Whole day absence - deduct for each affected student once
+              for (const student of affectedStudentsList) {
+                const packageRate = packageRateMap[student.package || ''] || 25;
+                totalDeduction += packageRate;
+              }
+            } else {
+              // Partial absence - deduct per time slot per student
+              for (const timeSlot of unpermittedTimeSlots) {
+                const slotsInTime = timeSlotGroups.get(timeSlot) || [];
+                for (const slot of slotsInTime) {
+                  const packageRate = packageRateMap[slot.student.package || ''] || 25;
+                  totalDeduction += packageRate;
+                }
+              }
             }
-          }
-          
-          const deduction = totalDeduction;
 
-          // Create absence record
-          await prisma.absencerecord.create({
-            data: {
-              teacherId: teacher.ustazid,
-              classDate: checkDate,
-              permitted: isPermitted,
-              permissionRequestId: permission?.id || null,
-              deductionApplied: deduction,
-              reviewedByManager: true, // Auto-detected
-              adminId: (session.user as { id: string }).id,
-              timeSlots: JSON.stringify(['Whole Day']),
-            },
-          });
+            // Create absence record
+            await prisma.absencerecord.create({
+              data: {
+                teacherId: teacher.ustazid,
+                classDate: checkDate,
+                permitted: false,
+                permissionRequestId: permission?.id || null,
+                deductionApplied: totalDeduction,
+                reviewedByManager: true, // Auto-detected
+                adminId: (session.user as { id: string }).id,
+                timeSlots: JSON.stringify(isWholeDayAbsence ? ['Whole Day'] : unpermittedTimeSlots),
+              },
+            });
 
-          // Update salary
-          const monthKey = `${checkDate.getFullYear()}-${String(
-            checkDate.getMonth() + 1
-          ).padStart(2, "0")}`;
+            // Update salary
+            const monthKey = `${checkDate.getFullYear()}-${String(
+              checkDate.getMonth() + 1
+            ).padStart(2, "0")}`;
 
-          await prisma.teachersalarypayment.upsert({
-            where: {
-              teacherId_period: {
+            await prisma.teachersalarypayment.upsert({
+              where: {
+                teacherId_period: {
+                  teacherId: teacher.ustazid,
+                  period: monthKey,
+                },
+              },
+              create: {
                 teacherId: teacher.ustazid,
                 period: monthKey,
+                status: "pending",
+                totalSalary: 0,
+                latenessDeduction: 0,
+                absenceDeduction: totalDeduction,
+                bonuses: 0,
               },
-            },
-            create: {
-              teacherId: teacher.ustazid,
-              period: monthKey,
-              status: "pending",
-              totalSalary: 0,
-              latenessDeduction: 0,
-              absenceDeduction: deduction,
-              bonuses: 0,
-            },
-            update: {
-              absenceDeduction: { increment: deduction },
-            },
-          });
+              update: {
+                absenceDeduction: { increment: totalDeduction },
+              },
+            });
 
-          processed++;
+            processed++;
+          } else if (isPermitted) {
+            // Create permitted absence record (no deduction)
+            await prisma.absencerecord.create({
+              data: {
+                teacherId: teacher.ustazid,
+                classDate: checkDate,
+                permitted: true,
+                permissionRequestId: permission?.id || null,
+                deductionApplied: 0,
+                reviewedByManager: true,
+                adminId: (session.user as { id: string }).id,
+                timeSlots: JSON.stringify(absentTimeSlots.length === timeSlotGroups.size ? ['Whole Day'] : absentTimeSlots),
+              },
+            });
+          }
+
+
         }
       }
     }
