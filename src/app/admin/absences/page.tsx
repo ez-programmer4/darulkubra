@@ -324,8 +324,40 @@ export default function AbsenceManagement() {
           </div>
         </div>
 
-        {/* Package Deductions */}
-        <PackageDeductionManager type="absence" />
+        {/* Package-Based Deduction System */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+          <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-blue-600 rounded-xl">
+                <FiDollarSign className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-black">
+                  Package-Based Absence Deductions
+                </h2>
+                <p className="text-gray-600">
+                  Configure deduction rates per student package type
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="p-6 sm:p-8 lg:p-10">
+            <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 mb-6">
+              <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
+                <FiInfo className="h-4 w-4" />
+                How Package-Based Deductions Work
+              </h3>
+              <ul className="text-blue-700 text-sm space-y-1">
+                <li>• Each student package has its own absence deduction rate</li>
+                <li>• Higher-fee packages (Europe) = higher deductions</li>
+                <li>• Lower-fee packages (0 Fee) = lower deductions</li>
+                <li>• Total deduction = sum of all affected students' package rates</li>
+                <li>• Fair system that reflects actual revenue impact</li>
+              </ul>
+            </div>
+            <PackageDeductionManager type="absence" />
+          </div>
+        </div>
 
         {/* Configuration */}
         <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
@@ -504,13 +536,16 @@ export default function AbsenceManagement() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-black">
-                    Deduction Rate
+                    System Type
                   </h3>
-                  <p className="text-gray-600">Per absence</p>
+                  <p className="text-gray-600">Deduction method</p>
                 </div>
               </div>
-              <div className="text-2xl font-bold text-black">
-                {deductionAmount} ETB
+              <div className="text-lg font-bold text-black">
+                Package-Based
+              </div>
+              <div className="text-sm text-gray-600 mt-1">
+                Rates vary by student package
               </div>
             </div>
 

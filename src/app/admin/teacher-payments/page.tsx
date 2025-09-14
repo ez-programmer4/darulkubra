@@ -2711,117 +2711,243 @@ export default function TeacherPaymentsPage() {
                                     let calculationDisplay = "";
                                     let packageDetails = null;
 
-                                    // Check if we have package breakdown informationkage breakdown information
-                                    if (
-                                      r.packageBreakdown &&
-                                      Array.isArray(r.packageBreakdown)
-                                    ) {
-                                      const totalSlots =
-                                        r.packageBreakdown.reduce(
-                                          (sum: number, p: any) => sum + p.timeSlots,
-                                          0
-                                        );
-                                      calculationDisplay = `Whole Day Absence: ${totalSlots} time slots across ${r.packageBreakdown.length} package type(s) = ${r.deductionApplied} ETB`;
-                                      packageDetails = r.packageBreakdown;
+                                    // Parse package breakdown (handle both JSON string and object)
+                                    let parsedPackageBreakdown = null;
+                                    if (r.packageBreakdown) {
+                                      try {
+                                        parsedPackageBreakdown = typeof r.packageBreakdown === 'string' 
+                                          ? JSON.parse(r.packageBreakdown)
+                                          : r.packageBreakdown;
+                                      } catch {
+                                        parsedPackageBreakdown = null;
+                                      }
+                                    }
+
+                                    if (parsedPackageBreakdown && Array.isArray(parsedPackageBreakdown)) {
+                                      const totalSlots = parsedPackageBreakdown.reduce(
+                                        (sum: number, p: any) => sum + (p.timeSlots || 1),
+                                        0
+                                      );
+                                      const packageCount = parsedPackageBreakdown.length;
+                                      const calculatedTotal = parsedPackageBreakdown.reduce(
+                                        (sum: number, p: any) => sum + (p.total || p.ratePerSlot || 0),
+                                        0
+                                      );
+                                      const isAccurate = Math.abs(calculatedTotal - r.deductionApplied) < 0.01;
+                                      
+                                      calculationDisplay = `🎯 Package-Based Calculation: ${totalSlots} time slot${totalSlots > 1 ? 's' : ''} across ${packageCount} package type${packageCount > 1 ? 's' : ''} = ${r.deductionApplied} ETB ${isAccurate ? '✓' : '⚠️'}`;
+                                      packageDetails = parsedPackageBreakdown;
                                     } else if (r.timeSlots) {
                                       try {
-                                        const slots = JSON.parse(r.timeSlots);
+                                        const slots = typeof r.timeSlots === 'string' ? JSON.parse(r.timeSlots) : r.timeSlots;
                                         if (slots.includes("Whole Day")) {
-                                          calculationDisplay = `Whole Day Absence: ${r.deductionApplied} ETB (Package-based rates)`;
+                                          calculationDisplay = `🚫 Whole Day Absence: ${r.deductionApplied} ETB (Package-weighted rates applied)`;
                                         } else {
-                                          const avgRate = Math.round(
-                                            r.deductionApplied / slots.length
-                                          );
-                                          calculationDisplay = `Package-based Time Slot Deduction: ~${avgRate} ETB avg × ${slots.length} slots = ${r.deductionApplied} ETB`;
+                                          const avgRate = Math.round(r.deductionApplied / slots.length);
+                                          calculationDisplay = `⏱️ Partial Absence: ${avgRate} ETB avg/slot × ${slots.length} slots = ${r.deductionApplied} ETB`;
                                         }
                                       } catch {
-                                        calculationDisplay = `Package-based Calculation: ${r.deductionApplied} ETB`;
+                                        calculationDisplay = `📊 Standard Calculation: ${r.deductionApplied} ETB (Package-based system)`;
                                       }
                                     } else {
-                                      calculationDisplay = `Whole Day Absence: ${r.deductionApplied} ETB (Package-based rates)`;
+                                      calculationDisplay = `🚫 Full Day Absence: ${r.deductionApplied} ETB (Package-weighted deduction)`;
                                     }
 
                                     return (
                                       <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                                        <div className="text-xs font-mono text-gray-700 mb-2 font-semibold">
-                                          {calculationDisplay}
+                                        <div className="flex items-center justify-between mb-3">
+                                          <div className="text-xs font-mono text-gray-700 font-semibold flex-1">
+                                            {calculationDisplay}
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            {parsedPackageBreakdown && parsedPackageBreakdown.length > 0 ? (
+                                              <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
+                                                ✓ Verified
+                                              </span>
+                                            ) : (
+                                              <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-medium">
+                                                ⚠️ Basic
+                                              </span>
+                                            )}
+                                          </div>
                                         </div>
 
-                                        {/* Package-specific breakdown */}
-                                        {packageDetails &&
-                                          packageDetails.length > 0 && (
-                                            <div className="bg-blue-50 rounded p-2 mb-2 border border-blue-200">
-                                              <div className="text-xs text-blue-800 font-medium mb-2">
-                                                📊 Package-Specific Breakdown:
+                                        {/* Enhanced Package-specific breakdown */}
+                                        {packageDetails && packageDetails.length > 0 && (
+                                          <div className="bg-blue-50 rounded p-3 mb-3 border border-blue-200">
+                                            <div className="flex items-center justify-between mb-3">
+                                              <div className="text-xs text-blue-800 font-medium flex items-center gap-1">
+                                                📊 Package-Specific Breakdown
                                               </div>
-                                              <div className="grid grid-cols-1 gap-1">
-                                                {packageDetails.map(
-                                                  (pkg: any, idx: number) => (
-                                                    <div
-                                                      key={idx}
-                                                      className="flex justify-between items-center bg-white rounded px-2 py-1 border border-blue-200"
-                                                    >
-                                                      <span className="font-medium text-blue-900 text-xs">
-                                                        {pkg.package}
-                                                      </span>
-                                                      <span className="text-xs text-blue-700 font-mono">
-                                                        {pkg.timeSlots} slots ×{" "}
-                                                        {pkg.ratePerSlot} ETB ={" "}
-                                                        {pkg.total} ETB
+                                              <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                                                {packageDetails.length} Package{packageDetails.length > 1 ? 's' : ''} Affected
+                                              </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-2">
+                                              {packageDetails.map((pkg: any, idx: number) => {
+                                                const slots = pkg.timeSlots || 1;
+                                                const rate = pkg.ratePerSlot || pkg.total || 0;
+                                                const total = pkg.total || (rate * slots);
+                                                
+                                                return (
+                                                  <div
+                                                    key={idx}
+                                                    className="bg-white rounded-lg px-3 py-2 border border-blue-200 shadow-sm"
+                                                  >
+                                                    <div className="flex justify-between items-start mb-1">
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                                                        <span className="font-semibold text-blue-900 text-xs">
+                                                          {pkg.package || 'Unknown Package'}
+                                                        </span>
+                                                        {pkg.studentId && (
+                                                          <span className="text-xs text-gray-500 bg-gray-100 px-1 rounded">
+                                                            ID: {pkg.studentId}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                      <span className="text-xs font-bold text-red-600">
+                                                        -{total} ETB
                                                       </span>
                                                     </div>
-                                                  )
-                                                )}
+                                                    <div className="text-xs text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">
+                                                      {slots} slot{slots > 1 ? 's' : ''} × {rate} ETB/slot = {total} ETB
+                                                    </div>
+                                                    {pkg.studentName && (
+                                                      <div className="text-xs text-gray-500 mt-1">
+                                                        Student: {pkg.studentName}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                            <div className="mt-3 pt-2 border-t border-blue-200">
+                                              <div className="flex justify-between items-center">
+                                                <span className="text-xs font-medium text-blue-800">Total Deduction:</span>
+                                                <span className="text-sm font-bold text-red-700 bg-red-50 px-2 py-1 rounded">
+                                                  -{r.deductionApplied} ETB
+                                                </span>
+                                              </div>
+                                              <div className="text-xs text-blue-600 mt-1">
+                                                Expected: {packageDetails.reduce((sum: number, p: any) => sum + (p.total || p.ratePerSlot || 0), 0)} ETB
+                                                {(() => {
+                                                  const expected = packageDetails.reduce((sum: number, p: any) => sum + (p.total || p.ratePerSlot || 0), 0);
+                                                  const diff = Math.abs(expected - r.deductionApplied);
+                                                  return diff > 0.01 ? (
+                                                    <span className="text-orange-600 ml-2">⚠️ Variance: {diff.toFixed(2)} ETB</span>
+                                                  ) : (
+                                                    <span className="text-green-600 ml-2">✓ Verified</span>
+                                                  );
+                                                })()}
                                               </div>
                                             </div>
-                                          )}
-
-                                        <div className="bg-green-50 rounded p-2 mb-2 border border-green-200">
-                                          <div className="text-xs text-green-800 font-medium mb-1">
-                                            ✓ Fair Package-Based System Active
                                           </div>
-                                          <div className="text-xs text-green-700">
-                                            {packageDetails &&
-                                            packageDetails.length > 1
-                                              ? `Mixed packages handled fairly: ${packageDetails
-                                                  .map((p: any) => p.package)
-                                                  .join(", ")}`
-                                              : "Each student's package determines their absence deduction rate"}
+                                        )}
+
+                                        {/* Deduction Verification & System Status */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                                          <div className="bg-green-50 rounded p-2 border border-green-200">
+                                            <div className="text-xs text-green-800 font-medium mb-1 flex items-center gap-1">
+                                              ✓ System Verification
+                                            </div>
+                                            <div className="text-xs text-green-700">
+                                              {packageDetails && packageDetails.length > 1
+                                                ? `Mixed packages: ${packageDetails.length} types`
+                                                : packageDetails && packageDetails.length === 1
+                                                ? `Single package: ${packageDetails[0]?.package}`
+                                                : "Package-based calculation"}
+                                            </div>
+                                            <div className="text-xs text-green-600 mt-1">
+                                              {r.reviewedByManager ? "🤖 Auto-verified" : "👁️ Manual review"}
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="bg-purple-50 rounded p-2 border border-purple-200">
+                                            <div className="text-xs text-purple-800 font-medium mb-1 flex items-center gap-1">
+                                              📈 Impact Analysis
+                                            </div>
+                                            <div className="text-xs text-purple-700">
+                                              Revenue impact: {r.deductionApplied} ETB
+                                            </div>
+                                            <div className="text-xs text-purple-600 mt-1">
+                                              {packageDetails ? 
+                                                `Avg rate: ${Math.round(r.deductionApplied / packageDetails.length)} ETB/pkg` :
+                                                "Standard rate applied"}
+                                            </div>
                                           </div>
                                         </div>
 
-                                        {r.uniqueTimeSlots &&
-                                          r.uniqueTimeSlots.length > 0 && (
-                                            <div className="text-xs text-gray-600">
-                                              <span className="font-medium">
-                                                Time slots affected:{" "}
-                                              </span>
-                                              <span className="font-mono">
-                                                {r.uniqueTimeSlots
-                                                  .slice(0, 3)
-                                                  .join(", ")}
-                                                {r.uniqueTimeSlots.length > 3 &&
-                                                  ` +${
-                                                    r.uniqueTimeSlots.length - 3
-                                                  } more`}
-                                              </span>
+                                        {/* Enhanced Time Slot Information */}
+                                        {r.uniqueTimeSlots && r.uniqueTimeSlots.length > 0 && (
+                                          <div className="bg-gray-50 rounded p-2 border border-gray-200">
+                                            <div className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                                              ⏰ Time Slots Affected ({r.uniqueTimeSlots.length})
                                             </div>
-                                          )}
+                                            <div className="flex flex-wrap gap-1">
+                                              {r.uniqueTimeSlots.slice(0, 4).map((slot: string, idx: number) => (
+                                                <span key={idx} className="inline-block bg-white border border-gray-300 rounded px-2 py-1 text-xs font-mono text-gray-700">
+                                                  {slot}
+                                                </span>
+                                              ))}
+                                              {r.uniqueTimeSlots.length > 4 && (
+                                                <span className="inline-block bg-gray-200 border border-gray-300 rounded px-2 py-1 text-xs text-gray-600">
+                                                  +{r.uniqueTimeSlots.length - 4} more
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1">
+                                              Total duration: {r.uniqueTimeSlots.length} time period{r.uniqueTimeSlots.length > 1 ? 's' : ''}
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     );
                                   })()}
 
-                                  {/* Review Notes */}
+                                  {/* Enhanced Review Notes & Additional Info */}
                                   {r.reviewNotes && (
-                                    <div className="bg-yellow-50 rounded-lg p-2 border border-yellow-200">
-                                      <div className="text-xs text-yellow-800">
-                                        <span className="font-medium">
-                                          Admin Note:{" "}
+                                    <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                                      <div className="text-xs text-yellow-800 mb-2">
+                                        <span className="font-medium flex items-center gap-1">
+                                          📝 Admin Notes
                                         </span>
+                                      </div>
+                                      <div className="text-xs text-yellow-700 bg-white rounded p-2 border border-yellow-300">
                                         {r.reviewNotes}
                                       </div>
                                     </div>
                                   )}
+                                  
+                                  {/* Absence Record Metadata */}
+                                  <div className="bg-gray-50 rounded p-2 border border-gray-200 mt-2">
+                                    <div className="grid grid-cols-2 gap-4 text-xs">
+                                      <div>
+                                        <span className="font-medium text-gray-600">Record ID:</span>
+                                        <span className="ml-1 font-mono text-gray-800">{r.id || 'Auto-generated'}</span>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-gray-600">Status:</span>
+                                        <span className={`ml-1 px-2 py-0.5 rounded text-xs font-medium ${
+                                          r.permitted ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                        }`}>
+                                          {r.permitted ? 'Permitted' : 'Unpermitted'}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-gray-600">Detection:</span>
+                                        <span className="ml-1 text-gray-700">
+                                          {r.reviewedByManager ? 'Automated' : 'Manual'}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-gray-600">Processed:</span>
+                                        <span className="ml-1 text-gray-700">
+                                          {new Date(r.classDate).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
                               </li>
                             );

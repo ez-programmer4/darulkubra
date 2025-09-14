@@ -204,7 +204,19 @@ export async function GET(req: NextRequest) {
             }
           },
           orderBy: { classDate: "asc" },
-        });
+        }).then(records => records.map(record => ({
+          ...record,
+          // Parse JSON fields properly
+          packageBreakdown: record.packageBreakdown ? 
+            (typeof record.packageBreakdown === 'string' ? 
+              JSON.parse(record.packageBreakdown) : record.packageBreakdown) : null,
+          timeSlots: record.timeSlots ? 
+            (typeof record.timeSlots === 'string' ? 
+              JSON.parse(record.timeSlots) : record.timeSlots) : null,
+          uniqueTimeSlots: record.uniqueTimeSlots ? 
+            (typeof record.uniqueTimeSlots === 'string' ? 
+              JSON.parse(record.uniqueTimeSlots) : record.uniqueTimeSlots) : null
+        })));
         bonusRecords = await prisma.bonusrecord.findMany({
           where: {
             teacherId,
@@ -288,11 +300,36 @@ export async function GET(req: NextRequest) {
             timeSlots = JSON.stringify(uniqueTimeSlots);
           }
           
+          // Create package breakdown for computed absences
+          const computedPackageBreakdown = [];
+          if (dayTimeSlots.length > 0) {
+            const packageTimeSlotMap = new Map<string, Set<string>>();
+            dayTimeSlots.forEach(ot => {
+              const studentPackage = ot.student.package || "default";
+              if (!packageTimeSlotMap.has(studentPackage)) {
+                packageTimeSlotMap.set(studentPackage, new Set());
+              }
+              packageTimeSlotMap.get(studentPackage)!.add(ot.time_slot);
+            });
+            
+            for (const [pkg, slots] of packageTimeSlotMap.entries()) {
+              const packageDeduction = packageDeductionMap[pkg]?.absence || defaultDeductionPerTimeSlot;
+              computedPackageBreakdown.push({
+                package: pkg,
+                timeSlots: slots.size,
+                ratePerSlot: packageDeduction,
+                total: packageDeduction * slots.size
+              });
+            }
+          }
+          
           computedAbsences.push({
             id: 0,
             teacherId,
             classDate: new Date(d),
-            timeSlots,
+            timeSlots: timeSlots ? JSON.parse(timeSlots) : ['Whole Day'],
+            packageBreakdown: computedPackageBreakdown.length > 0 ? computedPackageBreakdown : null,
+            uniqueTimeSlots: dayTimeSlots.length > 0 ? [...new Set(dayTimeSlots.map(ot => ot.time_slot))] : null,
             permitted: false,
             permissionRequestId: null,
             deductionApplied: calculatedDeduction,
@@ -613,118 +650,65 @@ export async function GET(req: NextRequest) {
         }
 
         
-        // === STEP 4: CALCULATE ABSENCE DEDUCTIONS ===
+        // === STEP 4: CALCULATE ABSENCE DEDUCTIONS (Use Real Records) ===
         let absenceDeduction = 0;
         const absenceBreakdown = [];
         
-        // Get time-slot based deduction config
-        const timeSlotDeductionConfig = await prisma.deductionbonusconfig.findFirst({
-          where: { configType: "absence", key: "deduction_per_time_slot" },
-        });
-        const deductionPerTimeSlot = timeSlotDeductionConfig ? Number(timeSlotDeductionConfig.value) : 25;
-        
-        // Get teacher's occupied times for day-based calculations
-        const teacherOccupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
-          where: { ustaz_id: t.ustazid },
+        // Get actual absence records from database
+        const teacherAbsenceRecords = await prisma.absencerecord.findMany({
+          where: {
+            teacherId: t.ustazid,
+            classDate: { gte: from, lte: to },
+          },
           include: {
-            student: {
-              select: { daypackages: true, package: true }
+            permissionrequest: {
+              select: {
+                reasonCategory: true,
+                timeSlots: true
+              }
             }
-          }
+          },
+          orderBy: { classDate: "asc" },
         });
         
-        for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-          const monthNumber = String(d.getMonth() + 1);
-          if (
-            absenceConfig.effectiveMonths.length > 0 &&
-            !absenceConfig.effectiveMonths.includes(monthNumber)
-          ) {
-            continue;
-          }
+        // Sum up deductions from actual absence records
+        for (const record of teacherAbsenceRecords) {
+          absenceDeduction += record.deductionApplied;
           
-          // Skip Sundays if not included in working days
-          if (!includeSundays && d.getDay() === 0) {
-            continue;
-          }
-          
-          const absenceResult = await isTeacherAbsent(t.ustazid, new Date(d));
-          if (absenceResult.isAbsent) {
-            // Calculate time-slot based deduction
-            const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
-            
-            const dayTimeSlots = teacherOccupiedTimes.filter(ot => {
-              const studentDayPackages = ot.student.daypackages;
-              return studentDayPackages && (
-                studentDayPackages.includes('All days') || 
-                (studentDayPackages.includes('MWF') && ['Monday', 'Wednesday', 'Friday'].includes(dayName)) ||
-                (studentDayPackages.includes('TTS') && ['Tuesday', 'Thursday', 'Saturday'].includes(dayName))
-              );
-            });
-            
-            // Calculate package-weighted deduction for whole day absence
-            let dailyDeduction = 0;
-            let deductionReason = "No zoom link sent";
-            let packageBreakdown = [];
-            
-            if (dayTimeSlots.length > 0) {
-              const uniqueTimeSlots = [...new Set(dayTimeSlots.map(ot => ot.time_slot))];
-              
-              // Group students by package for each time slot
-              const packageTimeSlotMap = new Map<string, Set<string>>();
-              dayTimeSlots.forEach(ot => {
-                const studentPackage = ot.student.package || "default";
-                if (!packageTimeSlotMap.has(studentPackage)) {
-                  packageTimeSlotMap.set(studentPackage, new Set());
-                }
-                packageTimeSlotMap.get(studentPackage)!.add(ot.time_slot);
-              });
-              
-              // Calculate deduction for each package across all their time slots
-              for (const [pkg, timeSlots] of packageTimeSlotMap.entries()) {
-                const packageDeduction = packageDeductionMap[pkg]?.absence || deductionPerTimeSlot;
-                const slotsCount = timeSlots.size;
-                const packageTotal = packageDeduction * slotsCount;
-                dailyDeduction += packageTotal;
-                
-                packageBreakdown.push({
-                  package: pkg,
-                  timeSlots: slotsCount,
-                  ratePerSlot: packageDeduction,
-                  total: packageTotal
-                });
-              }
-              
-              deductionReason = `Whole day absence: ${uniqueTimeSlots.length} time slots (${packageBreakdown.map(p => `${p.package}: ${p.timeSlots}×${p.ratePerSlot}=${p.total} ETB`).join(', ')})`;
-            } else {
-              // Fallback to default deduction if no time slots found
-              dailyDeduction = absenceConfig.deductionAmount;
-              deductionReason = "Whole day absence (no specific time slots)";
-            }
-            
-            // Check for waiver
+          // Parse package breakdown if available
+          let packageBreakdown = null;
+          if (record.packageBreakdown) {
             try {
-              const { isDeductionWaived } = await import('@/lib/deduction-waivers');
-              const isWaived = await isDeductionWaived(t.ustazid, new Date(d), 'absence');
-              if (isWaived) {
-                dailyDeduction = 0;
-                deductionReason = `${deductionReason} (WAIVED)`;
-              }
-            } catch (error) {
-              // Continue without waiver check if module not available
-            }
-            
-            if (dailyDeduction > 0) {
-              absenceDeduction += Math.round(dailyDeduction);
-              absenceBreakdown.push({
-                date: format(d, "yyyy-MM-dd"),
-                reason: deductionReason,
-                deduction: Math.round(dailyDeduction),
-                timeSlots: dayTimeSlots.length > 0 ? dayTimeSlots.length : null,
-                packageBreakdown: packageBreakdown.length > 0 ? packageBreakdown : null,
-                uniqueTimeSlots: dayTimeSlots.length > 0 ? [...new Set(dayTimeSlots.map(ot => ot.time_slot))] : null
-              });
+              packageBreakdown = typeof record.packageBreakdown === 'string' 
+                ? JSON.parse(record.packageBreakdown)
+                : record.packageBreakdown;
+            } catch {
+              packageBreakdown = null;
             }
           }
+          
+          // Parse time slots if available
+          let timeSlots = null;
+          if (record.timeSlots) {
+            try {
+              timeSlots = typeof record.timeSlots === 'string'
+                ? JSON.parse(record.timeSlots)
+                : record.timeSlots;
+            } catch {
+              timeSlots = null;
+            }
+          }
+          
+          absenceBreakdown.push({
+            date: format(record.classDate, "yyyy-MM-dd"),
+            reason: record.permitted ? "Permitted absence" : "Unpermitted absence",
+            deduction: record.deductionApplied,
+            timeSlots: timeSlots ? timeSlots.length : null,
+            packageBreakdown: packageBreakdown,
+            uniqueTimeSlots: timeSlots,
+            permitted: record.permitted,
+            reviewNotes: record.reviewNotes
+          });
         }
         
         // === STEP 5: CALCULATE BONUSES ===
@@ -781,7 +765,7 @@ export async function GET(req: NextRequest) {
             })),
             studentBreakdown: dailyBreakdown,
             latenessBreakdown,
-            absenceBreakdown,
+            absenceBreakdown: absenceBreakdown.length > 0 ? absenceBreakdown : [],
             summary: {
               workingDaysInMonth: workingDays,
               actualTeachingDays: totalTeachingDays,

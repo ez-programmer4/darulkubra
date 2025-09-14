@@ -105,9 +105,42 @@ export async function POST() {
           });
 
           const isPermitted = permission?.status === "Approved";
-          const deduction = isPermitted ? 0 : deductionAmount;
+          
+          // Calculate package-based deduction
+          let totalDeduction = 0;
+          const packageBreakdown = [];
+          
+          if (!isPermitted) {
+            // Get package deduction rates
+            const packageDeductions = await prisma.packagededuction.findMany();
+            const packageRateMap = packageDeductions.reduce((acc, pd) => {
+              acc[pd.packageName] = pd.absenceBaseAmount || 25;
+              return acc;
+            }, {} as Record<string, number>);
+            
+            // Calculate per-student package-based deduction
+            for (const student of scheduledStudents) {
+              const studentData = await prisma.wpos_wpdatatable_23.findUnique({
+                where: { wdt_ID: student.wdt_ID },
+                select: { package: true }
+              });
+              
+              const packageRate = packageRateMap[studentData?.package || ''] || 25;
+              totalDeduction += packageRate;
+              
+              packageBreakdown.push({
+                studentId: student.wdt_ID,
+                package: studentData?.package || 'Unknown',
+                ratePerSlot: packageRate,
+                timeSlots: 1, // Full day absence
+                total: packageRate
+              });
+            }
+          }
+          
+          const deduction = totalDeduction;
 
-          // Create absence record
+          // Create absence record with package breakdown
           await prisma.absencerecord.create({
             data: {
               teacherId: teacher.ustazid,
@@ -115,8 +148,10 @@ export async function POST() {
               permitted: isPermitted,
               permissionRequestId: permission?.id || null,
               deductionApplied: deduction,
-              reviewedByManager: false,
+              reviewedByManager: true, // Auto-detected
               adminId: (session.user as { id: string }).id,
+              timeSlots: JSON.stringify(['Whole Day']),
+              packageBreakdown: packageBreakdown.length > 0 ? JSON.stringify(packageBreakdown) : null,
             },
           });
 
