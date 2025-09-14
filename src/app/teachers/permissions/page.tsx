@@ -182,6 +182,7 @@ export default function TeacherPermissions() {
             } catch (error) {
               console.log("Failed to seed reasons, using fallback");
             }
+
             setPermissionReasons([
               "Sick Leave",
               "Personal Emergency",
@@ -315,11 +316,12 @@ export default function TeacherPermissions() {
       setSubmitted(true);
       toast({
         title: "✅ Request Submitted!",
-        description: responseData.notifications?.sms_sent > 0 
-          ? `📱 Admin team notified via SMS (${responseData.notifications.sms_sent} messages sent)`
-          : responseData.notifications?.debug?.sms_attempts > 0
-          ? "📧 Request submitted successfully. Admin team will be notified."
-          : "📧 Admin team has been notified and will review your request",
+        description:
+          responseData.notifications?.sms_sent > 0
+            ? `📱 Admin team notified via SMS (${responseData.notifications.sms_sent} messages sent)`
+            : responseData.notifications?.debug?.sms_attempts > 0
+            ? "📧 Request submitted successfully. Admin team will be notified."
+            : "📧 Admin team has been notified and will review your request",
       });
       setDate("");
       setSelectedTimeSlots([]);
@@ -408,7 +410,8 @@ export default function TeacherPermissions() {
             Request Submitted!
           </h2>
           <p className="text-gray-600 mb-6 text-sm">
-            Your permission request has been sent via SMS to the admin team. You will be notified once reviewed.
+            Your permission request has been sent via SMS to the admin team. You
+            will be notified once reviewed.
           </p>
           <Button
             onClick={() => setSubmitted(false)}
@@ -435,9 +438,7 @@ export default function TeacherPermissions() {
                 <h1 className="text-lg font-bold text-black">
                   Permission Request
                 </h1>
-                <p className="text-gray-600 text-sm">
-                  Request time off
-                </p>
+                <p className="text-gray-600 text-sm">Request time off</p>
               </div>
             </div>
             <Button
@@ -445,7 +446,11 @@ export default function TeacherPermissions() {
               size="sm"
               className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg"
             >
-              {showForm ? <FiX className="h-4 w-4" /> : <FiPlus className="h-4 w-4" />}
+              {showForm ? (
+                <FiX className="h-4 w-4" />
+              ) : (
+                <FiPlus className="h-4 w-4" />
+              )}
             </Button>
           </div>
 
@@ -513,15 +518,21 @@ export default function TeacherPermissions() {
                     <Label className="text-sm font-medium text-black mb-2 block">
                       Choose Your Absence Time *
                     </Label>
-                    
+
                     {/* Instructions */}
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
                       <div className="flex items-start gap-2">
                         <FiInfo className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
                         <div className="text-xs text-blue-800">
                           <p className="font-medium mb-1">How to choose:</p>
-                          <p>• <strong>Full Day Off:</strong> Click "Whole Day" if you won't come to work at all</p>
-                          <p>• <strong>Partial Day:</strong> Select specific class times if you only need some hours off</p>
+                          <p>
+                            • <strong>Full Day Off:</strong> Click "Whole Day"
+                            if you won't come to work at all
+                          </p>
+                          <p>
+                            • <strong>Partial Day:</strong> Select specific
+                            class times if you only need some hours off
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -540,19 +551,24 @@ export default function TeacherPermissions() {
                         >
                           <FiCalendar className="h-4 w-4" />
                           <span>🏠 Whole Day Off</span>
-                          {isWholeDaySelected && <span className="text-xs">(Selected)</span>}
+                          {isWholeDaySelected && (
+                            <span className="text-xs">(Selected)</span>
+                          )}
                         </button>
                         <p className="text-xs text-gray-500 text-center mt-1 px-2">
                           I won't come to work at all on this day
                         </p>
                       </div>
-                      
+
                       {/* Individual Time Slots */}
-                      {availableTimeSlots.filter(slot => slot !== "Whole Day").length > 0 && (
+                      {availableTimeSlots.filter((slot) => slot !== "Whole Day")
+                        .length > 0 && (
                         <div className="border-2 border-dashed border-gray-300 rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-2">
                             <FiClock className="h-4 w-4 text-gray-600" />
-                            <span className="text-sm font-medium text-gray-700">⏰ Select Specific Class Times</span>
+                            <span className="text-sm font-medium text-gray-700">
+                              ⏰ Select Specific Class Times
+                            </span>
                           </div>
                           <p className="text-xs text-gray-500 mb-3">
                             Choose only the class times you need to miss
@@ -576,32 +592,38 @@ export default function TeacherPermissions() {
                                 >
                                   {timeSlot}
                                   {selectedTimeSlots.includes(timeSlot) && (
-                                    <div className="text-xs mt-1">✓ Selected</div>
+                                    <div className="text-xs mt-1">
+                                      ✓ Selected
+                                    </div>
                                   )}
                                 </button>
                               ))}
                           </div>
                           {isWholeDaySelected && (
                             <p className="text-xs text-gray-400 text-center mt-2">
-                              Individual times disabled when "Whole Day" is selected
+                              Individual times disabled when "Whole Day" is
+                              selected
                             </p>
                           )}
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Selection Summary */}
                     {selectedTimeSlots.length > 0 && (
                       <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
                         <div className="flex items-center gap-2 mb-1">
                           <FiCheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="text-sm font-medium text-green-800">Your Selection:</span>
+                          <span className="text-sm font-medium text-green-800">
+                            Your Selection:
+                          </span>
                         </div>
                         <p className="text-sm text-green-700">
-                          {isWholeDaySelected 
-                            ? "🏠 You will be absent for the entire day" 
-                            : `⏰ You will miss these class times: ${selectedTimeSlots.join(", ")}`
-                          }
+                          {isWholeDaySelected
+                            ? "🏠 You will be absent for the entire day"
+                            : `⏰ You will miss these class times: ${selectedTimeSlots.join(
+                                ", "
+                              )}`}
                         </p>
                       </div>
                     )}
@@ -620,7 +642,8 @@ export default function TeacherPermissions() {
                     className="min-h-[80px] resize-none"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Explain your situation so admin can understand and approve quickly
+                    Explain your situation so admin can understand and approve
+                    quickly
                   </p>
                 </div>
 
@@ -674,19 +697,27 @@ export default function TeacherPermissions() {
 
           <div className="grid grid-cols-4 gap-2 mb-4">
             <div className="bg-gray-100 rounded-lg p-2 text-center">
-              <div className="text-sm font-bold text-black">{summary.total}</div>
+              <div className="text-sm font-bold text-black">
+                {summary.total}
+              </div>
               <div className="text-xs text-gray-600">Total</div>
             </div>
             <div className="bg-yellow-50 rounded-lg p-2 text-center">
-              <div className="text-sm font-bold text-yellow-800">{summary.pending}</div>
+              <div className="text-sm font-bold text-yellow-800">
+                {summary.pending}
+              </div>
               <div className="text-xs text-yellow-600">Pending</div>
             </div>
             <div className="bg-green-50 rounded-lg p-2 text-center">
-              <div className="text-sm font-bold text-green-800">{summary.approved}</div>
+              <div className="text-sm font-bold text-green-800">
+                {summary.approved}
+              </div>
               <div className="text-xs text-green-600">Approved</div>
             </div>
             <div className="bg-red-50 rounded-lg p-2 text-center">
-              <div className="text-sm font-bold text-red-700">{summary.rejected}</div>
+              <div className="text-sm font-bold text-red-700">
+                {summary.rejected}
+              </div>
               <div className="text-xs text-red-600">Rejected</div>
             </div>
           </div>
@@ -719,7 +750,9 @@ export default function TeacherPermissions() {
                               .join(", ")
                           : dayjs(perm.date).format("MMM D, YYYY")}
                       </div>
-                      <div className="text-gray-600 text-sm mt-1">{perm.reason}</div>
+                      <div className="text-gray-600 text-sm mt-1">
+                        {perm.reason}
+                      </div>
                     </div>
                     <div className="ml-3 flex-shrink-0">
                       {perm.status === "Approved" ? (
@@ -738,7 +771,10 @@ export default function TeacherPermissions() {
                     </div>
                   </div>
                   {perm.details && (
-                    <div className="text-gray-500 text-sm truncate" title={perm.details}>
+                    <div
+                      className="text-gray-500 text-sm truncate"
+                      title={perm.details}
+                    >
                       {perm.details}
                     </div>
                   )}

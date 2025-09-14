@@ -235,7 +235,7 @@ function RegistrationContent() {
           setStudentConfigs({
             statuses: data.statuses?.map((s: any) => s.name) || [],
             packages: data.packages?.map((p: any) => p.name) || [],
-            subjects: data.subjects?.map((s: any) => s.name) || []
+            subjects: data.subjects?.map((s: any) => s.name) || [],
           });
         } else {
           // Fallback to defaults
@@ -470,7 +470,6 @@ function RegistrationContent() {
     isUsStudentRef.current = isUsStudent;
     if (isUsStudent) {
       clearErrors(["classfee", "country"]);
-      console.log("US student detected - clearing validation errors");
     }
   }, [isUsStudent, clearErrors]);
 
@@ -498,11 +497,6 @@ function RegistrationContent() {
       if (usStudentId) {
         sessionStorage.setItem("usStudentId", usStudentId);
       }
-      console.log("Detected US student from URL params:", {
-        prefilled,
-        name,
-        country,
-      });
     }
   }, [searchParams, setValue]);
 
@@ -541,10 +535,6 @@ function RegistrationContent() {
             isUsStudentRef.current = true;
             // Clear any existing validation errors for US students
             clearErrors(["classfee", "country"]);
-            console.log("Detected US student during edit:", {
-              userId: data.userId,
-              country: data.country,
-            });
           }
 
           setValue("fullName", data.name || "");
@@ -609,7 +599,7 @@ function RegistrationContent() {
       // Validate required fields based on student type
       if (!isUsStudent) {
         // Only require class fee if package is not "0 Fee"
-        if (data.package !== "0 Fee" && (!data.classfee && data.classfee !== 0)) {
+        if (data.package !== "0 Fee" && !data.classfee && data.classfee !== 0) {
           throw new Error("Class Fee is required");
         }
         if (!data.country) {
@@ -638,7 +628,10 @@ function RegistrationContent() {
       const payload = {
         fullName: data.fullName,
         phoneNumber: data.phoneNumber,
-        classfee: data.classfee !== undefined && data.classfee !== null ? parseFloat(data.classfee as any) : null,
+        classfee:
+          data.classfee !== undefined && data.classfee !== null
+            ? parseFloat(data.classfee as any)
+            : null,
         startdate: isoStartDate,
         control: control, // Automatically set based on selected ustaz's controlId
         status: data.status?.toLowerCase() || "pending",
@@ -1758,7 +1751,9 @@ function RegistrationContent() {
                       <label className="block text-sm font-semibold text-gray-800 flex items-center">
                         <FiDollarSign className="mr-2 text-teal-600" />
                         Class Fee{" "}
-                        {!isUsStudent && watch("package") !== "0 Fee" ? "*" : "(Optional)"}
+                        {!isUsStudent && watch("package") !== "0 Fee"
+                          ? "*"
+                          : "(Optional)"}
                       </label>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
@@ -1904,7 +1899,10 @@ function RegistrationContent() {
                         </label>
                         <textarea
                           {...register("reason", {
-                            required: watch("status") === "leave" ? "Reason is required when status is Leave" : false,
+                            required:
+                              watch("status") === "leave"
+                                ? "Reason is required when status is Leave"
+                                : false,
                           })}
                           className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm resize-none ${
                             errors.reason

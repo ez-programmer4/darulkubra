@@ -8,14 +8,7 @@ async function sendSMS(phone: string, message: string) {
   const apiToken = process.env.AFROMSG_API_TOKEN;
   const senderUid = process.env.AFROMSG_SENDER_UID;
   const senderName = process.env.AFROMSG_SENDER_NAME;
-  
-  console.log('SMS Config:', { 
-    hasToken: !!apiToken, 
-    hasUid: !!senderUid, 
-    hasName: !!senderName,
-    phone 
-  });
-  
+
   if (apiToken && senderUid && senderName) {
     const payload = {
       from: senderUid,
@@ -23,7 +16,7 @@ async function sendSMS(phone: string, message: string) {
       to: phone,
       message,
     };
-    
+
     try {
       const response = await fetch("https://api.afromessage.com/api/send", {
         method: "POST",
@@ -33,21 +26,19 @@ async function sendSMS(phone: string, message: string) {
         },
         body: JSON.stringify(payload),
       });
-      
+
       const result = await response.text();
-      console.log('SMS Response:', { status: response.status, result });
-      
+
       if (!response.ok) {
         throw new Error(`SMS API error: ${response.status} - ${result}`);
       }
-      
+
       return true;
     } catch (error) {
-      console.error('SMS Error:', error);
+      console.error("SMS Error:", error);
       return false;
     }
   } else {
-    console.log('SMS not configured - missing environment variables');
     return false;
   }
 }
@@ -166,23 +157,19 @@ export async function POST(req: NextRequest) {
     });
 
     // Format time slots for SMS
-    const timeSlotText = timeSlots.includes('Whole Day') 
-      ? 'Whole Day'
-      : timeSlots.join(', ');
-    
+    const timeSlotText = timeSlots.includes("Whole Day")
+      ? "Whole Day"
+      : timeSlots.join(", ");
+
     const smsMessage = `New absence request from ${teacherName} for ${date} (${timeSlotText}). Reason: ${reason}. Please review in admin panel.`;
     let smsCount = 0;
 
-    console.log(`Found ${adminsWithPhone.length} admins with phone numbers`);
-    
     for (const admin of adminsWithPhone) {
       try {
         if (admin.phoneno) {
-          console.log(`Sending SMS to admin ${admin.id} at ${admin.phoneno}`);
           const success = await sendSMS(admin.phoneno, smsMessage);
           if (success) {
             smsCount++;
-            console.log(`SMS sent successfully to admin ${admin.id}`);
           } else {
             console.log(`SMS failed for admin ${admin.id}`);
           }
@@ -191,8 +178,6 @@ export async function POST(req: NextRequest) {
         console.error(`Failed to send SMS to admin ${admin.id}:`, error);
       }
     }
-    
-    console.log(`Total SMS sent: ${smsCount}`);
 
     // Create system notifications for all admins
     let notificationCount = 0;
@@ -226,8 +211,8 @@ export async function POST(req: NextRequest) {
           total_admins: adminsWithPhone.length,
           debug: {
             admins_with_phone: adminsWithPhone.length,
-            sms_attempts: adminsWithPhone.filter(a => a.phoneno).length
-          }
+            sms_attempts: adminsWithPhone.filter((a) => a.phoneno).length,
+          },
         },
       },
       { status: 201 }

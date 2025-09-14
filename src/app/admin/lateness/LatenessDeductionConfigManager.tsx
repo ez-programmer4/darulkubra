@@ -148,58 +148,6 @@ export default function LatenessDeductionConfigManager() {
       <PackageDeductionManager type="lateness" />
 
       <section className="mb-10">
-        <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-3xl p-8 border-2 border-purple-200 mb-8 shadow-xl">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-4 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl shadow-lg">
-              <FiClock className="h-8 w-8 text-white" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-2xl p-6 border-2 border-green-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-green-500 rounded-xl">
-                  <span className="text-white font-bold text-sm">∞</span>
-                </div>
-                <span className="font-bold text-green-800 text-lg">
-                  ✅ Unlimited Tiers
-                </span>
-              </div>
-              <p className="text-sm text-green-700 leading-relaxed">
-                Add as many deduction tiers as needed with no system limitations
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-blue-500 rounded-xl">
-                  <span className="text-white font-bold text-sm">%</span>
-                </div>
-                <span className="font-bold text-blue-800 text-lg">
-                  🎯 Percentage Based
-                </span>
-              </div>
-              <p className="text-sm text-blue-700 leading-relaxed">
-                Set deduction as percentage of base amount for flexible
-                calculations
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 border-2 border-orange-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-orange-500 rounded-xl">
-                  <span className="text-white font-bold text-sm">⚡</span>
-                </div>
-                <span className="font-bold text-orange-800 text-lg">
-                  ⚡ Real-time
-                </span>
-              </div>
-              <p className="text-sm text-orange-700 leading-relaxed">
-                Changes apply immediately across the entire system
-              </p>
-            </div>
-          </div>
-        </div>
         {error && (
           <div className="mb-4 p-3 bg-red-100 text-red-700 rounded flex items-center gap-2">
             <FiX /> {error}

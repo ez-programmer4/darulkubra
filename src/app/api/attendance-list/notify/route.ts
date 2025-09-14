@@ -3,15 +3,26 @@ import { getToken } from "next-auth/jwt";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const session = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { studentId, urgency, minutesLate, autoNotify = false } = await req.json();
+    const {
+      studentId,
+      urgency,
+      minutesLate,
+      autoNotify = false,
+    } = await req.json();
 
     if (!studentId) {
-      return NextResponse.json({ error: "Student ID required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Student ID required" },
+        { status: 400 }
+      );
     }
 
     // Enhanced notification logic based on urgency
@@ -19,15 +30,21 @@ export async function POST(req: NextRequest) {
       emergency: `🚨 EMERGENCY: Student link not sent for ${minutesLate} minutes! Immediate action required.`,
       critical: `🔴 CRITICAL: Student link ${minutesLate} minutes overdue. Please send immediately.`,
       warning: `🟡 WARNING: Student link ${minutesLate} minutes late. Please check status.`,
-      alert: `🟠 ALERT: Student link ${minutesLate} minutes delayed. Please verify.`
+      alert: `🟠 ALERT: Student link ${minutesLate} minutes delayed. Please verify.`,
     };
 
-    const message = urgencyMessages[urgency as keyof typeof urgencyMessages] || 
-                   `Student link notification - ${minutesLate} minutes late`;
+    const message =
+      urgencyMessages[urgency as keyof typeof urgencyMessages] ||
+      `Student link notification - ${minutesLate} minutes late`;
 
     // Priority-based SMS sending
-    const priority = urgency === 'emergency' ? 'high' : urgency === 'critical' ? 'medium' : 'normal';
-    
+    const priority =
+      urgency === "emergency"
+        ? "high"
+        : urgency === "critical"
+        ? "medium"
+        : "normal";
+
     // Simulate SMS sending with enhanced response
     const smsResponse = await sendEnhancedSMS({
       studentId,
@@ -35,7 +52,7 @@ export async function POST(req: NextRequest) {
       priority,
       urgency,
       autoNotify,
-      minutesLate
+      minutesLate,
     });
 
     if (smsResponse.success) {
@@ -46,7 +63,7 @@ export async function POST(req: NextRequest) {
         minutesLate,
         autoNotify,
         timestamp: new Date(),
-        method: 'sms'
+        method: "sms",
       });
 
       return NextResponse.json({
@@ -57,22 +74,27 @@ export async function POST(req: NextRequest) {
           minutesLate,
           autoNotify,
           priority,
-          deliveryId: smsResponse.deliveryId
-        }
+          deliveryId: smsResponse.deliveryId,
+        },
       });
     } else {
-      return NextResponse.json({
-        success: false,
-        error: smsResponse.error || "Failed to send notification"
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: smsResponse.error || "Failed to send notification",
+        },
+        { status: 500 }
+      );
     }
-
   } catch (error) {
     console.error("Enhanced notification error:", error);
-    return NextResponse.json({
-      success: false,
-      error: "Internal server error"
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Internal server error",
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -83,7 +105,7 @@ async function sendEnhancedSMS({
   priority,
   urgency,
   autoNotify,
-  minutesLate
+  minutesLate,
 }: {
   studentId: number;
   message: string;
@@ -94,18 +116,19 @@ async function sendEnhancedSMS({
 }) {
   try {
     // Add retry logic for critical/emergency cases
-    const maxRetries = urgency === 'emergency' ? 3 : urgency === 'critical' ? 2 : 1;
+    const maxRetries =
+      urgency === "emergency" ? 3 : urgency === "critical" ? 2 : 1;
     let attempt = 0;
-    
+
     while (attempt < maxRetries) {
       try {
         // Your SMS API call here
-        const response = await fetch(process.env.SMS_API_URL || '', {
-          method: 'POST',
+        const response = await fetch(process.env.SMS_API_URL || "", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.SMS_API_KEY}`,
-            'X-Priority': priority,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.SMS_API_KEY}`,
+            "X-Priority": priority,
           },
           body: JSON.stringify({
             to: `student_${studentId}_teacher_phone`, // Replace with actual phone lookup
@@ -116,9 +139,9 @@ async function sendEnhancedSMS({
               studentId,
               minutesLate,
               autoNotify,
-              attempt: attempt + 1
-            }
-          })
+              attempt: attempt + 1,
+            },
+          }),
         });
 
         if (response.ok) {
@@ -126,14 +149,16 @@ async function sendEnhancedSMS({
           return {
             success: true,
             deliveryId: result.id || `delivery_${Date.now()}`,
-            attempt: attempt + 1
+            attempt: attempt + 1,
           };
         }
-        
+
         attempt++;
         if (attempt < maxRetries) {
           // Exponential backoff for retries
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.pow(2, attempt) * 1000)
+          );
         }
       } catch (err) {
         attempt++;
@@ -142,17 +167,16 @@ async function sendEnhancedSMS({
         }
       }
     }
-    
+
     return {
       success: false,
-      error: `Failed after ${maxRetries} attempts`
+      error: `Failed after ${maxRetries} attempts`,
     };
-    
   } catch (error) {
     console.error("SMS sending failed:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "SMS sending failed"
+      error: error instanceof Error ? error.message : "SMS sending failed",
     };
   }
 }
@@ -164,7 +188,7 @@ async function logNotification({
   minutesLate,
   autoNotify,
   timestamp,
-  method
+  method,
 }: {
   studentId: number;
   urgency: string;
@@ -174,16 +198,6 @@ async function logNotification({
   method: string;
 }) {
   try {
-    // Store in database for analytics
-    console.log("Notification logged:", {
-      studentId,
-      urgency,
-      minutesLate,
-      autoNotify,
-      timestamp,
-      method
-    });
-    
   } catch (error) {
     console.error("Failed to log notification:", error);
   }

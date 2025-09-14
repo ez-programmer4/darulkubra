@@ -39,18 +39,7 @@ export async function GET(req: NextRequest) {
           );
         }
         let teacherQuery = { ustazid: id };
-        console.log('Looking for teacher with ustazid:', id);
-        userDetails = await prisma.wpos_wpdatatable_24.findUnique({
-          where: teacherQuery,
-          select: {
-            ustazid: true,
-            ustazname: true,
-            phone: true,
-            schedule: true,
-            control: true,
-          },
-        });
-        console.log('Found teacher:', userDetails);
+
         break;
       case "admin":
         userDetails = await prisma.admin.findUnique({

@@ -69,7 +69,6 @@ async function getAttendanceofAllStudents(studentIds: number[]) {
 
     return attendanceMap;
   } catch (error) {
-    console.log("አቴንዳንስ ማሳየት ላይ ችግር አለ: ", error);
     return {};
   }
 }
@@ -100,7 +99,6 @@ async function correctExamAnswer(coursesPackageId: string, studentId: number) {
       },
     });
     if (!studentQuiz) {
-      console.log("there is no students queiz");
       return undefined;
     }
 
@@ -118,7 +116,6 @@ async function correctExamAnswer(coursesPackageId: string, studentId: number) {
       },
     });
     if (!studentQuizAnswers) {
-      console.log("there is no studentsanswer for the exam");
       return undefined;
     }
     const studentResponse: { [questionId: string]: string[] } = {};
@@ -128,7 +125,6 @@ async function correctExamAnswer(coursesPackageId: string, studentId: number) {
       studentResponse[qid].push(ans.selectedOptionId);
     }
 
-    console.log("Fetching correct answers for questions:", questionIds);
     const questionAnswersRaw = await prisma.questionAnswer.findMany({
       where: { questionId: { in: questionIds } },
       select: { questionId: true, answerId: true },
@@ -158,7 +154,6 @@ async function correctExamAnswer(coursesPackageId: string, studentId: number) {
       score: correct / total ? correct / total : 0,
     };
 
-    console.log("Exam Result calculated:", result);
     return { studentResponse: await studentResponse, questionAnswers, result };
   } catch (error) {
     console.error("Error in correctAnswer:", error);
@@ -352,7 +347,7 @@ export async function GET(request: NextRequest) {
         subject: true,
         package: true,
         chatId: true,
-              youtubeSubject: true,
+        youtubeSubject: true,
         teacher: {
           select: { ustazname: true },
         },
@@ -363,132 +358,131 @@ export async function GET(request: NextRequest) {
     );
 
     // Process students with progress
-    let studentsWithProgress = (await Promise.all(
-      students.map(async (student) => {
-        const matchedSubjectPackage = subjectPackages.find(
-          (sp) =>
-            sp.subject === student.subject &&
-            sp.packageType === student.package &&
-            sp.kidpackage === student.isKid
-        );
-      const activePackageId =
-        student.youtubeSubject ?? matchedSubjectPackage?.packageId;
-      if (!activePackageId) return undefined;
+    let studentsWithProgress = (
+      await Promise.all(
+        students.map(async (student) => {
+          const matchedSubjectPackage = subjectPackages.find(
+            (sp) =>
+              sp.subject === student.subject &&
+              sp.packageType === student.package &&
+              sp.kidpackage === student.isKid
+          );
+          const activePackageId =
+            student.youtubeSubject ?? matchedSubjectPackage?.packageId;
+          if (!activePackageId) return undefined;
 
-        const progress = await getStudentProgressStatus(
-          student.wdt_ID,
-          activePackageId
-        );
+          const progress = await getStudentProgressStatus(
+            student.wdt_ID,
+            activePackageId
+          );
 
-        const activePackage = await prisma.coursePackage.findUnique({
-          where: { id: activePackageId },
-          select: { name: true },
-        });
+          const activePackage = await prisma.coursePackage.findUnique({
+            where: { id: activePackageId },
+            select: { name: true },
+          });
 
-        // Format phone number
-        let phoneNo = student.phoneno;
-        if (phoneNo) {
-          phoneNo = phoneNo.split("").reverse().slice(0, 9).reverse().join("");
-          let countryCode = "+251";
+          // Format phone number
+          let phoneNo = student.phoneno;
+          if (phoneNo) {
+            phoneNo = phoneNo
+              .split("")
+              .reverse()
+              .slice(0, 9)
+              .reverse()
+              .join("");
+            let countryCode = "+251";
 
-          const countryMap: { [key: string]: string } = {
-            ethiopia: "+251",
-            anguilla: "+1",
-            "saudi arabia": "+966",
-            canada: "+1",
-            "united arab emirates": "+971",
-            kuwait: "+965",
-            usa: "+1",
-            "united states": "+1",
-            "united states of america": "+1",
-            china: "+86",
-            "south africa": "+27",
-            cuba: "+53",
-            "equatorial guinea": "+240",
-            sweden: "+46",
-            qatar: "+974",
-            angola: "+244",
-            pakistan: "+92",
-            norway: "+47",
-            netherlands: "+31",
-            bahrain: "+973",
-            turkey: "+90",
-            egypt: "+20",
-            germany: "+49",
-            italy: "+39",
-            djibouti: "+253",
-            mongolia: "+976",
+            const countryMap: { [key: string]: string } = {
+              ethiopia: "+251",
+              anguilla: "+1",
+              "saudi arabia": "+966",
+              canada: "+1",
+              "united arab emirates": "+971",
+              kuwait: "+965",
+              usa: "+1",
+              "united states": "+1",
+              "united states of america": "+1",
+              china: "+86",
+              "south africa": "+27",
+              cuba: "+53",
+              "equatorial guinea": "+240",
+              sweden: "+46",
+              qatar: "+974",
+              angola: "+244",
+              pakistan: "+92",
+              norway: "+47",
+              netherlands: "+31",
+              bahrain: "+973",
+              turkey: "+90",
+              egypt: "+20",
+              germany: "+49",
+              italy: "+39",
+              djibouti: "+253",
+              mongolia: "+976",
+            };
+
+            countryCode =
+              countryMap[(student.country || "").toLowerCase()] || "+251";
+            phoneNo = `${countryCode}${phoneNo}`;
+          }
+
+          const occupiedTime = await prisma.wpos_ustaz_occupied_times.findFirst(
+            {
+              where: { student_id: student.wdt_ID },
+              select: { time_slot: true },
+            }
+          );
+
+          let examResult = { total: 0, correct: 0, score: 0 };
+          let hasFinalExam = false;
+          let isUpdateProhibited = false;
+          if (progress === "completed") {
+            const [examData, finalExamStatus, updateProhibition] =
+              await Promise.all([
+                correctExamAnswer(activePackageId, student.wdt_ID),
+                checkFinalExamCreation(student.wdt_ID, activePackageId),
+                checkingUpdateProhibition(student.wdt_ID, activePackageId),
+              ]);
+
+            if (examData?.result) examResult = examData.result;
+            hasFinalExam = !!finalExamStatus;
+            isUpdateProhibited = !!updateProhibition;
+          }
+
+          const attendance = attendanceMap[student.wdt_ID] ?? {
+            present: 0,
+            absent: 0,
+          };
+          const totalSessions = attendance.present + attendance.absent;
+          const lastSeen = await getLastSeen(student.wdt_ID);
+
+          const studentResult = {
+            id: student.wdt_ID,
+            name: student.name,
+            phoneNo,
+            ustazname: student.teacher?.ustazname ?? "",
+            tglink: `https://t.me/${phoneNo}`,
+            whatsapplink: `https://wa.me/${phoneNo}`,
+            isKid: student.isKid,
+            chatid: student.chatId,
+            activePackage: activePackage?.name ?? "",
+            studentProgress: progress,
+            selectedTime: occupiedTime?.time_slot ?? null,
+            result: examResult,
+            hasFinalExam,
+            isUpdateProhibited,
+            attendance: `P-${attendance.present} A-${attendance.absent} T-${totalSessions}`,
+            totalSessions,
+            lastSeen,
+            activePackageId,
           };
 
-          countryCode =
-            countryMap[(student.country || "").toLowerCase()] || "+251";
-          phoneNo = `${countryCode}${phoneNo}`;
-        }
-
-        // Fetch occupied time for this student
-        console.log(
-          `[DEBUG] Fetching occupied time for student ID: ${student.wdt_ID}`
-        );
-        const occupiedTime = await prisma.wpos_ustaz_occupied_times.findFirst({
-          where: { student_id: student.wdt_ID },
-          select: { time_slot: true },
-        });
-        console.log(
-          `[DEBUG] Student ${student.wdt_ID} (${student.name}) occupied time result:`,
-          occupiedTime
-        );
-        let examResult = { total: 0, correct: 0, score: 0 };
-        let hasFinalExam = false;
-        let isUpdateProhibited = false;
-        if (progress === "completed") {
-          const [examData, finalExamStatus, updateProhibition] =
-            await Promise.all([
-              correctExamAnswer(activePackageId, student.wdt_ID),
-              checkFinalExamCreation(student.wdt_ID, activePackageId),
-              checkingUpdateProhibition(student.wdt_ID, activePackageId),
-            ]);
-
-          if (examData?.result) examResult = examData.result;
-          hasFinalExam = !!finalExamStatus;
-          isUpdateProhibited = !!updateProhibition;
-        }
-
-        const attendance = attendanceMap[student.wdt_ID] ?? {
-          present: 0,
-          absent: 0,
-        };
-        const totalSessions = attendance.present + attendance.absent;
-        const lastSeen = await getLastSeen(student.wdt_ID);
-
-        const studentResult = {
-          id: student.wdt_ID,
-          name: student.name,
-          phoneNo,
-          ustazname: student.teacher?.ustazname ?? "",
-          tglink: `https://t.me/${phoneNo}`,
-          whatsapplink: `https://wa.me/${phoneNo}`,
-          isKid: student.isKid,
-          chatid: student.chatId,
-          activePackage: activePackage?.name ?? "",
-          studentProgress: progress,
-          selectedTime: occupiedTime?.time_slot ?? null,
-          result: examResult,
-          hasFinalExam,
-          isUpdateProhibited,
-          attendance: `P-${attendance.present} A-${attendance.absent} T-${totalSessions}`,
-          totalSessions,
-          lastSeen,
-          activePackageId,
-        };
-
-        console.log(
-          `[DEBUG] Final selectedTime for ${student.name}: ${
-            occupiedTime?.time_slot ?? "null"
-          }`
-        );
-        return studentResult;
-      })
-    )).filter((student): student is NonNullable<typeof student> => student !== undefined);
+          return studentResult;
+        })
+      )
+    ).filter(
+      (student): student is NonNullable<typeof student> => student !== undefined
+    );
 
     // Filter by progress
     if (progressFilter && progressFilter !== "all") {

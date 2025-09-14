@@ -19,8 +19,6 @@ export async function GET() {
       },
     });
 
-    console.log("DATA >> ", data);
-
     // Transform data to match expected interface
     const transformedData = data.map((user) => ({
       id: user.id,

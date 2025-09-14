@@ -527,27 +527,8 @@ export default function AdminLatenessAnalyticsPage() {
         </div>
 
         {/* Advanced Tier Configuration */}
-        <div className="bg-gradient-to-br from-white via-purple-50 to-pink-50 rounded-3xl shadow-2xl border border-purple-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 p-8">
-            <div className="flex items-center gap-4 text-white">
-              <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl">
-                <FiSettings className="h-8 w-8" />
-              </div>
-              <div>
-                <h2 className="text-3xl font-bold mb-2">
-                  ⚙️ Tier Configuration Center
-                </h2>
-                <p className="text-purple-100 text-lg">
-                  Unlimited tiers • Custom rules • Package-specific rates
-                </p>
-              </div>
-            </div>
-          </div>
 
-          <div className="p-8">
-            <LatenessDeductionConfigManager />
-          </div>
-        </div>
+        <LatenessDeductionConfigManager />
 
         {/* Main Analytics */}
         {loading ? (

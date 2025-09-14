@@ -313,8 +313,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("AK >> ", usStudentId);
-
     const newRegistration = await prismaClient.$transaction(async (tx) => {
       const registration = await tx.wpos_wpdatatable_23.create({
         data: {
@@ -476,7 +474,10 @@ export async function PUT(request: NextRequest) {
     if (
       !isUsStudent &&
       regionPackage !== "0 Fee" &&
-      (!classfee && classfee !== 0 && classfee !== null && classfee !== undefined)
+      !classfee &&
+      classfee !== 0 &&
+      classfee !== null &&
+      classfee !== undefined
     ) {
       return NextResponse.json(
         { message: "Class Fee is required" },

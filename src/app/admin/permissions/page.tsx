@@ -169,7 +169,7 @@ export default function AdminPermissionsPage() {
       const res = await fetch(`/api/admin/permissions${statusParam}`);
       if (!res.ok) throw new Error("Failed to fetch permission requests");
       const data = await res.json();
-      console.log("Admin permissions data:", data);
+
       setRequests(data);
     } catch (e: any) {
       setError(e.message);
