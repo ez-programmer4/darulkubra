@@ -108,21 +108,22 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Log the adjustment
+      // Log the adjustment (truncate details to prevent overflow)
+      const auditDetails = {
+        adjustmentType,
+        teacherCount: teacherIds.length,
+        dateRange,
+        recordsAffected,
+        totalAmountWaived,
+        reason: reason.substring(0, 100) // Truncate reason
+      };
+      
       await tx.auditlog.create({
         data: {
           actionType: "deduction_adjustment",
           adminId,
           targetId: null,
-          details: JSON.stringify({
-            adjustmentType,
-            teacherIds,
-            dateRange,
-            timeSlots,
-            recordsAffected,
-            totalAmountWaived,
-            reason
-          })
+          details: JSON.stringify(auditDetails).substring(0, 500) // Truncate entire JSON
         }
       });
 
