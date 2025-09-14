@@ -599,64 +599,6 @@ function PackageDeductionManager({ type }: { type: "lateness" | "absence" }) {
           <FiCheck /> {notification.message}
         </div>
       )}
-
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200 mb-6">
-        <h2 className="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2">
-          <FiDollarSign className="h-6 w-6" /> Package-Specific{" "}
-          {type === "lateness" ? "Lateness" : "Absence"} Base Deductions
-        </h2>
-        <p className="text-blue-700 text-sm mb-4">
-          Set different base deduction amounts for each package type. These
-          amounts are used as the base for percentage calculations.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {commonPackages.map((packageName) => {
-            const existing = packageDeductions.find(
-              (p) => p.packageName === packageName
-            );
-            const currentAmount =
-              existing?.[
-                type === "lateness" ? "latenessBaseAmount" : "absenceBaseAmount"
-              ] || (type === "lateness" ? 30 : 25);
-
-            return (
-              <div
-                key={packageName}
-                className="bg-white rounded-lg p-4 border border-blue-200"
-              >
-                <h3 className="font-semibold text-blue-900 mb-2">
-                  {packageName}
-                </h3>
-                <div className="space-y-2">
-                  <input
-                    type="number"
-                    value={currentAmount}
-                    onChange={(e) =>
-                      updateAmount(packageName, Number(e.target.value))
-                    }
-                    className="w-full border border-blue-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    min="0"
-                    step="0.01"
-                  />
-                  <button
-                    onClick={() => handleSave(packageName, currentAmount)}
-                    disabled={saving === packageName}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2 px-3 rounded text-sm flex items-center justify-center gap-1"
-                  >
-                    {saving === packageName ? (
-                      <FiLoader className="animate-spin h-4 w-4" />
-                    ) : (
-                      <FiCheck className="h-4 w-4" />
-                    )}
-                    {saving === packageName ? "Saving..." : "Save"}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </section>
   );
 }
