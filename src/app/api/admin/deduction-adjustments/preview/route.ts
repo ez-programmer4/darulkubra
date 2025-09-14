@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { adjustmentType, dateRange, teacherIds } = await req.json();
+    const { adjustmentType, dateRange, teacherIds, timeSlots } = await req.json();
     
     if (!dateRange?.startDate || !dateRange?.endDate || !teacherIds?.length) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -125,6 +125,11 @@ export async function POST(req: NextRequest) {
 
           const firstLink = links.sort((a, b) => a.sent_time!.getTime() - b.sent_time!.getTime())[0];
           const timeSlot = firstLink.wpos_wpdatatable_23?.occupiedTimes?.[0]?.time_slot;
+          
+          // Filter by time slots if specified
+          if (timeSlots && timeSlots.length > 0 && !timeSlots.includes(timeSlot)) {
+            continue;
+          }
           
           if (timeSlot && firstLink.sent_time) {
             // Parse scheduled time

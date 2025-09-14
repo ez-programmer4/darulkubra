@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FiCalendar, FiUsers, FiCheck, FiSearch, FiSettings, FiAlertTriangle, FiRefreshCw } from "react-icons/fi";
+import { FiCalendar, FiUsers, FiCheck, FiSearch, FiSettings, FiAlertTriangle, FiRefreshCw, FiClock } from "react-icons/fi";
 import { toast } from "@/components/ui/use-toast";
 
 export default function DeductionAdjustmentsPage() {
@@ -11,6 +11,8 @@ export default function DeductionAdjustmentsPage() {
   const [dateRange, setDateRange] = useState({ startDate: "", endDate: "" });
   const [adjustmentType, setAdjustmentType] = useState("waive_absence");
   const [reason, setReason] = useState("");
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [previewSummary, setPreviewSummary] = useState<any>({});
@@ -18,6 +20,7 @@ export default function DeductionAdjustmentsPage() {
 
   useEffect(() => {
     fetchTeachers();
+    fetchTimeSlots();
   }, []);
 
   useEffect(() => {
@@ -40,6 +43,18 @@ export default function DeductionAdjustmentsPage() {
     }
   };
 
+  const fetchTimeSlots = async () => {
+    try {
+      const res = await fetch("/api/admin/time-slots");
+      if (res.ok) {
+        const data = await res.json();
+        setTimeSlots(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch time slots");
+    }
+  };
+
   const previewAdjustments = async () => {
     if (!dateRange.startDate || !dateRange.endDate || selectedTeachers.length === 0) {
       toast({
@@ -55,7 +70,7 @@ export default function DeductionAdjustmentsPage() {
       const res = await fetch("/api/admin/deduction-adjustments/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adjustmentType, dateRange, teacherIds: selectedTeachers }),
+        body: JSON.stringify({ adjustmentType, dateRange, teacherIds: selectedTeachers, timeSlots: selectedTimeSlots }),
       });
 
       if (res.ok) {
@@ -114,7 +129,7 @@ export default function DeductionAdjustmentsPage() {
       const res = await fetch("/api/admin/deduction-adjustments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adjustmentType, dateRange, teacherIds: selectedTeachers, reason }),
+        body: JSON.stringify({ adjustmentType, dateRange, teacherIds: selectedTeachers, timeSlots: selectedTimeSlots, reason }),
       });
 
       if (res.ok) {
@@ -128,6 +143,7 @@ export default function DeductionAdjustmentsPage() {
         setSelectedTeachers([]);
         setReason("");
         setDateRange({ startDate: "", endDate: "" });
+        setSelectedTimeSlots([]);
         setPreviewData([]);
         setPreviewSummary({});
         setShowPreview(false);
@@ -225,6 +241,55 @@ export default function DeductionAdjustmentsPage() {
                   {adjustmentType === "waive_absence" 
                     ? "Removes deductions from recorded absence events" 
                     : "Removes deductions from late class starts"}
+                </p>
+              </div>
+
+              {/* Time Slots */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-3">
+                  <FiClock className="inline h-4 w-4 mr-2" />
+                  Time Slots (Optional)
+                </label>
+                <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto bg-gray-50">
+                  <div className="mb-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedTimeSlots.length === 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedTimeSlots([]);
+                          }
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-blue-600">All Time Slots</span>
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {timeSlots.map((slot) => (
+                      <label key={slot} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedTimeSlots.includes(slot)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTimeSlots((prev) => [...prev, slot]);
+                            } else {
+                              setSelectedTimeSlots((prev) =>
+                                prev.filter((s) => s !== slot)
+                              );
+                            }
+                          }}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm">{slot}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Leave empty to include all time slots. Only applies to lateness adjustments.
                 </p>
               </div>
 
