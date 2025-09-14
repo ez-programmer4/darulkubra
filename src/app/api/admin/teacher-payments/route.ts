@@ -644,7 +644,7 @@ export async function GET(req: NextRequest) {
         }
 
         
-        // === STEP 4: CALCULATE ABSENCE DEDUCTIONS (Use Real Records) ===
+        // === STEP 4: CALCULATE ABSENCE DEDUCTIONS ===
         let absenceDeduction = 0;
         const absenceBreakdown = [];
         
@@ -669,9 +669,6 @@ export async function GET(req: NextRequest) {
         for (const record of teacherAbsenceRecords) {
           absenceDeduction += record.deductionApplied;
           
-          // Package breakdown not available in current schema
-          let packageBreakdown = null;
-          
           // Parse time slots if available
           let timeSlots = null;
           if (record.timeSlots) {
@@ -689,11 +686,49 @@ export async function GET(req: NextRequest) {
             reason: record.permitted ? "Permitted absence" : "Unpermitted absence",
             deduction: record.deductionApplied,
             timeSlots: timeSlots ? timeSlots.length : null,
-            packageBreakdown: packageBreakdown,
             uniqueTimeSlots: timeSlots,
             permitted: record.permitted,
             reviewNotes: record.reviewNotes
           });
+        }
+        
+        // Add computed absences if no records exist
+        if (teacherAbsenceRecords.length === 0) {
+          // Check for missing days and calculate deductions
+          for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+            // Skip Sundays if not included
+            if (!includeSundays && d.getDay() === 0) continue;
+            
+            const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+            
+            // Check if teacher was scheduled but didn't send zoom links
+            const scheduledStudents = currentStudents.filter(student => {
+              // Simple day check - you may need to adjust based on your daypackages logic
+              return student.zoom_links.length === 0; // No zoom links sent
+            });
+            
+            if (scheduledStudents.length > 0) {
+              // Calculate package-based deduction
+              let dailyDeduction = 0;
+              for (const student of scheduledStudents) {
+                const packageRate = packageDeductionMap[student.package]?.absence || 25;
+                dailyDeduction += packageRate;
+              }
+              
+              if (dailyDeduction > 0) {
+                absenceDeduction += dailyDeduction;
+                absenceBreakdown.push({
+                  date: format(d, "yyyy-MM-dd"),
+                  reason: "Auto-detected absence (no zoom links)",
+                  deduction: dailyDeduction,
+                  timeSlots: 1,
+                  uniqueTimeSlots: ['Whole Day'],
+                  permitted: false,
+                  reviewNotes: `Computed absence for ${scheduledStudents.length} students`
+                });
+              }
+            }
+          }
         }
         
         // === STEP 5: CALCULATE BONUSES ===
@@ -712,7 +747,12 @@ export async function GET(req: NextRequest) {
         const finalLatenessDeduction = Math.round(latenessDeduction);
         const finalAbsenceDeduction = Math.round(absenceDeduction);
         const finalBonusAmount = Math.round(bonusAmount);
-        const totalSalary = finalBaseSalary - finalLatenessDeduction - finalAbsenceDeduction + finalBonusAmount;
+        const totalSalary = Math.round(finalBaseSalary - finalLatenessDeduction - finalAbsenceDeduction + finalBonusAmount);
+        
+        // Debug log to ensure absence deduction is calculated
+        if (finalAbsenceDeduction > 0) {
+          console.log(`Teacher ${t.ustazname}: Absence deduction = ${finalAbsenceDeduction} ETB`);
+        }
         
         // === STEP 7: GET PAYMENT STATUS ===
         let status: "Paid" | "Unpaid" = "Unpaid";
@@ -750,7 +790,7 @@ export async function GET(req: NextRequest) {
             })),
             studentBreakdown: dailyBreakdown,
             latenessBreakdown,
-            absenceBreakdown: absenceBreakdown.length > 0 ? absenceBreakdown : [],
+            absenceBreakdown,
             summary: {
               workingDaysInMonth: workingDays,
               actualTeachingDays: totalTeachingDays,
