@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { adjustmentType, dateRange, teacherIds, reason } = await req.json();
+    const { adjustmentType, dateRange, teacherIds, timeSlots, reason } = await req.json();
     
     if (!dateRange?.startDate || !dateRange?.endDate || !teacherIds?.length || !reason?.trim()) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
             adjustmentType,
             teacherIds,
             dateRange,
+            timeSlots,
             recordsAffected,
             totalAmountWaived,
             reason

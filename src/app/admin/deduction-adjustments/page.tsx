@@ -396,10 +396,29 @@ export default function DeductionAdjustmentsPage() {
               onClick={handleAdjustment}
               disabled={loading || previewData.length === 0 || !reason.trim()}
               className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+              title={`Loading: ${loading}, Records: ${previewData.length}, Reason: ${reason.trim() ? 'Yes' : 'No'}`}
             >
               <FiCheck className="h-4 w-4" />
-              2. Apply Adjustments
+              2. Apply Adjustments ({previewData.length} records)
             </button>
+
+            {/* Emergency Save Button - Always available when conditions are met */}
+            {previewData.length > 0 && reason.trim() && (
+              <button
+                onClick={async () => {
+                  const confirmed = window.confirm(
+                    `🚨 EMERGENCY SAVE\n\nForce apply ${previewData.length} adjustments?\n\nThis bypasses loading checks.`
+                  );
+                  if (confirmed) {
+                    await handleAdjustment();
+                  }
+                }}
+                className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+              >
+                <FiCheck className="h-4 w-4" />
+                💾 Force Save
+              </button>
+            )}
           </div>
 
           {/* Preview Section */}
