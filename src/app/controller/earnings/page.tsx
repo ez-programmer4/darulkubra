@@ -102,13 +102,13 @@ export default function ControllerEarningsPage() {
 
     const tips: string[] = [];
 
-    if (earnings.unpaidActiveThisMonth > 0) {
+    if (earnings.unpaidActiveThisMonth && earnings.unpaidActiveThisMonth > 0) {
       tips.push(
         "💡 Focus on getting unpaid students to pay to avoid penalties"
       );
     }
 
-    if (earnings.leaveStudentsThisMonth > 5) {
+    if (earnings.leaveStudentsThisMonth && earnings.leaveStudentsThisMonth > 5) {
       tips.push("💡 Try to reduce student leaves to avoid penalty deductions");
     }
 
@@ -116,11 +116,11 @@ export default function ControllerEarningsPage() {
       tips.push("💡 Encourage referrals to earn bonus rewards");
     }
 
-    if (earnings.activeStudents < 10) {
+    if (earnings.activeStudents && earnings.activeStudents < 10) {
       tips.push("💡 Work on increasing your active student count");
     }
 
-    if (earnings.growthRate < 0) {
+    if (earnings.growthRate && earnings.growthRate < 0) {
       tips.push("💡 Focus on improving this month's performance");
     }
 
@@ -132,7 +132,7 @@ export default function ControllerEarningsPage() {
 
     const badges: Array<{name: string; icon: string; color: string}> = [];
 
-    if (earnings.achievementPercentage >= 100) {
+    if (earnings.achievementPercentage && earnings.achievementPercentage >= 100) {
       badges.push({
         name: "Target Achiever",
         icon: "🎯",
@@ -140,7 +140,7 @@ export default function ControllerEarningsPage() {
       });
     }
 
-    if (earnings.growthRate > 0) {
+    if (earnings.growthRate && earnings.growthRate > 0) {
       badges.push({
         name: "Growth Champion",
         icon: "📈",
@@ -148,7 +148,7 @@ export default function ControllerEarningsPage() {
       });
     }
 
-    if (earnings.referencedActiveStudents > 0) {
+    if (earnings.referencedActiveStudents && earnings.referencedActiveStudents > 0) {
       badges.push({
         name: "Referral Master",
         icon: "🎁",
@@ -156,7 +156,7 @@ export default function ControllerEarningsPage() {
       });
     }
 
-    if (earnings.unpaidActiveThisMonth === 0) {
+    if (earnings.unpaidActiveThisMonth !== undefined && earnings.unpaidActiveThisMonth === 0) {
       badges.push({
         name: "Payment Perfect",
         icon: "✅",
@@ -164,7 +164,7 @@ export default function ControllerEarningsPage() {
       });
     }
 
-    if (earnings.leaveStudentsThisMonth === 0) {
+    if (earnings.leaveStudentsThisMonth !== undefined && earnings.leaveStudentsThisMonth === 0) {
       badges.push({
         name: "Retention Expert",
         icon: "🤝",
@@ -224,8 +224,8 @@ export default function ControllerEarningsPage() {
   };
 
   const motivationalMessage = getMotivationalMessage();
-  const performanceTips = getPerformanceTips();
-  const achievementBadges = getAchievementBadges();
+  const performanceTips = getPerformanceTips() || [];
+  const achievementBadges = getAchievementBadges() || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -302,7 +302,7 @@ export default function ControllerEarningsPage() {
         )}
 
         {/* Achievement Badges */}
-        {Array.isArray(achievementBadges) && achievementBadges.length > 0 && (
+        {achievementBadges && achievementBadges.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -596,7 +596,7 @@ export default function ControllerEarningsPage() {
         </div>
 
         {/* Performance Tips */}
-        {Array.isArray(performanceTips) && performanceTips.length > 0 && (
+        {performanceTips && performanceTips.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
