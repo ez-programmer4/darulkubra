@@ -496,7 +496,9 @@ export default function DeductionAdjustmentsPage() {
                             <th className="text-left p-3 font-bold">Teacher</th>
                             <th className="text-left p-3 font-bold">Date</th>
                             <th className="text-left p-3 font-bold">Type</th>
-                            <th className="text-left p-3 font-bold">Details</th>
+                            <th className="text-left p-3 font-bold">Student/Info</th>
+                            <th className="text-left p-3 font-bold">Time Details</th>
+                            <th className="text-left p-3 font-bold">Package/Tier</th>
                             <th className="text-right p-3 font-bold">Amount (ETB)</th>
                           </tr>
                         </thead>
@@ -514,7 +516,45 @@ export default function DeductionAdjustmentsPage() {
                                   {record.type}
                                 </span>
                               </td>
-                              <td className="p-3 text-xs text-gray-600">{record.details}</td>
+                              <td className="p-3 text-xs">
+                                {record.type === 'Lateness' ? (
+                                  <div>
+                                    <div className="font-medium text-gray-900">{record.studentName}</div>
+                                    <div className="text-gray-500">Student ID: {record.studentId || 'N/A'}</div>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div className="font-medium text-gray-900">{record.source === 'computed' ? 'Auto-detected' : 'Database Record'}</div>
+                                    <div className="text-gray-500">{record.affectedStudents?.length || 0} students affected</div>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-3 text-xs">
+                                {record.type === 'Lateness' ? (
+                                  <div>
+                                    <div className="font-medium text-red-600">{record.latenessMinutes} min late</div>
+                                    <div className="text-gray-500">Scheduled: {record.timeSlot}</div>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div className="font-medium text-red-600">Full Day</div>
+                                    <div className="text-gray-500">{record.permitted ? 'Permitted' : 'Unpermitted'}</div>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-3 text-xs">
+                                {record.type === 'Lateness' ? (
+                                  <div>
+                                    <div className="font-medium text-blue-600">{record.studentPackage || 'Unknown'}</div>
+                                    <div className="text-gray-500">{record.tier?.split(' - ')[0] || 'No Tier'}</div>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div className="font-medium text-blue-600">Mixed Packages</div>
+                                    <div className="text-gray-500">{record.affectedStudents?.map((s: any) => s.package).join(', ') || 'N/A'}</div>
+                                  </div>
+                                )}
+                              </td>
                               <td className="p-3 text-right font-mono font-bold text-green-600">
                                 +{record.deduction}
                               </td>
@@ -580,34 +620,66 @@ export default function DeductionAdjustmentsPage() {
                     <table className="w-full text-sm">
                       <thead className="bg-gray-100 sticky top-0">
                         <tr>
-                          <th className="text-left p-3 font-bold">Date Applied</th>
+                          <th className="text-left p-3 font-bold">Applied</th>
                           <th className="text-left p-3 font-bold">Teacher</th>
                           <th className="text-left p-3 font-bold">Type</th>
                           <th className="text-left p-3 font-bold">Deduction Date</th>
-                          <th className="text-right p-3 font-bold">Amount (ETB)</th>
-                          <th className="text-left p-3 font-bold">Reason</th>
+                          <th className="text-right p-3 font-bold">Amount</th>
+                          <th className="text-left p-3 font-bold">Admin</th>
+                          <th className="text-left p-3 font-bold">Reason & Details</th>
                         </tr>
                       </thead>
                       <tbody>
                         {waiverHistory.map((waiver, index) => (
                           <tr key={index} className="border-b hover:bg-gray-50">
-                            <td className="p-3">{new Date(waiver.createdAt).toLocaleDateString()}</td>
-                            <td className="p-3 font-medium">{waiver.teacherName}</td>
+                            <td className="p-3">
+                              <div className="text-xs">
+                                <div className="font-medium">{new Date(waiver.createdAt).toLocaleDateString()}</div>
+                                <div className="text-gray-500">{new Date(waiver.createdAt).toLocaleTimeString()}</div>
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <div className="text-xs">
+                                <div className="font-medium text-gray-900">{waiver.teacherName}</div>
+                                <div className="text-gray-500">ID: {waiver.teacherId}</div>
+                              </div>
+                            </td>
                             <td className="p-3">
                               <span className={`px-2 py-1 rounded text-xs font-bold ${
                                 waiver.deductionType === 'lateness' 
                                   ? 'bg-orange-100 text-orange-800' 
                                   : 'bg-red-100 text-red-800'
                               }`}>
-                                {waiver.deductionType === 'lateness' ? 'Lateness' : 'Absence'}
+                                {waiver.deductionType === 'lateness' ? '⏰ Lateness' : '❌ Absence'}
                               </span>
                             </td>
-                            <td className="p-3">{new Date(waiver.deductionDate).toLocaleDateString()}</td>
-                            <td className="p-3 text-right font-mono font-bold text-green-600">
-                              +{waiver.originalAmount}
+                            <td className="p-3">
+                              <div className="text-xs">
+                                <div className="font-medium">{new Date(waiver.deductionDate).toLocaleDateString()}</div>
+                                <div className="text-gray-500">{new Date(waiver.deductionDate).toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                              </div>
                             </td>
-                            <td className="p-3 text-xs text-gray-600 max-w-xs truncate" title={waiver.reason}>
-                              {waiver.reason}
+                            <td className="p-3 text-right">
+                              <div className="text-xs">
+                                <div className="font-mono font-bold text-green-600">+{waiver.originalAmount}</div>
+                                <div className="text-gray-500">ETB</div>
+                              </div>
+                            </td>
+                            <td className="p-3 text-xs">
+                              <div className="font-medium text-blue-600">{waiver.adminId}</div>
+                              <div className="text-gray-500">Admin</div>
+                            </td>
+                            <td className="p-3 text-xs max-w-sm">
+                              <div className="space-y-1">
+                                <div className="font-medium text-gray-900 line-clamp-2">
+                                  {waiver.reason.split('|')[0]?.trim() || waiver.reason}
+                                </div>
+                                {waiver.reason.includes('|') && (
+                                  <div className="text-gray-500 text-xs bg-gray-50 p-1 rounded">
+                                    {waiver.reason.split('|')[1]?.trim()}
+                                  </div>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}

@@ -1,94 +1,57 @@
 import { prisma } from "@/lib/prisma";
 
+/**
+ * Check if a deduction is waived for a specific teacher, date, and type
+ */
 export async function isDeductionWaived(
   teacherId: string,
-  date: Date,
-  type: 'lateness' | 'absence'
+  deductionDate: Date,
+  deductionType: 'lateness' | 'absence'
 ): Promise<boolean> {
   try {
-    const dateStr = date.toISOString().split('T')[0];
-    
-    // Check for waiver settings that cover this teacher and date
-    const waivers = await prisma.setting.findMany({
+    const waiver = await prisma.deduction_waivers.findFirst({
       where: {
-        key: {
-          startsWith: `deduction_waiver_waive_${type}`
+        teacherId,
+        deductionType,
+        deductionDate: {
+          gte: new Date(deductionDate.getFullYear(), deductionDate.getMonth(), deductionDate.getDate()),
+          lt: new Date(deductionDate.getFullYear(), deductionDate.getMonth(), deductionDate.getDate() + 1)
         }
       }
     });
-    
-    for (const waiver of waivers) {
-      try {
-        const waiverData = JSON.parse(waiver.value || '{}');
-        
-        // Extract date range from the key
-        const keyParts = waiver.key.split('_');
-        const startDate = keyParts[keyParts.length - 2];
-        const endDate = keyParts[keyParts.length - 1];
-        
-        // Check if this teacher and date are covered by the waiver
-        if (
-          waiverData.teacherIds?.includes(teacherId) &&
-          dateStr >= startDate &&
-          dateStr <= endDate
-        ) {
-          return true;
-        }
-      } catch (error) {
-        console.error('Error parsing waiver data:', error);
-      }
-    }
-    
-    return false;
+
+    return !!waiver;
   } catch (error) {
     console.error('Error checking deduction waiver:', error);
     return false;
   }
 }
 
-export async function getWaiverInfo(
+/**
+ * Get all waivers for a teacher in a date range
+ */
+export async function getTeacherWaivers(
   teacherId: string,
-  date: Date,
-  type: 'lateness' | 'absence'
-): Promise<{ isWaived: boolean; reason?: string; adminId?: string } | null> {
+  startDate: Date,
+  endDate: Date,
+  deductionType?: 'lateness' | 'absence'
+) {
   try {
-    const dateStr = date.toISOString().split('T')[0];
-    
-    const waivers = await prisma.setting.findMany({
-      where: {
-        key: {
-          startsWith: `deduction_waiver_waive_${type}`
-        }
-      }
-    });
-    
-    for (const waiver of waivers) {
-      try {
-        const waiverData = JSON.parse(waiver.value || '{}');
-        
-        const keyParts = waiver.key.split('_');
-        const startDate = keyParts[keyParts.length - 2];
-        const endDate = keyParts[keyParts.length - 1];
-        
-        if (
-          waiverData.teacherIds?.includes(teacherId) &&
-          dateStr >= startDate &&
-          dateStr <= endDate
-        ) {
-          return {
-            isWaived: true,
-            reason: waiverData.reason,
-            adminId: waiverData.adminId
-          };
-        }
-      } catch (error) {
-        console.error('Error parsing waiver data:', error);
-      }
+    const where: any = {
+      teacherId,
+      deductionDate: { gte: startDate, lte: endDate }
+    };
+
+    if (deductionType) {
+      where.deductionType = deductionType;
     }
-    
-    return { isWaived: false };
+
+    return await prisma.deduction_waivers.findMany({
+      where,
+      orderBy: { deductionDate: 'asc' }
+    });
   } catch (error) {
-    console.error('Error getting waiver info:', error);
-    return { isWaived: false };
+    console.error('Error fetching teacher waivers:', error);
+    return [];
   }
 }

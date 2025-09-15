@@ -359,11 +359,13 @@ export async function POST(req: NextRequest) {
                     teacherId,
                     teacherName: teacher.ustazname,
                     studentName: link.studentName,
+                    studentId: link.studentId,
                     date: new Date(dateStr),
                     type: "Lateness",
                     deduction,
                     latenessMinutes,
                     timeSlot: link.timeSlot,
+                    studentPackage,
                     tier,
                     details: `${latenessMinutes} min late, ${link.timeSlot}, ${studentPackage}`,
                   });

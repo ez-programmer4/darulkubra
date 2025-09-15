@@ -38,8 +38,10 @@ export async function GET(req: NextRequest) {
             { status: 400 }
           );
         }
-        let teacherQuery = { ustazid: id };
-
+        userDetails = await prisma.wpos_wpdatatable_24.findUnique({
+          where: { ustazid: id },
+          select: { ustazid: true, ustazname: true, phone: true },
+        });
         break;
       case "admin":
         userDetails = await prisma.admin.findUnique({

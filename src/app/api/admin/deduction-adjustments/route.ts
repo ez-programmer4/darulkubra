@@ -39,29 +39,37 @@ export async function POST(req: NextRequest) {
         });
 
         if (absenceRecords.length > 0) {
+          console.log(`💾 PROCESSING ${absenceRecords.length} ABSENCE RECORDS FOR WAIVER`);
+          
           // Mark absence records as waived
-          await tx.absencerecord.updateMany({
+          const updatedRecords = await tx.absencerecord.updateMany({
             where: { id: { in: absenceRecords.map(r => r.id) } },
             data: { isWaived: true, waiverReason: reason }
           });
+          
+          console.log(`✅ MARKED ${updatedRecords.count} ABSENCE RECORDS AS WAIVED`);
 
           // Create waiver records
           const waiverData = absenceRecords.map(record => ({
             teacherId: record.teacherId,
-            deductionType: 'absence',
+            deductionType: 'absence' as const,
             deductionDate: record.classDate,
             originalAmount: record.deductionApplied,
             reason,
             adminId
           }));
 
-          await tx.deduction_waivers.createMany({ 
+          const createdWaivers = await tx.deduction_waivers.createMany({ 
             data: waiverData,
             skipDuplicates: true 
           });
+          
+          console.log(`✅ CREATED ${createdWaivers.count} ABSENCE WAIVER RECORDS`);
 
-          recordsAffected = absenceRecords.length;
+          recordsAffected = createdWaivers.count;
           totalAmountWaived = absenceRecords.reduce((sum, r) => sum + r.deductionApplied, 0);
+          
+          console.log(`💰 TOTAL ABSENCE AMOUNT WAIVED: ${totalAmountWaived} ETB`);
         }
       }
 
@@ -230,11 +238,28 @@ export async function POST(req: NextRequest) {
         }
 
         if (waiverData.length > 0) {
-          await tx.deduction_waivers.createMany({ 
+          // CRITICAL: Log waiver creation for audit
+          console.log(`💾 CREATING ${waiverData.length} LATENESS WAIVERS:`, 
+            waiverData.map(w => `${w.teacherId} - ${w.deductionDate.toISOString().split('T')[0]} - ${w.originalAmount} ETB`)
+          );
+          
+          const createdWaivers = await tx.deduction_waivers.createMany({ 
             data: waiverData,
             skipDuplicates: true 
           });
-          recordsAffected = waiverData.length;
+          
+          console.log(`✅ SUCCESSFULLY CREATED ${createdWaivers.count} LATENESS WAIVERS`);
+          recordsAffected = createdWaivers.count;
+          
+          // Verify creation
+          const verifyCount = await tx.deduction_waivers.count({
+            where: {
+              teacherId: { in: teacherIds },
+              deductionType: 'lateness',
+              deductionDate: { gte: startDate, lte: endDate }
+            }
+          });
+          console.log(`🔍 VERIFICATION: ${verifyCount} lateness waivers now exist in database`);
         }
       }
 
