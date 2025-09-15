@@ -68,9 +68,19 @@ export default function ControllerEarningsPage() {
       }
 
       const data = await response.json();
-      setEarnings(data.earnings);
+      console.log('API Response:', data); // Debug log
+      
+      // Ensure we're setting the earnings object correctly
+      if (data.earnings && typeof data.earnings === 'object') {
+        setEarnings(data.earnings);
+      } else {
+        console.warn('Invalid earnings data structure:', data.earnings);
+        setEarnings(null);
+      }
     } catch (error) {
+      console.error('Fetch earnings error:', error);
       toast.error("Failed to load earnings data");
+      setEarnings(null);
     } finally {
       setLoading(false);
     }

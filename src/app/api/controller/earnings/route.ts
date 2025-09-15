@@ -54,10 +54,10 @@ export async function GET(request: NextRequest) {
         yearMonth,
       });
 
-      if (earnings.length === 0) {
+      if (!earnings || earnings.length === 0) {
         return NextResponse.json({
           message: "No earnings data found for this controller",
-          earnings: [],
+          earnings: null,
         });
       }
 
