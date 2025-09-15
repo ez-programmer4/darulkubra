@@ -58,15 +58,20 @@ export default function ControllerQualityPage() {
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const [pos, neg] = await Promise.all([
-          fetch(qualityDescUrl + "?type=positive").then((r) => r.json()),
-          fetch(qualityDescUrl + "?type=negative").then((r) => r.json()),
+        const [posRes, negRes] = await Promise.all([
+          fetch(qualityDescUrl + "?type=positive"),
+          fetch(qualityDescUrl + "?type=negative"),
         ]);
+        
+        const pos = posRes.ok ? await posRes.json() : [];
+        const neg = negRes.ok ? await negRes.json() : [];
+        
         setCategories({
           positive: Array.isArray(pos) ? pos : [],
           negative: Array.isArray(neg) ? neg : [],
         });
-      } catch {
+      } catch (error) {
+        console.error('Error fetching categories:', error);
         setCategories({ positive: [], negative: [] });
       }
     }
@@ -430,7 +435,7 @@ export default function ControllerQualityPage() {
                           <FiPlus /> Positive Feedback
                         </h3>
                         <ul className="space-y-4">
-                          {(categories.positive || []).map((cat) => {
+                          {Array.isArray(categories.positive) && categories.positive.map((cat) => {
                             const checked = (
                               form[teacher.ustazid]?.positive || []
                             ).some((c: any) => c.id === cat.id);
@@ -512,7 +517,7 @@ export default function ControllerQualityPage() {
                           <FiX /> Negative Feedback
                         </h3>
                         <ul className="space-y-4">
-                          {(categories.negative || []).map((cat) => {
+                          {Array.isArray(categories.negative) && categories.negative.map((cat) => {
                             const checked = (
                               form[teacher.ustazid]?.negative || []
                             ).some((c: any) => c.id === cat.id);
