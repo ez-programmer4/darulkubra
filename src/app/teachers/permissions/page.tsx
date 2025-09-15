@@ -368,7 +368,7 @@ export default function TeacherPermissions() {
     (acc, perm) => {
       acc.total++;
       if (perm.status === "Approved") acc.approved++;
-      else if (perm.status === "Rejected") acc.rejected++;
+      else if (perm.status === "Rejected" || perm.status === "Declined") acc.rejected++;
       else acc.pending++;
       return acc;
     },
@@ -759,9 +759,9 @@ export default function TeacherPermissions() {
                         <span className="inline-block px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
                           Approved
                         </span>
-                      ) : perm.status === "Rejected" ? (
+                      ) : perm.status === "Rejected" || perm.status === "Declined" ? (
                         <span className="inline-block px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-medium">
-                          Rejected
+                          {perm.status === "Declined" ? "Declined" : "Rejected"}
                         </span>
                       ) : (
                         <span className="inline-block px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium">
