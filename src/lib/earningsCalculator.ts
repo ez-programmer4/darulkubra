@@ -135,14 +135,17 @@ export class EarningsCalculator {
           (
             SELECT COUNT(DISTINCT b.wdt_ID)
             FROM wpos_wpdatatable_23 b
-            JOIN months_table pm ON pm.studentid = b.wdt_ID 
-              AND pm.month = ? 
-              AND (UPPER(pm.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR pm.is_free_month = 1)
             WHERE b.status = 'Active'
               AND b.refer = a.u_control
-              AND b.startdate BETWEEN ? AND ?
+              AND b.refer IS NOT NULL
+              AND b.refer != ''
               AND DATE_FORMAT(b.registrationdate,'%Y-%m') = ?
-              AND b.rigistral IS NULL
+              AND EXISTS(
+                SELECT 1 FROM months_table pm
+                WHERE pm.studentid = b.wdt_ID 
+                  AND pm.month = ? 
+                  AND (UPPER(pm.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR pm.is_free_month = 1)
+              )
           ) AS Referenced_Active_Students,
           COUNT(DISTINCT CASE 
             WHEN a.status IN('Active','Not Yet')
@@ -170,11 +173,9 @@ export class EarningsCalculator {
         this.yearMonth, // month for paid students
         // Unpaid check month
         this.yearMonth, // month for unpaid check
-        // Referenced students month and window
-        this.yearMonth, // month for referenced students (paid)
-        this.startDate.toISOString().split("T")[0], // start date for referenced students
-        this.endDate.toISOString().split("T")[0], // end date for referenced students
+        // Referenced students - registration month and payment month
         this.yearMonth, // registration month for referenced students
+        this.yearMonth, // payment month for referenced students
       ];
 
       if (params.controllerId) {
