@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const readingReward = settingsMap.reading_reward || 50;
     const hifzReward = settingsMap.hifz_reward || 100;
 
-    // Get registrar earnings data
+    // Get registrar earnings data (only students with no referral)
     const registrations = await prisma.wpos_wpdatatable_23.findMany({
       select: {
         wdt_ID: true,
@@ -50,6 +50,10 @@ export async function GET(request: NextRequest) {
       },
       where: {
         rigistral: { not: null },
+        OR: [
+          { refer: null },
+          { refer: "" }
+        ]
       },
     });
 

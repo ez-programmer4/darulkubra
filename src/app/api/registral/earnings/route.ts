@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
     const endDate = new Date(parseInt(year), parseInt(monthNum), 0, 23, 59, 59);
 
-    // Get registrations for this specific registral
+    // Get registrations for this specific registral (only students with no referral)
     const registrations = await prisma.wpos_wpdatatable_23.findMany({
       select: {
         wdt_ID: true,
@@ -34,6 +34,10 @@ export async function GET(request: NextRequest) {
       },
       where: {
         rigistral: registralName,
+        OR: [
+          { refer: null },
+          { refer: "" }
+        ]
       },
     });
 

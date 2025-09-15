@@ -100,7 +100,7 @@ export default function ControllerEarningsPage() {
   const getPerformanceTips = () => {
     if (!earnings) return [];
 
-    const tips = [];
+    const tips: string[] = [];
 
     if (earnings.unpaidActiveThisMonth > 0) {
       tips.push(
@@ -130,7 +130,7 @@ export default function ControllerEarningsPage() {
   const getAchievementBadges = () => {
     if (!earnings) return [];
 
-    const badges = [];
+    const badges: Array<{name: string; icon: string; color: string}> = [];
 
     if (earnings.achievementPercentage >= 100) {
       badges.push({
@@ -302,7 +302,7 @@ export default function ControllerEarningsPage() {
         )}
 
         {/* Achievement Badges */}
-        {achievementBadges.length > 0 && (
+        {Array.isArray(achievementBadges) && achievementBadges.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -596,7 +596,7 @@ export default function ControllerEarningsPage() {
         </div>
 
         {/* Performance Tips */}
-        {performanceTips.length > 0 && (
+        {Array.isArray(performanceTips) && performanceTips.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
