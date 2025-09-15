@@ -45,9 +45,16 @@ export default function ControllerQualityPage() {
       try {
         const res = await fetch("/api/controller/teachers");
         if (!res.ok) throw new Error("Failed to fetch teachers");
-        setTeachers(await res.json());
+        const data = await res.json();
+        console.log('Teachers API Response:', data);
+        
+        // Handle both array and object responses
+        const teachersArray = Array.isArray(data) ? data : (data.teachers || []);
+        setTeachers(Array.isArray(teachersArray) ? teachersArray : []);
       } catch (e: any) {
+        console.error('Teachers fetch error:', e);
         setError(e.message || "Failed to load teachers");
+        setTeachers([]);
       } finally {
         setLoading(false);
       }
@@ -89,11 +96,15 @@ export default function ControllerQualityPage() {
       const res = await fetch(`${apiUrl}/${teacherId}/quality-assessments`);
       if (!res.ok) throw new Error("Failed to fetch last week feedback");
       const all = await res.json();
-      const last = all.find(
+      
+      // Ensure all is an array before using find
+      const allArray = Array.isArray(all) ? all : [];
+      const last = allArray.find(
         (r: any) => r.weekStart && r.weekStart.startsWith(lastWeekStartStr)
       );
       setLastWeekFeedback((prev: any) => ({ ...prev, [teacherId]: last }));
-    } catch {
+    } catch (error) {
+      console.error('Fetch last week feedback error:', error);
       setLastWeekFeedback((prev: any) => ({ ...prev, [teacherId]: null }));
     } finally {
       setFetchingLast(false);
@@ -303,7 +314,7 @@ export default function ControllerQualityPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {teachers.map((teacher: any) => (
+            {Array.isArray(teachers) && teachers.map((teacher: any) => (
               <div
                 key={teacher.ustazid}
                 className="bg-white rounded-lg shadow-sm p-6"
@@ -363,7 +374,7 @@ export default function ControllerQualityPage() {
                                       >
                                         Positive:
                                         <ul className="ml-5 list-disc space-y-1">
-                                          {fb.positive.map(
+                                          {Array.isArray(fb.positive) && fb.positive.map(
                                             (c: any, i: number) => (
                                               <li
                                                 key={i}
@@ -393,7 +404,7 @@ export default function ControllerQualityPage() {
                                       >
                                         Negative:
                                         <ul className="ml-5 list-disc space-y-1">
-                                          {fb.negative.map(
+                                          {Array.isArray(fb.negative) && fb.negative.map(
                                             (c: any, i: number) => (
                                               <li
                                                 key={i}

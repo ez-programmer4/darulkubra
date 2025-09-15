@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ teachers });
+    return NextResponse.json(teachers);
   } catch (error) {
     console.error("Controller teachers API error:", error);
     return NextResponse.json(
