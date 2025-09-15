@@ -5,41 +5,72 @@ import { prisma } from "@/lib/prisma";
 import { createAdminNotification } from "@/lib/notifications";
 
 async function sendSMS(phone: string, message: string) {
+  console.log('🔧 SMS DEBUG: Starting SMS send process');
+  
   const apiToken = process.env.AFROMSG_API_TOKEN;
   const senderUid = process.env.AFROMSG_SENDER_UID;
   const senderName = process.env.AFROMSG_SENDER_NAME;
 
-  if (apiToken && senderUid && senderName) {
-    const payload = {
-      from: senderUid,
-      sender: senderName,
-      to: phone,
-      message,
-    };
+  console.log('🔧 SMS DEBUG: Environment variables check:', {
+    hasApiToken: !!apiToken,
+    hasSenderUid: !!senderUid,
+    hasSenderName: !!senderName,
+    apiTokenLength: apiToken?.length || 0,
+    senderUid: senderUid || 'MISSING',
+    senderName: senderName || 'MISSING'
+  });
 
-    try {
-      const response = await fetch("https://api.afromessage.com/api/send", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+  if (!apiToken || !senderUid || !senderName) {
+    console.log('❌ SMS DEBUG: Missing environment variables');
+    return { success: false, error: 'Missing SMS configuration' };
+  }
 
-      const result = await response.text();
+  const payload = {
+    from: senderUid,
+    sender: senderName,
+    to: phone,
+    message,
+  };
 
-      if (!response.ok) {
-        throw new Error(`SMS API error: ${response.status} - ${result}`);
-      }
+  console.log('🔧 SMS DEBUG: Payload prepared:', {
+    to: phone,
+    messageLength: message.length,
+    from: senderUid,
+    sender: senderName
+  });
 
-      return true;
-    } catch (error) {
-      console.error("SMS Error:", error);
-      return false;
+  try {
+    console.log('🔧 SMS DEBUG: Making API request to AfroMessage...');
+    
+    const response = await fetch("https://api.afromessage.com/api/send", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.text();
+    
+    console.log('🔧 SMS DEBUG: API Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      result: result
+    });
+
+    if (!response.ok) {
+      const error = `SMS API error: ${response.status} - ${result}`;
+      console.error('❌ SMS DEBUG: API Error:', error);
+      return { success: false, error };
     }
-  } else {
-    return false;
+
+    console.log('✅ SMS DEBUG: SMS sent successfully!');
+    return { success: true, result };
+  } catch (error) {
+    console.error('❌ SMS DEBUG: Exception occurred:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
@@ -152,8 +183,15 @@ export async function POST(req: NextRequest) {
     const teacherName = teacher?.ustazname || user.id;
 
     // Send SMS notifications to admins with phone numbers
+    console.log('📱 SMS NOTIFICATION: Starting SMS notification process');
+    
     const adminsWithPhone = await prisma.admin.findMany({
       where: { phoneno: { not: null } },
+    });
+
+    console.log('📱 SMS NOTIFICATION: Found admins:', {
+      totalAdmins: adminsWithPhone.length,
+      adminPhones: adminsWithPhone.map(a => ({ id: a.id, phone: a.phoneno }))
     });
 
     // Format time slots for SMS
@@ -162,22 +200,59 @@ export async function POST(req: NextRequest) {
       : timeSlots.join(", ");
 
     const smsMessage = `New absence request from ${teacherName} for ${date} (${timeSlotText}). Reason: ${reason}. Please review in admin panel.`;
+    
+    console.log('📱 SMS NOTIFICATION: Message prepared:', {
+      teacherName,
+      date,
+      timeSlotText,
+      reason,
+      messageLength: smsMessage.length,
+      message: smsMessage
+    });
+    
     let smsCount = 0;
+    const smsResults = [];
 
     for (const admin of adminsWithPhone) {
       try {
         if (admin.phoneno) {
-          const success = await sendSMS(admin.phoneno, smsMessage);
-          if (success) {
+          console.log(`📱 SMS NOTIFICATION: Sending to admin ${admin.id} (${admin.phoneno})`);
+          
+          const result = await sendSMS(admin.phoneno, smsMessage);
+          
+          smsResults.push({
+            adminId: admin.id,
+            phone: admin.phoneno,
+            success: result.success,
+            error: result.error || null
+          });
+          
+          if (result.success) {
             smsCount++;
+            console.log(`✅ SMS NOTIFICATION: Success for admin ${admin.id}`);
           } else {
-            console.log(`SMS failed for admin ${admin.id}`);
+            console.log(`❌ SMS NOTIFICATION: Failed for admin ${admin.id}: ${result.error}`);
           }
+        } else {
+          console.log(`⚠️ SMS NOTIFICATION: Admin ${admin.id} has no phone number`);
         }
       } catch (error) {
-        console.error(`Failed to send SMS to admin ${admin.id}:`, error);
+        console.error(`❌ SMS NOTIFICATION: Exception for admin ${admin.id}:`, error);
+        smsResults.push({
+          adminId: admin.id,
+          phone: admin.phoneno,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
     }
+    
+    console.log('📱 SMS NOTIFICATION: Final results:', {
+      totalAttempts: adminsWithPhone.length,
+      successCount: smsCount,
+      failureCount: adminsWithPhone.length - smsCount,
+      results: smsResults
+    });
 
     // Create system notifications for all admins
     let notificationCount = 0;
@@ -212,6 +287,14 @@ export async function POST(req: NextRequest) {
           debug: {
             admins_with_phone: adminsWithPhone.length,
             sms_attempts: adminsWithPhone.filter((a) => a.phoneno).length,
+            sms_results: smsResults,
+            teacher_name: teacherName,
+            sms_message: smsMessage,
+            env_check: {
+              has_api_token: !!process.env.AFROMSG_API_TOKEN,
+              has_sender_uid: !!process.env.AFROMSG_SENDER_UID,
+              has_sender_name: !!process.env.AFROMSG_SENDER_NAME
+            }
           },
         },
       },
