@@ -80,7 +80,11 @@ export default function ControllerTeachers() {
       }
 
       const data = await response.json();
-      setTeachers(data.teachers || []);
+      console.log('Teachers API Response:', data);
+      
+      // Handle both array and object responses
+      const teachersArray = Array.isArray(data) ? data : (data.teachers || []);
+      setTeachers(Array.isArray(teachersArray) ? teachersArray : []);
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Failed to load teachers"
