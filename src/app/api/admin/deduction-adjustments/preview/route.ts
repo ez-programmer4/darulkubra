@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         if (!teacher) continue;
 
         // Get package deduction rates (same as teacher payments)
-        const packageDeductions = await prisma.packagededuction.findMany();
+        const packageDeductions = await prisma.packageDeduction.findMany();
         const packageDeductionMap: Record<
           string,
           { lateness: number; absence: number }
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
         if (!teacher) continue;
 
         // Get package deduction rates
-        const packageDeductions = await prisma.packagededuction.findMany();
+        const packageDeductions = await prisma.packageDeduction.findMany();
         const packageDeductionMap: Record<
           string,
           { lateness: number; absence: number }

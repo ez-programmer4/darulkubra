@@ -823,12 +823,3 @@ model deduction_waivers {
   @@index([deductionType, deductionDate], map: "idx_type_date")
   @@index([adminId], map: "idx_admin")
 }
-
-model packagededuction {
-  id                 Int      @id @default(autoincrement())
-  packageName        String   @unique(map: "PackageDeduction_packageName_key")
-  latenessBaseAmount Decimal  @default(30.00) @db.Decimal(10, 2)
-  absenceBaseAmount  Decimal  @default(25.00) @db.Decimal(10, 2)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime
-}

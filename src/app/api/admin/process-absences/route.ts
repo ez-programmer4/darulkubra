@@ -208,7 +208,7 @@ export async function POST() {
           // Only create absence record if there are unpermitted absences
           if (!isPermitted && unpermittedTimeSlots.length > 0) {
             // Get package deduction rates
-            const packageDeductions = await prisma.packagededuction.findMany();
+            const packageDeductions = await prisma.packageDeduction.findMany();
             const packageRateMap = packageDeductions.reduce((acc, pd) => {
               acc[pd.packageName] = Number(pd.absenceBaseAmount) || 25;
               return acc;

@@ -89,7 +89,7 @@ export async function calculateLatenessAndDeduction({
   });
 
   // Get package-specific deduction configurations
-  const packageDeductions = await prisma.packagededuction.findMany();
+  const packageDeductions = await prisma.packageDeduction.findMany();
   const packageDeductionMap: Record<string, number> = {};
   packageDeductions.forEach((pkg) => {
     packageDeductionMap[pkg.packageName] = Number(pkg.latenessBaseAmount);

@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   endDate.setHours(23, 59, 59, 999);
 
   // Get package-specific deduction configurations
-  const packageDeductions = await prisma.packagededuction.findMany();
+  const packageDeductions = await prisma.packageDeduction.findMany();
   const packageDeductionMap: Record<string, number> = {};
   packageDeductions.forEach((pkg) => {
     packageDeductionMap[pkg.packageName] = Number(pkg.latenessBaseAmount);

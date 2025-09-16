@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       const fromDate = new Date(from);
       const toDate = new Date(to);
       // Get package-specific deduction configurations
-      const packageDeductions = await prisma.packagededuction.findMany();
+      const packageDeductions = await prisma.packageDeduction.findMany();
       const packageDeductionMap: Record<
         string,
         { lateness: number; absence: number }
@@ -240,7 +240,7 @@ export async function GET(req: NextRequest) {
       }
       // UNIFIED ABSENCE CALCULATION - Same logic as main table
       // Get package deduction rates for consistency
-      const detailPackageDeductions = await prisma.packagededuction.findMany();
+      const detailPackageDeductions = await prisma.packageDeduction.findMany();
       const detailPackageDeductionMap: Record<
         string,
         { lateness: number; absence: number }
@@ -510,7 +510,7 @@ export async function GET(req: NextRequest) {
           const latenessBreakdown = [];
 
           // Get package-specific deduction configurations
-          const packageDeductions = await prisma.packagededuction.findMany();
+          const packageDeductions = await prisma.packageDeduction.findMany();
           const packageDeductionMap: Record<
             string,
             { lateness: number; absence: number }

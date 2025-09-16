@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
 
         for (const teacherId of teacherIds) {
           // Get package deduction rates
-          const packageDeductions = await tx.packagededuction.findMany();
+          const packageDeductions = await tx.packageDeduction.findMany();
           const packageDeductionMap: Record<
             string,
             { lateness: number; absence: number }
