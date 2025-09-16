@@ -153,15 +153,6 @@ export async function GET(request: NextRequest) {
           }
         });
 
-        console.log(`${registrar} subject breakdown:`, {
-          total: successResults.length,
-          reading: stats.reading,
-          hifz: stats.hifz,
-          other: otherSubjects,
-          null: nullSubjects,
-          subjects: subjectBreakdown,
-        });
-
         // Calculate reward using dynamic values
         stats.reward = stats.reading * readingReward + stats.hifz * hifzReward;
 
@@ -196,13 +187,6 @@ export async function GET(request: NextRequest) {
       notSuccess: sortedEarnings.reduce((sum, e) => sum + e.notSuccess, 0),
       reward: sortedEarnings.reduce((sum, e) => sum + e.reward, 0),
     };
-
-    console.log("=== API DEBUG TOTALS ===", debugTotals);
-    console.log(
-      "Success + NotSuccess =",
-      debugTotals.successReg + debugTotals.notSuccess
-    );
-    console.log("Should equal Total Reg?", debugTotals.totalReg);
 
     return NextResponse.json({
       earnings: sortedEarnings,

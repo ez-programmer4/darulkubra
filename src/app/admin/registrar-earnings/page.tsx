@@ -38,26 +38,35 @@ export default function RegistrarEarningsPage() {
   const [earnings, setEarnings] = useState<RegistrarEarning[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState<Settings>({ reading_reward: 50, hifz_reward: 100 });
-  const [tempSettings, setTempSettings] = useState<Settings>({ reading_reward: 50, hifz_reward: 100 });
+  const [settings, setSettings] = useState<Settings>({
+    reading_reward: 50,
+    hifz_reward: 100,
+  });
+  const [tempSettings, setTempSettings] = useState<Settings>({
+    reading_reward: 50,
+    hifz_reward: 100,
+  });
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     // Default to current month, or previous month if we're early in the month
     const month = now.getDate() < 5 ? now.getMonth() : now.getMonth() + 1;
     const year = month === 0 ? now.getFullYear() - 1 : now.getFullYear();
     const adjustedMonth = month === 0 ? 12 : month;
-    return `${year}-${adjustedMonth.toString().padStart(2, '0')}`;
+    return `${year}-${adjustedMonth.toString().padStart(2, "0")}`;
   });
 
   const fetchEarnings = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/admin/registrar-earnings?month=${selectedMonth}`);
-      if (!response.ok) throw new Error('Failed to fetch earnings');
+      const response = await fetch(
+        `/api/admin/registrar-earnings?month=${selectedMonth}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch earnings");
       const data = await response.json();
       // Filter out registrars with no activity
-      const activeEarnings = (data.earnings || []).filter((earning: RegistrarEarning) => 
-        earning.totalReg > 0 || earning.successReg > 0
+      const activeEarnings = (data.earnings || []).filter(
+        (earning: RegistrarEarning) =>
+          earning.totalReg > 0 || earning.successReg > 0
       );
       setEarnings(activeEarnings);
       if (data.settings) {
@@ -65,7 +74,7 @@ export default function RegistrarEarningsPage() {
         setTempSettings(data.settings);
       }
     } catch (error) {
-      console.error('Error fetching earnings:', error);
+      console.error("Error fetching earnings:", error);
       setEarnings([]);
     } finally {
       setLoading(false);
@@ -74,10 +83,10 @@ export default function RegistrarEarningsPage() {
 
   const saveSettings = async () => {
     try {
-      const response = await fetch('/api/admin/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(tempSettings)
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tempSettings),
       });
       if (response.ok) {
         setSettings(tempSettings);
@@ -85,7 +94,7 @@ export default function RegistrarEarningsPage() {
         fetchEarnings(); // Refresh data with new settings
       }
     } catch (error) {
-      console.error('Error saving settings:', error);
+      console.error("Error saving settings:", error);
     }
   };
 
@@ -94,35 +103,43 @@ export default function RegistrarEarningsPage() {
   }, [selectedMonth]);
 
   const totalReward = earnings.reduce((sum, item) => sum + item.reward, 0);
-  const totalRegistrations = earnings.reduce((sum, item) => sum + item.totalReg, 0);
+  const totalRegistrations = earnings.reduce(
+    (sum, item) => sum + item.totalReg,
+    0
+  );
   const totalSuccess = earnings.reduce((sum, item) => sum + item.successReg, 0);
   const totalReading = earnings.reduce((sum, item) => sum + item.reading, 0);
   const totalHifz = earnings.reduce((sum, item) => sum + item.hifz, 0);
-  const totalNotSuccess = earnings.reduce((sum, item) => sum + item.notSuccess, 0);
-  const totalPaidStudents = earnings.reduce((sum, item) => sum + item.paidStudents, 0);
-  const totalOtherSubjects = earnings.reduce((sum, item) => sum + (item.otherSubjects || 0), 0);
-  const totalNullSubjects = earnings.reduce((sum, item) => sum + (item.nullSubjects || 0), 0);
-  
-  // Debug calculations
-  console.log('=== CALCULATION DEBUG ===');
-  console.log('Individual totals:', {
-    totalReg: totalRegistrations,
-    successReg: totalSuccess,
-    reading: totalReading,
-    hifz: totalHifz,
-    notSuccess: totalNotSuccess,
-    reward: totalReward
-  });
-  console.log('Success + NotSuccess =', totalSuccess + totalNotSuccess);
-  console.log('Should equal Total Reg?', totalRegistrations);
-  console.log('Earnings data:', earnings.map(e => ({
-    name: e.registral,
-    totalReg: e.totalReg,
-    successReg: e.successReg,
-    notSuccess: e.notSuccess,
-    reading: e.reading,
-    hifz: e.hifz
-  })));
+  const totalNotSuccess = earnings.reduce(
+    (sum, item) => sum + item.notSuccess,
+    0
+  );
+  const totalPaidStudents = earnings.reduce(
+    (sum, item) => sum + item.paidStudents,
+    0
+  );
+  const totalOtherSubjects = earnings.reduce(
+    (sum, item) => sum + (item.otherSubjects || 0),
+    0
+  );
+  const totalNullSubjects = earnings.reduce(
+    (sum, item) => sum + (item.nullSubjects || 0),
+    0
+  );
+
+  console.log("Success + NotSuccess =", totalSuccess + totalNotSuccess);
+  console.log("Should equal Total Reg?", totalRegistrations);
+  console.log(
+    "Earnings data:",
+    earnings.map((e) => ({
+      name: e.registral,
+      totalReg: e.totalReg,
+      successReg: e.successReg,
+      notSuccess: e.notSuccess,
+      reading: e.reading,
+      hifz: e.hifz,
+    }))
+  );
 
   if (loading) {
     return (
@@ -143,11 +160,15 @@ export default function RegistrarEarningsPage() {
                 <FiDollarSign className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-gray-900">Registrar Earnings</h1>
-                <p className="text-gray-600 text-lg mt-2">Track registrar performance and rewards</p>
+                <h1 className="text-4xl font-bold text-gray-900">
+                  Registrar Earnings
+                </h1>
+                <p className="text-gray-600 text-lg mt-2">
+                  Track registrar performance and rewards
+                </p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <FiCalendar className="h-5 w-5 text-gray-500" />
@@ -176,32 +197,15 @@ export default function RegistrarEarningsPage() {
           </div>
         </div>
 
-        {/* Debug Info */}
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-          <h3 className="font-semibold text-red-800 mb-2">Calculation Debug:</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div><strong>Total Reg:</strong> {totalRegistrations}</div>
-            <div><strong>Success:</strong> {totalSuccess}</div>
-            <div><strong>Not Success:</strong> {totalNotSuccess}</div>
-            <div><strong>Success + Not Success:</strong> {totalSuccess + totalNotSuccess}</div>
-            <div><strong>Reading:</strong> {totalReading}</div>
-            <div><strong>Hifz:</strong> {totalHifz}</div>
-            <div><strong>Reading + Hifz:</strong> {totalReading + totalHifz}</div>
-            <div><strong>Other Subjects:</strong> {totalOtherSubjects}</div>
-            <div><strong>Null Subjects:</strong> {totalNullSubjects}</div>
-            <div><strong>All Subjects Total:</strong> {totalReading + totalHifz + totalOtherSubjects + totalNullSubjects}</div>
-            <div><strong>Paid Students:</strong> {totalPaidStudents}</div>
-            <div><strong>Expected Reward:</strong> ${(totalReading * settings.reading_reward) + (totalHifz * settings.hifz_reward)}</div>
-          </div>
-        </div>
-
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-600 font-semibold">Total Rewards</p>
-                <p className="text-3xl font-bold text-green-900">${totalReward}</p>
+                <p className="text-3xl font-bold text-green-900">
+                  ${totalReward}
+                </p>
               </div>
               <FiDollarSign className="h-12 w-12 text-green-500" />
             </div>
@@ -210,8 +214,12 @@ export default function RegistrarEarningsPage() {
           <div className="bg-gradient-to-br from-blue-50 to-blue-50 rounded-2xl p-6 border border-blue-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-600 font-semibold">Total Registrations</p>
-                <p className="text-3xl font-bold text-blue-900">{totalRegistrations}</p>
+                <p className="text-blue-600 font-semibold">
+                  Total Registrations
+                </p>
+                <p className="text-3xl font-bold text-blue-900">
+                  {totalRegistrations}
+                </p>
               </div>
               <FiUsers className="h-12 w-12 text-blue-500" />
             </div>
@@ -222,7 +230,10 @@ export default function RegistrarEarningsPage() {
               <div>
                 <p className="text-purple-600 font-semibold">Success Rate</p>
                 <p className="text-3xl font-bold text-purple-900">
-                  {totalRegistrations > 0 ? Math.round((totalSuccess / totalRegistrations) * 100) : 0}%
+                  {totalRegistrations > 0
+                    ? Math.round((totalSuccess / totalRegistrations) * 100)
+                    : 0}
+                  %
                 </p>
               </div>
               <FiTrendingUp className="h-12 w-12 text-purple-500" />
@@ -232,8 +243,12 @@ export default function RegistrarEarningsPage() {
           <div className="bg-gradient-to-br from-orange-50 to-orange-50 rounded-2xl p-6 border border-orange-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-600 font-semibold">Active Registrars</p>
-                <p className="text-3xl font-bold text-orange-900">{earnings.length}</p>
+                <p className="text-orange-600 font-semibold">
+                  Active Registrars
+                </p>
+                <p className="text-3xl font-bold text-orange-900">
+                  {earnings.length}
+                </p>
               </div>
               <FiAward className="h-12 w-12 text-orange-500" />
             </div>
@@ -243,10 +258,14 @@ export default function RegistrarEarningsPage() {
         {/* Earnings Table */}
         <div className="bg-white rounded-3xl shadow-xl border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900">Registrar Performance</h2>
-            <p className="text-gray-600 mt-1">Detailed breakdown of registrar earnings and performance</p>
+            <h2 className="text-2xl font-bold text-gray-900">
+              Registrar Performance
+            </h2>
+            <p className="text-gray-600 mt-1">
+              Detailed breakdown of registrar earnings and performance
+            </p>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -272,9 +291,7 @@ export default function RegistrarEarningsPage() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Not Success
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
-                    Paid Students
-                  </th>
+
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Total Reward
                   </th>
@@ -282,7 +299,10 @@ export default function RegistrarEarningsPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {earnings.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={index}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
@@ -291,17 +311,21 @@ export default function RegistrarEarningsPage() {
                           </span>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-bold text-gray-900">{item.registral}</div>
+                          <div className="text-sm font-bold text-gray-900">
+                            {item.registral}
+                          </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {item.level && (
-                        <span className={`inline-flex px-3 py-1 text-xs font-bold rounded-full ${
-                          item.level === 'Level 1' 
-                            ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' 
-                            : 'bg-gray-100 text-gray-800 border border-gray-200'
-                        }`}>
+                        <span
+                          className={`inline-flex px-3 py-1 text-xs font-bold rounded-full ${
+                            item.level === "Level 1"
+                              ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                              : "bg-gray-100 text-gray-800 border border-gray-200"
+                          }`}
+                        >
                           {item.level}
                         </span>
                       )}
@@ -321,13 +345,13 @@ export default function RegistrarEarningsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600">
                       {item.notSuccess}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-600">
-                      {item.paidStudents}
-                    </td>
+
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <FiDollarSign className="h-4 w-4 text-green-500 mr-1" />
-                        <span className="text-lg font-bold text-green-600">{item.reward}</span>
+                        <span className="text-lg font-bold text-green-600">
+                          {item.reward}
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -339,8 +363,12 @@ export default function RegistrarEarningsPage() {
           {earnings.length === 0 && (
             <div className="text-center py-12">
               <FiUsers className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">No Data Available</h3>
-              <p className="text-gray-500">No registrar earnings found for the selected month.</p>
+              <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                No Data Available
+              </h3>
+              <p className="text-gray-500">
+                No registrar earnings found for the selected month.
+              </p>
             </div>
           )}
         </div>
@@ -357,8 +385,12 @@ export default function RegistrarEarningsPage() {
                       <FiSettings className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-white">Registrar Earnings Configuration</h3>
-                      <p className="text-green-100 mt-1">Configure reward amounts for different subjects</p>
+                      <h3 className="text-2xl font-bold text-white">
+                        Registrar Earnings Configuration
+                      </h3>
+                      <p className="text-green-100 mt-1">
+                        Configure reward amounts for different subjects
+                      </p>
                     </div>
                   </div>
                   <button
@@ -380,28 +412,42 @@ export default function RegistrarEarningsPage() {
                         <FiDollarSign className="h-6 w-6 text-blue-600" />
                       </div>
                       <div>
-                        <h4 className="text-lg font-semibold text-gray-900">Reading Subjects</h4>
-                        <p className="text-sm text-gray-500">Nethor & Qaidah rewards</p>
+                        <h4 className="text-lg font-semibold text-gray-900">
+                          Reading Subjects
+                        </h4>
+                        <p className="text-sm text-gray-500">
+                          Nethor & Qaidah rewards
+                        </p>
                       </div>
                     </div>
-                    
+
                     <div className="relative">
                       <label className="block text-sm font-medium text-gray-700 mb-3">
                         Reward Amount per Student
                       </label>
                       <div className="relative">
-                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">$</span>
+                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                          $
+                        </span>
                         <input
                           type="number"
                           value={tempSettings.reading_reward}
-                          onChange={(e) => setTempSettings(prev => ({ ...prev, reading_reward: Number(e.target.value) }))}
+                          onChange={(e) =>
+                            setTempSettings((prev) => ({
+                              ...prev,
+                              reading_reward: Number(e.target.value),
+                            }))
+                          }
                           className="w-full pl-8 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-lg font-semibold"
                           min="0"
                           step="1"
                           placeholder="50"
                         />
                       </div>
-                      <p className="text-xs text-gray-500 mt-2">Amount earned per successful reading student registration</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Amount earned per successful reading student
+                        registration
+                      </p>
                     </div>
                   </div>
 
@@ -412,28 +458,41 @@ export default function RegistrarEarningsPage() {
                         <FiAward className="h-6 w-6 text-purple-600" />
                       </div>
                       <div>
-                        <h4 className="text-lg font-semibold text-gray-900">Hifz Subject</h4>
-                        <p className="text-sm text-gray-500">Memorization rewards</p>
+                        <h4 className="text-lg font-semibold text-gray-900">
+                          Hifz Subject
+                        </h4>
+                        <p className="text-sm text-gray-500">
+                          Memorization rewards
+                        </p>
                       </div>
                     </div>
-                    
+
                     <div className="relative">
                       <label className="block text-sm font-medium text-gray-700 mb-3">
                         Reward Amount per Student
                       </label>
                       <div className="relative">
-                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">$</span>
+                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                          $
+                        </span>
                         <input
                           type="number"
                           value={tempSettings.hifz_reward}
-                          onChange={(e) => setTempSettings(prev => ({ ...prev, hifz_reward: Number(e.target.value) }))}
+                          onChange={(e) =>
+                            setTempSettings((prev) => ({
+                              ...prev,
+                              hifz_reward: Number(e.target.value),
+                            }))
+                          }
                           className="w-full pl-8 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-lg font-semibold"
                           min="0"
                           step="1"
                           placeholder="100"
                         />
                       </div>
-                      <p className="text-xs text-gray-500 mt-2">Amount earned per successful Hifz student registration</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Amount earned per successful Hifz student registration
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -446,16 +505,30 @@ export default function RegistrarEarningsPage() {
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white p-4 rounded-xl border border-gray-200">
-                      <div className="text-sm text-gray-600 mb-1">1 Reading Student</div>
-                      <div className="text-2xl font-bold text-blue-600">${tempSettings.reading_reward}</div>
+                      <div className="text-sm text-gray-600 mb-1">
+                        1 Reading Student
+                      </div>
+                      <div className="text-2xl font-bold text-blue-600">
+                        ${tempSettings.reading_reward}
+                      </div>
                     </div>
                     <div className="bg-white p-4 rounded-xl border border-gray-200">
-                      <div className="text-sm text-gray-600 mb-1">1 Hifz Student</div>
-                      <div className="text-2xl font-bold text-purple-600">${tempSettings.hifz_reward}</div>
+                      <div className="text-sm text-gray-600 mb-1">
+                        1 Hifz Student
+                      </div>
+                      <div className="text-2xl font-bold text-purple-600">
+                        ${tempSettings.hifz_reward}
+                      </div>
                     </div>
                     <div className="bg-white p-4 rounded-xl border border-gray-200">
-                      <div className="text-sm text-gray-600 mb-1">Mixed (2R + 1H)</div>
-                      <div className="text-2xl font-bold text-green-600">${(tempSettings.reading_reward * 2) + tempSettings.hifz_reward}</div>
+                      <div className="text-sm text-gray-600 mb-1">
+                        Mixed (2R + 1H)
+                      </div>
+                      <div className="text-2xl font-bold text-green-600">
+                        $
+                        {tempSettings.reading_reward * 2 +
+                          tempSettings.hifz_reward}
+                      </div>
                     </div>
                   </div>
                 </div>

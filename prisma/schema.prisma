@@ -718,6 +718,14 @@ model studentsubject {
   updatedAt DateTime
 }
 
+model studentdaypackage {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique(map: "StudentDayPackage_name_key")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
 model subjectpackage {
   id            String        @id
   kidpackage    Boolean?      @default(false)

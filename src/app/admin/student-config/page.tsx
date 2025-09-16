@@ -6,6 +6,7 @@ import {
   FiUsers,
   FiPackage,
   FiBook,
+  FiCalendar,
   FiRefreshCw,
   FiEdit3,
   FiSave,
@@ -21,6 +22,7 @@ export default function StudentConfigPage() {
   const [statuses, setStatuses] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [daypackages, setDaypackages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -33,14 +35,16 @@ export default function StudentConfigPage() {
     status: "",
     package: "",
     subject: "",
+    daypackage: "",
   });
-  const [activeTab, setActiveTab] = useState<"status" | "package" | "subject">(
+  const [activeTab, setActiveTab] = useState<"status" | "package" | "subject" | "daypackage">(
     "status"
   );
   const [expandedSections, setExpandedSections] = useState({
     status: true,
     package: true,
     subject: true,
+    daypackage: true,
   });
   const inputRefs = {
     status: useRef<HTMLInputElement>(null),
@@ -61,6 +65,7 @@ export default function StudentConfigPage() {
         setStatuses(data.statuses || []);
         setPackages(data.packages || []);
         setSubjects(data.subjects || []);
+        setDaypackages(data.daypackages || []);
       }
     } catch (error) {
       console.error("Failed to fetch configurations");
@@ -237,7 +242,7 @@ export default function StudentConfigPage() {
     );
   };
 
-  const AddItemInput = ({ type }: { type: "status" | "package" | "subject" }) => {
+  const AddItemInput = ({ type }: { type: "status" | "package" | "subject" | "daypackage" }) => {
     const [inputValue, setInputValue] = useState("");
     
     const handleSubmit = (e: React.FormEvent) => {
@@ -279,7 +284,7 @@ export default function StudentConfigPage() {
     title: string;
     icon: any;
     items: any[];
-    type: "status" | "package" | "subject";
+    type: "status" | "package" | "subject" | "daypackage";
     color: string;
   }) => (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transition-all hover:shadow-md">
@@ -450,6 +455,7 @@ export default function StudentConfigPage() {
           {[
             { id: "status", label: "Statuses", icon: FiUsers },
             { id: "package", label: "Packages", icon: FiPackage },
+            { id: "daypackage", label: "Day Packages", icon: FiCalendar },
             { id: "subject", label: "Subjects", icon: FiBook },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -457,7 +463,7 @@ export default function StudentConfigPage() {
               <button
                 key={tab.id}
                 onClick={() =>
-                  setActiveTab(tab.id as "status" | "package" | "subject")
+                  setActiveTab(tab.id as "status" | "package" | "subject" | "daypackage")
                 }
                 className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all flex-1 ${
                   activeTab === tab.id
@@ -472,7 +478,7 @@ export default function StudentConfigPage() {
           })}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className={activeTab !== "status" ? "hidden md:block" : ""}>
             <ConfigSection
               key="status-section"
@@ -492,6 +498,17 @@ export default function StudentConfigPage() {
               items={packages}
               type="package"
               color="bg-purple-500"
+            />
+          </div>
+
+          <div className={activeTab !== "daypackage" ? "hidden md:block" : ""}>
+            <ConfigSection
+              key="daypackage-section"
+              title="Day Packages"
+              icon={FiCalendar}
+              items={daypackages}
+              type="daypackage"
+              color="bg-orange-500"
             />
           </div>
 

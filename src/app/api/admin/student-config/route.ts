@@ -36,8 +36,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(subjects);
     }
 
+    if (type === "daypackages") {
+      const daypackages = await prisma.studentdaypackage.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+      });
+      return NextResponse.json(daypackages);
+    }
+
     // Return all configurations
-    const [statuses, packages, subjects] = await Promise.all([
+    const [statuses, packages, subjects, daypackages] = await Promise.all([
       prisma.studentStatus.findMany({
         where: { isActive: true },
         orderBy: { name: "asc" },
@@ -50,9 +58,13 @@ export async function GET(req: NextRequest) {
         where: { isActive: true },
         orderBy: { name: "asc" },
       }),
+      prisma.studentdaypackage.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+      }),
     ]);
 
-    return NextResponse.json({ statuses, packages, subjects });
+    return NextResponse.json({ statuses, packages, subjects, daypackages });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Internal server error" },
@@ -82,12 +94,14 @@ export async function POST(req: NextRequest) {
       ];
       const defaultPackages = ["0 Fee", "3 days", "5 days", "Europe"];
       const defaultSubjects = ["Qaidah", "Nethor", "Hifz", "Kitab"];
+      const defaultDayPackages = ["All days", "MWF", "TTS"];
 
       // Clear existing data and recreate
       await Promise.all([
         prisma.studentStatus.deleteMany({}),
         prisma.studentPackage.deleteMany({}),
         prisma.studentSubject.deleteMany({}),
+        prisma.studentdaypackage.deleteMany({}),
       ]);
 
       await Promise.all([
@@ -99,6 +113,9 @@ export async function POST(req: NextRequest) {
         ),
         ...defaultSubjects.map((subject) =>
           prisma.studentSubject.create({ data: { name: subject } })
+        ),
+        ...defaultDayPackages.map((daypackage) =>
+          prisma.studentdaypackage.create({ data: { name: daypackage } })
         ),
       ]);
 
@@ -121,6 +138,10 @@ export async function POST(req: NextRequest) {
         exists = !!(await prisma.studentSubject.findUnique({
           where: { name },
         }));
+      } else if (type === "daypackage") {
+        exists = !!(await prisma.studentdaypackage.findUnique({
+          where: { name },
+        }));
       }
 
       if (exists) {
@@ -137,6 +158,8 @@ export async function POST(req: NextRequest) {
         result = await prisma.studentPackage.create({ data: { name } });
       } else if (type === "subject") {
         result = await prisma.studentSubject.create({ data: { name } });
+      } else if (type === "daypackage") {
+        result = await prisma.studentdaypackage.create({ data: { name } });
       }
       return NextResponse.json({ success: true, id: result?.id });
     }
@@ -157,6 +180,11 @@ export async function POST(req: NextRequest) {
           where: { id: parseInt(id) },
           data: { name },
         });
+      } else if (type === "daypackage") {
+        await prisma.studentdaypackage.update({
+          where: { id: parseInt(id) },
+          data: { name },
+        });
       }
       return NextResponse.json({ success: true });
     }
@@ -174,6 +202,11 @@ export async function POST(req: NextRequest) {
         });
       } else if (type === "subject") {
         await prisma.studentSubject.update({
+          where: { id: parseInt(id) },
+          data: { isActive: false },
+        });
+      } else if (type === "daypackage") {
+        await prisma.studentdaypackage.update({
           where: { id: parseInt(id) },
           data: { isActive: false },
         });

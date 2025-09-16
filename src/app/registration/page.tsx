@@ -141,7 +141,6 @@ function RegistrationContent() {
 
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]); // Ensure initialized as empty array
-  const [dayPackages] = useState<string[]>(["All days", "MWF", "TTS"]);
 
   const [error, setError] = useState<string | null>(null);
   const [editingTeacherName, setEditingTeacherName] = useState<string>("");
@@ -164,7 +163,8 @@ function RegistrationContent() {
     statuses: string[];
     packages: string[];
     subjects: string[];
-  }>({ statuses: [], packages: [], subjects: [] });
+    daypackages: string[];
+  }>({ statuses: [], packages: [], subjects: [], daypackages: [] });
   const [loadingConfigs, setLoadingConfigs] = useState(true);
 
   // --- ENHANCEMENT: Confirmation modal for unsaved changes ---
@@ -236,6 +236,7 @@ function RegistrationContent() {
             statuses: data.statuses?.map((s: any) => s.name) || ["Active", "Not yet", "Leave", "Completed"],
             packages: data.packages?.map((p: any) => p.name) || ["0 Fee", "3 days", "5 days", "Europe"],
             subjects: data.subjects?.map((s: any) => s.name) || ["Qaidah", "Nethor", "Hifz", "Kitab"],
+            daypackages: data.daypackages?.map((d: any) => d.name) || ["All days", "MWF", "TTS"],
           });
         } else {
           // Fallback to defaults
@@ -243,6 +244,7 @@ function RegistrationContent() {
             statuses: ["Active", "Not yet", "Leave", "Completed"],
             packages: ["0 Fee", "3 days", "5 days", "Europe"],
             subjects: ["Qaidah", "Nethor", "Hifz", "Kitab"],
+            daypackages: ["All days", "MWF", "TTS"],
           });
         }
       } catch (error) {
@@ -252,6 +254,7 @@ function RegistrationContent() {
           statuses: ["Active", "Not yet", "Leave", "Completed"],
           packages: ["0 Fee", "3 days", "5 days", "Europe"],
           subjects: ["Qaidah", "Nethor", "Hifz", "Kitab"],
+          daypackages: ["All days", "MWF", "TTS"],
         });
       } finally {
         setLoadingConfigs(false);
@@ -1213,8 +1216,8 @@ function RegistrationContent() {
                       })}
                       className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-2.5 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium text-gray-800 w-full md:w-auto transition-all duration-200 hover:border-teal-500"
                     >
-                      {dayPackages.length > 0 ? (
-                        dayPackages.map((pkg, index) => (
+                      {studentConfigs.daypackages.length > 0 ? (
+                        studentConfigs.daypackages.map((pkg, index) => (
                           <option
                             key={index}
                             value={pkg}
@@ -1225,11 +1228,11 @@ function RegistrationContent() {
                         ))
                       ) : (
                         <option value="" disabled className="text-gray-400">
-                          No options available
+                          Loading day packages...
                         </option>
                       )}
                     </select>
-                    {dayPackages.length === 0 && (
+                    {!loadingConfigs && studentConfigs.daypackages.length === 0 && (
                       <p className="text-red-600 text-xs mt-2">
                         Error: Day packages not loaded.
                       </p>
