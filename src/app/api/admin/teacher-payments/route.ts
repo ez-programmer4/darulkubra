@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       const fromDate = new Date(from);
       const toDate = new Date(to);
       // Get package-specific deduction configurations
-      const packageDeductions = await prisma.packageDeduction.findMany();
+      const packageDeductions = await prisma.packagededuction.findMany();
       const packageDeductionMap: Record<
         string,
         { lateness: number; absence: number }
@@ -240,7 +240,7 @@ export async function GET(req: NextRequest) {
       }
       // UNIFIED ABSENCE CALCULATION - Same logic as main table
       // Get package deduction rates for consistency
-      const detailPackageDeductions = await prisma.packageDeduction.findMany();
+      const detailPackageDeductions = await prisma.packagededuction.findMany();
       const detailPackageDeductionMap: Record<
         string,
         { lateness: number; absence: number }
@@ -510,7 +510,7 @@ export async function GET(req: NextRequest) {
           const latenessBreakdown = [];
 
           // Get package-specific deduction configurations
-          const packageDeductions = await prisma.packageDeduction.findMany();
+          const packageDeductions = await prisma.packagededuction.findMany();
           const packageDeductionMap: Record<
             string,
             { lateness: number; absence: number }
@@ -526,12 +526,16 @@ export async function GET(req: NextRequest) {
           const latenessWaivers = await prisma.deduction_waivers.findMany({
             where: {
               teacherId: t.ustazid,
-              deductionType: 'lateness',
-              deductionDate: { gte: from, lte: to }
-            }
+              deductionType: "lateness",
+              deductionDate: { gte: from, lte: to },
+            },
           });
-          
-          const waivedLatenessDates = new Set(latenessWaivers.map(w => w.deductionDate.toISOString().split('T')[0]));
+
+          const waivedLatenessDates = new Set(
+            latenessWaivers.map(
+              (w) => w.deductionDate.toISOString().split("T")[0]
+            )
+          );
           const defaultBaseDeductionAmount = 30;
 
           const latenessConfigs = await prisma.latenessdeductionconfig.findMany(
@@ -737,12 +741,16 @@ export async function GET(req: NextRequest) {
           const absenceWaivers = await prisma.deduction_waivers.findMany({
             where: {
               teacherId: t.ustazid,
-              deductionType: 'absence',
-              deductionDate: { gte: from, lte: to }
-            }
+              deductionType: "absence",
+              deductionDate: { gte: from, lte: to },
+            },
           });
-          
-          const waivedDates = new Set(absenceWaivers.map(w => w.deductionDate.toISOString().split('T')[0]));
+
+          const waivedDates = new Set(
+            absenceWaivers.map(
+              (w) => w.deductionDate.toISOString().split("T")[0]
+            )
+          );
 
           // Create a set of dates that already have absence records
           const existingAbsenceDates = new Set(

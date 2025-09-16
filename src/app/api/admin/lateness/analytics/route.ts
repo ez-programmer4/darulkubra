@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   endDate.setHours(23, 59, 59, 999);
 
   // Get package-specific deduction configurations
-  const packageDeductions = await prisma.packageDeduction.findMany();
+  const packageDeductions = await prisma.packagededuction.findMany();
   const packageDeductionMap: Record<string, number> = {};
   packageDeductions.forEach((pkg) => {
     packageDeductionMap[pkg.packageName] = Number(pkg.latenessBaseAmount);
@@ -51,12 +51,16 @@ export async function GET(req: NextRequest) {
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
   });
-  
+
   // Only use database configuration, no predefined tiers
   if (latenessConfigs.length === 0) {
-    return NextResponse.json({ dailyTrend: [], controllerData: [], teacherData: [] });
+    return NextResponse.json({
+      dailyTrend: [],
+      controllerData: [],
+      teacherData: [],
+    });
   }
-  
+
   const excusedThreshold = Math.min(
     ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
   );
@@ -162,8 +166,9 @@ export async function GET(req: NextRequest) {
       if (latenessMinutes > excusedThreshold) {
         // Get student's package for package-specific deduction
         const studentPackage = student.package || "";
-        const baseDeductionAmount = packageDeductionMap[studentPackage] || defaultBaseDeductionAmount;
-        
+        const baseDeductionAmount =
+          packageDeductionMap[studentPackage] || defaultBaseDeductionAmount;
+
         let foundTier = false;
         for (const [i, tier] of tiers.entries()) {
           if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {

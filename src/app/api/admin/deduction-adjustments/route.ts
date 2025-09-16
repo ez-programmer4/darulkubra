@@ -10,77 +10,104 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { adjustmentType, dateRange, teacherIds, timeSlots, reason } = await req.json();
-    console.log('🔧 ADJUSTMENT API CALLED:', { adjustmentType, dateRange, teacherIds: teacherIds?.length, reason: reason?.substring(0, 50) });
-    
-    if (!dateRange?.startDate || !dateRange?.endDate || !teacherIds?.length || !reason?.trim()) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    const { adjustmentType, dateRange, teacherIds, timeSlots, reason } =
+      await req.json();
+    console.log("🔧 ADJUSTMENT API CALLED:", {
+      adjustmentType,
+      dateRange,
+      teacherIds: teacherIds?.length,
+      reason: reason?.substring(0, 50),
+    });
+
+    if (
+      !dateRange?.startDate ||
+      !dateRange?.endDate ||
+      !teacherIds?.length ||
+      !reason?.trim()
+    ) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
     const startDate = new Date(dateRange.startDate);
     const endDate = new Date(dateRange.endDate);
     const adminId = (session.user as { id: string }).id;
-    
+
     let recordsAffected = 0;
     let totalAmountWaived = 0;
 
     // Use transaction to ensure data consistency
-    console.log('💾 Starting database transaction...');
+    console.log("💾 Starting database transaction...");
     const result = await prisma.$transaction(async (tx) => {
-      console.log('💾 Inside transaction, processing:', adjustmentType);
+      console.log("💾 Inside transaction, processing:", adjustmentType);
       if (adjustmentType === "waive_absence") {
         // Get absence records to waive
         const absenceRecords = await tx.absencerecord.findMany({
           where: {
             teacherId: { in: teacherIds },
             classDate: { gte: startDate, lte: endDate },
-            isWaived: { not: true }
-          }
+          },
         });
 
         if (absenceRecords.length > 0) {
-          console.log(`💾 PROCESSING ${absenceRecords.length} ABSENCE RECORDS FOR WAIVER`);
-          
+          console.log(
+            `💾 PROCESSING ${absenceRecords.length} ABSENCE RECORDS FOR WAIVER`
+          );
+
           // Mark absence records as waived
           const updatedRecords = await tx.absencerecord.updateMany({
-            where: { id: { in: absenceRecords.map(r => r.id) } },
-            data: { isWaived: true, waiverReason: reason }
+            where: { id: { in: absenceRecords.map((r) => r.id) } },
+            data: {},
           });
-          
-          console.log(`✅ MARKED ${updatedRecords.count} ABSENCE RECORDS AS WAIVED`);
+
+          console.log(
+            `✅ MARKED ${updatedRecords.count} ABSENCE RECORDS AS WAIVED`
+          );
 
           // Create waiver records
-          const waiverData = absenceRecords.map(record => ({
+          const waiverData = absenceRecords.map((record) => ({
             teacherId: record.teacherId,
-            deductionType: 'absence' as const,
+            deductionType: "absence" as const,
             deductionDate: record.classDate,
             originalAmount: record.deductionApplied,
             reason,
-            adminId
+            adminId,
           }));
 
-          const createdWaivers = await tx.deduction_waivers.createMany({ 
+          const createdWaivers = await tx.deduction_waivers.createMany({
             data: waiverData,
-            skipDuplicates: true 
+            skipDuplicates: true,
           });
-          
-          console.log(`✅ CREATED ${createdWaivers.count} ABSENCE WAIVER RECORDS`);
+
+          console.log(
+            `✅ CREATED ${createdWaivers.count} ABSENCE WAIVER RECORDS`
+          );
 
           recordsAffected = createdWaivers.count;
-          totalAmountWaived = absenceRecords.reduce((sum, r) => sum + r.deductionApplied, 0);
-          
-          console.log(`💰 TOTAL ABSENCE AMOUNT WAIVED: ${totalAmountWaived} ETB`);
+          totalAmountWaived = absenceRecords.reduce(
+            (sum, r) => sum + r.deductionApplied,
+            0
+          );
+
+          console.log(
+            `💰 TOTAL ABSENCE AMOUNT WAIVED: ${totalAmountWaived} ETB`
+          );
         }
       }
 
       if (adjustmentType === "waive_lateness") {
         // Create detailed lateness waivers matching preview records
         const waiverData = [];
-        
+
         for (const teacherId of teacherIds) {
           // Get package deduction rates
-          const packageDeductions = await tx.packageDeduction.findMany();
-          const packageDeductionMap: Record<string, { lateness: number; absence: number }> = {};
+          const packageDeductions = await tx.packagededuction.findMany();
+          const packageDeductionMap: Record<
+            string,
+            { lateness: number; absence: number }
+          > = {};
           packageDeductions.forEach((pkg) => {
             packageDeductionMap[pkg.packageName] = {
               lateness: Number(pkg.latenessBaseAmount),
@@ -119,7 +146,9 @@ export async function POST(req: NextRequest) {
             for (const student of allStudents) {
               student.zoom_links.forEach((link) => {
                 if (link.sent_time) {
-                  const dateStr = new Date(link.sent_time).toISOString().split('T')[0];
+                  const dateStr = new Date(link.sent_time)
+                    .toISOString()
+                    .split("T")[0];
                   if (!dailyZoomLinks.has(dateStr)) {
                     dailyZoomLinks.set(dateStr, []);
                   }
@@ -142,9 +171,9 @@ export async function POST(req: NextRequest) {
               const existingWaiver = await tx.deduction_waivers.findFirst({
                 where: {
                   teacherId,
-                  deductionType: 'lateness',
-                  deductionDate: date
-                }
+                  deductionType: "lateness",
+                  deductionDate: date,
+                },
               });
 
               if (existingWaiver) continue;
@@ -179,20 +208,25 @@ export async function POST(req: NextRequest) {
 
                 // Parse time and calculate lateness
                 const parseTime = (timeStr: string) => {
-                  if (timeStr.includes('AM') || timeStr.includes('PM')) {
-                    const [time, period] = timeStr.split(' ');
-                    let [hours, minutes] = time.split(':').map(Number);
-                    if (period === 'PM' && hours !== 12) hours += 12;
-                    if (period === 'AM' && hours === 12) hours = 0;
+                  if (timeStr.includes("AM") || timeStr.includes("PM")) {
+                    const [time, period] = timeStr.split(" ");
+                    let [hours, minutes] = time.split(":").map(Number);
+                    if (period === "PM" && hours !== 12) hours += 12;
+                    if (period === "AM" && hours === 12) hours = 0;
                     return { hours, minutes };
                   }
-                  const [hours, minutes] = timeStr.split(':').map(Number);
+                  const [hours, minutes] = timeStr.split(":").map(Number);
                   return { hours, minutes };
                 };
 
                 const scheduled = parseTime(link.timeSlot);
                 const scheduledTime = new Date(dateStr);
-                scheduledTime.setHours(scheduled.hours, scheduled.minutes, 0, 0);
+                scheduledTime.setHours(
+                  scheduled.hours,
+                  scheduled.minutes,
+                  0,
+                  0
+                );
                 const latenessMinutes = Math.max(
                   0,
                   Math.round(
@@ -201,22 +235,31 @@ export async function POST(req: NextRequest) {
                 );
 
                 if (latenessMinutes > excusedThreshold) {
-                  const student = allStudents.find((s) => s.wdt_ID === link.studentId);
+                  const student = allStudents.find(
+                    (s) => s.wdt_ID === link.studentId
+                  );
                   const studentPackage = student?.package || "";
                   const baseDeductionAmount =
                     packageDeductionMap[studentPackage]?.lateness || 30;
 
                   let deduction = 0;
                   for (const [i, t] of tiers.entries()) {
-                    if (latenessMinutes >= t.start && latenessMinutes <= t.end) {
-                      deduction = Math.round(baseDeductionAmount * (t.percent / 100));
+                    if (
+                      latenessMinutes >= t.start &&
+                      latenessMinutes <= t.end
+                    ) {
+                      deduction = Math.round(
+                        baseDeductionAmount * (t.percent / 100)
+                      );
                       break;
                     }
                   }
 
                   if (deduction > 0) {
                     dailyTotalDeduction += deduction;
-                    dailyDetails.push(`${link.studentName}: ${latenessMinutes}min late, ${deduction} ETB`);
+                    dailyDetails.push(
+                      `${link.studentName}: ${latenessMinutes}min late, ${deduction} ETB`
+                    );
                   }
                 }
               }
@@ -225,11 +268,14 @@ export async function POST(req: NextRequest) {
               if (dailyTotalDeduction > 0) {
                 waiverData.push({
                   teacherId,
-                  deductionType: 'lateness',
+                  deductionType: "lateness",
                   deductionDate: date,
                   originalAmount: dailyTotalDeduction,
-                  reason: `${reason} | ${dailyDetails.join('; ')}`.substring(0, 500),
-                  adminId
+                  reason: `${reason} | ${dailyDetails.join("; ")}`.substring(
+                    0,
+                    500
+                  ),
+                  adminId,
                 });
                 totalAmountWaived += dailyTotalDeduction;
               }
@@ -239,27 +285,37 @@ export async function POST(req: NextRequest) {
 
         if (waiverData.length > 0) {
           // CRITICAL: Log waiver creation for audit
-          console.log(`💾 CREATING ${waiverData.length} LATENESS WAIVERS:`, 
-            waiverData.map(w => `${w.teacherId} - ${w.deductionDate.toISOString().split('T')[0]} - ${w.originalAmount} ETB`)
+          console.log(
+            `💾 CREATING ${waiverData.length} LATENESS WAIVERS:`,
+            waiverData.map(
+              (w) =>
+                `${w.teacherId} - ${
+                  w.deductionDate.toISOString().split("T")[0]
+                } - ${w.originalAmount} ETB`
+            )
           );
-          
-          const createdWaivers = await tx.deduction_waivers.createMany({ 
+
+          const createdWaivers = await tx.deduction_waivers.createMany({
             data: waiverData,
-            skipDuplicates: true 
+            skipDuplicates: true,
           });
-          
-          console.log(`✅ SUCCESSFULLY CREATED ${createdWaivers.count} LATENESS WAIVERS`);
+
+          console.log(
+            `✅ SUCCESSFULLY CREATED ${createdWaivers.count} LATENESS WAIVERS`
+          );
           recordsAffected = createdWaivers.count;
-          
+
           // Verify creation
           const verifyCount = await tx.deduction_waivers.count({
             where: {
               teacherId: { in: teacherIds },
-              deductionType: 'lateness',
-              deductionDate: { gte: startDate, lte: endDate }
-            }
+              deductionType: "lateness",
+              deductionDate: { gte: startDate, lte: endDate },
+            },
           });
-          console.log(`🔍 VERIFICATION: ${verifyCount} lateness waivers now exist in database`);
+          console.log(
+            `🔍 VERIFICATION: ${verifyCount} lateness waivers now exist in database`
+          );
         }
       }
 
@@ -270,44 +326,53 @@ export async function POST(req: NextRequest) {
         dateRange,
         recordsAffected,
         totalAmountWaived,
-        reason: reason.substring(0, 100) // Truncate reason
+        reason: reason.substring(0, 100), // Truncate reason
       };
-      
+
       await tx.auditlog.create({
         data: {
           actionType: "deduction_adjustment",
           adminId,
           targetId: null,
-          details: JSON.stringify(auditDetails).substring(0, 500) // Truncate entire JSON
-        }
+          details: JSON.stringify(auditDetails).substring(0, 500), // Truncate entire JSON
+        },
       });
 
-      console.log('✅ Transaction completed:', { recordsAffected, totalAmountWaived });
+      console.log("✅ Transaction completed:", {
+        recordsAffected,
+        totalAmountWaived,
+      });
       return { recordsAffected, totalAmountWaived };
     });
-    
-    console.log('🎉 ADJUSTMENT SUCCESSFUL:', result);
+
+    console.log("🎉 ADJUSTMENT SUCCESSFUL:", result);
 
     return NextResponse.json({
       success: true,
       message: `Successfully processed ${result.recordsAffected} deduction adjustments`,
       recordsAffected: result.recordsAffected,
-      financialImpact: { 
-        totalAmountWaived: result.totalAmountWaived, 
-        affectedTeachers: teacherIds.length 
-      }
+      financialImpact: {
+        totalAmountWaived: result.totalAmountWaived,
+        affectedTeachers: teacherIds.length,
+      },
     });
-
   } catch (error) {
     console.error("Adjustment error:", error);
-    return NextResponse.json({ error: "Failed to process adjustments" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to process adjustments" },
+      { status: 500 }
+    );
   }
 }
 
 // Helper function to calculate lateness deduction for a specific date
-async function calculateLatenessDeduction(tx: any, teacherId: string, date: Date): Promise<number> {
+async function calculateLatenessDeduction(
+  tx: any,
+  teacherId: string,
+  date: Date
+): Promise<number> {
   try {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = date.toISOString().split("T")[0];
     const nextDay = new Date(date);
     nextDay.setDate(nextDay.getDate() + 1);
 
@@ -315,17 +380,17 @@ async function calculateLatenessDeduction(tx: any, teacherId: string, date: Date
     const zoomLinks = await tx.wpos_zoom_links.findMany({
       where: {
         ustazid: teacherId,
-        sent_time: { gte: date, lt: nextDay }
+        sent_time: { gte: date, lt: nextDay },
       },
       include: {
-        wpos_wpdatatable_23: { 
-          select: { 
+        wpos_wpdatatable_23: {
+          select: {
             package: true,
-            occupiedTimes: { select: { time_slot: true } }
-          } 
-        }
+            occupiedTimes: { select: { time_slot: true } },
+          },
+        },
       },
-      orderBy: { sent_time: 'asc' }
+      orderBy: { sent_time: "asc" },
     });
 
     if (zoomLinks.length === 0) return 0;
@@ -333,38 +398,44 @@ async function calculateLatenessDeduction(tx: any, teacherId: string, date: Date
     // Get package deduction rates
     const packageDeductions = await tx.packageDeduction.findMany();
     const packageMap = Object.fromEntries(
-      packageDeductions.map((p: any) => [p.packageName, Number(p.latenessBaseAmount)])
+      packageDeductions.map((p: any) => [
+        p.packageName,
+        Number(p.latenessBaseAmount),
+      ])
     );
 
     // Get lateness config
     const latenessConfigs = await tx.latenessdeductionconfig.findMany({
-      orderBy: [{ tier: "asc" }, { startMinute: "asc" }]
+      orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
     });
 
     if (latenessConfigs.length === 0) return 0;
 
-    const excusedThreshold = Math.min(...latenessConfigs.map((c: any) => c.excusedThreshold ?? 0));
+    const excusedThreshold = Math.min(
+      ...latenessConfigs.map((c: any) => c.excusedThreshold ?? 0)
+    );
     const tiers = latenessConfigs.map((c: any) => ({
       start: c.startMinute,
       end: c.endMinute,
-      percent: c.deductionPercent
+      percent: c.deductionPercent,
     }));
 
     const firstLink = zoomLinks[0];
-    const timeSlot = firstLink.wpos_wpdatatable_23?.occupiedTimes?.[0]?.time_slot;
-    
+    const timeSlot =
+      firstLink.wpos_wpdatatable_23?.occupiedTimes?.[0]?.time_slot;
+
     if (!timeSlot || !firstLink.sent_time) return 0;
 
     // Calculate lateness
     const parseTime = (timeStr: string) => {
-      if (timeStr.includes('AM') || timeStr.includes('PM')) {
-        const [time, period] = timeStr.split(' ');
-        let [hours, minutes] = time.split(':').map(Number);
-        if (period === 'PM' && hours !== 12) hours += 12;
-        if (period === 'AM' && hours === 12) hours = 0;
+      if (timeStr.includes("AM") || timeStr.includes("PM")) {
+        const [time, period] = timeStr.split(" ");
+        let [hours, minutes] = time.split(":").map(Number);
+        if (period === "PM" && hours !== 12) hours += 12;
+        if (period === "AM" && hours === 12) hours = 0;
         return { hours, minutes };
       }
-      const [hours, minutes] = timeStr.split(':').map(Number);
+      const [hours, minutes] = timeStr.split(":").map(Number);
       return { hours, minutes };
     };
 
@@ -372,8 +443,11 @@ async function calculateLatenessDeduction(tx: any, teacherId: string, date: Date
     const scheduledTime = new Date(date);
     scheduledTime.setHours(scheduled.hours, scheduled.minutes, 0, 0);
 
-    const latenessMinutes = Math.max(0, 
-      Math.round((firstLink.sent_time.getTime() - scheduledTime.getTime()) / 60000)
+    const latenessMinutes = Math.max(
+      0,
+      Math.round(
+        (firstLink.sent_time.getTime() - scheduledTime.getTime()) / 60000
+      )
     );
 
     if (latenessMinutes <= excusedThreshold) return 0;

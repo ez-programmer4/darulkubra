@@ -799,3 +799,36 @@ model user {
   password            String
   wpos_wpdatatable_23 wpos_wpdatatable_23?
 }
+
+model studentdaypackage {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model deduction_waivers {
+  id             Int      @id @default(autoincrement())
+  teacherId      String   @db.VarChar(255)
+  deductionType  String   @db.VarChar(50)
+  deductionDate  DateTime @db.Date
+  originalAmount Decimal  @db.Decimal(10, 2)
+  reason         String   @db.Text
+  adminId        String   @db.VarChar(255)
+  createdAt      DateTime @default(now())
+
+  @@unique([teacherId, deductionType, deductionDate], name: "unique_waiver")
+  @@index([teacherId, deductionDate], map: "idx_teacher_date")
+  @@index([deductionType, deductionDate], map: "idx_type_date")
+  @@index([adminId], map: "idx_admin")
+}
+
+model packagededuction {
+  id                 Int      @id @default(autoincrement())
+  packageName        String   @unique(map: "PackageDeduction_packageName_key")
+  latenessBaseAmount Decimal  @default(30.00) @db.Decimal(10, 2)
+  absenceBaseAmount  Decimal  @default(25.00) @db.Decimal(10, 2)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime
+}

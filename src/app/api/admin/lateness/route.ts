@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   const teacherFilter = searchParams.get("teacherId") || ""; // may be id or name
 
   // Get package-specific deduction configurations
-  const packageDeductions = await prisma.packageDeduction.findMany();
+  const packageDeductions = await prisma.packagededuction.findMany();
   const packageDeductionMap: Record<string, number> = {};
   packageDeductions.forEach((pkg) => {
     packageDeductionMap[pkg.packageName] = Number(pkg.latenessBaseAmount);
@@ -37,12 +37,12 @@ export async function GET(req: NextRequest) {
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
   });
-  
+
   // Only use database configuration, no predefined tiers
   if (latenessConfigs.length === 0) {
     return NextResponse.json({ latenessData: [], total: 0, page, limit });
   }
-  
+
   const excusedThreshold = Math.min(
     ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
   );
@@ -81,16 +81,24 @@ export async function GET(req: NextRequest) {
     // 3. Calculate lateness for each student
     const allRecords = students
       .map((student) => {
-        const timeSlot = student.occupiedTimes?.[0]?.time_slot as string | undefined;
+        const timeSlot = student.occupiedTimes?.[0]?.time_slot as
+          | string
+          | undefined;
         if (!timeSlot || !student.ustaz) return null;
 
         // Robust time parser supporting "HH:mm", "HH:mm:ss", and "h[:mm[:ss]] AM/PM"
-        function parseTimeToHms(raw: string): { h: number; m: number; s: number } {
+        function parseTimeToHms(raw: string): {
+          h: number;
+          m: number;
+          s: number;
+        } {
           if (!raw) return { h: 0, m: 0, s: 0 };
           const trimmed = raw.trim().toUpperCase();
 
           // 12-hour: "h[:mm[:ss]] AM/PM"
-          const ampmMatch = trimmed.match(/^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)$/);
+          const ampmMatch = trimmed.match(
+            /^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)$/
+          );
           if (ampmMatch) {
             let h = parseInt(ampmMatch[1], 10);
             const m = parseInt(ampmMatch[2] || "0", 10);
@@ -130,7 +138,10 @@ export async function GET(req: NextRequest) {
         const minutesDiff = Math.round(
           (actualStartTime.getTime() - scheduledTime.getTime()) / 60000
         );
-        const latenessMinutes = Math.max(0, Number.isFinite(minutesDiff) ? minutesDiff : 0);
+        const latenessMinutes = Math.max(
+          0,
+          Number.isFinite(minutesDiff) ? minutesDiff : 0
+        );
 
         // Deduction logic (package-specific base amount)
         let deductionApplied = 0;
@@ -138,8 +149,9 @@ export async function GET(req: NextRequest) {
         if (latenessMinutes > excusedThreshold) {
           // Get student's package for package-specific deduction
           const studentPackage = student.package || "";
-          const baseDeductionAmount = packageDeductionMap[studentPackage] || defaultBaseDeductionAmount;
-          
+          const baseDeductionAmount =
+            packageDeductionMap[studentPackage] || defaultBaseDeductionAmount;
+
           let foundTier = false;
           for (const [i, tier] of tiers.entries()) {
             if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {

@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const packageDeductions = await prisma.packageDeduction.findMany({
+    const packageDeductions = await prisma.packagededuction.findMany({
       orderBy: { packageName: "asc" },
     });
 
@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { packageName, latenessBaseAmount, absenceBaseAmount } = await req.json();
+    const { packageName, latenessBaseAmount, absenceBaseAmount } =
+      await req.json();
 
     if (!packageName) {
       return NextResponse.json(
@@ -40,16 +41,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const packageDeduction = await prisma.packageDeduction.upsert({
+    const packageDeduction = await prisma.packagededuction.upsert({
       where: { packageName },
       update: {
         latenessBaseAmount: latenessBaseAmount || 30,
         absenceBaseAmount: absenceBaseAmount || 25,
+        updatedAt: new Date(),
       },
       create: {
         packageName,
         latenessBaseAmount: latenessBaseAmount || 30,
         absenceBaseAmount: absenceBaseAmount || 25,
+        updatedAt: new Date(),
       },
     });
 

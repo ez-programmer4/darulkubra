@@ -87,15 +87,15 @@ export async function calculateLatenessAndDeduction({
   const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
     orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
   });
-  
+
   // Get package-specific deduction configurations
-  const packageDeductions = await prisma.packageDeduction.findMany();
+  const packageDeductions = await prisma.packagededuction.findMany();
   const packageDeductionMap: Record<string, number> = {};
   packageDeductions.forEach((pkg) => {
     packageDeductionMap[pkg.packageName] = Number(pkg.latenessBaseAmount);
   });
   const defaultBaseDeductionAmount = 30;
-  
+
   let excusedThreshold = 3;
   let tiers: Array<{ start: number; end: number; percent: number }> = [
     { start: 4, end: 7, percent: 10 },
@@ -159,7 +159,7 @@ export async function calculateLatenessAndDeduction({
       if (latenessMinutes > excusedThreshold) {
         // Use default base amount since we don't have student package info in this function
         const baseDeductionAmount = defaultBaseDeductionAmount;
-        
+
         let foundTier = false;
         for (const [i, tier] of tiers.entries()) {
           if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {

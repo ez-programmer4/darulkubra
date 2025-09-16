@@ -106,16 +106,16 @@ export async function POST(req: NextRequest) {
 
       await Promise.all([
         ...defaultStatuses.map((status) =>
-          prisma.studentStatus.create({ data: { name: status } })
+          prisma.studentStatus.create({ data: { name: status, updatedAt: new Date() } })
         ),
         ...defaultPackages.map((pkg) =>
-          prisma.studentPackage.create({ data: { name: pkg } })
+          prisma.studentPackage.create({ data: { name: pkg, updatedAt: new Date() } })
         ),
         ...defaultSubjects.map((subject) =>
-          prisma.studentSubject.create({ data: { name: subject } })
+          prisma.studentSubject.create({ data: { name: subject, updatedAt: new Date() } })
         ),
         ...defaultDayPackages.map((daypackage) =>
-          prisma.studentdaypackage.create({ data: { name: daypackage } })
+          prisma.studentdaypackage.create({ data: { name: daypackage, updatedAt: new Date() } })
         ),
       ]);
 
@@ -153,13 +153,13 @@ export async function POST(req: NextRequest) {
 
       let result;
       if (type === "status") {
-        result = await prisma.studentStatus.create({ data: { name } });
+        result = await prisma.studentStatus.create({ data: { name, updatedAt: new Date() } });
       } else if (type === "package") {
-        result = await prisma.studentPackage.create({ data: { name } });
+        result = await prisma.studentPackage.create({ data: { name, updatedAt: new Date() } });
       } else if (type === "subject") {
-        result = await prisma.studentSubject.create({ data: { name } });
+        result = await prisma.studentSubject.create({ data: { name, updatedAt: new Date() } });
       } else if (type === "daypackage") {
-        result = await prisma.studentdaypackage.create({ data: { name } });
+        result = await prisma.studentdaypackage.create({ data: { name, updatedAt: new Date() } });
       }
       return NextResponse.json({ success: true, id: result?.id });
     }
@@ -168,22 +168,22 @@ export async function POST(req: NextRequest) {
       if (type === "status") {
         await prisma.studentStatus.update({
           where: { id: parseInt(id) },
-          data: { name },
+          data: { name, updatedAt: new Date() },
         });
       } else if (type === "package") {
         await prisma.studentPackage.update({
           where: { id: parseInt(id) },
-          data: { name },
+          data: { name, updatedAt: new Date() },
         });
       } else if (type === "subject") {
         await prisma.studentSubject.update({
           where: { id: parseInt(id) },
-          data: { name },
+          data: { name, updatedAt: new Date() },
         });
       } else if (type === "daypackage") {
         await prisma.studentdaypackage.update({
           where: { id: parseInt(id) },
-          data: { name },
+          data: { name, updatedAt: new Date() },
         });
       }
       return NextResponse.json({ success: true });
@@ -193,22 +193,22 @@ export async function POST(req: NextRequest) {
       if (type === "status") {
         await prisma.studentStatus.update({
           where: { id: parseInt(id) },
-          data: { isActive: false },
+          data: { isActive: false, updatedAt: new Date() },
         });
       } else if (type === "package") {
         await prisma.studentPackage.update({
           where: { id: parseInt(id) },
-          data: { isActive: false },
+          data: { isActive: false, updatedAt: new Date() },
         });
       } else if (type === "subject") {
         await prisma.studentSubject.update({
           where: { id: parseInt(id) },
-          data: { isActive: false },
+          data: { isActive: false, updatedAt: new Date() },
         });
       } else if (type === "daypackage") {
         await prisma.studentdaypackage.update({
           where: { id: parseInt(id) },
-          data: { isActive: false },
+          data: { isActive: false, updatedAt: new Date() },
         });
       }
       return NextResponse.json({ success: true });

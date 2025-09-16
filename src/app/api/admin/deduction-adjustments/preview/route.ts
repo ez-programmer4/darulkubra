@@ -37,8 +37,11 @@ export async function POST(req: NextRequest) {
         if (!teacher) continue;
 
         // Get package deduction rates (same as teacher payments)
-        const packageDeductions = await prisma.packageDeduction.findMany();
-        const packageDeductionMap: Record<string, { lateness: number; absence: number }> = {};
+        const packageDeductions = await prisma.packagededuction.findMany();
+        const packageDeductionMap: Record<
+          string,
+          { lateness: number; absence: number }
+        > = {};
         packageDeductions.forEach((pkg) => {
           packageDeductionMap[pkg.packageName] = {
             lateness: Number(pkg.latenessBaseAmount),
@@ -75,12 +78,14 @@ export async function POST(req: NextRequest) {
         const absenceWaivers = await prisma.deduction_waivers.findMany({
           where: {
             teacherId,
-            deductionType: 'absence',
-            deductionDate: { gte: startDate, lte: endDate }
-          }
+            deductionType: "absence",
+            deductionDate: { gte: startDate, lte: endDate },
+          },
         });
-        
-        const waivedDates = new Set(absenceWaivers.map(w => w.deductionDate.toISOString().split('T')[0]));
+
+        const waivedDates = new Set(
+          absenceWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
+        );
 
         // Create a set of dates that already have absence records
         const existingAbsenceDates = new Set(
@@ -92,7 +97,7 @@ export async function POST(req: NextRequest) {
         // Add deductions from existing database records (not waived)
         for (const record of teacherAbsenceRecords) {
           const dateStr = format(record.classDate, "yyyy-MM-dd");
-          if (!record.isWaived && !waivedDates.has(dateStr)) {
+          if (!waivedDates.has(dateStr)) {
             records.push({
               id: `absence_db_${record.id}`,
               teacherId: record.teacherId,
@@ -102,7 +107,9 @@ export async function POST(req: NextRequest) {
               deduction: record.deductionApplied,
               permitted: record.permitted,
               source: "database",
-              details: record.permitted ? "Permitted absence (DB)" : "Unpermitted absence (DB)",
+              details: record.permitted
+                ? "Permitted absence (DB)"
+                : "Unpermitted absence (DB)",
             });
             totalAmount += record.deductionApplied;
           }
@@ -118,7 +125,11 @@ export async function POST(req: NextRequest) {
         });
         const includeSundays = workingDaysConfig?.value === "true" || false;
 
-        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        for (
+          let d = new Date(startDate);
+          d <= endDate;
+          d.setDate(d.getDate() + 1)
+        ) {
           // Skip future dates
           if (d > today) continue;
 
@@ -171,7 +182,11 @@ export async function POST(req: NextRequest) {
                 permitted: false,
                 source: "computed",
                 affectedStudents,
-                details: `Computed absence: ${affectedStudents.length} students, packages: ${affectedStudents.map(s => s.package).join(", ")}`,
+                details: `Computed absence: ${
+                  affectedStudents.length
+                } students, packages: ${affectedStudents
+                  .map((s) => s.package)
+                  .join(", ")}`,
               });
               totalAmount += dailyDeduction;
             }
@@ -191,8 +206,11 @@ export async function POST(req: NextRequest) {
         if (!teacher) continue;
 
         // Get package deduction rates
-        const packageDeductions = await prisma.packageDeduction.findMany();
-        const packageDeductionMap: Record<string, { lateness: number; absence: number }> = {};
+        const packageDeductions = await prisma.packagededuction.findMany();
+        const packageDeductionMap: Record<
+          string,
+          { lateness: number; absence: number }
+        > = {};
         packageDeductions.forEach((pkg) => {
           packageDeductionMap[pkg.packageName] = {
             lateness: Number(pkg.latenessBaseAmount),
@@ -204,12 +222,16 @@ export async function POST(req: NextRequest) {
         const latenessWaivers = await prisma.deduction_waivers.findMany({
           where: {
             teacherId,
-            deductionType: 'lateness',
-            deductionDate: { gte: startDate, lte: endDate }
-          }
+            deductionType: "lateness",
+            deductionDate: { gte: startDate, lte: endDate },
+          },
         });
-        
-        const waivedLatenessDates = new Set(latenessWaivers.map(w => w.deductionDate.toISOString().split('T')[0]));
+
+        const waivedLatenessDates = new Set(
+          latenessWaivers.map(
+            (w) => w.deductionDate.toISOString().split("T")[0]
+          )
+        );
         const defaultBaseDeductionAmount = 30;
 
         const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
@@ -296,9 +318,7 @@ export async function POST(req: NextRequest) {
                 if (!timeStr) return "00:00";
 
                 if (timeStr.includes("AM") || timeStr.includes("PM")) {
-                  const match = timeStr.match(
-                    /^(\d{1,2}):(\d{2})\s?(AM|PM)$/i
-                  );
+                  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
                   if (match) {
                     let hour = parseInt(match[1]);
                     const minute = match[2];
@@ -341,10 +361,7 @@ export async function POST(req: NextRequest) {
 
                 // Find appropriate tier
                 for (const [i, t] of tiers.entries()) {
-                  if (
-                    latenessMinutes >= t.start &&
-                    latenessMinutes <= t.end
-                  ) {
+                  if (latenessMinutes >= t.start && latenessMinutes <= t.end) {
                     deduction = Math.round(
                       baseDeductionAmount * (t.percent / 100)
                     );

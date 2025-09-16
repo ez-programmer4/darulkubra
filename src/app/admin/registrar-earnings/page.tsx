@@ -127,20 +127,6 @@ export default function RegistrarEarningsPage() {
     0
   );
 
-  console.log("Success + NotSuccess =", totalSuccess + totalNotSuccess);
-  console.log("Should equal Total Reg?", totalRegistrations);
-  console.log(
-    "Earnings data:",
-    earnings.map((e) => ({
-      name: e.registral,
-      totalReg: e.totalReg,
-      successReg: e.successReg,
-      notSuccess: e.notSuccess,
-      reading: e.reading,
-      hifz: e.hifz,
-    }))
-  );
-
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
