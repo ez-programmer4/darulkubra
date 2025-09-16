@@ -97,7 +97,47 @@ export async function GET(request: NextRequest) {
         ORDER BY s.startdate DESC
       `,
 
-      // 5. Summary stats
+      // 5. All payments for students registered by this registral
+      allPayments: `
+        SELECT 
+          s.wdt_ID,
+          s.name,
+          s.subject,
+          s.registrationdate,
+          s.startdate,
+          m.month,
+          m.payment_status,
+          m.is_free_month
+        FROM wpos_wpdatatable_23 s
+        JOIN months_table m ON s.wdt_ID = m.studentid
+        WHERE s.rigistral = ? 
+          AND (s.refer IS NULL OR s.refer = '')
+          AND (UPPER(m.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR m.is_free_month = 1)
+        ORDER BY m.month DESC, s.startdate DESC
+      `,
+
+      // 6. Payments specifically for the target month
+      monthPayments: `
+        SELECT 
+          s.wdt_ID,
+          s.name,
+          s.subject,
+          s.registrationdate,
+          s.startdate,
+          s.status,
+          m.month,
+          m.payment_status,
+          m.is_free_month
+        FROM wpos_wpdatatable_23 s
+        JOIN months_table m ON s.wdt_ID = m.studentid
+        WHERE s.rigistral = ? 
+          AND (s.refer IS NULL OR s.refer = '')
+          AND m.month = ?
+          AND (UPPER(m.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR m.is_free_month = 1)
+        ORDER BY s.startdate DESC
+      `,
+
+      // 7. Summary stats
       summaryStats: `
         SELECT 
           COUNT(CASE WHEN DATE_FORMAT(registrationdate, '%Y-%m') = ? AND status IN ('Active', 'Not yet', 'Not Succeed') THEN 1 END) as total_reg,
@@ -116,15 +156,20 @@ export async function GET(request: NextRequest) {
     results.augustRegistrations = await prisma.$queryRawUnsafe(queries.augustRegistrations, registralName, month);
     results.augustStarts = await prisma.$queryRawUnsafe(queries.augustStarts, registralName, month);
     results.augustPayments = await prisma.$queryRawUnsafe(queries.augustPayments, registralName, month, month);
+    results.allPayments = await prisma.$queryRawUnsafe(queries.allPayments, registralName);
+    results.monthPayments = await prisma.$queryRawUnsafe(queries.monthPayments, registralName, month);
     results.summaryStats = await prisma.$queryRawUnsafe(queries.summaryStats, month, month, month, registralName);
 
+    // Convert BigInt values to numbers for JSON serialization
+    const convertBigInt = (value: any) => typeof value === 'bigint' ? Number(value) : value;
+    
     // Calculate detailed stats
     const stats = {
       registral: registralName,
       month: month,
-      totalReg: Number(results.summaryStats[0]?.total_reg || 0),
-      notSuccess: Number(results.summaryStats[0]?.not_success || 0),
-      startedInMonth: Number(results.summaryStats[0]?.started_in_month || 0),
+      totalReg: convertBigInt(results.summaryStats[0]?.total_reg || 0),
+      notSuccess: convertBigInt(results.summaryStats[0]?.not_success || 0),
+      startedInMonth: convertBigInt(results.summaryStats[0]?.started_in_month || 0),
       successReg: results.augustPayments.length,
       reading: 0,
       hifz: 0,
@@ -156,11 +201,28 @@ export async function GET(request: NextRequest) {
     console.log('All Students Count:', results.allStudents.length);
     console.log('August Registrations:', results.augustRegistrations.length);
     console.log('August Starts:', results.augustStarts.length);
-    console.log('August Payments:', results.augustPayments.length);
+    console.log('August Payments (started + paid same month):', results.augustPayments.length);
+    console.log('All Payments Count:', results.allPayments.length);
+    console.log('Month Payments Count:', results.monthPayments.length);
     console.log('Summary Stats:', results.summaryStats[0]);
     console.log('Final Stats:', stats);
 
-    return NextResponse.json({
+    // Convert all BigInt values in the response
+    const convertObjectBigInts = (obj: any): any => {
+      if (obj === null || obj === undefined) return obj;
+      if (typeof obj === 'bigint') return Number(obj);
+      if (Array.isArray(obj)) return obj.map(convertObjectBigInts);
+      if (typeof obj === 'object') {
+        const converted: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+          converted[key] = convertObjectBigInts(value);
+        }
+        return converted;
+      }
+      return obj;
+    };
+
+    const response = {
       earnings: stats,
       month,
       debug: {
@@ -169,15 +231,21 @@ export async function GET(request: NextRequest) {
         augustRegistrationsCount: results.augustRegistrations.length,
         augustStartsCount: results.augustStarts.length,
         augustPaymentsCount: results.augustPayments.length,
-        summaryStats: results.summaryStats[0],
+        allPaymentsCount: results.allPayments.length,
+        monthPaymentsCount: results.monthPayments.length,
+        summaryStats: convertObjectBigInts(results.summaryStats[0]),
         sampleData: {
-          allStudents: results.allStudents.slice(0, 3),
-          augustRegistrations: results.augustRegistrations.slice(0, 3),
-          augustStarts: results.augustStarts.slice(0, 3),
-          augustPayments: results.augustPayments.slice(0, 3)
+          allStudents: convertObjectBigInts(results.allStudents.slice(0, 3)),
+          augustRegistrations: convertObjectBigInts(results.augustRegistrations.slice(0, 3)),
+          augustStarts: convertObjectBigInts(results.augustStarts.slice(0, 3)),
+          augustPayments: convertObjectBigInts(results.augustPayments.slice(0, 3)),
+          allPayments: convertObjectBigInts(results.allPayments.slice(0, 5)),
+          monthPayments: convertObjectBigInts(results.monthPayments.slice(0, 5))
         }
       }
-    });
+    };
+
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error("Error fetching registral earnings:", error);

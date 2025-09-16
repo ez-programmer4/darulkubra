@@ -1,50 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    // Public endpoint - no authentication required for reading configurations
+    // Fetch all student configurations
     const [statuses, packages, subjects] = await Promise.all([
-      prisma.studentStatus.findMany({ 
-        orderBy: { name: 'asc' },
-        select: { id: true, name: true }
+      prisma.studentstatus.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" }
       }),
-      prisma.studentPackage.findMany({ 
-        orderBy: { name: 'asc' },
-        select: { id: true, name: true }
+      prisma.studentpackage.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" }
       }),
-      prisma.studentSubject.findMany({ 
-        orderBy: { name: 'asc' },
-        select: { id: true, name: true }
+      prisma.studentsubject.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" }
       })
     ]);
 
-    return NextResponse.json({ statuses, packages, subjects });
-
-  } catch (error: any) {
-    console.error('Error fetching student configurations:', error);
-    
-    // Return fallback data if database fails
     return NextResponse.json({
-      statuses: [
-        { id: 1, name: 'Active' },
-        { id: 2, name: 'Inactive' },
-        { id: 3, name: 'Not yet' },
-        { id: 4, name: 'Leave' },
-        { id: 5, name: 'Completed' }
-      ],
-      packages: [
-        { id: 1, name: '0 Fee' },
-        { id: 2, name: '3 days' },
-        { id: 3, name: '5 days' },
-        { id: 4, name: 'Europe' }
-      ],
-      subjects: [
-        { id: 1, name: 'Qaidah' },
-        { id: 2, name: 'Nethor' },
-        { id: 3, name: 'Hifz' },
-        { id: 4, name: 'Kitab' }
-      ]
+      statuses: statuses || [],
+      packages: packages || [],
+      subjects: subjects || []
     });
+
+  } catch (error) {
+    console.error("Error fetching student configurations:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch student configurations" },
+      { status: 500 }
+    );
   }
 }

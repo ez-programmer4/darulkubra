@@ -233,14 +233,14 @@ function RegistrationContent() {
         if (res.ok) {
           const data = await res.json();
           setStudentConfigs({
-            statuses: data.statuses?.map((s: any) => s.name) || [],
-            packages: data.packages?.map((p: any) => p.name) || [],
-            subjects: data.subjects?.map((s: any) => s.name) || [],
+            statuses: data.statuses?.map((s: any) => s.name) || ["Active", "Not yet", "Leave", "Completed"],
+            packages: data.packages?.map((p: any) => p.name) || ["0 Fee", "3 days", "5 days", "Europe"],
+            subjects: data.subjects?.map((s: any) => s.name) || ["Qaidah", "Nethor", "Hifz", "Kitab"],
           });
         } else {
           // Fallback to defaults
           setStudentConfigs({
-            statuses: ["Active", "Inactive", "Not yet", "Leave", "Completed"],
+            statuses: ["Active", "Not yet", "Leave", "Completed"],
             packages: ["0 Fee", "3 days", "5 days", "Europe"],
             subjects: ["Qaidah", "Nethor", "Hifz", "Kitab"],
           });
@@ -249,7 +249,7 @@ function RegistrationContent() {
         console.error("Failed to fetch student configurations:", error);
         // Fallback to defaults
         setStudentConfigs({
-          statuses: ["Active", "Inactive", "Not yet", "Leave", "Completed"],
+          statuses: ["Active", "Not yet", "Leave", "Completed"],
           packages: ["0 Fee", "3 days", "5 days", "Europe"],
           subjects: ["Qaidah", "Nethor", "Hifz", "Kitab"],
         });
