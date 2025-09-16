@@ -14,102 +14,130 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const month = searchParams.get("month") || new Date().toISOString().slice(0, 7);
-    const registralName = session.name || session.username; // Get current registral's name
+    const month = searchParams.get("month") || "2024-08"; // Default to August 2024 for debugging
+    const registralName = session.name || session.username;
 
-    // Convert month to start and end dates
-    const [year, monthNum] = month.split("-");
-    const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
-    const endDate = new Date(parseInt(year), parseInt(monthNum), 0, 23, 59, 59);
+    console.log(`=== REGISTRAL EARNINGS DEBUG FOR ${registralName} - ${month} ===`);
 
-    // Get registrations for this specific registral (only students with no referral)
-    const registrations = await prisma.wpos_wpdatatable_23.findMany({
-      select: {
-        wdt_ID: true,
-        rigistral: true,
-        status: true,
-        subject: true,
-        registrationdate: true,
-        startdate: true,
-      },
-      where: {
-        rigistral: registralName,
-        OR: [
-          { refer: null },
-          { refer: "" }
-        ]
-      },
-    });
+    // Raw SQL queries for detailed analysis
+    const queries = {
+      // 1. All students registered by this registral (no referral)
+      allStudents: `
+        SELECT 
+          wdt_ID,
+          name,
+          rigistral,
+          status,
+          subject,
+          registrationdate,
+          startdate,
+          refer,
+          package
+        FROM wpos_wpdatatable_23 
+        WHERE rigistral = ? 
+          AND (refer IS NULL OR refer = '')
+        ORDER BY registrationdate DESC
+      `,
 
-    // Get payment data
-    const payments = await prisma.months_table.findMany({
-      select: {
-        studentid: true,
-        month: true,
-        payment_status: true,
-      },
-      where: {
-        payment_status: "Paid",
-      },
-    });
+      // 2. Students registered in August 2024
+      augustRegistrations: `
+        SELECT 
+          wdt_ID,
+          name,
+          rigistral,
+          status,
+          subject,
+          registrationdate,
+          startdate,
+          refer
+        FROM wpos_wpdatatable_23 
+        WHERE rigistral = ? 
+          AND (refer IS NULL OR refer = '')
+          AND DATE_FORMAT(registrationdate, '%Y-%m') = ?
+        ORDER BY registrationdate DESC
+      `,
 
-    // Create payment lookup
-    const paymentLookup = new Map();
-    payments.forEach(payment => {
-      if (!paymentLookup.has(payment.studentid)) {
-        paymentLookup.set(payment.studentid, []);
-      }
-      paymentLookup.get(payment.studentid).push(payment);
-    });
+      // 3. Students who started in August 2024
+      augustStarts: `
+        SELECT 
+          wdt_ID,
+          name,
+          rigistral,
+          status,
+          subject,
+          registrationdate,
+          startdate,
+          refer
+        FROM wpos_wpdatatable_23 
+        WHERE rigistral = ? 
+          AND (refer IS NULL OR refer = '')
+          AND DATE_FORMAT(startdate, '%Y-%m') = ?
+          AND status IN ('Active', 'Not yet')
+        ORDER BY startdate DESC
+      `,
 
-    // Calculate earnings for this registral
+      // 4. August payments for students who started in August
+      augustPayments: `
+        SELECT 
+          s.wdt_ID,
+          s.name,
+          s.subject,
+          s.startdate,
+          m.month,
+          m.payment_status,
+          m.is_free_month
+        FROM wpos_wpdatatable_23 s
+        JOIN months_table m ON s.wdt_ID = m.studentid
+        WHERE s.rigistral = ? 
+          AND (s.refer IS NULL OR s.refer = '')
+          AND DATE_FORMAT(s.startdate, '%Y-%m') = ?
+          AND s.status IN ('Active', 'Not yet')
+          AND m.month = ?
+          AND (UPPER(m.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR m.is_free_month = 1)
+        ORDER BY s.startdate DESC
+      `,
+
+      // 5. Summary stats
+      summaryStats: `
+        SELECT 
+          COUNT(CASE WHEN DATE_FORMAT(registrationdate, '%Y-%m') = ? AND status IN ('Active', 'Not yet', 'Not Succeed') THEN 1 END) as total_reg,
+          COUNT(CASE WHEN DATE_FORMAT(registrationdate, '%Y-%m') = ? AND status = 'Not Succeed' THEN 1 END) as not_success,
+          COUNT(CASE WHEN DATE_FORMAT(startdate, '%Y-%m') = ? AND status IN ('Active', 'Not yet') THEN 1 END) as started_in_month
+        FROM wpos_wpdatatable_23 
+        WHERE rigistral = ? 
+          AND (refer IS NULL OR refer = '')
+      `
+    };
+
+    // Execute all queries
+    const results: any = {};
+    
+    results.allStudents = await prisma.$queryRawUnsafe(queries.allStudents, registralName);
+    results.augustRegistrations = await prisma.$queryRawUnsafe(queries.augustRegistrations, registralName, month);
+    results.augustStarts = await prisma.$queryRawUnsafe(queries.augustStarts, registralName, month);
+    results.augustPayments = await prisma.$queryRawUnsafe(queries.augustPayments, registralName, month, month);
+    results.summaryStats = await prisma.$queryRawUnsafe(queries.summaryStats, month, month, month, registralName);
+
+    // Calculate detailed stats
     const stats = {
       registral: registralName,
-      totalReg: 0,
-      successReg: 0,
+      month: month,
+      totalReg: Number(results.summaryStats[0]?.total_reg || 0),
+      notSuccess: Number(results.summaryStats[0]?.not_success || 0),
+      startedInMonth: Number(results.summaryStats[0]?.started_in_month || 0),
+      successReg: results.augustPayments.length,
       reading: 0,
       hifz: 0,
-      notSuccess: 0,
       reward: 0,
       level: null as string | null,
     };
 
-    registrations.forEach(reg => {
-      // Check if registration is in the selected month
-      const regDate = reg.registrationdate ? new Date(reg.registrationdate) : null;
-      const startDateReg = reg.startdate ? new Date(reg.startdate) : null;
-      
-      const isRegInMonth = regDate && regDate >= startDate && regDate <= endDate;
-      const isStartInMonth = startDateReg && startDateReg >= startDate && startDateReg <= endDate;
-
-      // Total registrations in month with specific statuses
-      if (isRegInMonth && reg.status && ["Active", "Not yet", "Not Succeed"].includes(reg.status)) {
-        stats.totalReg++;
-      }
-
-      // Not success count
-      if (isRegInMonth && reg.status === "Not Succeed") {
-        stats.notSuccess++;
-      }
-
-      // Success registrations (started and paid in same month)
-      if (isStartInMonth && reg.status && ["Active", "Not yet"].includes(reg.status)) {
-        const studentPayments = paymentLookup.get(reg.wdt_ID) || [];
-        const hasPaymentInMonth = studentPayments.some((payment: any) => {
-          const paymentDate = new Date(payment.month);
-          return paymentDate >= startDate && paymentDate <= endDate;
-        });
-
-        if (hasPaymentInMonth) {
-          stats.successReg++;
-
-          // Calculate reading and hifz
-          if (reg.subject && ["Nethor", "Qaidah"].includes(reg.subject)) {
-            stats.reading++;
-          } else if (reg.subject === "Hifz") {
-            stats.hifz++;
-          }
-        }
+    // Count reading and hifz from successful registrations
+    results.augustPayments.forEach((payment: any) => {
+      if (payment.subject && ["Nethor", "Qaidah"].includes(payment.subject)) {
+        stats.reading++;
+      } else if (payment.subject === "Hifz") {
+        stats.hifz++;
       }
     });
 
@@ -123,15 +151,38 @@ export async function GET(request: NextRequest) {
       stats.level = "Level 2";
     }
 
+    // Debug output
+    console.log('=== QUERY RESULTS ===');
+    console.log('All Students Count:', results.allStudents.length);
+    console.log('August Registrations:', results.augustRegistrations.length);
+    console.log('August Starts:', results.augustStarts.length);
+    console.log('August Payments:', results.augustPayments.length);
+    console.log('Summary Stats:', results.summaryStats[0]);
+    console.log('Final Stats:', stats);
+
     return NextResponse.json({
-      earnings: stats.totalReg > 0 || stats.successReg > 0 ? stats : null,
+      earnings: stats,
       month,
+      debug: {
+        queries: Object.keys(queries),
+        allStudentsCount: results.allStudents.length,
+        augustRegistrationsCount: results.augustRegistrations.length,
+        augustStartsCount: results.augustStarts.length,
+        augustPaymentsCount: results.augustPayments.length,
+        summaryStats: results.summaryStats[0],
+        sampleData: {
+          allStudents: results.allStudents.slice(0, 3),
+          augustRegistrations: results.augustRegistrations.slice(0, 3),
+          augustStarts: results.augustStarts.slice(0, 3),
+          augustPayments: results.augustPayments.slice(0, 3)
+        }
+      }
     });
 
   } catch (error) {
     console.error("Error fetching registral earnings:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }
