@@ -546,7 +546,7 @@ function RegistrationContent() {
               ? new Date(data.startdate).toISOString().split("T")[0]
               : ""
           );
-          setValue("status", data.status || "active");
+          setValue("status", data.status || "Active");
           setValue("subject", data.subject || "");
           setValue("country", data.country || "");
           setValue("rigistral", data.rigistral || "");
@@ -634,7 +634,7 @@ function RegistrationContent() {
             : null,
         startdate: isoStartDate,
         control: control, // Automatically set based on selected ustaz's controlId
-        status: data.status?.toLowerCase() || "pending",
+        status: data.status || "pending",
         ustaz:
           !editId || editTimeTeacher ? selectedTeacher : editingTeacherName,
         package: data.package, // region
@@ -1879,7 +1879,7 @@ function RegistrationContent() {
                             : "Select status"}
                         </option>
                         {studentConfigs.statuses.map((status, index) => (
-                          <option key={index} value={status.toLowerCase()}>
+                          <option key={index} value={status}>
                             {status}
                           </option>
                         ))}
