@@ -48,6 +48,7 @@ export default function RegistrarEarningsPage() {
       const response = await fetch(`/api/admin/registrar-earnings?month=${selectedMonth}`);
       if (!response.ok) throw new Error('Failed to fetch earnings');
       const data = await response.json();
+      console.log('API Response:', data); // Debug log
       setEarnings(data.earnings || []);
       if (data.settings) {
         setSettings(data.settings);
@@ -55,6 +56,7 @@ export default function RegistrarEarningsPage() {
       }
     } catch (error) {
       console.error('Error fetching earnings:', error);
+      setEarnings([]); // Reset on error
     } finally {
       setLoading(false);
     }
@@ -180,6 +182,15 @@ export default function RegistrarEarningsPage() {
               <FiAward className="h-12 w-12 text-orange-500" />
             </div>
           </div>
+        </div>
+
+        {/* Debug Info */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+          <h3 className="font-semibold text-yellow-800 mb-2">Debug Information:</h3>
+          <p className="text-yellow-700 text-sm">Selected Month: {selectedMonth}</p>
+          <p className="text-yellow-700 text-sm">Earnings Count: {earnings.length}</p>
+          <p className="text-yellow-700 text-sm">Total Registrations: {totalRegistrations}</p>
+          <p className="text-yellow-700 text-sm">Total Success: {totalSuccess}</p>
         </div>
 
         {/* Earnings Table */}

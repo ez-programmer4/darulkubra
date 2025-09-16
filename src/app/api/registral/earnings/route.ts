@@ -9,39 +9,14 @@ export async function GET(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
 
-    if (!session || session.role !== "registral") {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const month =
-      searchParams.get("month") || new Date().toISOString().slice(0, 7);
-    const registralName = session.name || session.username; // Get current registral's name
+    const month = searchParams.get("month") || new Date().toISOString().slice(0, 7);
+    const registralName = session.name || session.username;
 
-    // Convert month to start and end dates
-    const [year, monthNum] = month.split("-");
-    const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
-    const endDate = new Date(parseInt(year), parseInt(monthNum), 0, 23, 59, 59);
-
-    // Get registrations for this specific registral (only students with no referral)
-    const registrations = await prisma.wpos_wpdatatable_23.findMany({
-      select: {
-        wdt_ID: true,
-        rigistral: true,
-        status: true,
-        subject: true,
-        registrationdate: true,
-        startdate: true,
-      },
-      where: {
-        rigistral: registralName,
-        OR: [{ refer: null }, { refer: "" }],
-      },
-    });
-
-    // Use raw SQL query to match admin system logic exactly
-    const monthStr = month;
-    
     // Get successful registrations (started + paid in same month)
     const successQuery = `
       SELECT 
@@ -57,7 +32,7 @@ export async function GET(request: NextRequest) {
         AND (UPPER(m.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR m.is_free_month = 1)
     `;
     
-    const successResults = await prisma.$queryRawUnsafe(successQuery, registralName, monthStr, monthStr) as any[];
+    const successResults = await prisma.$queryRawUnsafe(successQuery, registralName, month, month) as any[];
     
     // Get total registrations in month
     const totalQuery = `
@@ -69,7 +44,7 @@ export async function GET(request: NextRequest) {
         AND status IN ('Active', 'Not yet', 'Not Succeed')
     `;
     
-    const totalResult = await prisma.$queryRawUnsafe(totalQuery, registralName, monthStr) as any[];
+    const totalResult = await prisma.$queryRawUnsafe(totalQuery, registralName, month) as any[];
     
     // Get not success count
     const notSuccessQuery = `
@@ -81,7 +56,7 @@ export async function GET(request: NextRequest) {
         AND status = 'Not Succeed'
     `;
     
-    const notSuccessResult = await prisma.$queryRawUnsafe(notSuccessQuery, registralName, monthStr) as any[];
+    const notSuccessResult = await prisma.$queryRawUnsafe(notSuccessQuery, registralName, month) as any[];
     
     // Calculate stats
     const stats = {
