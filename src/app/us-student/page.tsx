@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -18,8 +20,6 @@ interface UsStudent {
   phoneNumber: string;
   wpos_wpdatatable_23Wdt_ID: number | null;
 }
-
-export const revalidate = 60;
 
 export default function Page() {
   const [data, setData] = useState<UsStudent[]>();
