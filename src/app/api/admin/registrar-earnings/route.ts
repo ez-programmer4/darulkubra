@@ -44,12 +44,9 @@ export async function GET(request: NextRequest) {
     const registrars = await prisma.$queryRawUnsafe(registrarsQuery) as any[];
     const earnings = [];
     
-    console.log(`Processing ${registrars.length} registrars for month ${month}`);
-    
     // Calculate earnings for each registrar
     for (const reg of registrars) {
       const registrar = reg.rigistral;
-      console.log(`Processing registrar: ${registrar}`);
       
       try {
         // Get successful registrations (started + paid in same month)
@@ -123,23 +120,40 @@ export async function GET(request: NextRequest) {
           stats.level = "Level 2";
         }
         
-        console.log(`Stats for ${registrar}:`, stats);
-        
-        // Always include registrars, even with 0 values for debugging
-        earnings.push(stats);
+        // Only include registrars with activity
+        if (stats.totalReg > 0 || stats.successReg > 0) {
+          earnings.push(stats);
+        }
         
       } catch (error) {
         console.error(`Error processing registrar ${registrar}:`, error);
       }
     }
 
+    const sortedEarnings = earnings.sort((a, b) => b.reward - a.reward);
+    
+    // Debug totals
+    const debugTotals = {
+      totalReg: sortedEarnings.reduce((sum, e) => sum + e.totalReg, 0),
+      successReg: sortedEarnings.reduce((sum, e) => sum + e.successReg, 0),
+      reading: sortedEarnings.reduce((sum, e) => sum + e.reading, 0),
+      hifz: sortedEarnings.reduce((sum, e) => sum + e.hifz, 0),
+      notSuccess: sortedEarnings.reduce((sum, e) => sum + e.notSuccess, 0),
+      reward: sortedEarnings.reduce((sum, e) => sum + e.reward, 0)
+    };
+    
+    console.log('=== API DEBUG TOTALS ===', debugTotals);
+    console.log('Success + NotSuccess =', debugTotals.successReg + debugTotals.notSuccess);
+    console.log('Should equal Total Reg?', debugTotals.totalReg);
+    
     return NextResponse.json({
-      earnings: earnings.sort((a, b) => b.reward - a.reward),
+      earnings: sortedEarnings,
       month,
       settings: {
         reading_reward: readingReward,
         hifz_reward: hifzReward,
       },
+      debug: debugTotals
     });
 
   } catch (error) {

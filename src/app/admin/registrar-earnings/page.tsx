@@ -39,7 +39,11 @@ export default function RegistrarEarningsPage() {
   const [tempSettings, setTempSettings] = useState<Settings>({ reading_reward: 50, hifz_reward: 100 });
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+    // Default to current month, or previous month if we're early in the month
+    const month = now.getDate() < 5 ? now.getMonth() : now.getMonth() + 1;
+    const year = month === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const adjustedMonth = month === 0 ? 12 : month;
+    return `${year}-${adjustedMonth.toString().padStart(2, '0')}`;
   });
 
   const fetchEarnings = async () => {
@@ -48,15 +52,18 @@ export default function RegistrarEarningsPage() {
       const response = await fetch(`/api/admin/registrar-earnings?month=${selectedMonth}`);
       if (!response.ok) throw new Error('Failed to fetch earnings');
       const data = await response.json();
-      console.log('API Response:', data); // Debug log
-      setEarnings(data.earnings || []);
+      // Filter out registrars with no activity
+      const activeEarnings = (data.earnings || []).filter((earning: RegistrarEarning) => 
+        earning.totalReg > 0 || earning.successReg > 0
+      );
+      setEarnings(activeEarnings);
       if (data.settings) {
         setSettings(data.settings);
         setTempSettings(data.settings);
       }
     } catch (error) {
       console.error('Error fetching earnings:', error);
-      setEarnings([]); // Reset on error
+      setEarnings([]);
     } finally {
       setLoading(false);
     }
@@ -86,6 +93,30 @@ export default function RegistrarEarningsPage() {
   const totalReward = earnings.reduce((sum, item) => sum + item.reward, 0);
   const totalRegistrations = earnings.reduce((sum, item) => sum + item.totalReg, 0);
   const totalSuccess = earnings.reduce((sum, item) => sum + item.successReg, 0);
+  const totalReading = earnings.reduce((sum, item) => sum + item.reading, 0);
+  const totalHifz = earnings.reduce((sum, item) => sum + item.hifz, 0);
+  const totalNotSuccess = earnings.reduce((sum, item) => sum + item.notSuccess, 0);
+  
+  // Debug calculations
+  console.log('=== CALCULATION DEBUG ===');
+  console.log('Individual totals:', {
+    totalReg: totalRegistrations,
+    successReg: totalSuccess,
+    reading: totalReading,
+    hifz: totalHifz,
+    notSuccess: totalNotSuccess,
+    reward: totalReward
+  });
+  console.log('Success + NotSuccess =', totalSuccess + totalNotSuccess);
+  console.log('Should equal Total Reg?', totalRegistrations);
+  console.log('Earnings data:', earnings.map(e => ({
+    name: e.registral,
+    totalReg: e.totalReg,
+    successReg: e.successReg,
+    notSuccess: e.notSuccess,
+    reading: e.reading,
+    hifz: e.hifz
+  })));
 
   if (loading) {
     return (
@@ -139,6 +170,21 @@ export default function RegistrarEarningsPage() {
           </div>
         </div>
 
+        {/* Debug Info */}
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+          <h3 className="font-semibold text-red-800 mb-2">Calculation Debug:</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div><strong>Total Reg:</strong> {totalRegistrations}</div>
+            <div><strong>Success:</strong> {totalSuccess}</div>
+            <div><strong>Not Success:</strong> {totalNotSuccess}</div>
+            <div><strong>Success + Not Success:</strong> {totalSuccess + totalNotSuccess}</div>
+            <div><strong>Reading:</strong> {totalReading}</div>
+            <div><strong>Hifz:</strong> {totalHifz}</div>
+            <div><strong>Reading + Hifz:</strong> {totalReading + totalHifz}</div>
+            <div><strong>Expected Reward:</strong> ${(totalReading * settings.reading_reward) + (totalHifz * settings.hifz_reward)}</div>
+          </div>
+        </div>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
@@ -182,15 +228,6 @@ export default function RegistrarEarningsPage() {
               <FiAward className="h-12 w-12 text-orange-500" />
             </div>
           </div>
-        </div>
-
-        {/* Debug Info */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-          <h3 className="font-semibold text-yellow-800 mb-2">Debug Information:</h3>
-          <p className="text-yellow-700 text-sm">Selected Month: {selectedMonth}</p>
-          <p className="text-yellow-700 text-sm">Earnings Count: {earnings.length}</p>
-          <p className="text-yellow-700 text-sm">Total Registrations: {totalRegistrations}</p>
-          <p className="text-yellow-700 text-sm">Total Success: {totalSuccess}</p>
         </div>
 
         {/* Earnings Table */}
