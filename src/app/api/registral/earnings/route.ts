@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         AND (UPPER(m.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR m.is_free_month = 1)
     `;
     
-    const successResults = await prisma.$queryRawUnsafe(successQuery, registralName, monthStr, monthStr);
+    const successResults = await prisma.$queryRawUnsafe(successQuery, registralName, monthStr, monthStr) as any[];
     
     // Get total registrations in month
     const totalQuery = `
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
         AND status IN ('Active', 'Not yet', 'Not Succeed')
     `;
     
-    const totalResult = await prisma.$queryRawUnsafe(totalQuery, registralName, monthStr);
+    const totalResult = await prisma.$queryRawUnsafe(totalQuery, registralName, monthStr) as any[];
     
     // Get not success count
     const notSuccessQuery = `
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
         AND status = 'Not Succeed'
     `;
     
-    const notSuccessResult = await prisma.$queryRawUnsafe(notSuccessQuery, registralName, monthStr);
+    const notSuccessResult = await prisma.$queryRawUnsafe(notSuccessQuery, registralName, monthStr) as any[];
     
     // Calculate stats
     const stats = {
