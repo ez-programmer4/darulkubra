@@ -24,6 +24,8 @@ interface RegistrarEarning {
   reward: number;
   level: string | null;
   paidStudents: number;
+  otherSubjects?: number;
+  nullSubjects?: number;
 }
 
 interface Settings {
@@ -98,6 +100,8 @@ export default function RegistrarEarningsPage() {
   const totalHifz = earnings.reduce((sum, item) => sum + item.hifz, 0);
   const totalNotSuccess = earnings.reduce((sum, item) => sum + item.notSuccess, 0);
   const totalPaidStudents = earnings.reduce((sum, item) => sum + item.paidStudents, 0);
+  const totalOtherSubjects = earnings.reduce((sum, item) => sum + (item.otherSubjects || 0), 0);
+  const totalNullSubjects = earnings.reduce((sum, item) => sum + (item.nullSubjects || 0), 0);
   
   // Debug calculations
   console.log('=== CALCULATION DEBUG ===');
@@ -183,6 +187,9 @@ export default function RegistrarEarningsPage() {
             <div><strong>Reading:</strong> {totalReading}</div>
             <div><strong>Hifz:</strong> {totalHifz}</div>
             <div><strong>Reading + Hifz:</strong> {totalReading + totalHifz}</div>
+            <div><strong>Other Subjects:</strong> {totalOtherSubjects}</div>
+            <div><strong>Null Subjects:</strong> {totalNullSubjects}</div>
+            <div><strong>All Subjects Total:</strong> {totalReading + totalHifz + totalOtherSubjects + totalNullSubjects}</div>
             <div><strong>Paid Students:</strong> {totalPaidStudents}</div>
             <div><strong>Expected Reward:</strong> ${(totalReading * settings.reading_reward) + (totalHifz * settings.hifz_reward)}</div>
           </div>

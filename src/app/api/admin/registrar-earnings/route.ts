@@ -116,12 +116,32 @@ export async function GET(request: NextRequest) {
         };
         
         // Count reading and hifz from successful registrations
+        let otherSubjects = 0;
+        let nullSubjects = 0;
+        const subjectBreakdown: any = {};
+        
         successResults.forEach((result: any) => {
-          if (result.subject && ["Nethor", "Qaidah"].includes(result.subject)) {
+          const subject = result.subject;
+          subjectBreakdown[subject] = (subjectBreakdown[subject] || 0) + 1;
+          
+          if (subject && ["Nethor", "Qaidah"].includes(subject)) {
             stats.reading++;
-          } else if (result.subject === "Hifz") {
+          } else if (subject === "Hifz") {
             stats.hifz++;
+          } else if (!subject || subject === null) {
+            nullSubjects++;
+          } else {
+            otherSubjects++;
           }
+        });
+        
+        console.log(`${registrar} subject breakdown:`, {
+          total: successResults.length,
+          reading: stats.reading,
+          hifz: stats.hifz,
+          other: otherSubjects,
+          null: nullSubjects,
+          subjects: subjectBreakdown
         });
         
         // Calculate reward using dynamic values
@@ -133,6 +153,10 @@ export async function GET(request: NextRequest) {
         } else if (registrar !== "Unsigned") {
           stats.level = "Level 2";
         }
+        
+        // Add debugging info to stats
+        (stats as any).otherSubjects = otherSubjects;
+        (stats as any).nullSubjects = nullSubjects;
         
         // Only include registrars with activity
         if (stats.totalReg > 0 || stats.successReg > 0) {
