@@ -39,92 +39,73 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Get payment data
-    const payments = await prisma.months_table.findMany({
-      select: {
-        studentid: true,
-        month: true,
-        payment_status: true,
-      },
-      where: {
-        payment_status: "Paid",
-      },
-    });
-
-    // Create payment lookup
-    const paymentLookup = new Map();
-    payments.forEach((payment) => {
-      if (!paymentLookup.has(payment.studentid)) {
-        paymentLookup.set(payment.studentid, []);
-      }
-      paymentLookup.get(payment.studentid).push(payment);
-    });
-
-    // Calculate earnings for this registral
+    // Use raw SQL query to match admin system logic exactly
+    const monthStr = month;
+    
+    // Get successful registrations (started + paid in same month)
+    const successQuery = `
+      SELECT 
+        s.wdt_ID,
+        s.subject
+      FROM wpos_wpdatatable_23 s
+      JOIN months_table m ON s.wdt_ID = m.studentid
+      WHERE s.rigistral = ?
+        AND (s.refer IS NULL OR s.refer = '')
+        AND DATE_FORMAT(s.startdate, '%Y-%m') = ?
+        AND s.status IN ('Active', 'Not yet')
+        AND m.month = ?
+        AND (UPPER(m.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR m.is_free_month = 1)
+    `;
+    
+    const successResults = await prisma.$queryRawUnsafe(successQuery, registralName, monthStr, monthStr);
+    
+    // Get total registrations in month
+    const totalQuery = `
+      SELECT COUNT(*) as count
+      FROM wpos_wpdatatable_23 
+      WHERE rigistral = ?
+        AND (refer IS NULL OR refer = '')
+        AND DATE_FORMAT(registrationdate, '%Y-%m') = ?
+        AND status IN ('Active', 'Not yet', 'Not Succeed')
+    `;
+    
+    const totalResult = await prisma.$queryRawUnsafe(totalQuery, registralName, monthStr);
+    
+    // Get not success count
+    const notSuccessQuery = `
+      SELECT COUNT(*) as count
+      FROM wpos_wpdatatable_23 
+      WHERE rigistral = ?
+        AND (refer IS NULL OR refer = '')
+        AND DATE_FORMAT(registrationdate, '%Y-%m') = ?
+        AND status = 'Not Succeed'
+    `;
+    
+    const notSuccessResult = await prisma.$queryRawUnsafe(notSuccessQuery, registralName, monthStr);
+    
+    // Calculate stats
     const stats = {
       registral: registralName,
-      totalReg: 0,
-      successReg: 0,
+      totalReg: Number(totalResult[0]?.count || 0),
+      successReg: successResults.length,
       reading: 0,
       hifz: 0,
-      notSuccess: 0,
+      notSuccess: Number(notSuccessResult[0]?.count || 0),
       reward: 0,
       level: null as string | null,
     };
-
-    registrations.forEach((reg) => {
-      // Check if registration is in the selected month
-      const regDate = reg.registrationdate
-        ? new Date(reg.registrationdate)
-        : null;
-      const startDateReg = reg.startdate ? new Date(reg.startdate) : null;
-
-      const isRegInMonth =
-        regDate && regDate >= startDate && regDate <= endDate;
-      const isStartInMonth =
-        startDateReg && startDateReg >= startDate && startDateReg <= endDate;
-
-      // Total registrations in month with specific statuses
-      if (
-        isRegInMonth &&
-        reg.status &&
-        ["Active", "Not yet", "Not Succeed"].includes(reg.status)
-      ) {
-        stats.totalReg++;
-      }
-
-      // Not success count
-      if (isRegInMonth && reg.status === "Not Succeed") {
-        stats.notSuccess++;
-      }
-
-      // Success registrations (started and paid in same month)
-      if (
-        isStartInMonth &&
-        reg.status &&
-        ["Active", "Not yet"].includes(reg.status)
-      ) {
-        const studentPayments = paymentLookup.get(reg.wdt_ID) || [];
-        const hasPaymentInMonth = studentPayments.some((payment: any) => {
-          const paymentDate = new Date(payment.month);
-          return paymentDate >= startDate && paymentDate <= endDate;
-        });
-
-        if (hasPaymentInMonth) {
-          stats.successReg++;
-
-          // Calculate reading and hifz
-          if (reg.subject && ["Nethor", "Qaidah"].includes(reg.subject)) {
-            stats.reading++;
-          } else if (reg.subject === "Hifz") {
-            stats.hifz++;
-          }
-        }
+    
+    // Count reading and hifz from successful registrations
+    successResults.forEach((result: any) => {
+      if (result.subject && ["Nethor", "Qaidah"].includes(result.subject)) {
+        stats.reading++;
+      } else if (result.subject === "Hifz") {
+        stats.hifz++;
       }
     });
 
     // Calculate reward
-    stats.reward = stats.reading * 50 + stats.hifz * 100;
+    stats.reward = (stats.reading * 50) + (stats.hifz * 100);
 
     // Determine level
     if (registralName === "Abdulrahim") {
