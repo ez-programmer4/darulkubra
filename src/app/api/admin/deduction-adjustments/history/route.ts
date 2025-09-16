@@ -56,3 +56,5 @@
 //     return NextResponse.json({ error: "Failed to fetch waiver history" }, { status: 500 });
 //   }
 // }
+
+export {};
