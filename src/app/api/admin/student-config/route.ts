@@ -9,16 +9,44 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const url = new URL(req.url);
+    const type = url.searchParams.get("type");
+
+    if (type === "statuses") {
+      const statuses = await prisma.studentStatus.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+      });
+      return NextResponse.json(statuses);
+    }
+
+    if (type === "packages") {
+      const packages = await prisma.studentPackage.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+      });
+      return NextResponse.json(packages);
+    }
+
+    if (type === "subjects") {
+      const subjects = await prisma.studentSubject.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+      });
+      return NextResponse.json(subjects);
+    }
+
+    // Return all configurations
     const [statuses, packages, subjects] = await Promise.all([
-      prisma.studentstatus.findMany({
+      prisma.studentStatus.findMany({
         where: { isActive: true },
         orderBy: { name: "asc" },
       }),
-      prisma.studentpackage.findMany({
+      prisma.studentPackage.findMany({
         where: { isActive: true },
         orderBy: { name: "asc" },
       }),
-      prisma.studentsubject.findMany({
+      prisma.studentSubject.findMany({
         where: { isActive: true },
         orderBy: { name: "asc" },
       }),
@@ -26,7 +54,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ statuses, packages, subjects });
   } catch (error: any) {
-    console.error("Student config GET error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -43,59 +70,112 @@ export async function POST(req: NextRequest) {
 
     const { type, name, action = "add", id } = await req.json();
 
+    // Initialize default data if action is 'init'
     if (action === "init") {
-      const defaultStatuses = ["Active", "Not yet", "Leave", "Completed"];
+      const defaultStatuses = [
+        "Active",
+        "Not yet",
+        "Leave",
+        "Completed",
+        "Not succeed",
+        "Ramadan Leave",
+      ];
       const defaultPackages = ["0 Fee", "3 days", "5 days", "Europe"];
       const defaultSubjects = ["Qaidah", "Nethor", "Hifz", "Kitab"];
 
+      // Clear existing data and recreate
       await Promise.all([
-        prisma.studentstatus.deleteMany({}),
-        prisma.studentpackage.deleteMany({}),
-        prisma.studentsubject.deleteMany({}),
+        prisma.studentStatus.deleteMany({}),
+        prisma.studentPackage.deleteMany({}),
+        prisma.studentSubject.deleteMany({}),
       ]);
 
       await Promise.all([
         ...defaultStatuses.map((status) =>
-          prisma.studentstatus.create({ data: { name: status } })
+          prisma.studentStatus.create({ data: { name: status } })
         ),
         ...defaultPackages.map((pkg) =>
-          prisma.studentpackage.create({ data: { name: pkg } })
+          prisma.studentPackage.create({ data: { name: pkg } })
         ),
         ...defaultSubjects.map((subject) =>
-          prisma.studentsubject.create({ data: { name: subject } })
+          prisma.studentSubject.create({ data: { name: subject } })
         ),
       ]);
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({
+        success: true,
+        message: "Default data initialized",
+      });
     }
 
     if (action === "add") {
+      // Check for duplicates
+      let exists = false;
+      if (type === "status") {
+        exists = !!(await prisma.studentStatus.findUnique({ where: { name } }));
+      } else if (type === "package") {
+        exists = !!(await prisma.studentPackage.findUnique({
+          where: { name },
+        }));
+      } else if (type === "subject") {
+        exists = !!(await prisma.studentSubject.findUnique({
+          where: { name },
+        }));
+      }
+
+      if (exists) {
+        return NextResponse.json(
+          { error: `${name} already exists` },
+          { status: 400 }
+        );
+      }
+
       let result;
       if (type === "status") {
-        result = await prisma.studentstatus.create({ data: { name } });
+        result = await prisma.studentStatus.create({ data: { name } });
       } else if (type === "package") {
-        result = await prisma.studentpackage.create({ data: { name } });
+        result = await prisma.studentPackage.create({ data: { name } });
       } else if (type === "subject") {
-        result = await prisma.studentsubject.create({ data: { name } });
+        result = await prisma.studentSubject.create({ data: { name } });
       }
       return NextResponse.json({ success: true, id: result?.id });
     }
 
     if (action === "update" && id && name) {
       if (type === "status") {
-        await prisma.studentstatus.update({
+        await prisma.studentStatus.update({
           where: { id: parseInt(id) },
           data: { name },
         });
       } else if (type === "package") {
-        await prisma.studentpackage.update({
+        await prisma.studentPackage.update({
           where: { id: parseInt(id) },
           data: { name },
         });
       } else if (type === "subject") {
-        await prisma.studentsubject.update({
+        await prisma.studentSubject.update({
           where: { id: parseInt(id) },
           data: { name },
+        });
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "delete" && id) {
+      if (type === "status") {
+        await prisma.studentStatus.update({
+          where: { id: parseInt(id) },
+          data: { isActive: false },
+        });
+      } else if (type === "package") {
+        await prisma.studentPackage.update({
+          where: { id: parseInt(id) },
+          data: { isActive: false },
+        });
+      } else if (type === "subject") {
+        await prisma.studentSubject.update({
+          where: { id: parseInt(id) },
+          data: { isActive: false },
         });
       }
       return NextResponse.json({ success: true });
@@ -103,7 +183,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error: any) {
-    console.error("Student config POST error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
