@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
         
         const successResults = await prisma.$queryRawUnsafe(successQuery, registrar, month, month) as any[];
         
-        // Get total registrations in month
+        // Get total registrations in month (registered in month with valid statuses)
         const totalQuery = `
           SELECT COUNT(*) as count
           FROM wpos_wpdatatable_23 
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         
         const totalResult = await prisma.$queryRawUnsafe(totalQuery, registrar, month) as any[];
         
-        // Get not success count
+        // Get not success count (registered in month with Not Succeed status)
         const notSuccessQuery = `
           SELECT COUNT(*) as count
           FROM wpos_wpdatatable_23 
@@ -90,6 +90,19 @@ export async function GET(request: NextRequest) {
         
         const notSuccessResult = await prisma.$queryRawUnsafe(notSuccessQuery, registrar, month) as any[];
         
+        // Get all paid students for this registrar in this month (regardless of start date)
+        const paidStudentsQuery = `
+          SELECT COUNT(DISTINCT s.wdt_ID) as count
+          FROM wpos_wpdatatable_23 s
+          JOIN months_table m ON s.wdt_ID = m.studentid
+          WHERE s.rigistral = ?
+            AND (s.refer IS NULL OR s.refer = '')
+            AND m.month = ?
+            AND (UPPER(m.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR m.is_free_month = 1)
+        `;
+        
+        const paidStudentsResult = await prisma.$queryRawUnsafe(paidStudentsQuery, registrar, month) as any[];
+        
         const stats = {
           registral: registrar,
           totalReg: Number(totalResult[0]?.count || 0),
@@ -99,6 +112,7 @@ export async function GET(request: NextRequest) {
           notSuccess: Number(notSuccessResult[0]?.count || 0),
           reward: 0,
           level: null as string | null,
+          paidStudents: Number(paidStudentsResult[0]?.count || 0),
         };
         
         // Count reading and hifz from successful registrations

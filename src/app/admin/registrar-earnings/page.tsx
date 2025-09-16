@@ -23,6 +23,7 @@ interface RegistrarEarning {
   notSuccess: number;
   reward: number;
   level: string | null;
+  paidStudents: number;
 }
 
 interface Settings {
@@ -96,6 +97,7 @@ export default function RegistrarEarningsPage() {
   const totalReading = earnings.reduce((sum, item) => sum + item.reading, 0);
   const totalHifz = earnings.reduce((sum, item) => sum + item.hifz, 0);
   const totalNotSuccess = earnings.reduce((sum, item) => sum + item.notSuccess, 0);
+  const totalPaidStudents = earnings.reduce((sum, item) => sum + item.paidStudents, 0);
   
   // Debug calculations
   console.log('=== CALCULATION DEBUG ===');
@@ -181,6 +183,7 @@ export default function RegistrarEarningsPage() {
             <div><strong>Reading:</strong> {totalReading}</div>
             <div><strong>Hifz:</strong> {totalHifz}</div>
             <div><strong>Reading + Hifz:</strong> {totalReading + totalHifz}</div>
+            <div><strong>Paid Students:</strong> {totalPaidStudents}</div>
             <div><strong>Expected Reward:</strong> ${(totalReading * settings.reading_reward) + (totalHifz * settings.hifz_reward)}</div>
           </div>
         </div>
@@ -263,6 +266,9 @@ export default function RegistrarEarningsPage() {
                     Not Success
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
+                    Paid Students
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Total Reward
                   </th>
                 </tr>
@@ -307,6 +313,9 @@ export default function RegistrarEarningsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600">
                       {item.notSuccess}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-600">
+                      {item.paidStudents}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
