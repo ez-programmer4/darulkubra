@@ -152,43 +152,7 @@ export default function Controller() {
     setEditingStudent(student);
   };
 
-  const handleUpdate = (updatedStudent: Student) => {
-    setStudents(
-      students.map((s) => {
-        const safeStudent = {
-          ...updatedStudent,
-          id: updatedStudent.id ?? 0,
-          name: updatedStudent.name ?? "Unknown",
-          phoneno: updatedStudent.phoneno ?? "",
-          classfee: updatedStudent.classfee ?? 0,
-          startdate: updatedStudent.startdate ?? "",
-          control: updatedStudent.control ?? "",
-          status: updatedStudent.status ?? "unknown",
-          ustaz: updatedStudent.ustaz ?? "",
-          package: updatedStudent.package ?? "",
-          subject: updatedStudent.subject ?? "",
-          country: updatedStudent.country ?? "",
-          rigistral: updatedStudent.rigistral ?? "",
-          daypackages: updatedStudent.daypackages ?? "",
-          isTrained: Boolean(updatedStudent.isTrained ?? false),
-          refer: updatedStudent.refer ?? "",
-          registrationdate: updatedStudent.registrationdate ?? "",
-          selectedTime: updatedStudent.selectedTime ?? "",
-          teacher: {
-            ustazname:
-              updatedStudent.teacher?.ustazname ??
-              updatedStudent.ustaz ??
-              "N/A",
-          },
-          progress: updatedStudent.progress ?? "",
-          chatId: updatedStudent.chatId ?? null,
-        };
-        return s.id === updatedStudent.id ? safeStudent : s;
-      })
-    );
-    setEditingStudent(null);
-    toast.success("Student information updated successfully");
-  };
+
 
   const handleDelete = async (studentId: number) => {
     if (!confirm("Are you sure you want to delete this student?")) return;
@@ -371,40 +335,63 @@ export default function Controller() {
                     <p className="text-gray-600">No deposits found for the current month.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="grid gap-6">
                     {deposits.map((deposit) => (
-                      <div key={deposit.id} className="bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
-                        <div className="flex items-center justify-between">
+                      <div key={deposit.id} className="bg-gradient-to-br from-white via-gray-50 to-blue-50 border-2 border-gray-200 rounded-2xl p-6 hover:shadow-xl hover:border-blue-300 transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-4">
-                            <div className="p-3 bg-blue-100 rounded-lg">
-                              <FiUser className="h-5 w-5 text-blue-600" />
+                            <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
+                              <FiUser className="h-6 w-6 text-white" />
                             </div>
                             <div>
-                              <h4 className="font-bold text-gray-900">{deposit.studentname}</h4>
-                              <p className="text-sm text-gray-600">{deposit.transactionid}</p>
+                              <h4 className="text-xl font-bold text-gray-900 mb-1">{deposit.studentname}</h4>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Transaction ID:</span>
+                                <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{deposit.transactionid}</code>
+                              </div>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-2xl font-bold text-gray-900">${deposit.paidamount}</p>
-                            <p className="text-sm text-gray-600">{new Date(deposit.paymentdate).toLocaleDateString()}</p>
+                            <div className="bg-gradient-to-r from-green-100 to-emerald-100 rounded-xl p-4 border border-green-200">
+                              <p className="text-3xl font-bold text-green-800">${deposit.paidamount}</p>
+                              <p className="text-sm text-green-600 font-medium">{new Date(deposit.paymentdate).toLocaleDateString('en-US', { 
+                                weekday: 'short', 
+                                year: 'numeric', 
+                                month: 'short', 
+                                day: 'numeric' 
+                              })}</p>
+                            </div>
                           </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                           <div className="flex items-center gap-3">
-                            <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                              deposit.status === 'approved' ? 'bg-green-100 text-green-800' :
-                              deposit.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {deposit.status.charAt(0).toUpperCase() + deposit.status.slice(1)}
-                            </span>
+                            <div className="flex items-center gap-3">
+                              <span className={`px-4 py-2 text-sm font-bold rounded-full shadow-md ${
+                                deposit.status === 'approved' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' :
+                                deposit.status === 'pending' ? 'bg-gradient-to-r from-yellow-500 to-amber-600 text-white' :
+                                'bg-gradient-to-r from-red-500 to-rose-600 text-white'
+                              }`}>
+                                {deposit.status === 'approved' && '✓ '}
+                                {deposit.status === 'pending' && '⏳ '}
+                                {deposit.status === 'rejected' && '✗ '}
+                                {deposit.status.charAt(0).toUpperCase() + deposit.status.slice(1)}
+                              </span>
+                              {deposit.reason && (
+                                <div className="bg-gray-100 px-3 py-1 rounded-lg">
+                                  <span className="text-xs text-gray-600 font-medium">{deposit.reason}</span>
+                                </div>
+                              )}
+                            </div>
                             <button
                               onClick={() => {
                                 const student = students.find(s => s.id === deposit.studentid);
                                 if (student) setEditingStudent(student);
                               }}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="View Student"
+                              className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg transform hover:scale-105"
+                              title="View Student Details"
                             >
-                              <FiEye className="h-5 w-5" />
+                              <FiEye className="h-4 w-4" />
+                              <span className="text-sm font-medium">View</span>
                             </button>
                           </div>
                         </div>
@@ -431,31 +418,119 @@ export default function Controller() {
             </div>
 
             <div className="p-6 sm:p-8 lg:p-10">
-              <StudentList
-                students={students}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                user={
-                  session?.user
-                    ? {
-                        name: session.user.name ?? "Unknown",
-                        username: session.user.username ?? "",
-                        role: session.user.role ?? "controller",
-                      }
-                    : null
-                }
-              />
+              <div className="grid gap-4">
+                {students.map((student) => (
+                  <div key={student.id} className="bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-all duration-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
+                          <FiUser className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900">{student.name}</h4>
+                          <p className="text-sm text-gray-600">{student.subject} • {student.teacher.ustazname}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                          student.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {student.status}
+                        </span>
+                        <button
+                          onClick={() => handleEdit(student)}
+                          className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg transform hover:scale-105"
+                        >
+                          <FiEye className="h-4 w-4" />
+                          <span className="text-sm font-medium">View Details</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Student Payment Modal */}
+        {/* Student Details Modal - View Only */}
         {editingStudent && (
-          <StudentPayment
-            student={editingStudent}
-            onClose={() => setEditingStudent(null)}
-            onUpdate={handleUpdate}
-          />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white/20 rounded-xl">
+                      <FiUser className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold">Student Details</h2>
+                      <p className="text-indigo-100">View-only information</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEditingStudent(null)}
+                    className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  >
+                    <FiXCircle className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-4 border border-blue-200">
+                    <h3 className="font-bold text-blue-900 mb-2">Personal Information</h3>
+                    <div className="space-y-2">
+                      <p><span className="font-medium text-gray-600">Name:</span> <span className="text-gray-900">{editingStudent.name}</span></p>
+                      <p><span className="font-medium text-gray-600">Phone:</span> <span className="text-gray-900">{editingStudent.phoneno}</span></p>
+                      <p><span className="font-medium text-gray-600">Country:</span> <span className="text-gray-900">{editingStudent.country}</span></p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-xl p-4 border border-green-200">
+                    <h3 className="font-bold text-green-900 mb-2">Academic Details</h3>
+                    <div className="space-y-2">
+                      <p><span className="font-medium text-gray-600">Subject:</span> <span className="text-gray-900">{editingStudent.subject}</span></p>
+                      <p><span className="font-medium text-gray-600">Package:</span> <span className="text-gray-900">{editingStudent.package}</span></p>
+                      <p><span className="font-medium text-gray-600">Teacher:</span> <span className="text-gray-900">{editingStudent.teacher.ustazname}</span></p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-br from-yellow-50 to-amber-100 rounded-xl p-4 border border-yellow-200">
+                    <h3 className="font-bold text-yellow-900 mb-2">Status & Fees</h3>
+                    <div className="space-y-2">
+                      <p><span className="font-medium text-gray-600">Status:</span> 
+                        <span className={`ml-2 px-2 py-1 rounded-full text-xs font-bold ${
+                          editingStudent.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {editingStudent.status}
+                        </span>
+                      </p>
+                      <p><span className="font-medium text-gray-600">Class Fee:</span> <span className="text-gray-900 font-bold">${editingStudent.classfee}</span></p>
+                      <p><span className="font-medium text-gray-600">Start Date:</span> <span className="text-gray-900">{editingStudent.startdate}</span></p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-br from-purple-50 to-violet-100 rounded-xl p-4 border border-purple-200">
+                    <h3 className="font-bold text-purple-900 mb-2">Schedule & Time</h3>
+                    <div className="space-y-2">
+                      <p><span className="font-medium text-gray-600">Selected Time:</span> <span className="text-gray-900">{editingStudent.selectedTime}</span></p>
+                      <p><span className="font-medium text-gray-600">Day Packages:</span> <span className="text-gray-900">{editingStudent.daypackages}</span></p>
+                      <p><span className="font-medium text-gray-600">Registration:</span> <span className="text-gray-900">{editingStudent.registrationdate}</span></p>
+                    </div>
+                  </div>
+                </div>
+                
+                {editingStudent.progress && (
+                  <div className="mt-6 bg-gradient-to-br from-gray-50 to-slate-100 rounded-xl p-4 border border-gray-200">
+                    <h3 className="font-bold text-gray-900 mb-2">Progress Notes</h3>
+                    <p className="text-gray-700">{editingStudent.progress}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </ControllerLayout>
