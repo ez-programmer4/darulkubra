@@ -198,9 +198,17 @@ export async function POST(request: NextRequest) {
       paymentDate,
     } = body;
 
-    if (!studentId || !amount) {
+    if (!studentId || !amount || amount === null || amount === undefined || amount === '') {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields: studentId and amount are required" },
+        { status: 400 }
+      );
+    }
+
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      return NextResponse.json(
+        { error: "Amount must be a valid positive number" },
         { status: 400 }
       );
     }
@@ -246,7 +254,7 @@ export async function POST(request: NextRequest) {
         data: {
           studentid: parseInt(studentId),
           studentname: student.name ?? "",
-          paidamount: new Prisma.Decimal(amount),
+          paidamount: new Prisma.Decimal(numericAmount),
           reason: reason || "deposit",
           paymentdate: paymentDate ? new Date(paymentDate) : new Date(),
           transactionid: transactionId || `DEP-${Date.now()}`,
