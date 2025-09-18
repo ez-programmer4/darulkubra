@@ -41,12 +41,19 @@ const ScheduleGenerator = ({
 
   useEffect(() => {
     if (value) {
-      setSelectedTimes(
-        value
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean)
-      );
+      const times = value
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .map((t) => {
+          // If it's already in 12-hour format, keep it
+          if (t.includes('AM') || t.includes('PM')) {
+            return t;
+          }
+          // If it's in 24-hour format, convert to 12-hour
+          return formatTo12Hour(t);
+        });
+      setSelectedTimes(times);
     }
   }, [value]);
 
@@ -129,9 +136,23 @@ const ScheduleGenerator = ({
   };
 
   const toggleTime = (time: string) => {
-    const newTimes = selectedTimes.includes(time)
-      ? selectedTimes.filter((t) => t !== time)
-      : [...selectedTimes, time].sort();
+    // Convert 24-hour format to 12-hour format with AM/PM
+    const time12Hour = formatTo12Hour(time);
+    
+    const newTimes = selectedTimes.includes(time12Hour)
+      ? selectedTimes.filter((t) => t !== time12Hour)
+      : [...selectedTimes, time12Hour].sort((a, b) => {
+          // Sort by converting back to 24-hour for proper ordering
+          const convertTo24 = (time12: string) => {
+            const [time, period] = time12.split(' ');
+            const [hours, minutes] = time.split(':').map(Number);
+            let hour24 = hours;
+            if (period === 'AM' && hours === 12) hour24 = 0;
+            if (period === 'PM' && hours !== 12) hour24 = hours + 12;
+            return hour24 * 60 + minutes;
+          };
+          return convertTo24(a) - convertTo24(b);
+        });
 
     setSelectedTimes(newTimes);
     onChange(newTimes.join(", "));
@@ -146,7 +167,7 @@ const ScheduleGenerator = ({
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Enter manually: 6:00 AM, 2:30 PM, 8:00 PM or select from slots below"
+          placeholder="Enter manually with AM/PM: 6:00 AM, 2:30 PM, 8:00 PM or select from slots below"
           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black bg-white text-gray-900"
         />
       </div>
@@ -198,7 +219,7 @@ const ScheduleGenerator = ({
                       type="button"
                       onClick={() => toggleTime(slot.time)}
                       className={`p-2 text-sm rounded-lg border transition-all duration-200 hover:scale-105 ${
-                        selectedTimes.includes(slot.time)
+                        selectedTimes.includes(slot.time12)
                           ? "bg-black text-white border-black shadow-lg"
                           : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
                       }`}
