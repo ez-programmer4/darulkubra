@@ -539,7 +539,7 @@ function RegistrationContent() {
                 .toString()
                 .padStart(2, "0")} ${hour >= 12 ? "PM" : "AM"}`;
             } else {
-              fetchedSelectedTime = "12:00 PM";
+              fetchedSelectedTime = "";
             }
           }
 

@@ -529,11 +529,21 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const hasNotChanged =
-      existing.ustaz === ustaz && existing.daypackages === selectedDayPackage;
+    // Get current time slot from occupied times
+    const currentOccupiedTime = await prismaClient.wpos_ustaz_occupied_times.findFirst({
+      where: { student_id: parseInt(id) },
+      select: { time_slot: true, ustaz_id: true, daypackage: true },
+    });
 
-    if (!hasNotChanged) {
-      // Check teacher availability
+    const currentTimeSlot = currentOccupiedTime ? fromDbFormat(currentOccupiedTime.time_slot, "12h") : null;
+    
+    const hasTimeChanged = currentTimeSlot !== selectedTime;
+    const hasTeacherChanged = existing.ustaz !== ustaz;
+    const hasDayPackageChanged = existing.daypackages !== selectedDayPackage;
+    const hasAnyTimeTeacherChange = hasTimeChanged || hasTeacherChanged || hasDayPackageChanged;
+
+    if (hasAnyTimeTeacherChange) {
+      // Check teacher availability for new assignment
       const availability = await checkTeacherAvailability(
         timeToMatch,
         selectedDayPackage,
@@ -642,13 +652,11 @@ export async function PUT(request: NextRequest) {
       });
 
       // Handle time slot changes only if not freeing up due to status change
-      if (!hasNotChanged && !shouldFreeTimeSlot) {
+      if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
         // Remove old occupied time
         await tx.wpos_ustaz_occupied_times.deleteMany({
           where: {
             student_id: parseInt(id),
-            ustaz_id: existing.ustaz || "",
-            daypackage: existing.daypackages || "",
           },
         });
 
@@ -667,7 +675,7 @@ export async function PUT(request: NextRequest) {
           console.warn("Failed to create occupied time record:", occupiedError);
           // Continue without occupied time record - update still succeeds
         }
-      } else if (!shouldFreeTimeSlot && hasNotChanged) {
+      } else if (!shouldFreeTimeSlot && !hasAnyTimeTeacherChange) {
         // If status is changing back to active and time/teacher hasn't changed, ensure time slot exists
         const activeStatuses = ["active", "not yet", "fresh"];
         if (
