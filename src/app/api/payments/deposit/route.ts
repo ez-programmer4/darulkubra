@@ -165,6 +165,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(formattedDeposits);
   } catch (error) {
+    console.error("GET /api/payments/deposit error:", error);
     return NextResponse.json(
       { error: "Failed to fetch deposits" },
       { status: 500 }
@@ -229,8 +230,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check if the student belongs to this controller
-      if (student.u_control !== session.code) {
+      // Check if the student belongs to this controller (skip for admin)
+      if (session.role === "controller" && student.u_control !== (session.code || session.username)) {
         return NextResponse.json(
           { error: "You are not authorized to add deposits for this student" },
           { status: 403 }
@@ -261,12 +262,14 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(formattedDeposit);
     } catch (error) {
+      console.error("Deposit creation error:", error);
       return NextResponse.json(
         { error: "Failed to create deposit" },
         { status: 500 }
       );
     }
   } catch (error) {
+    console.error("POST /api/payments/deposit error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
