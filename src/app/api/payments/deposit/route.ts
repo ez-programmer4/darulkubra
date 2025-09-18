@@ -64,8 +64,8 @@ export async function GET(request: NextRequest) {
     const allPayments = await prisma.payment.findMany({
       where: {
         studentid: parsedStudentId,
-        NOT: {
-          paidamount: null,
+        paidamount: {
+          gt: 0,
         },
       },
       select: {
@@ -86,8 +86,8 @@ export async function GET(request: NextRequest) {
     const deposits = await prisma.payment.findMany({
       where: {
         studentid: parsedStudentId,
-        NOT: {
-          paidamount: null,
+        paidamount: {
+          gt: 0,
         },
       },
       select: {
@@ -111,8 +111,8 @@ export async function GET(request: NextRequest) {
         where: {
           studentid: parsedStudentId,
           status: "Approved", // Only get approved deposits
-          NOT: {
-            paidamount: null,
+          paidamount: {
+            gt: 0,
           },
         },
         select: {
