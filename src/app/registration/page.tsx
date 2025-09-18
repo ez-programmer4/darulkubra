@@ -92,8 +92,19 @@ const convertTo12Hour = (time: string): string => {
     const [hour, minute] = time
       .split(":")
       .map((part) => parseInt(part.trim(), 10));
+    
+    // Fix: Determine AM/PM first, then adjust hour
     const period = hour >= 12 ? "PM" : "AM";
-    const adjustedHour = hour % 12 || 12;
+    let adjustedHour = hour;
+    
+    // Convert 24-hour to 12-hour format
+    if (hour === 0) {
+      adjustedHour = 12; // 00:xx becomes 12:xx AM
+    } else if (hour > 12) {
+      adjustedHour = hour - 12; // 13:xx becomes 1:xx PM, 14:xx becomes 2:xx PM, etc.
+    }
+    // hour 12 stays as 12 PM, hours 1-11 stay the same
+    
     return `${adjustedHour}:${minute.toString().padStart(2, "0")} ${period}`;
   } catch (error) {
     return "Invalid Time";
