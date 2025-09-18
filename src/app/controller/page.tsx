@@ -9,6 +9,9 @@ import {
   FiCheckCircle,
   FiClock,
   FiBarChart,
+  FiDollarSign,
+  FiXCircle,
+  FiEye,
 } from "react-icons/fi";
 import StatsCards from "@/app/components/StatsCards";
 import StudentList from "@/app/components/StudentList";
@@ -42,12 +45,30 @@ interface Student {
   chatId: string | null;
 }
 
+interface Deposit {
+  id: number;
+  studentid: number;
+  studentname: string;
+  paymentdate: string;
+  transactionid: string;
+  paidamount: number;
+  reason: string;
+  status: string;
+}
+
 export default function Controller() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { data: session, status } = useSession();
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [depositStats, setDepositStats] = useState({
+    approved: 0,
+    pending: 0,
+    rejected: 0,
+    totalAmount: 0
+  });
 
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role === "controller") {
@@ -60,17 +81,33 @@ export default function Controller() {
 
   const fetchData = async () => {
     try {
-      const studentsRes = await fetch("/api/controller/students", {
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const [studentsRes, depositsRes] = await Promise.all([
+        fetch("/api/controller/students", {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+        fetch("/api/controller/deposits", {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+      ]);
+      
       if (!studentsRes.ok) {
         const errorData = await studentsRes.json();
         throw new Error(errorData.error || "Failed to fetch students");
       }
+      
+      if (!depositsRes.ok) {
+        const errorData = await depositsRes.json();
+        throw new Error(errorData.error || "Failed to fetch deposits");
+      }
+      
       const studentsData = await studentsRes.json();
+      const depositsData = await depositsRes.json();
       const processedStudents = studentsData.map((student: any) => ({
         id: student.id ?? 0,
         name: student.name ?? "Unknown",
@@ -96,6 +133,16 @@ export default function Controller() {
         chatId: student.chatId ?? null,
       }));
       setStudents(processedStudents);
+      setDeposits(depositsData.deposits || []);
+      
+      // Calculate deposit stats
+      const approved = depositsData.deposits?.filter((d: Deposit) => d.status === 'approved').length || 0;
+      const pending = depositsData.deposits?.filter((d: Deposit) => d.status === 'pending').length || 0;
+      const rejected = depositsData.deposits?.filter((d: Deposit) => d.status === 'rejected').length || 0;
+      const totalAmount = depositsData.deposits?.reduce((sum: number, d: Deposit) => 
+        d.status === 'approved' ? sum + d.paidamount : sum, 0) || 0;
+      
+      setDepositStats({ approved, pending, rejected, totalAmount });
     } catch (err: any) {
       setError(err.message || "Failed to fetch data");
       toast.error(err.message || "Failed to fetch data");
@@ -277,6 +324,44 @@ export default function Controller() {
               </div>
             </div>
 
+            {/* Deposit Stats */}
+            <div className="mt-8">
+              <h3 className="text-xl font-bold text-black mb-4 flex items-center gap-2">
+                <FiDollarSign className="h-5 w-5" />
+                Current Month Deposits
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="bg-green-50 rounded-2xl p-4 text-center border border-green-200">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <FiCheckCircle className="h-5 w-5 text-green-600" />
+                    <span className="text-sm font-semibold text-green-600">Approved</span>
+                  </div>
+                  <div className="text-2xl font-bold text-green-800">{depositStats.approved}</div>
+                </div>
+                <div className="bg-yellow-50 rounded-2xl p-4 text-center border border-yellow-200">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <FiClock className="h-5 w-5 text-yellow-600" />
+                    <span className="text-sm font-semibold text-yellow-600">Pending</span>
+                  </div>
+                  <div className="text-2xl font-bold text-yellow-800">{depositStats.pending}</div>
+                </div>
+                <div className="bg-red-50 rounded-2xl p-4 text-center border border-red-200">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <FiXCircle className="h-5 w-5 text-red-600" />
+                    <span className="text-sm font-semibold text-red-600">Rejected</span>
+                  </div>
+                  <div className="text-2xl font-bold text-red-800">{depositStats.rejected}</div>
+                </div>
+                <div className="bg-blue-50 rounded-2xl p-4 text-center border border-blue-200">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <FiDollarSign className="h-5 w-5 text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-600">Total Approved</span>
+                  </div>
+                  <div className="text-2xl font-bold text-blue-800">${depositStats.totalAmount}</div>
+                </div>
+              </div>
+            </div>
+
             {/* Legacy Stats Cards Component */}
             <div className="mt-8">
               <StatsCards
@@ -284,6 +369,89 @@ export default function Controller() {
                 activeStudents={activeStudents}
                 notYetStudents={notYetStudents}
               />
+            </div>
+          </div>
+
+          {/* Deposit Management */}
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="p-6 sm:p-8 lg:p-10 border-b border-gray-200">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-black rounded-xl">
+                  <FiDollarSign className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-black">Deposit Management</h2>
+                  <p className="text-gray-600">Review and track student deposits for current month</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 sm:p-8 lg:p-10">
+              {deposits.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
+                    <FiDollarSign className="h-16 w-16 text-gray-500" />
+                  </div>
+                  <h3 className="text-3xl font-bold text-black mb-4">No Deposits</h3>
+                  <p className="text-gray-600 text-xl">No deposits found for the current month.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {deposits.map((deposit) => (
+                        <tr key={deposit.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{deposit.studentname}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-bold text-gray-900">${deposit.paidamount}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {new Date(deposit.paymentdate).toLocaleDateString()}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-mono text-gray-900">{deposit.transactionid}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              deposit.status === 'approved' ? 'bg-green-100 text-green-800' :
+                              deposit.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {deposit.status.charAt(0).toUpperCase() + deposit.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button
+                              onClick={() => {
+                                const student = students.find(s => s.id === deposit.studentid);
+                                if (student) setEditingStudent(student);
+                              }}
+                              className="text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
+                            >
+                              <FiEye className="h-4 w-4" />
+                              View Student
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
 
