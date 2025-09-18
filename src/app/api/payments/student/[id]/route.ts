@@ -47,8 +47,8 @@ export async function GET(
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    // Check if the student belongs to this controller
-    if (student.u_control !== session.code) {
+    // Check if the student belongs to this controller (skip for admin)
+    if (session.role === "controller" && student.u_control !== (session.code || session.username)) {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
@@ -57,6 +57,7 @@ export async function GET(
 
     return NextResponse.json(student);
   } catch (error) {
+    console.error("GET /api/payments/student/[id] error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -117,7 +118,7 @@ export async function POST(
     }
 
     // Check authorization for controller role
-    if (session.role === "controller" && student.u_control !== session.code) {
+    if (session.role === "controller" && student.u_control !== (session.code || session.username)) {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
@@ -312,7 +313,7 @@ export async function POST(
       }
     });
   } catch (error) {
-    console.error("Payment submission error:", error);
+    console.error("POST /api/payments/student/[id] error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
