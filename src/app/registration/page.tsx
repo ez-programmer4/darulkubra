@@ -756,7 +756,17 @@ function RegistrationContent() {
     }
   };
 
-  const groupedTimeSlots = timeSlots.reduce((acc, slot) => {
+  // Deduplicate time slots based on normalized time values
+  const deduplicatedTimeSlots = timeSlots.reduce((acc, slot) => {
+    const normalizedTime = convertTo12Hour(slot.time);
+    const existingSlot = acc.find(s => convertTo12Hour(s.time) === normalizedTime && s.category === slot.category);
+    if (!existingSlot) {
+      acc.push(slot);
+    }
+    return acc;
+  }, [] as TimeSlot[]);
+
+  const groupedTimeSlots = deduplicatedTimeSlots.reduce((acc, slot) => {
     acc[slot.category] = acc[slot.category] || [];
     acc[slot.category].push(slot);
     return acc;
