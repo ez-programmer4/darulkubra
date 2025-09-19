@@ -22,7 +22,7 @@ async function processPayment(teacherId: string, amount: number, period: string)
     // Get teacher details for payment
     const teacher = await prisma.wpos_wpdatatable_24.findUnique({
       where: { ustazid: teacherId },
-      select: { ustazname: true, phone: true, email: true }
+      select: { ustazname: true, phone: true }
     });
 
     if (!teacher) throw new Error('Teacher not found');
@@ -39,7 +39,7 @@ async function processPayment(teacherId: string, amount: number, period: string)
           id: teacherId,
           name: teacher.ustazname,
           phone: teacher.phone,
-          email: teacher.email
+          email: teacher.phone ? `${teacher.phone}@darulkubra.com` : `teacher_${teacherId}@darulkubra.com`
         },
         amount: amount,
         currency: 'ETB',
@@ -1098,7 +1098,6 @@ export async function POST(req: NextRequest) {
         latenessDeduction,
         absenceDeduction,
         bonuses,
-        transactionId,
       },
       create: {
         teacherId,
@@ -1110,7 +1109,6 @@ export async function POST(req: NextRequest) {
         latenessDeduction,
         absenceDeduction,
         bonuses,
-        transactionId,
       },
     });
     // Log to AuditLog
