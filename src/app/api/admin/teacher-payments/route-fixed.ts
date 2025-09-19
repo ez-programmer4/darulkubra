@@ -61,15 +61,9 @@ async function getTeacherDetails(req: NextRequest) {
     orderBy: { classDate: "asc" }
   });
 
-  // Get Sunday inclusion setting
-  const workingDaysConfig = await prisma.setting.findUnique({
-    where: { key: "include_sundays_in_salary" }
-  });
-  const includeSundays = workingDaysConfig?.value === "true";
-
   // Calculate computed absences
   const computedAbsences = await calculateComputedAbsences(
-    teacherId, fromDate, toDate, packageRates, absenceRecords, includeSundays
+    teacherId, fromDate, toDate, packageRates, absenceRecords
   );
 
   // Get bonus records
@@ -81,21 +75,9 @@ async function getTeacherDetails(req: NextRequest) {
     orderBy: { createdAt: "asc" }
   });
 
-  // Sanitize output to prevent XSS
-  const sanitizedLatenessRecords = latenessRecords.map(record => ({
-    ...record,
-    studentName: record.studentName?.replace(/[<>"'&]/g, '') || '',
-    deductionTier: record.deductionTier?.replace(/[<>"'&]/g, '') || ''
-  }));
-
-  const sanitizedAbsenceRecords = [...absenceRecords, ...computedAbsences].map(record => ({
-    ...record,
-    reviewNotes: record.reviewNotes?.replace(/[<>"'&]/g, '') || ''
-  }));
-
   return NextResponse.json({
-    latenessRecords: sanitizedLatenessRecords,
-    absenceRecords: sanitizedAbsenceRecords,
+    latenessRecords,
+    absenceRecords: [...absenceRecords, ...computedAbsences],
     bonusRecords
   });
 }
@@ -352,7 +334,7 @@ async function calculateLatenessRecords(
       );
 
       if (latenessMinutes > 0) {
-        const deduction = calculateLatenessDeductionAmount(
+        const deduction = calculateLatenessDeduction(
           latenessMinutes, student.package, packageRates, latenessConfigs
         );
 
@@ -375,7 +357,7 @@ async function calculateLatenessRecords(
 
 async function calculateComputedAbsences(
   teacherId: string, fromDate: Date, toDate: Date, 
-  packageRates: Map<string, any>, existingRecords: any[], includeSundays: boolean
+  packageRates: Map<string, any>, existingRecords: any[]
 ) {
   const existingDates = new Set(
     existingRecords.map(record => format(record.classDate, "yyyy-MM-dd"))
@@ -403,7 +385,7 @@ async function calculateComputedAbsences(
 
   for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
     if (d > today) continue;
-    if (!includeSundays && d.getDay() === 0) continue; // Skip Sundays if not included
+    if (d.getDay() === 0) continue; // Skip Sundays
 
     const dateStr = format(d, "yyyy-MM-dd");
     if (existingDates.has(dateStr)) continue;
@@ -457,57 +439,26 @@ function calculateWorkingDays(from: Date, to: Date, includeSundays: boolean): nu
 }
 
 function parseTimeSlot(timeSlot: string, dateStr: string): Date {
-  try {
-    // Validate input
-    if (!timeSlot || !dateStr) {
-      throw new Error("Invalid timeSlot or dateStr");
-    }
-
-    // Convert time slot to 24-hour format
-    let time24 = timeSlot.trim();
+  // Convert time slot to 24-hour format
+  let time24 = timeSlot;
+  
+  if (timeSlot.includes("AM") || timeSlot.includes("PM")) {
+    const [time, modifier] = timeSlot.split(" ");
+    let [hours, minutes] = time.split(":");
     
-    if (timeSlot.includes("AM") || timeSlot.includes("PM")) {
-      const parts = timeSlot.split(" ");
-      if (parts.length !== 2) {
-        throw new Error("Invalid time format");
-      }
-      
-      const [time, modifier] = parts;
-      const timeParts = time.split(":");
-      if (timeParts.length < 2) {
-        throw new Error("Invalid time format");
-      }
-      
-      let [hours, minutes] = timeParts;
-      const hoursNum = parseInt(hours, 10);
-      
-      if (isNaN(hoursNum) || hoursNum < 1 || hoursNum > 12) {
-        throw new Error("Invalid hours");
-      }
-      
-      if (hours === "12") {
-        hours = modifier === "AM" ? "00" : "12";
-      } else if (modifier === "PM") {
-        hours = String(hoursNum + 12);
-      }
-      
-      time24 = `${hours.padStart(2, "0")}:${minutes || "00"}`;
+    if (hours === "12") {
+      hours = modifier === "AM" ? "00" : "12";
+    } else if (modifier === "PM") {
+      hours = String(parseInt(hours, 10) + 12);
     }
     
-    const result = new Date(`${dateStr}T${time24}:00.000Z`);
-    if (isNaN(result.getTime())) {
-      throw new Error("Invalid date result");
-    }
-    
-    return result;
-  } catch (error) {
-    console.error(`Error parsing time slot "${timeSlot}" for date "${dateStr}":`, error);
-    // Return a default time (9:00 AM) if parsing fails
-    return new Date(`${dateStr}T09:00:00.000Z`);
+    time24 = `${hours.padStart(2, "0")}:${minutes || "00"}`;
   }
+  
+  return new Date(`${dateStr}T${time24}:00.000Z`);
 }
 
-function calculateLatenessDeductionAmount(
+function calculateLatenessDeduction(
   latenessMinutes: number, packageName: string, 
   packageRates: Map<string, any>, latenessConfigs: any[]
 ): number {
