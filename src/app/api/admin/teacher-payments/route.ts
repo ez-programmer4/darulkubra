@@ -8,31 +8,12 @@ import {
 import { format } from "date-fns";
 
 // Helper function to check if a student is scheduled for a specific day
+// For now, return true for all students (no day-specific filtering)
+// This can be enhanced later when the schema supports day-specific scheduling
 async function checkIfStudentScheduledForDay(studentId: number, dayOfWeek: number): Promise<boolean> {
-  try {
-    // Check if student has occupied times for this day
-    const occupiedTimes = await prisma.occupiedTimes.findMany({
-      where: {
-        studentId: studentId,
-        // Check if the day matches - you may need to adjust this based on your schema
-        // This assumes there's a day field or similar in occupiedTimes
-      }
-    });
-    
-    // If no specific day scheduling found, default to true (scheduled all days)
-    if (occupiedTimes.length === 0) return true;
-    
-    // Check if any occupied time matches the current day
-    // This logic depends on how days are stored in your schema
-    return occupiedTimes.some(time => {
-      // You'll need to adjust this based on your actual schema structure
-      // For example, if you have a 'days' field that stores day numbers
-      return true; // Placeholder - replace with actual day checking logic
-    });
-  } catch (error) {
-    console.error('Error checking student schedule:', error);
-    return true; // Default to true if error occurs
-  }
+  // TODO: Implement day-specific scheduling when schema is available
+  // For now, assume all students are scheduled for all days
+  return true;
 }
 
 // Payment integration function
