@@ -246,7 +246,7 @@ const BreakdownModal = ({
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Lateness Records */}
+              {/* Enhanced Lateness Records */}
               <div className="bg-red-50 rounded-xl p-6 border border-red-200">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -300,8 +300,6 @@ const BreakdownModal = ({
                   </div>
                 )}
                 
-                <h3 className="text-lg font-bold text-red-900">
-
                 {breakdown.latenessRecords?.length === 0 ? (
                   <div className="text-center py-8">
                     <FiCheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
@@ -402,6 +400,7 @@ const BreakdownModal = ({
                     )}
                   </div>
                 )}
+                
                 {/* Lateness Summary */}
                 <div className="mt-6 pt-4 border-t border-red-200 bg-white rounded-lg p-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -438,7 +437,8 @@ const BreakdownModal = ({
                   )}
                 </div>
               </div>
-              {/* Absence Records */}
+
+              {/* Enhanced Absence Records */}
               <div className="bg-yellow-50 rounded-xl p-6 border border-yellow-200">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -491,6 +491,7 @@ const BreakdownModal = ({
                     </div>
                   </div>
                 )}
+
                 {breakdown.absenceRecords?.length === 0 ? (
                   <div className="text-center py-8">
                     <FiCheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
@@ -609,6 +610,7 @@ const BreakdownModal = ({
                     )}
                   </div>
                 )}
+                
                 {/* Absence Summary */}
                 <div className="mt-6 pt-4 border-t border-yellow-200 bg-white rounded-lg p-4">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -667,6 +669,7 @@ const BreakdownModal = ({
                   )}
                 </div>
               </div>
+
               {/* Bonus Records */}
               <div className="bg-green-50 rounded-xl p-6 border border-green-200">
                 <div className="flex items-center gap-3 mb-4">
