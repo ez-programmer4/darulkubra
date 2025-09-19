@@ -131,7 +131,6 @@ export default function TeacherPaymentsPage() {
   });
   const [deductionFilter, setDeductionFilter] = useState("");
   const [performanceFilter, setPerformanceFilter] = useState("");
-  const [fixingAbsences, setFixingAbsences] = useState(false);
 
   const months = [
     { value: "1", label: "January" },
@@ -1122,52 +1121,6 @@ export default function TeacherPaymentsPage() {
                     >
                       <FiAlertTriangle className="h-4 w-4" />
                       💰 Adjust Salary Deductions
-                    </button>
-                    
-                    <button
-                      onClick={async () => {
-                        setLoading(true);
-                        try {
-                          // Initialize package deductions
-                          await fetch('/api/admin/fix-absence-deductions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'initialize-packages' })
-                          });
-                          
-                          // Process absences
-                          await fetch('/api/admin/fix-absence-deductions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'process-absences' })
-                          });
-                          
-                          // Refresh data
-                          window.location.reload();
-                          
-                          toast({
-                            title: "Success",
-                            description: "Absence deductions fixed and recalculated",
-                          });
-                        } catch (error) {
-                          toast({
-                            title: "Error",
-                            description: "Failed to fix absence deductions",
-                            variant: "destructive",
-                          });
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
-                      className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <FiLoader className="animate-spin h-4 w-4" />
-                      ) : (
-                        <FiAlertTriangle className="h-4 w-4" />
-                      )}
-                      🔧 Fix Absence Deductions
                     </button>
                   </div>
                 </div>

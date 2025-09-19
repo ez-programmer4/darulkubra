@@ -238,29 +238,38 @@ export async function GET(req: NextRequest) {
           orderBy: { createdAt: "asc" },
         });
       }
-      // UNIFIED ABSENCE CALCULATION - Same logic as main table
-      // Get package deduction rates for consistency
-      const detailPackageDeductions = await prisma.packageDeduction.findMany();
-      const detailPackageDeductionMap: Record<
-        string,
-        { lateness: number; absence: number }
-      > = {};
-      detailPackageDeductions.forEach((pkg) => {
-        detailPackageDeductionMap[pkg.packageName] = {
-          lateness: Number(pkg.latenessBaseAmount),
-          absence: Number(pkg.absenceBaseAmount),
+      // EXACT SAME LOGIC AS MAIN TABLE - DO NOT MODIFY
+      const packageDeductions = await prisma.packageDeduction.findMany();
+      const packageDeductionMap: Record<string, { absence: number }> = {};
+      packageDeductions.forEach((pkg) => {
+        packageDeductionMap[pkg.packageName] = {
+          absence: Number(pkg.absenceBaseAmount) || 25,
         };
       });
+
+      // Get absence waivers
+      const absenceWaivers = await prisma.deduction_waivers.findMany({
+        where: {
+          teacherId: teacherId as string,
+          deductionType: "absence",
+          deductionDate: { gte: fromDate, lte: toDate },
+        },
+      });
+
+      const waivedDates = new Set(
+        absenceWaivers.map(w => w.deductionDate.toISOString().split("T")[0])
+      );
 
       const existingAbsenceDates = new Set(
         (absenceRecords || []).map(
           (r: any) => new Date(r.classDate).toISOString().split("T")[0]
         )
       );
+      
       const computedAbsences: any[] = [];
 
-      // Get teacher's current students for absence calculation
-      const teacherStudents = await prisma.wpos_wpdatatable_23.findMany({
+      // Get teacher's students - EXACT SAME QUERY AS MAIN TABLE
+      const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
         where: {
           ustaz: teacherId as string,
           status: { in: ["active", "Active"] },
@@ -270,65 +279,66 @@ export async function GET(req: NextRequest) {
           name: true,
           package: true,
           zoom_links: {
-            where: {
-              sent_time: { gte: fromDate, lte: toDate },
-            },
+            where: { sent_time: { gte: fromDate, lte: toDate } },
             select: { sent_time: true },
           },
         },
       });
-      for (
-        let d = new Date(fromDate);
-        d <= toDate;
-        d.setDate(d.getDate() + 1)
-      ) {
-        const dateKey = d.toISOString().split("T")[0];
-        if (existingAbsenceDates.has(dateKey)) continue;
 
-        // Check if teacher sent any zoom links on this day (same logic as main table)
-        const dayHasZoomLinks = teacherStudents.some((student) =>
-          student.zoom_links.some((link) => {
+      // Get working days config - EXACT SAME AS MAIN TABLE
+      const workingDaysConfig = await prisma.setting.findUnique({
+        where: { key: "include_sundays_in_salary" },
+      });
+      const includeSundays = workingDaysConfig?.value === "true" || false;
+
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      // EXACT SAME LOOP LOGIC AS MAIN TABLE
+      for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
+        if (d > today) continue;
+        if (!includeSundays && d.getDay() === 0) continue;
+
+        const dateStr = format(d, "yyyy-MM-dd");
+        if (existingAbsenceDates.has(dateStr) || waivedDates.has(dateStr)) continue;
+
+        // EXACT SAME ZOOM LINK CHECK AS MAIN TABLE
+        const hasZoomLinks = currentStudents.some(student =>
+          student.zoom_links.some(link => {
             if (!link.sent_time) return false;
-            const linkDate = format(link.sent_time, "yyyy-MM-dd");
-            return linkDate === dateKey;
+            return format(link.sent_time, "yyyy-MM-dd") === dateStr;
           })
         );
 
-        // If no zoom links and has students, it's an absence
-        if (!dayHasZoomLinks && teacherStudents.length > 0) {
-          // Calculate package-based deduction (same logic as main table)
+        // EXACT SAME ABSENCE CALCULATION AS MAIN TABLE
+        if (!hasZoomLinks && currentStudents.length > 0) {
           let calculatedDeduction = 0;
           const packageBreakdown = [];
 
-          for (const student of teacherStudents) {
-            const packageRate = student.package
-              ? detailPackageDeductionMap[student.package]?.absence || 25
-              : 25;
-            calculatedDeduction += packageRate;
-
+          for (const student of currentStudents) {
+            const rate = packageDeductionMap[student.package || ""]?.absence || 25;
+            calculatedDeduction += rate;
             packageBreakdown.push({
               studentId: student.wdt_ID,
+              studentName: student.name,
               package: student.package || "Unknown",
-              ratePerSlot: packageRate,
+              ratePerSlot: rate,
               timeSlots: 1,
-              total: packageRate,
+              total: rate,
             });
           }
 
-          const timeSlots = JSON.stringify(["Whole Day"]);
-
           computedAbsences.push({
-            id: 0,
+            id: `computed-${dateStr}`,
             teacherId,
             classDate: new Date(d),
-            timeSlots: JSON.parse(timeSlots),
-            packageBreakdown: packageBreakdown,
+            timeSlots: ["Whole Day"],
+            packageBreakdown,
             uniqueTimeSlots: ["Whole Day"],
             permitted: false,
-            permissionRequestId: null,
             deductionApplied: calculatedDeduction,
             reviewedByManager: true,
-            reviewNotes: `Auto-detected absence - ${teacherStudents.length} students affected`,
+            reviewNotes: `Auto-detected: ${currentStudents.length} students affected`,
           });
         }
       }
@@ -721,23 +731,24 @@ export async function GET(req: NextRequest) {
             }
           }
 
-          // === STEP 4: CALCULATE ABSENCE DEDUCTIONS (UNIFIED APPROACH) ===
+          // === STEP 4: CALCULATE ABSENCE DEDUCTIONS ===
           let absenceDeduction = 0;
-          const absenceBreakdown = [];
 
-          // ALWAYS check both database records AND compute missing absences
-          // This ensures consistency between table and detail views
-
-          // Step 4A: Get existing absence records from database (excluding waived ones)
+          // Get existing absence records from database
           const teacherAbsenceRecords = await prisma.absencerecord.findMany({
             where: {
               teacherId: t.ustazid,
               classDate: { gte: from, lte: to },
             },
-            orderBy: { classDate: "asc" },
           });
 
-          // Get absence waiver records for this teacher and period
+          // Add deductions from existing records
+          absenceDeduction += teacherAbsenceRecords.reduce(
+            (sum, record) => sum + record.deductionApplied,
+            0
+          );
+
+          // Get absence waivers
           const absenceWaivers = await prisma.deduction_waivers.findMany({
             where: {
               teacherId: t.ustazid,
@@ -747,118 +758,46 @@ export async function GET(req: NextRequest) {
           });
 
           const waivedDates = new Set(
-            absenceWaivers.map(
-              (w) => w.deductionDate.toISOString().split("T")[0]
-            )
+            absenceWaivers.map(w => w.deductionDate.toISOString().split("T")[0])
           );
 
-          // Create a set of dates that already have absence records
           const existingAbsenceDates = new Set(
-            teacherAbsenceRecords.map((record) =>
-              format(record.classDate, "yyyy-MM-dd")
-            )
+            teacherAbsenceRecords.map(record => format(record.classDate, "yyyy-MM-dd"))
           );
 
-          // Step 4B: Add deductions from existing records
-          for (const record of teacherAbsenceRecords) {
-            absenceDeduction += record.deductionApplied;
-            absenceBreakdown.push({
-              date: format(record.classDate, "yyyy-MM-dd"),
-              reason: record.permitted
-                ? "Permitted absence"
-                : "Unpermitted absence",
-              deduction: record.deductionApplied,
-              timeSlots: 1,
-              uniqueTimeSlots: ["Database Record"],
-              permitted: record.permitted,
-              reviewNotes: record.reviewNotes || "From database",
-            });
-          }
-
-          // Step 4C: Check for additional absences not in database
-          // This is the CRITICAL part that was missing!
+          // Check for computed absences (missing days)
           const today = new Date();
-          today.setHours(23, 59, 59, 999); // End of today
+          today.setHours(23, 59, 59, 999);
 
           for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-            // Skip future dates - only process past dates
             if (d > today) continue;
-
-            // Skip Sundays if not included
             if (!includeSundays && d.getDay() === 0) continue;
 
             const dateStr = format(d, "yyyy-MM-dd");
+            if (existingAbsenceDates.has(dateStr) || waivedDates.has(dateStr)) continue;
 
-            // Skip if we already have a database record for this date
-            if (existingAbsenceDates.has(dateStr)) continue;
-
-            // Check if teacher sent any zoom links on this day
-            const dayHasZoomLinks = currentStudents.some((student) =>
-              student.zoom_links.some((link) => {
+            // Check if teacher sent zoom links this day
+            const hasZoomLinks = currentStudents.some(student =>
+              student.zoom_links.some(link => {
                 if (!link.sent_time) return false;
-                const linkDate = format(link.sent_time, "yyyy-MM-dd");
-                return linkDate === dateStr;
+                return format(link.sent_time, "yyyy-MM-dd") === dateStr;
               })
             );
 
-            // If no zoom links were sent and teacher has students, it's an absence
-            if (!dayHasZoomLinks && currentStudents.length > 0) {
-              // Check if this date is waived
-              if (!waivedDates.has(dateStr)) {
-                // Calculate package-based deduction for this absence
-                let dailyDeduction = 0;
-                const affectedStudents = [];
-
-                for (const student of currentStudents) {
-                  const packageRate = student.package
-                    ? packageDeductionMap[student.package]?.absence || 25
-                    : 25;
-                  dailyDeduction += packageRate;
-                  affectedStudents.push({
-                    name: student.name,
-                    package: student.package || "Unknown",
-                    rate: packageRate,
-                  });
-                }
-
-                if (dailyDeduction > 0) {
-                  absenceDeduction += dailyDeduction;
-                  absenceBreakdown.push({
-                    date: dateStr,
-                    reason: "Computed absence (no zoom links sent)",
-                    deduction: dailyDeduction,
-                    timeSlots: 1,
-                    uniqueTimeSlots: ["Whole Day"],
-                    permitted: false,
-                    reviewNotes: `Auto-detected: ${
-                      affectedStudents.length
-                    } students, packages: ${affectedStudents
-                      .map((s) => s.package)
-                      .join(", ")}`,
-                  });
-                }
-              } else {
-                // Add waived absence to breakdown with 0 deduction
-                absenceBreakdown.push({
-                  date: dateStr,
-                  reason: "Waived absence (admin adjustment)",
-                  deduction: 0,
-                  timeSlots: 1,
-                  uniqueTimeSlots: ["Whole Day"],
-                  permitted: false,
-                  reviewNotes: "Deduction waived by admin",
-                });
+            // If no zoom links and has students = absence
+            if (!hasZoomLinks && currentStudents.length > 0) {
+              // Calculate package-based deduction
+              for (const student of currentStudents) {
+                const rate = packageDeductionMap[student.package || ""]?.absence || 25;
+                absenceDeduction += rate;
               }
             }
           }
 
-          console.log(
-            `Teacher ${t.ustazname}: DB records=${
-              teacherAbsenceRecords.length
-            }, Computed=${
-              absenceBreakdown.length - teacherAbsenceRecords.length
-            }, Total Absence Deduction=${absenceDeduction} ETB`
-          );
+          // Debug log for absence calculation
+          if (absenceDeduction > 0) {
+            console.log(`${t.ustazname}: Absence deduction = ${absenceDeduction} ETB`);
+          }
 
           // === STEP 5: CALCULATE BONUSES ===
           const bonuses = await prisma.qualityassessment.aggregate({
@@ -883,14 +822,9 @@ export async function GET(req: NextRequest) {
               finalBonusAmount
           );
 
-          // Debug log to track absence deduction calculation
           // Final debug log
           if (finalAbsenceDeduction > 0) {
-            console.log(
-              `✅ ${t.ustazname}: ABSENCE DEDUCTION = ${finalAbsenceDeduction} ETB (${absenceBreakdown.length} records)`
-            );
-          } else {
-            console.log(`❌ ${t.ustazname}: NO ABSENCE DEDUCTION`);
+            console.log(`✅ ${t.ustazname}: ABSENCE DEDUCTION = ${finalAbsenceDeduction} ETB`);
           }
 
           // === STEP 7: GET PAYMENT STATUS ===
@@ -931,7 +865,6 @@ export async function GET(req: NextRequest) {
               ),
               studentBreakdown: dailyBreakdown,
               latenessBreakdown,
-              absenceBreakdown,
               summary: {
                 workingDaysInMonth: workingDays,
                 actualTeachingDays: totalTeachingDays,
