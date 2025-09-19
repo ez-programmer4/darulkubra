@@ -47,7 +47,7 @@ const ScheduleGenerator = ({
         .filter(Boolean)
         .map((t) => {
           // If it's already in 12-hour format, keep it
-          if (t.includes('AM') || t.includes('PM')) {
+          if (t.includes("AM") || t.includes("PM")) {
             return t;
           }
           // If it's in 24-hour format, convert to 12-hour
@@ -61,7 +61,9 @@ const ScheduleGenerator = ({
     const [hours, minutes] = time24.split(":").map(Number);
     const period = hours >= 12 ? "PM" : "AM";
     const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-    return `${hours12.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")} ${period}`;
+    return `${hours12.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")} ${period}`;
   };
 
   const generateTimeSlots = () => {
@@ -138,17 +140,17 @@ const ScheduleGenerator = ({
   const toggleTime = (time: string) => {
     // Convert 24-hour format to 12-hour format with AM/PM
     const time12Hour = formatTo12Hour(time);
-    
+
     const newTimes = selectedTimes.includes(time12Hour)
       ? selectedTimes.filter((t) => t !== time12Hour)
       : [...selectedTimes, time12Hour].sort((a, b) => {
           // Sort by converting back to 24-hour for proper ordering
           const convertTo24 = (time12: string) => {
-            const [time, period] = time12.split(' ');
-            const [hours, minutes] = time.split(':').map(Number);
+            const [time, period] = time12.split(" ");
+            const [hours, minutes] = time.split(":").map(Number);
             let hour24 = hours;
-            if (period === 'AM' && hours === 12) hour24 = 0;
-            if (period === 'PM' && hours !== 12) hour24 = hours + 12;
+            if (period === "AM" && hours === 12) hour24 = 0;
+            if (period === "PM" && hours !== 12) hour24 = hours + 12;
             return hour24 * 60 + minutes;
           };
           return convertTo24(a) - convertTo24(b);
@@ -330,8 +332,6 @@ export default function UserManagementPage() {
   });
   const [totalUsers, setTotalUsers] = useState(0);
 
-
-
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
@@ -440,9 +440,14 @@ export default function UserManagementPage() {
       }
 
       const result = await res.json();
-      
+
       // Show generated credentials for new teachers
-      if (!editingUser && newUserRole === "teacher" && result.generatedUsername && result.generatedPassword) {
+      if (
+        !editingUser &&
+        newUserRole === "teacher" &&
+        result.generatedUsername &&
+        result.generatedPassword
+      ) {
         setGeneratedUsername(result.generatedUsername);
         setGeneratedPassword(result.generatedPassword);
         setShowCredentials(true);
@@ -950,9 +955,12 @@ export default function UserManagementPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Username *
                         </label>
-                        {(editingUser ? editingUser.role : newUserRole) === "teacher" ? (
+                        {(editingUser ? editingUser.role : newUserRole) ===
+                        "teacher" ? (
                           <div className="bg-gray-100 px-4 py-3 rounded-lg border border-gray-300">
-                            <span className="text-gray-600 text-sm">Auto-generated after creation</span>
+                            <span className="text-gray-600 text-sm">
+                              Auto-generated after creation
+                            </span>
                           </div>
                         ) : (
                           <input
@@ -965,7 +973,6 @@ export default function UserManagementPage() {
                           />
                         )}
                       </div>
-
 
                       {(editingUser ? editingUser.role : newUserRole) !==
                         "teacher" && (
@@ -1042,7 +1049,6 @@ export default function UserManagementPage() {
                               required
                             />
                           </div>
-
                         </div>
 
                         {/* Auto-Generated Credentials Info */}
@@ -1056,14 +1062,17 @@ export default function UserManagementPage() {
                                 Auto-Generated Credentials
                               </h4>
                               <p className="text-blue-700 text-sm">
-                                Username and password will be generated automatically
+                                Username and password will be generated
+                                automatically
                               </p>
                             </div>
                           </div>
                           <div className="bg-blue-100 rounded-lg p-4 border border-blue-200">
                             <p className="text-sm text-blue-800 flex items-center gap-2">
                               <FiInfo className="h-4 w-4" />
-                              <strong>Format:</strong> Username: U1, U2, U3, etc. (auto-incremented) | Password: [Username][Name]
+                              <strong>Format:</strong> Username: U1, U2, U3,
+                              etc. (auto-incremented) | Password:
+                              [Username][Name]
                             </p>
                           </div>
                         </div>
@@ -1120,24 +1129,33 @@ export default function UserManagementPage() {
         </Modal>
 
         {/* Generated Credentials Modal */}
-        <Modal isOpen={showCredentials} onClose={() => {
-          setShowCredentials(false);
-          setIsModalOpen(false);
-          fetchUsers();
-          resetForm();
-        }}>
+        <Modal
+          isOpen={showCredentials}
+          onClose={() => {
+            setShowCredentials(false);
+            setIsModalOpen(false);
+            fetchUsers();
+            resetForm();
+          }}
+        >
           <div className="bg-white rounded-3xl p-8 max-w-md mx-auto">
             <div className="text-center mb-6">
               <div className="p-4 bg-green-100 rounded-full w-fit mx-auto mb-4">
                 <FiCheck className="h-8 w-8 text-green-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Teacher Created Successfully!</h2>
-              <p className="text-gray-600">Here are the auto-generated credentials:</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Teacher Created Successfully!
+              </h2>
+              <p className="text-gray-600">
+                Here are the auto-generated credentials:
+              </p>
             </div>
-            
+
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
-                <label className="block text-sm font-bold text-gray-700 mb-2">Username</label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Username
+                </label>
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -1153,9 +1171,11 @@ export default function UserManagementPage() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="bg-gray-50 rounded-lg p-4">
-                <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Password
+                </label>
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -1172,13 +1192,14 @@ export default function UserManagementPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
               <p className="text-sm text-yellow-800">
-                <strong>Important:</strong> Please copy and share these credentials with the teacher. They cannot be retrieved later.
+                <strong>Important:</strong> Please copy and share these
+                credentials with the teacher. They cannot be retrieved later.
               </p>
             </div>
-            
+
             <button
               onClick={() => {
                 setShowCredentials(false);
