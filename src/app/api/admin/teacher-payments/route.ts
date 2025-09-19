@@ -296,6 +296,7 @@ export async function GET(req: NextRequest) {
 
       // EXACT SAME LOOP LOGIC AS MAIN TABLE
       for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
+        // Skip future dates - only process past and current dates
         if (d > today) continue;
         if (!includeSundays && d.getDay() === 0) continue;
 
@@ -770,6 +771,7 @@ export async function GET(req: NextRequest) {
           today.setHours(23, 59, 59, 999);
 
           for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+            // Skip future dates - only process past and current dates
             if (d > today) continue;
             if (!includeSundays && d.getDay() === 0) continue;
 
