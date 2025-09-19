@@ -239,10 +239,10 @@ export async function GET(req: NextRequest) {
         });
       }
       // EXACT SAME LOGIC AS MAIN TABLE - DO NOT MODIFY
-      const packageDeductions = await prisma.packageDeduction.findMany();
-      const packageDeductionMap: Record<string, { absence: number }> = {};
-      packageDeductions.forEach((pkg) => {
-        packageDeductionMap[pkg.packageName] = {
+      const absencePackageDeductions = await prisma.packageDeduction.findMany();
+      const absencePackageDeductionMap: Record<string, { absence: number }> = {};
+      absencePackageDeductions.forEach((pkg) => {
+        absencePackageDeductionMap[pkg.packageName] = {
           absence: Number(pkg.absenceBaseAmount) || 25,
         };
       });
@@ -316,7 +316,7 @@ export async function GET(req: NextRequest) {
           const packageBreakdown = [];
 
           for (const student of currentStudents) {
-            const rate = packageDeductionMap[student.package || ""]?.absence || 25;
+            const rate = absencePackageDeductionMap[student.package || ""]?.absence || 25;
             calculatedDeduction += rate;
             packageBreakdown.push({
               studentId: student.wdt_ID,
