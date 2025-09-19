@@ -171,7 +171,7 @@ async function calculateTeacherPayment(
     
     // Count unique teaching days for this student
     const uniqueDays = new Set();
-    student.zoom_links.forEach(link => {
+    student.zoom_links.forEach((link: { sent_time: Date | null }) => {
       if (link.sent_time) {
         const date = startOfDay(link.sent_time);
         if (includeSundays || date.getDay() !== 0) {
@@ -267,7 +267,7 @@ async function calculateAbsenceDeduction(
 
     // Check if teacher sent any zoom links this day
     const hasZoomLinks = students.some(student =>
-      student.zoom_links.some(link => {
+      student.zoom_links.some((link: { sent_time: Date | null }) => {
         if (!link.sent_time) return false;
         return format(link.sent_time, "yyyy-MM-dd") === dateStr;
       })
@@ -314,7 +314,7 @@ async function calculateLatenessRecords(
 
     // Group zoom links by date
     const linksByDate = new Map();
-    student.zoom_links.forEach(link => {
+    student.zoom_links.forEach((link: { sent_time: Date | null }) => {
       if (link.sent_time) {
         const dateStr = format(link.sent_time, "yyyy-MM-dd");
         if (!linksByDate.has(dateStr)) {
@@ -327,7 +327,7 @@ async function calculateLatenessRecords(
     // Process each date
     for (const [dateStr, links] of linksByDate) {
       const scheduledTime = parseTimeSlot(timeSlot, dateStr);
-      const actualTime = links.sort((a, b) => a.getTime() - b.getTime())[0];
+      const actualTime = links.sort((a: Date, b: Date) => a.getTime() - b.getTime())[0];
       
       const latenessMinutes = Math.max(0, 
         Math.round((actualTime.getTime() - scheduledTime.getTime()) / 60000)
@@ -335,7 +335,7 @@ async function calculateLatenessRecords(
 
       if (latenessMinutes > 0) {
         const deduction = calculateLatenessDeductionAmount(
-          latenessMinutes, student.package, packageRates, latenessConfigs
+          latenessMinutes, student.package || "", packageRates, latenessConfigs
         );
 
         latenessRecords.push({
