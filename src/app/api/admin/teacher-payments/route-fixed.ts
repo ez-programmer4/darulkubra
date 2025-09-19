@@ -334,7 +334,7 @@ async function calculateLatenessRecords(
       );
 
       if (latenessMinutes > 0) {
-        const deduction = calculateLatenessDeduction(
+        const deduction = calculateLatenessDeductionAmount(
           latenessMinutes, student.package, packageRates, latenessConfigs
         );
 
@@ -458,7 +458,7 @@ function parseTimeSlot(timeSlot: string, dateStr: string): Date {
   return new Date(`${dateStr}T${time24}:00.000Z`);
 }
 
-function calculateLatenessDeduction(
+function calculateLatenessDeductionAmount(
   latenessMinutes: number, packageName: string, 
   packageRates: Map<string, any>, latenessConfigs: any[]
 ): number {
