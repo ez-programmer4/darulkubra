@@ -263,82 +263,53 @@ export async function GET(req: NextRequest) {
       const computedAbsences: any[] = [];
       
       if (isEffectiveMonth) {
-        // Get today's date for comparison
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Start of today
+        today.setHours(23, 59, 59, 999); // End of today
         
         const existingAbsenceDates = new Set(
           (absenceRecords || []).map(r => format(new Date(r.classDate), "yyyy-MM-dd"))
         );
 
-        // Process each day in the range
+        // Get teacher's active students
+        const teacherStudents = await prisma.wpos_wpdatatable_23.findMany({
+          where: {
+            ustaz: teacherId as string,
+            status: { in: ["active", "Active"] }
+          },
+          select: {
+            wdt_ID: true,
+            name: true,
+            package: true,
+            zoom_links: {
+              where: { sent_time: { gte: fromDate, lte: toDate } },
+              select: { sent_time: true }
+            }
+          }
+        });
+
+        // Process each day
         for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
-          // CRITICAL: Only process past dates (not today or future)
-          if (d >= today) continue;
-          
-          // Skip Sundays if not included
+          // Only process past dates
+          if (d > today) continue;
           if (!includeSundays && d.getDay() === 0) continue;
           
           const dateStr = format(d, "yyyy-MM-dd");
-          const dayName = d.toLocaleDateString("en-US", { weekday: "long" });
-          
-          // Skip if already has absence record
           if (existingAbsenceDates.has(dateStr)) continue;
           
-          // Get students scheduled for this day
-          const scheduledStudents = await prisma.wpos_wpdatatable_23.findMany({
-            where: {
-              ustaz: teacherId as string,
-              status: { in: ["active", "Active"] },
-              OR: [
-                { daypackages: { contains: "All days" } },
-                { daypackages: { contains: dayName } },
-                { daypackages: { contains: "MWF" } },
-                { daypackages: { contains: "TTS" } }
-              ]
-            },
-            select: {
-              wdt_ID: true,
-              name: true,
-              package: true,
-              daypackages: true,
-              zoom_links: {
-                where: {
-                  sent_time: {
-                    gte: new Date(dateStr + "T00:00:00.000Z"),
-                    lt: new Date(dateStr + "T23:59:59.999Z")
-                  }
-                },
-                select: { sent_time: true }
-              }
-            }
-          });
-          
-          // Filter students actually scheduled for this specific day
-          const actuallyScheduled = scheduledStudents.filter(student => {
-            if (!student.daypackages) return false;
-            return (
-              student.daypackages.includes("All days") ||
-              student.daypackages.includes(dayName) ||
-              (student.daypackages.includes("MWF") && ["Monday", "Wednesday", "Friday"].includes(dayName)) ||
-              (student.daypackages.includes("TTS") && ["Tuesday", "Thursday", "Saturday"].includes(dayName))
-            );
-          });
-          
-          if (actuallyScheduled.length === 0) continue;
-          
-          // Check if teacher sent zoom links for scheduled students
-          const studentsWithLinks = actuallyScheduled.filter(student => 
-            student.zoom_links && student.zoom_links.length > 0
+          // Check if teacher sent any zoom links this day
+          const hasZoomLinks = teacherStudents.some(student =>
+            student.zoom_links.some(link => {
+              if (!link.sent_time) return false;
+              return format(link.sent_time, "yyyy-MM-dd") === dateStr;
+            })
           );
           
-          // If no zoom links sent for any scheduled student = absence
-          if (studentsWithLinks.length === 0) {
+          // If no zoom links and has students = absence
+          if (!hasZoomLinks && teacherStudents.length > 0) {
             let totalDeduction = 0;
             const packageBreakdown = [];
             
-            // Calculate deduction for each scheduled student
-            for (const student of actuallyScheduled) {
+            for (const student of teacherStudents) {
               const rate = packageRateMap[student.package || ""] || 25;
               totalDeduction += rate;
               packageBreakdown.push({
@@ -361,7 +332,7 @@ export async function GET(req: NextRequest) {
               permitted: false,
               deductionApplied: totalDeduction,
               reviewedByManager: true,
-              reviewNotes: `Auto-detected: ${actuallyScheduled.length} scheduled students, no zoom links sent`
+              reviewNotes: `Auto-detected: ${teacherStudents.length} students, no zoom links sent`
             });
           }
         }
@@ -783,7 +754,7 @@ export async function GET(req: NextRequest) {
 
           if (isEffectiveMonth) {
             const today = new Date();
-            today.setHours(0, 0, 0, 0); // Start of today
+            today.setHours(23, 59, 59, 999);
             
             const existingAbsenceDates = new Set(
               teacherAbsenceRecords.map(record => format(record.classDate, "yyyy-MM-dd"))
@@ -791,63 +762,24 @@ export async function GET(req: NextRequest) {
 
             // Process each day for computed absences
             for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-              // CRITICAL: Only process past dates (not today or future)
-              if (d >= today) continue;
+              // Only process past dates
+              if (d > today) continue;
               if (!includeSundays && d.getDay() === 0) continue;
 
               const dateStr = format(d, "yyyy-MM-dd");
-              const dayName = d.toLocaleDateString("en-US", { weekday: "long" });
-              
               if (existingAbsenceDates.has(dateStr)) continue;
 
-              // Get students scheduled for this specific day
-              const scheduledStudents = await prisma.wpos_wpdatatable_23.findMany({
-                where: {
-                  ustaz: t.ustazid,
-                  status: { in: ["active", "Active"] },
-                  OR: [
-                    { daypackages: { contains: "All days" } },
-                    { daypackages: { contains: dayName } },
-                    { daypackages: { contains: "MWF" } },
-                    { daypackages: { contains: "TTS" } }
-                  ]
-                },
-                select: {
-                  wdt_ID: true,
-                  package: true,
-                  daypackages: true,
-                  zoom_links: {
-                    where: {
-                      sent_time: {
-                        gte: new Date(dateStr + "T00:00:00.000Z"),
-                        lt: new Date(dateStr + "T23:59:59.999Z")
-                      }
-                    }
-                  }
-                }
-              });
-
-              // Filter for actually scheduled students
-              const actuallyScheduled = scheduledStudents.filter(student => {
-                if (!student.daypackages) return false;
-                return (
-                  student.daypackages.includes("All days") ||
-                  student.daypackages.includes(dayName) ||
-                  (student.daypackages.includes("MWF") && ["Monday", "Wednesday", "Friday"].includes(dayName)) ||
-                  (student.daypackages.includes("TTS") && ["Tuesday", "Thursday", "Saturday"].includes(dayName))
-                );
-              });
-
-              if (actuallyScheduled.length === 0) continue;
-
-              // Check if teacher sent zoom links for scheduled students
-              const studentsWithLinks = actuallyScheduled.filter(student => 
-                student.zoom_links && student.zoom_links.length > 0
+              // Check if teacher sent zoom links this day
+              const hasZoomLinks = currentStudents.some(student =>
+                student.zoom_links.some(link => {
+                  if (!link.sent_time) return false;
+                  return format(link.sent_time, "yyyy-MM-dd") === dateStr;
+                })
               );
 
-              // If no zoom links sent = absence
-              if (studentsWithLinks.length === 0) {
-                for (const student of actuallyScheduled) {
+              // If no zoom links and has students = absence
+              if (!hasZoomLinks && currentStudents.length > 0) {
+                for (const student of currentStudents) {
                   const rate = packageDeductionMap[student.package || ""]?.absence || 25;
                   absenceDeduction += rate;
                 }
