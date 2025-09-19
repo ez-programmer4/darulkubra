@@ -7,6 +7,86 @@ import {
 } from "@/lib/absence-utils";
 import { format } from "date-fns";
 
+// Helper function to check if a student is scheduled for a specific day
+async function checkIfStudentScheduledForDay(studentId: number, dayOfWeek: number): Promise<boolean> {
+  try {
+    // Check if student has occupied times for this day
+    const occupiedTimes = await prisma.occupiedTimes.findMany({
+      where: {
+        studentId: studentId,
+        // Check if the day matches - you may need to adjust this based on your schema
+        // This assumes there's a day field or similar in occupiedTimes
+      }
+    });
+    
+    // If no specific day scheduling found, default to true (scheduled all days)
+    if (occupiedTimes.length === 0) return true;
+    
+    // Check if any occupied time matches the current day
+    // This logic depends on how days are stored in your schema
+    return occupiedTimes.some(time => {
+      // You'll need to adjust this based on your actual schema structure
+      // For example, if you have a 'days' field that stores day numbers
+      return true; // Placeholder - replace with actual day checking logic
+    });
+  } catch (error) {
+    console.error('Error checking student schedule:', error);
+    return true; // Default to true if error occurs
+  }
+}
+
+// Payment integration function
+async function processPayment(teacherId: string, amount: number, period: string) {
+  try {
+    // Get teacher details for payment
+    const teacher = await prisma.wpos_wpdatatable_24.findUnique({
+      where: { ustazid: teacherId },
+      select: { ustazname: true, phone: true, email: true }
+    });
+
+    if (!teacher) throw new Error('Teacher not found');
+
+    // Call external payment API
+    const paymentResponse = await fetch(process.env.PAYMENT_API_URL || '', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.PAYMENT_API_KEY}`
+      },
+      body: JSON.stringify({
+        recipient: {
+          id: teacherId,
+          name: teacher.ustazname,
+          phone: teacher.phone,
+          email: teacher.email
+        },
+        amount: amount,
+        currency: 'ETB',
+        reference: `salary_${teacherId}_${period}`,
+        description: `Teacher salary payment for ${period}`
+      })
+    });
+
+    const paymentResult = await paymentResponse.json();
+    
+    if (!paymentResponse.ok) {
+      throw new Error(paymentResult.message || 'Payment failed');
+    }
+
+    return {
+      success: true,
+      transactionId: paymentResult.transactionId,
+      status: paymentResult.status
+    };
+  } catch (error) {
+    console.error('Payment processing error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Payment failed'
+    };
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
@@ -282,6 +362,11 @@ export async function GET(req: NextRequest) {
         d <= toDate;
         d.setDate(d.getDate() + 1)
       ) {
+        // Skip future dates - only process past and current dates
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        if (d > today) continue;
+
         const dateKey = d.toISOString().split("T")[0];
         if (existingAbsenceDates.has(dateKey)) continue;
 
@@ -299,20 +384,25 @@ export async function GET(req: NextRequest) {
           // Calculate package-based deduction (same logic as main table)
           let calculatedDeduction = 0;
           const packageBreakdown = [];
+          const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, 2=Tuesday, etc.
 
           for (const student of teacherStudents) {
-            const packageRate = student.package
-              ? detailPackageDeductionMap[student.package]?.absence || 25
-              : 25;
-            calculatedDeduction += packageRate;
+            // Check if student is scheduled for this day
+            const shouldDeductForThisDay = await checkIfStudentScheduledForDay(student.wdt_ID, dayOfWeek);
+            
+            if (shouldDeductForThisDay) {
+              const studentPackage = student.package || "";
+              const packageRate = detailPackageDeductionMap[studentPackage]?.absence || 25;
+              calculatedDeduction += packageRate;
 
-            packageBreakdown.push({
-              studentId: student.wdt_ID,
-              package: student.package || "Unknown",
-              ratePerSlot: packageRate,
-              timeSlots: 1,
-              total: packageRate,
-            });
+              packageBreakdown.push({
+                studentId: student.wdt_ID,
+                package: studentPackage || "Unknown",
+                ratePerSlot: packageRate,
+                timeSlots: 1,
+                total: packageRate,
+              });
+            }
           }
 
           const timeSlots = JSON.stringify(["Whole Day"]);
@@ -781,7 +871,9 @@ export async function GET(req: NextRequest) {
           today.setHours(23, 59, 59, 999); // End of today
 
           for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-            // Skip future dates - only process past dates
+            // Skip future dates - only process past and current dates
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
             if (d > today) continue;
 
             // Skip Sundays if not included
@@ -808,17 +900,22 @@ export async function GET(req: NextRequest) {
                 // Calculate package-based deduction for this absence
                 let dailyDeduction = 0;
                 const affectedStudents = [];
+                const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, 2=Tuesday, etc.
 
                 for (const student of currentStudents) {
-                  const packageRate = student.package
-                    ? packageDeductionMap[student.package]?.absence || 25
-                    : 25;
-                  dailyDeduction += packageRate;
-                  affectedStudents.push({
-                    name: student.name,
-                    package: student.package || "Unknown",
-                    rate: packageRate,
-                  });
+                  // Check if student is scheduled for this day
+                  const shouldDeductForThisDay = await checkIfStudentScheduledForDay(student.wdt_ID, dayOfWeek);
+                  
+                  if (shouldDeductForThisDay) {
+                    const studentPackage = student.package || "";
+                    const packageRate = packageDeductionMap[studentPackage]?.absence || 25;
+                    dailyDeduction += packageRate;
+                    affectedStudents.push({
+                      name: student.name,
+                      package: studentPackage || "Unknown",
+                      rate: packageRate,
+                    });
+                  }
                 }
 
                 if (dailyDeduction > 0) {
@@ -967,6 +1064,7 @@ export async function POST(req: NextRequest) {
       latenessDeduction,
       absenceDeduction,
       bonuses,
+      processPaymentNow = false
     } = body;
     // Auth: Only admin or controller
     const session = await getToken({
@@ -986,6 +1084,23 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    let paymentResult = null;
+    let transactionId = null;
+
+    // Process payment if requested and status is Paid
+    if (processPaymentNow && status === "Paid" && totalSalary > 0) {
+      paymentResult = await processPayment(teacherId, totalSalary, period);
+      if (paymentResult.success) {
+        transactionId = paymentResult.transactionId;
+      } else {
+        return NextResponse.json(
+          { error: `Payment failed: ${paymentResult.error}` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Upsert salary payment record
     const payment = await prisma.teachersalarypayment.upsert({
       where: {
@@ -1002,6 +1117,7 @@ export async function POST(req: NextRequest) {
         latenessDeduction,
         absenceDeduction,
         bonuses,
+        transactionId,
       },
       create: {
         teacherId,
@@ -1013,18 +1129,32 @@ export async function POST(req: NextRequest) {
         latenessDeduction,
         absenceDeduction,
         bonuses,
+        transactionId,
       },
     });
     // Log to AuditLog
     await prisma.auditlog.create({
       data: {
         actionType: "teacher_salary_status_update",
-        adminId: adminId || null, // Use adminId instead of userId
+        adminId: adminId || null,
         targetId: payment.id,
-        details: JSON.stringify({ teacherId, period, status }),
+        details: JSON.stringify({ 
+          teacherId, 
+          period, 
+          status, 
+          paymentProcessed: !!paymentResult?.success,
+          transactionId 
+        }),
       },
     });
-    return NextResponse.json({ success: true, payment });
+    return NextResponse.json({ 
+      success: true, 
+      payment,
+      paymentResult: paymentResult?.success ? {
+        transactionId,
+        status: paymentResult.status
+      } : null
+    });
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to update salary status" },

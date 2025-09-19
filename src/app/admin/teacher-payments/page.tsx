@@ -131,6 +131,8 @@ export default function TeacherPaymentsPage() {
   });
   const [deductionFilter, setDeductionFilter] = useState("");
   const [performanceFilter, setPerformanceFilter] = useState("");
+  const [paymentProcessing, setPaymentProcessing] = useState<Set<string>>(new Set());
+  const [paymentResults, setPaymentResults] = useState<Record<string, any>>({});
 
   const months = [
     { value: "1", label: "January" },
@@ -196,6 +198,34 @@ export default function TeacherPaymentsPage() {
   const [teacherPackageBreakdown, setTeacherPackageBreakdown] =
     useState<any>(null);
 
+  const refreshTeacherData = useCallback(async () => {
+    const { from, to } = getMonthRange(selectedYear, selectedMonth);
+    try {
+      const res = await fetch(
+        `/api/admin/teacher-payments?startDate=${from.toISOString()}&endDate=${to.toISOString()}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const validatedData = data.map((teacher: any) => {
+          const calculatedTotal = teacher.baseSalary - teacher.latenessDeduction - teacher.absenceDeduction + teacher.bonuses;
+          return {
+            ...teacher,
+            totalSalary: Math.round(calculatedTotal),
+          };
+        });
+        setTeachers(validatedData);
+        
+        const statusMap: Record<string, "Paid" | "Unpaid"> = {};
+        for (const t of validatedData) {
+          statusMap[t.id] = t.status || "Unpaid";
+        }
+        setSalaryStatus(statusMap);
+      }
+    } catch (error) {
+      console.error('Failed to refresh teacher data:', error);
+    }
+  }, [selectedMonth, selectedYear]);
+
   const fetchBreakdown = useCallback(
     async (teacherId: string) => {
       setBreakdownLoading(true);
@@ -213,6 +243,25 @@ export default function TeacherPaymentsPage() {
 
         if (!breakdownRes.ok) throw new Error("Failed to fetch breakdown");
         const data = await breakdownRes.json();
+        
+        // Validate breakdown data consistency
+        const totalLateness = data.latenessRecords?.reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0) || 0;
+        const totalAbsence = data.absenceRecords?.reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0) || 0;
+        const totalBonus = data.bonusRecords?.reduce((sum: number, r: any) => sum + (r.amount || 0), 0) || 0;
+        
+        const teacher = teachers.find(t => t.id === teacherId);
+        if (teacher) {
+          if (Math.abs(totalLateness - teacher.latenessDeduction) > 0.01) {
+            console.warn(`Lateness mismatch for ${teacher.name}: Detail=${totalLateness}, Main=${teacher.latenessDeduction}`);
+          }
+          if (Math.abs(totalAbsence - teacher.absenceDeduction) > 0.01) {
+            console.warn(`Absence mismatch for ${teacher.name}: Detail=${totalAbsence}, Main=${teacher.absenceDeduction}`);
+          }
+          if (Math.abs(totalBonus - teacher.bonuses) > 0.01) {
+            console.warn(`Bonus mismatch for ${teacher.name}: Detail=${totalBonus}, Main=${teacher.bonuses}`);
+          }
+        }
+        
         setBreakdown(data);
 
         if (studentsRes.ok) {
@@ -230,7 +279,7 @@ export default function TeacherPaymentsPage() {
         setBreakdownLoading(false);
       }
     },
-    [selectedMonth, selectedYear]
+    [selectedMonth, selectedYear, teachers]
   );
 
   useEffect(() => {
@@ -346,9 +395,22 @@ export default function TeacherPaymentsPage() {
         );
         if (!res.ok) throw new Error("Failed to fetch teacher payments");
         const data = await res.json();
-        setTeachers(data);
+        
+        // Validate data consistency
+        const validatedData = data.map((teacher: any) => {
+          const calculatedTotal = teacher.baseSalary - teacher.latenessDeduction - teacher.absenceDeduction + teacher.bonuses;
+          if (Math.abs(calculatedTotal - teacher.totalSalary) > 0.01) {
+            console.warn(`Salary calculation mismatch for ${teacher.name}: Expected ${calculatedTotal}, Got ${teacher.totalSalary}`);
+          }
+          return {
+            ...teacher,
+            totalSalary: Math.round(calculatedTotal), // Ensure consistency
+          };
+        });
+        
+        setTeachers(validatedData);
         const statusMap: Record<string, "Paid" | "Unpaid"> = {};
-        for (const t of data) {
+        for (const t of validatedData) {
           statusMap[t.id] = t.status || "Unpaid";
         }
         setSalaryStatus(statusMap);
@@ -514,22 +576,62 @@ export default function TeacherPaymentsPage() {
     setSelectedMonth(now.month() + 1);
   };
 
-  const handleBulkAction = async () => {
+  const processPayment = async (teacherId: string, teacher: TeacherPayment) => {
+    setPaymentProcessing(prev => new Set([...prev, teacherId]));
+    try {
+      const period = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
+      const res = await fetch("/api/admin/teacher-payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teacherId,
+          period,
+          status: "Paid",
+          totalSalary: teacher.totalSalary,
+          latenessDeduction: teacher.latenessDeduction,
+          absenceDeduction: teacher.absenceDeduction,
+          bonuses: teacher.bonuses,
+          processPaymentNow: true
+        }),
+      });
+      
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Payment failed");
+      
+      setSalaryStatus(prev => ({ ...prev, [teacherId]: "Paid" }));
+      setPaymentResults(prev => ({ ...prev, [teacherId]: result.paymentResult }));
+      
+      toast({
+        title: "Payment Successful",
+        description: `Payment processed for ${teacher.name}. Transaction ID: ${result.paymentResult?.transactionId || 'N/A'}`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Payment Failed",
+        description: err.message || "Failed to process payment",
+        variant: "destructive",
+      });
+    } finally {
+      setPaymentProcessing(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(teacherId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleBulkAction = async (processPayments = false) => {
     if (!bulkAction || selectedTeachers.size === 0) return;
 
     setBulkLoading(true);
     try {
-      const period = `${selectedYear}-${String(selectedMonth).padStart(
-        2,
-        "0"
-      )}`;
+      const period = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
       const newStatus = bulkAction === "mark-paid" ? "Paid" : "Unpaid";
 
       if (newStatus === "Paid" && !canMarkPaid) {
         toast({
           title: "Error",
-          description:
-            "Cannot mark as paid before the 28th of the current month or for future months.",
+          description: "Cannot mark as paid before the 28th of the current month or for future months.",
           variant: "destructive",
         });
         return;
@@ -550,14 +652,22 @@ export default function TeacherPaymentsPage() {
             latenessDeduction: teacher.latenessDeduction,
             absenceDeduction: teacher.absenceDeduction,
             bonuses: teacher.bonuses,
+            processPaymentNow: processPayments && newStatus === "Paid"
           }),
         });
 
-        if (!res.ok) throw new Error(`Failed to update ${teacher.name}`);
-        return teacherId;
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || `Failed to update ${teacher.name}`);
+        
+        if (result.paymentResult) {
+          setPaymentResults(prev => ({ ...prev, [teacherId]: result.paymentResult }));
+        }
+        
+        return { teacherId, result };
       });
 
-      await Promise.all(promises);
+      const results = await Promise.all(promises);
+      const successCount = results.filter(r => r).length;
 
       setSalaryStatus((prev) => {
         const updated = { ...prev };
@@ -570,9 +680,12 @@ export default function TeacherPaymentsPage() {
       setSelectedTeachers(new Set());
       setBulkAction("");
       setShowBulkConfirm(false);
+      
       toast({
         title: "Success",
-        description: `${selectedTeachers.size} teacher(s) marked as ${newStatus}`,
+        description: processPayments 
+          ? `${successCount} teacher(s) marked as ${newStatus} and payments processed`
+          : `${successCount} teacher(s) marked as ${newStatus}`,
       });
     } catch (err: any) {
       toast({
@@ -2001,80 +2114,86 @@ export default function TeacherPaymentsPage() {
                               )}
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <button
-                                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                                  (salaryStatus[t.id] || "Unpaid") === "Paid"
-                                    ? "bg-green-100 text-green-800 hover:bg-green-200"
-                                    : canMarkPaid
-                                    ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-                                    : "bg-gray-100 text-gray-500 cursor-not-allowed"
-                                }`}
-                                onClick={async () => {
-                                  if (!canMarkPaid) return;
-                                  const newStatus =
-                                    (salaryStatus[t.id] || "Unpaid") === "Paid"
-                                      ? "Unpaid"
-                                      : "Paid";
-                                  try {
-                                    const period = `${selectedYear}-${String(
-                                      selectedMonth
-                                    ).padStart(2, "0")}`;
-                                    const res = await fetch(
-                                      "/api/admin/teacher-payments",
-                                      {
-                                        method: "POST",
-                                        headers: {
-                                          "Content-Type": "application/json",
-                                        },
-                                        body: JSON.stringify({
-                                          teacherId: t.id,
-                                          period,
-                                          status: newStatus,
-                                          totalSalary: t.totalSalary,
-                                          latenessDeduction:
-                                            t.latenessDeduction,
-                                          absenceDeduction: t.absenceDeduction,
-                                          bonuses: t.bonuses,
-                                        }),
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${
+                                      (salaryStatus[t.id] || "Unpaid") === "Paid"
+                                        ? "bg-green-100 text-green-800 hover:bg-green-200"
+                                        : canMarkPaid
+                                        ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                                        : "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                    }`}
+                                    onClick={async () => {
+                                      if (!canMarkPaid) return;
+                                      const newStatus = (salaryStatus[t.id] || "Unpaid") === "Paid" ? "Unpaid" : "Paid";
+                                      try {
+                                        const period = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
+                                        const res = await fetch("/api/admin/teacher-payments", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({
+                                            teacherId: t.id,
+                                            period,
+                                            status: newStatus,
+                                            totalSalary: t.totalSalary,
+                                            latenessDeduction: t.latenessDeduction,
+                                            absenceDeduction: t.absenceDeduction,
+                                            bonuses: t.bonuses,
+                                          }),
+                                        });
+                                        const result = await res.json();
+                                        if (!res.ok) throw new Error(result.error || "Failed to update salary status");
+                                        setSalaryStatus((prev) => ({ ...prev, [t.id]: newStatus }));
+                                        toast({
+                                          title: "Success",
+                                          description: `Salary for ${t.name} marked as ${newStatus}`,
+                                        });
+                                      } catch (err: any) {
+                                        toast({
+                                          title: "Error",
+                                          description: err.message || "Failed to update salary status",
+                                          variant: "destructive",
+                                        });
                                       }
-                                    );
-                                    if (!res.ok)
-                                      throw new Error(
-                                        "Failed to update salary status"
-                                      );
-                                    setSalaryStatus((prev) => ({
-                                      ...prev,
-                                      [t.id]: newStatus,
-                                    }));
-                                    toast({
-                                      title: "Success",
-                                      description: `Salary for ${t.name} marked as ${newStatus}`,
-                                    });
-                                  } catch (err) {
-                                    toast({
-                                      title: "Error",
-                                      description:
-                                        "Failed to update salary status",
-                                      variant: "destructive",
-                                    });
-                                  }
-                                }}
-                                disabled={!canMarkPaid}
-                                title={
-                                  !canMarkPaid
-                                    ? "You can only mark as paid after the 28th of the current month or for past months."
-                                    : undefined
-                                }
-                              >
-                                {(salaryStatus[t.id] || "Unpaid") === "Paid" ? (
-                                  <FiCheckCircle className="text-green-600 h-4 w-4" />
-                                ) : canMarkPaid ? (
-                                  <FiXCircle className="text-yellow-600 h-4 w-4" />
-                                ) : (
-                                  <FiXCircle className="text-gray-400 h-4 w-4" />
+                                    }}
+                                    disabled={!canMarkPaid || paymentProcessing.has(t.id)}
+                                    title={!canMarkPaid ? "You can only mark as paid after the 28th of the current month or for past months." : undefined}
+                                  >
+                                    {paymentProcessing.has(t.id) ? (
+                                      <FiLoader className="animate-spin h-4 w-4" />
+                                    ) : (salaryStatus[t.id] || "Unpaid") === "Paid" ? (
+                                      <FiCheckCircle className="text-green-600 h-4 w-4" />
+                                    ) : canMarkPaid ? (
+                                      <FiXCircle className="text-yellow-600 h-4 w-4" />
+                                    ) : (
+                                      <FiXCircle className="text-gray-400 h-4 w-4" />
+                                    )}
+                                    {salaryStatus[t.id] || "Unpaid"}
+                                  </button>
+                                  
+                                  {canMarkPaid && (salaryStatus[t.id] || "Unpaid") === "Unpaid" && (
+                                    <button
+                                      onClick={() => processPayment(t.id, t)}
+                                      disabled={paymentProcessing.has(t.id)}
+                                      className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-all hover:scale-105 disabled:opacity-50"
+                                      title="Mark as paid and process payment"
+                                    >
+                                      {paymentProcessing.has(t.id) ? (
+                                        <FiLoader className="animate-spin h-3 w-3" />
+                                      ) : (
+                                        "💳 Pay"
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                                
+                                {paymentResults[t.id] && (
+                                  <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded border">
+                                    TX: {paymentResults[t.id].transactionId?.slice(-8) || 'N/A'}
+                                  </div>
                                 )}
-                                {salaryStatus[t.id] || "Unpaid"}
-                              </button>
+                              </div>
                             </td>
                             <td className="px-6 py-4 text-right">
                               <button
@@ -2148,6 +2267,19 @@ export default function TeacherPaymentsPage() {
                 Are you sure you want to mark {selectedTeachers.size} teacher(s)
                 as {bulkAction === "mark-paid" ? "Paid" : "Unpaid"}?
               </p>
+              
+              {bulkAction === "mark-paid" && canMarkPaid && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FiInfo className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Payment Processing Options</span>
+                  </div>
+                  <p className="text-xs text-blue-700 mb-3">
+                    Choose whether to process actual payments or just mark as paid for manual processing.
+                  </p>
+                </div>
+              )}
+              
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowBulkConfirm(false)}
@@ -2155,17 +2287,39 @@ export default function TeacherPaymentsPage() {
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleBulkAction}
-                  className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl transition-all font-semibold"
-                  disabled={bulkLoading}
-                >
-                  {bulkLoading ? (
-                    <FiLoader className="animate-spin h-4 w-4" />
-                  ) : (
-                    "Confirm"
-                  )}
-                </button>
+                
+                {bulkAction === "mark-paid" && canMarkPaid ? (
+                  <>
+                    <button
+                      onClick={() => handleBulkAction(false)}
+                      className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl transition-all font-semibold flex items-center gap-2"
+                      disabled={bulkLoading}
+                    >
+                      {bulkLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
+                      Mark Only
+                    </button>
+                    <button
+                      onClick={() => handleBulkAction(true)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-semibold flex items-center gap-2"
+                      disabled={bulkLoading}
+                    >
+                      {bulkLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiDollarSign className="h-4 w-4" />}
+                      Mark & Pay
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => handleBulkAction(false)}
+                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl transition-all font-semibold"
+                    disabled={bulkLoading}
+                  >
+                    {bulkLoading ? (
+                      <FiLoader className="animate-spin h-4 w-4" />
+                    ) : (
+                      "Confirm"
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -2715,35 +2869,59 @@ export default function TeacherPaymentsPage() {
                                     let parsedPackageBreakdown = null;
                                     if (r.packageBreakdown) {
                                       try {
-                                        parsedPackageBreakdown = typeof r.packageBreakdown === 'string' 
-                                          ? JSON.parse(r.packageBreakdown)
-                                          : r.packageBreakdown;
+                                        parsedPackageBreakdown =
+                                          typeof r.packageBreakdown === "string"
+                                            ? JSON.parse(r.packageBreakdown)
+                                            : r.packageBreakdown;
                                       } catch {
                                         parsedPackageBreakdown = null;
                                       }
                                     }
 
-                                    if (parsedPackageBreakdown && Array.isArray(parsedPackageBreakdown)) {
-                                      const totalSlots = parsedPackageBreakdown.reduce(
-                                        (sum: number, p: any) => sum + (p.timeSlots || 1),
-                                        0
-                                      );
-                                      const packageCount = parsedPackageBreakdown.length;
-                                      const calculatedTotal = parsedPackageBreakdown.reduce(
-                                        (sum: number, p: any) => sum + (p.total || p.ratePerSlot || 0),
-                                        0
-                                      );
-                                      const isAccurate = Math.abs(calculatedTotal - r.deductionApplied) < 0.01;
-                                      
-                                      calculationDisplay = `🎯 Package-Based Calculation: ${totalSlots} time slot${totalSlots > 1 ? 's' : ''} across ${packageCount} package type${packageCount > 1 ? 's' : ''} = ${r.deductionApplied} ETB ${isAccurate ? '✓' : '⚠️'}`;
+                                    if (
+                                      parsedPackageBreakdown &&
+                                      Array.isArray(parsedPackageBreakdown)
+                                    ) {
+                                      const totalSlots =
+                                        parsedPackageBreakdown.reduce(
+                                          (sum: number, p: any) =>
+                                            sum + (p.timeSlots || 1),
+                                          0
+                                        );
+                                      const packageCount =
+                                        parsedPackageBreakdown.length;
+                                      const calculatedTotal =
+                                        parsedPackageBreakdown.reduce(
+                                          (sum: number, p: any) =>
+                                            sum +
+                                            (p.total || p.ratePerSlot || 0),
+                                          0
+                                        );
+                                      const isAccurate =
+                                        Math.abs(
+                                          calculatedTotal - r.deductionApplied
+                                        ) < 0.01;
+
+                                      calculationDisplay = `🎯 Package-Based Calculation: ${totalSlots} time slot${
+                                        totalSlots > 1 ? "s" : ""
+                                      } across ${packageCount} package type${
+                                        packageCount > 1 ? "s" : ""
+                                      } = ${r.deductionApplied} ETB ${
+                                        isAccurate ? "✓" : "⚠️"
+                                      }`;
                                       packageDetails = parsedPackageBreakdown;
                                     } else if (r.timeSlots) {
                                       try {
-                                        const slots = typeof r.timeSlots === 'string' ? JSON.parse(r.timeSlots) : r.timeSlots;
+                                        const slots =
+                                          typeof r.timeSlots === "string"
+                                            ? JSON.parse(r.timeSlots)
+                                            : r.timeSlots;
                                         if (slots.includes("Whole Day")) {
                                           calculationDisplay = `🚫 Whole Day Absence: ${r.deductionApplied} ETB (Package-weighted rates applied)`;
                                         } else {
-                                          const avgRate = Math.round(r.deductionApplied / slots.length);
+                                          const avgRate = Math.round(
+                                            r.deductionApplied / slots.length
+                                          );
                                           calculationDisplay = `⏱️ Partial Absence: ${avgRate} ETB avg/slot × ${slots.length} slots = ${r.deductionApplied} ETB`;
                                         }
                                       } catch {
@@ -2760,7 +2938,9 @@ export default function TeacherPaymentsPage() {
                                             {calculationDisplay}
                                           </div>
                                           <div className="flex items-center gap-1">
-                                            {parsedPackageBreakdown && parsedPackageBreakdown.length > 0 ? (
+                                            {parsedPackageBreakdown &&
+                                            parsedPackageBreakdown.length >
+                                              0 ? (
                                               <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
                                                 ✓ Verified
                                               </span>
@@ -2773,77 +2953,123 @@ export default function TeacherPaymentsPage() {
                                         </div>
 
                                         {/* Enhanced Package-specific breakdown */}
-                                        {packageDetails && packageDetails.length > 0 && (
-                                          <div className="bg-blue-50 rounded p-3 mb-3 border border-blue-200">
-                                            <div className="flex items-center justify-between mb-3">
-                                              <div className="text-xs text-blue-800 font-medium flex items-center gap-1">
-                                                📊 Package-Specific Breakdown
+                                        {packageDetails &&
+                                          packageDetails.length > 0 && (
+                                            <div className="bg-blue-50 rounded p-3 mb-3 border border-blue-200">
+                                              <div className="flex items-center justify-between mb-3">
+                                                <div className="text-xs text-blue-800 font-medium flex items-center gap-1">
+                                                  📊 Package-Specific Breakdown
+                                                </div>
+                                                <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                                                  {packageDetails.length}{" "}
+                                                  Package
+                                                  {packageDetails.length > 1
+                                                    ? "s"
+                                                    : ""}{" "}
+                                                  Affected
+                                                </div>
                                               </div>
-                                              <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                                                {packageDetails.length} Package{packageDetails.length > 1 ? 's' : ''} Affected
-                                              </div>
-                                            </div>
-                                            <div className="grid grid-cols-1 gap-2">
-                                              {packageDetails.map((pkg: any, idx: number) => {
-                                                const slots = pkg.timeSlots || 1;
-                                                const rate = pkg.ratePerSlot || pkg.total || 0;
-                                                const total = pkg.total || (rate * slots);
-                                                
-                                                return (
-                                                  <div
-                                                    key={idx}
-                                                    className="bg-white rounded-lg px-3 py-2 border border-blue-200 shadow-sm"
-                                                  >
-                                                    <div className="flex justify-between items-start mb-1">
-                                                      <div className="flex items-center gap-2">
-                                                        <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
-                                                        <span className="font-semibold text-blue-900 text-xs">
-                                                          {pkg.package || 'Unknown Package'}
-                                                        </span>
-                                                        {pkg.studentId && (
-                                                          <span className="text-xs text-gray-500 bg-gray-100 px-1 rounded">
-                                                            ID: {pkg.studentId}
+                                              <div className="grid grid-cols-1 gap-2">
+                                                {packageDetails.map(
+                                                  (pkg: any, idx: number) => {
+                                                    const slots =
+                                                      pkg.timeSlots || 1;
+                                                    const rate =
+                                                      pkg.ratePerSlot ||
+                                                      pkg.total ||
+                                                      0;
+                                                    const total =
+                                                      pkg.total || rate * slots;
+
+                                                    return (
+                                                      <div
+                                                        key={idx}
+                                                        className="bg-white rounded-lg px-3 py-2 border border-blue-200 shadow-sm"
+                                                      >
+                                                        <div className="flex justify-between items-start mb-1">
+                                                          <div className="flex items-center gap-2">
+                                                            <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                                                            <span className="font-semibold text-blue-900 text-xs">
+                                                              {pkg.package ||
+                                                                "Unknown Package"}
+                                                            </span>
+                                                            {pkg.studentId && (
+                                                              <span className="text-xs text-gray-500 bg-gray-100 px-1 rounded">
+                                                                ID:{" "}
+                                                                {pkg.studentId}
+                                                              </span>
+                                                            )}
+                                                          </div>
+                                                          <span className="text-xs font-bold text-red-600">
+                                                            -{total} ETB
                                                           </span>
+                                                        </div>
+                                                        <div className="text-xs text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">
+                                                          {slots} slot
+                                                          {slots > 1 ? "s" : ""}{" "}
+                                                          × {rate} ETB/slot ={" "}
+                                                          {total} ETB
+                                                        </div>
+                                                        {pkg.studentName && (
+                                                          <div className="text-xs text-gray-500 mt-1">
+                                                            Student:{" "}
+                                                            {pkg.studentName}
+                                                          </div>
                                                         )}
                                                       </div>
-                                                      <span className="text-xs font-bold text-red-600">
-                                                        -{total} ETB
+                                                    );
+                                                  }
+                                                )}
+                                              </div>
+                                              <div className="mt-3 pt-2 border-t border-blue-200">
+                                                <div className="flex justify-between items-center">
+                                                  <span className="text-xs font-medium text-blue-800">
+                                                    Total Deduction:
+                                                  </span>
+                                                  <span className="text-sm font-bold text-red-700 bg-red-50 px-2 py-1 rounded">
+                                                    -{r.deductionApplied} ETB
+                                                  </span>
+                                                </div>
+                                                <div className="text-xs text-blue-600 mt-1">
+                                                  Expected:{" "}
+                                                  {packageDetails.reduce(
+                                                    (sum: number, p: any) =>
+                                                      sum +
+                                                      (p.total ||
+                                                        p.ratePerSlot ||
+                                                        0),
+                                                    0
+                                                  )}{" "}
+                                                  ETB
+                                                  {(() => {
+                                                    const expected =
+                                                      packageDetails.reduce(
+                                                        (sum: number, p: any) =>
+                                                          sum +
+                                                          (p.total ||
+                                                            p.ratePerSlot ||
+                                                            0),
+                                                        0
+                                                      );
+                                                    const diff = Math.abs(
+                                                      expected -
+                                                        r.deductionApplied
+                                                    );
+                                                    return diff > 0.01 ? (
+                                                      <span className="text-orange-600 ml-2">
+                                                        ⚠️ Variance:{" "}
+                                                        {diff.toFixed(2)} ETB
                                                       </span>
-                                                    </div>
-                                                    <div className="text-xs text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">
-                                                      {slots} slot{slots > 1 ? 's' : ''} × {rate} ETB/slot = {total} ETB
-                                                    </div>
-                                                    {pkg.studentName && (
-                                                      <div className="text-xs text-gray-500 mt-1">
-                                                        Student: {pkg.studentName}
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                            <div className="mt-3 pt-2 border-t border-blue-200">
-                                              <div className="flex justify-between items-center">
-                                                <span className="text-xs font-medium text-blue-800">Total Deduction:</span>
-                                                <span className="text-sm font-bold text-red-700 bg-red-50 px-2 py-1 rounded">
-                                                  -{r.deductionApplied} ETB
-                                                </span>
-                                              </div>
-                                              <div className="text-xs text-blue-600 mt-1">
-                                                Expected: {packageDetails.reduce((sum: number, p: any) => sum + (p.total || p.ratePerSlot || 0), 0)} ETB
-                                                {(() => {
-                                                  const expected = packageDetails.reduce((sum: number, p: any) => sum + (p.total || p.ratePerSlot || 0), 0);
-                                                  const diff = Math.abs(expected - r.deductionApplied);
-                                                  return diff > 0.01 ? (
-                                                    <span className="text-orange-600 ml-2">⚠️ Variance: {diff.toFixed(2)} ETB</span>
-                                                  ) : (
-                                                    <span className="text-green-600 ml-2">✓ Verified</span>
-                                                  );
-                                                })()}
+                                                    ) : (
+                                                      <span className="text-green-600 ml-2">
+                                                        ✓ Verified
+                                                      </span>
+                                                    );
+                                                  })()}
+                                                </div>
                                               </div>
                                             </div>
-                                          </div>
-                                        )}
+                                          )}
 
                                         {/* Deduction Verification & System Status */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
@@ -2852,55 +3078,84 @@ export default function TeacherPaymentsPage() {
                                               ✓ System Verification
                                             </div>
                                             <div className="text-xs text-green-700">
-                                              {packageDetails && packageDetails.length > 1
+                                              {packageDetails &&
+                                              packageDetails.length > 1
                                                 ? `Mixed packages: ${packageDetails.length} types`
-                                                : packageDetails && packageDetails.length === 1
+                                                : packageDetails &&
+                                                  packageDetails.length === 1
                                                 ? `Single package: ${packageDetails[0]?.package}`
                                                 : "Package-based calculation"}
                                             </div>
                                             <div className="text-xs text-green-600 mt-1">
-                                              {r.reviewedByManager ? "🤖 Auto-verified" : "👁️ Manual review"}
+                                              {r.reviewedByManager
+                                                ? "🤖 Auto-verified"
+                                                : "👁️ Manual review"}
                                             </div>
                                           </div>
-                                          
+
                                           <div className="bg-purple-50 rounded p-2 border border-purple-200">
                                             <div className="text-xs text-purple-800 font-medium mb-1 flex items-center gap-1">
                                               📈 Impact Analysis
                                             </div>
                                             <div className="text-xs text-purple-700">
-                                              Revenue impact: {r.deductionApplied} ETB
+                                              Revenue impact:{" "}
+                                              {r.deductionApplied} ETB
                                             </div>
                                             <div className="text-xs text-purple-600 mt-1">
-                                              {packageDetails ? 
-                                                `Avg rate: ${Math.round(r.deductionApplied / packageDetails.length)} ETB/pkg` :
-                                                "Standard rate applied"}
+                                              {packageDetails
+                                                ? `Avg rate: ${Math.round(
+                                                    r.deductionApplied /
+                                                      packageDetails.length
+                                                  )} ETB/pkg`
+                                                : "Standard rate applied"}
                                             </div>
                                           </div>
                                         </div>
 
                                         {/* Enhanced Time Slot Information */}
-                                        {r.uniqueTimeSlots && r.uniqueTimeSlots.length > 0 && (
-                                          <div className="bg-gray-50 rounded p-2 border border-gray-200">
-                                            <div className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                                              ⏰ Time Slots Affected ({r.uniqueTimeSlots.length})
+                                        {r.uniqueTimeSlots &&
+                                          r.uniqueTimeSlots.length > 0 && (
+                                            <div className="bg-gray-50 rounded p-2 border border-gray-200">
+                                              <div className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                                                ⏰ Time Slots Affected (
+                                                {r.uniqueTimeSlots.length})
+                                              </div>
+                                              <div className="flex flex-wrap gap-1">
+                                                {r.uniqueTimeSlots
+                                                  .slice(0, 4)
+                                                  .map(
+                                                    (
+                                                      slot: string,
+                                                      idx: number
+                                                    ) => (
+                                                      <span
+                                                        key={idx}
+                                                        className="inline-block bg-white border border-gray-300 rounded px-2 py-1 text-xs font-mono text-gray-700"
+                                                      >
+                                                        {slot}
+                                                      </span>
+                                                    )
+                                                  )}
+                                                {r.uniqueTimeSlots.length >
+                                                  4 && (
+                                                  <span className="inline-block bg-gray-200 border border-gray-300 rounded px-2 py-1 text-xs text-gray-600">
+                                                    +
+                                                    {r.uniqueTimeSlots.length -
+                                                      4}{" "}
+                                                    more
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <div className="text-xs text-gray-500 mt-1">
+                                                Total duration:{" "}
+                                                {r.uniqueTimeSlots.length} time
+                                                period
+                                                {r.uniqueTimeSlots.length > 1
+                                                  ? "s"
+                                                  : ""}
+                                              </div>
                                             </div>
-                                            <div className="flex flex-wrap gap-1">
-                                              {r.uniqueTimeSlots.slice(0, 4).map((slot: string, idx: number) => (
-                                                <span key={idx} className="inline-block bg-white border border-gray-300 rounded px-2 py-1 text-xs font-mono text-gray-700">
-                                                  {slot}
-                                                </span>
-                                              ))}
-                                              {r.uniqueTimeSlots.length > 4 && (
-                                                <span className="inline-block bg-gray-200 border border-gray-300 rounded px-2 py-1 text-xs text-gray-600">
-                                                  +{r.uniqueTimeSlots.length - 4} more
-                                                </span>
-                                              )}
-                                            </div>
-                                            <div className="text-xs text-gray-500 mt-1">
-                                              Total duration: {r.uniqueTimeSlots.length} time period{r.uniqueTimeSlots.length > 1 ? 's' : ''}
-                                            </div>
-                                          </div>
-                                        )}
+                                          )}
                                       </div>
                                     );
                                   })()}
@@ -2918,32 +3173,52 @@ export default function TeacherPaymentsPage() {
                                       </div>
                                     </div>
                                   )}
-                                  
+
                                   {/* Absence Record Metadata */}
                                   <div className="bg-gray-50 rounded p-2 border border-gray-200 mt-2">
                                     <div className="grid grid-cols-2 gap-4 text-xs">
                                       <div>
-                                        <span className="font-medium text-gray-600">Record ID:</span>
-                                        <span className="ml-1 font-mono text-gray-800">{r.id || 'Auto-generated'}</span>
-                                      </div>
-                                      <div>
-                                        <span className="font-medium text-gray-600">Status:</span>
-                                        <span className={`ml-1 px-2 py-0.5 rounded text-xs font-medium ${
-                                          r.permitted ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                        }`}>
-                                          {r.permitted ? 'Permitted' : 'Unpermitted'}
+                                        <span className="font-medium text-gray-600">
+                                          Record ID:
+                                        </span>
+                                        <span className="ml-1 font-mono text-gray-800">
+                                          {r.id || "Auto-generated"}
                                         </span>
                                       </div>
                                       <div>
-                                        <span className="font-medium text-gray-600">Detection:</span>
-                                        <span className="ml-1 text-gray-700">
-                                          {r.reviewedByManager ? 'Automated' : 'Manual'}
+                                        <span className="font-medium text-gray-600">
+                                          Status:
+                                        </span>
+                                        <span
+                                          className={`ml-1 px-2 py-0.5 rounded text-xs font-medium ${
+                                            r.permitted
+                                              ? "bg-green-100 text-green-700"
+                                              : "bg-red-100 text-red-700"
+                                          }`}
+                                        >
+                                          {r.permitted
+                                            ? "Permitted"
+                                            : "Unpermitted"}
                                         </span>
                                       </div>
                                       <div>
-                                        <span className="font-medium text-gray-600">Processed:</span>
+                                        <span className="font-medium text-gray-600">
+                                          Detection:
+                                        </span>
                                         <span className="ml-1 text-gray-700">
-                                          {new Date(r.classDate).toLocaleDateString()}
+                                          {r.reviewedByManager
+                                            ? "Automated"
+                                            : "Manual"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-gray-600">
+                                          Processed:
+                                        </span>
+                                        <span className="ml-1 text-gray-700">
+                                          {new Date(
+                                            r.classDate
+                                          ).toLocaleDateString()}
                                         </span>
                                       </div>
                                     </div>
