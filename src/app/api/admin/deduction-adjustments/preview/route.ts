@@ -21,6 +21,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Ensure teacherIds are strings to match database schema
+    const teacherIdsArray = Array.isArray(teacherIds) 
+      ? teacherIds.map(id => String(id)) 
+      : [String(teacherIds)];
+
     const startDate = new Date(dateRange.startDate);
     const endDate = new Date(dateRange.endDate);
     const records: any[] = [];
@@ -28,7 +33,7 @@ export async function POST(req: NextRequest) {
 
     if (adjustmentType === "waive_absence") {
       // Use EXACT same logic as teacher payments API
-      for (const teacherId of teacherIds) {
+      for (const teacherId of teacherIdsArray) {
         const teacher = await prisma.wpos_wpdatatable_24.findUnique({
           where: { ustazid: teacherId },
           select: { ustazname: true },
@@ -197,7 +202,7 @@ export async function POST(req: NextRequest) {
 
     if (adjustmentType === "waive_lateness") {
       // Use EXACT same logic as teacher payments API
-      for (const teacherId of teacherIds) {
+      for (const teacherId of teacherIdsArray) {
         const teacher = await prisma.wpos_wpdatatable_24.findUnique({
           where: { ustazid: teacherId },
           select: { ustazname: true },
@@ -396,7 +401,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Calculate summary
-    const teacherBreakdown = teacherIds
+    const teacherBreakdown = teacherIdsArray
       .map((teacherId: string) => {
         const teacherRecords = records.filter((r) => r.teacherId === teacherId);
         return {

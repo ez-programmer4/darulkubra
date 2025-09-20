@@ -525,9 +525,9 @@ Additional Information:
         )}
       </div>
 
-      {/* Enhanced Mobile Breakdown Modal */}
+      {/* Mobile Breakdown Modal */}
       {showBreakdown && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 bg-black/50">
           <div className="fixed inset-x-4 top-4 bottom-4 bg-white rounded-2xl shadow-2xl overflow-y-auto">
             <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -535,7 +535,7 @@ Additional Information:
                   <FiBarChart className="h-5 w-5 text-white" />
                 </div>
                 <h2 className="text-lg font-bold text-black">
-                  Detailed Salary Breakdown
+                  Salary Breakdown
                 </h2>
               </div>
               <button
@@ -551,46 +551,25 @@ Additional Information:
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-blue-600 mx-auto mb-4"></div>
                   <p className="text-black font-medium">
-                    Loading detailed breakdown...
+                    Loading breakdown...
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Enhanced Lateness Records */}
+                  {/* Lateness Records */}
                   <div className="bg-red-50 rounded-xl p-4 border border-red-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <FiClock className="text-red-500 h-4 w-4" />
-                        <h3 className="text-base font-bold text-red-900">
-                          Lateness Records & Deductions
-                        </h3>
-                      </div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <FiClock className="text-red-500 h-4 w-4" />
+                      <h3 className="text-base font-bold text-red-900">
+                        Lateness Records
+                      </h3>
                       <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
-                        {breakdown.latenessRecords?.length || 0} incidents
+                        {breakdown.latenessRecords?.length || 0}
                       </span>
                     </div>
-                    
-                    {/* Summary Stats */}
-                    {breakdown.latenessRecords?.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        <div className="bg-white rounded p-2 text-center">
-                          <div className="text-sm font-bold text-red-900">
-                            {Math.round(breakdown.latenessRecords.reduce((sum: number, r: any) => sum + (r.latenessMinutes || 0), 0) / breakdown.latenessRecords.length)}
-                          </div>
-                          <div className="text-xs text-red-600">Avg Minutes</div>
-                        </div>
-                        <div className="bg-white rounded p-2 text-center">
-                          <div className="text-sm font-bold text-red-900">
-                            -{breakdown.latenessRecords.reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0)} ETB
-                          </div>
-                          <div className="text-xs text-red-600">Total Deduction</div>
-                        </div>
-                      </div>
-                    )}
-                    
                     {breakdown.latenessRecords?.length === 0 ? (
                       <p className="text-red-600 text-center py-3 text-sm">
-                        Perfect punctuality! No lateness records.
+                        No lateness records.
                       </p>
                     ) : (
                       <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -603,40 +582,23 @@ Additional Information:
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex flex-col">
                                   <div className="text-xs font-mono text-gray-600">
-                                    {format(new Date(record.classDate), "MMM dd, yyyy")}
+                                    {new Date(
+                                      record.classDate
+                                    ).toLocaleDateString()}
                                   </div>
-                                  <div className="text-xs text-gray-700 font-medium">
+                                  <div className="text-xs text-gray-700">
                                     {record.studentName}
-                                  </div>
-                                  <div className="text-xs text-blue-600">
-                                    Package: {record.studentPackage || 'Standard'}
                                   </div>
                                 </div>
                                 <div className="flex flex-col items-end gap-1">
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    record.latenessMinutes <= 5 ? 'bg-yellow-100 text-yellow-700' :
-                                    record.latenessMinutes <= 15 ? 'bg-orange-100 text-orange-700' :
-                                    'bg-red-100 text-red-700'
-                                  }`}>
-                                    {record.latenessMinutes} min late
+                                  <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
+                                    {record.latenessMinutes} min
                                   </span>
                                   <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
                                     -{record.deductionApplied} ETB
                                   </span>
-                                  {record.deductionTier && (
-                                    <div className="text-xs text-gray-500">
-                                      {record.deductionTier}
-                                    </div>
-                                  )}
                                 </div>
                               </div>
-                              {record.notes && (
-                                <div className="mt-2 pt-2 border-t border-red-100">
-                                  <div className="text-xs text-gray-600">
-                                    <span className="font-medium">Notes:</span> {record.notes}
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           )
                         )}
@@ -645,7 +607,7 @@ Additional Information:
                     <div className="mt-3 pt-3 border-t border-red-200">
                       <div className="flex justify-between items-center">
                         <span className="font-medium text-red-900 text-sm">
-                          Total Lateness Deduction:
+                          Total Deduction:
                         </span>
                         <span className="text-lg font-bold text-red-600">
                           -
@@ -660,47 +622,20 @@ Additional Information:
                     </div>
                   </div>
 
-                  {/* Enhanced Absence Records */}
-                  <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <FiAlertTriangle className="text-yellow-500 h-4 w-4" />
-                        <h3 className="text-base font-bold text-yellow-900">
-                          Absence Records & Deductions
-                        </h3>
-                      </div>
-                      <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-medium">
+                  {/* Absence Records */}
+                  <div className="bg-yellow-50 rounded-2xl p-6 border border-yellow-200">
+                    <div className="flex items-center gap-2 mb-4">
+                      <FiAlertTriangle className="text-yellow-500 h-5 w-5" />
+                      <h3 className="text-lg font-bold text-yellow-900">
+                        Absence Records
+                      </h3>
+                      <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-sm font-semibold">
                         {breakdown.absenceRecords?.length || 0} days
                       </span>
                     </div>
-                    
-                    {/* Summary Stats */}
-                    {breakdown.absenceRecords?.length > 0 && (
-                      <div className="grid grid-cols-3 gap-2 mb-3">
-                        <div className="bg-white rounded p-2 text-center">
-                          <div className="text-sm font-bold text-green-700">
-                            {breakdown.absenceRecords.filter((r: any) => r.permitted).length}
-                          </div>
-                          <div className="text-xs text-green-600">Permitted</div>
-                        </div>
-                        <div className="bg-white rounded p-2 text-center">
-                          <div className="text-sm font-bold text-red-700">
-                            {breakdown.absenceRecords.filter((r: any) => !r.permitted).length}
-                          </div>
-                          <div className="text-xs text-red-600">Unpermitted</div>
-                        </div>
-                        <div className="bg-white rounded p-2 text-center">
-                          <div className="text-sm font-bold text-yellow-900">
-                            -{breakdown.absenceRecords.reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0)} ETB
-                          </div>
-                          <div className="text-xs text-yellow-600">Total</div>
-                        </div>
-                      </div>
-                    )}
-                    
                     {breakdown.absenceRecords?.length === 0 ? (
                       <p className="text-yellow-600 text-center py-4">
-                        Perfect attendance! No absence records.
+                        No absence records for this period.
                       </p>
                     ) : (
                       <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -713,7 +648,9 @@ Additional Information:
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div className="flex items-center gap-3">
                                   <div className="text-sm font-mono text-gray-600">
-                                    {format(new Date(record.classDate), "MMM dd, yyyy")}
+                                    {new Date(
+                                      record.classDate
+                                    ).toLocaleDateString()}
                                   </div>
                                   <span
                                     className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -723,46 +660,21 @@ Additional Information:
                                     }`}
                                   >
                                     {record.permitted
-                                      ? "✓ Permitted"
-                                      : "⚠ Unpermitted"}
+                                      ? "Permitted"
+                                      : "Unpermitted"}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-semibold">
                                     -{record.deductionApplied} ETB
                                   </span>
+                                  {record.reviewNotes && (
+                                    <span className="text-xs text-gray-500">
+                                      ({record.reviewNotes})
+                                    </span>
+                                  )}
                                 </div>
                               </div>
-                              
-                              {/* Additional Details */}
-                              <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
-                                {record.timeSlots && record.timeSlots.length > 0 && (
-                                  <div>
-                                    <span className="text-gray-600">Time Slots:</span>
-                                    <span className="ml-1 text-gray-800">{record.timeSlots.join(', ')}</span>
-                                  </div>
-                                )}
-                                {record.permissionrequest?.reasonCategory && (
-                                  <div>
-                                    <span className="text-gray-600">Reason:</span>
-                                    <span className="ml-1 text-purple-600">{record.permissionrequest.reasonCategory}</span>
-                                  </div>
-                                )}
-                                <div>
-                                  <span className="text-gray-600">Review:</span>
-                                  <span className={`ml-1 ${record.reviewedByManager ? 'text-green-600' : 'text-orange-600'}`}>
-                                    {record.reviewedByManager ? 'Manager Reviewed' : 'Pending Review'}
-                                  </span>
-                                </div>
-                              </div>
-                              
-                              {record.reviewNotes && (
-                                <div className="mt-2 p-2 bg-blue-50 rounded border-l-4 border-blue-300">
-                                  <div className="text-xs text-blue-800">
-                                    <span className="font-medium">Manager Notes:</span> {record.reviewNotes}
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           )
                         )}
@@ -812,7 +724,9 @@ Additional Information:
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div className="flex items-center gap-3">
                                   <div className="text-sm font-mono text-gray-600">
-                                    {format(new Date(record.createdAt), "MMM dd, yyyy")}
+                                    {new Date(
+                                      record.createdAt
+                                    ).toLocaleDateString()}
                                   </div>
                                   <div className="text-sm text-gray-700">
                                     {record.reason}
