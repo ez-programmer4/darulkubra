@@ -414,11 +414,11 @@ export default function AdminQualityReviewPage() {
                             <div className="flex flex-col items-center gap-1">
                               <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                                 t.examinerRating === null ? "bg-gray-100 text-gray-500" :
-                                t.examinerRating >= 4 ? "bg-green-100 text-green-800" :
-                                t.examinerRating >= 3 ? "bg-yellow-100 text-yellow-800" :
+                                t.examinerRating >= 8 ? "bg-green-100 text-green-800" :
+                                t.examinerRating >= 6 ? "bg-yellow-100 text-yellow-800" :
                                 "bg-red-100 text-red-800"
                               }`}>
-                                {t.examinerRating ? `${t.examinerRating}/5` : "No Rating"}
+                                {t.examinerRating ? `${t.examinerRating}/10` : "No Rating"}
                               </span>
                               <span className="text-xs text-gray-400 font-medium">
                                 External System

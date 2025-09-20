@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const RatingSchema = z.object({
   teacherId: z.string().min(1),
-  rating: z.number().min(1).max(5),
+  rating: z.number().min(1).max(10),
 });
 
 const BulkRatingSchema = z.array(RatingSchema);
