@@ -141,7 +141,133 @@ export async function POST(req: NextRequest) {
             `💰 TOTAL ABSENCE AMOUNT WAIVED: ${totalAmountWaived} ETB`
           );
         } else {
-          console.log(`ℹ️ NO ABSENCE RECORDS FOUND FOR SPECIFIED CRITERIA`);
+          console.log(`ℹ️ NO DATABASE ABSENCE RECORDS FOUND, CHECKING FOR COMPUTED ABSENCES...`);
+        }
+        
+        // Also handle computed absences (same logic as preview API)
+        for (const teacherId of teacherIdsArray) {
+          const teacher = await tx.wpos_wpdatatable_24.findUnique({
+            where: { ustazid: teacherId },
+            select: { ustazname: true },
+          });
+
+          if (!teacher) continue;
+
+          // Get package deduction rates
+          const packageDeductions = await tx.packageDeduction.findMany();
+          const packageDeductionMap: Record<string, { lateness: number; absence: number }> = {};
+          packageDeductions.forEach((pkg) => {
+            packageDeductionMap[pkg.packageName] = {
+              lateness: Number(pkg.latenessBaseAmount),
+              absence: Number(pkg.absenceBaseAmount),
+            };
+          });
+
+          // Get current students
+          const currentStudents = await tx.wpos_wpdatatable_23.findMany({
+            where: { ustaz: teacherId, status: { in: ["active", "Active"] } },
+            select: {
+              wdt_ID: true,
+              name: true,
+              package: true,
+              zoom_links: {
+                where: { sent_time: { gte: startDate, lte: endDate } },
+                select: { sent_time: true },
+              },
+            },
+          });
+
+          // Get existing waivers
+          const existingWaivers = await tx.deduction_waivers.findMany({
+            where: {
+              teacherId,
+              deductionType: "absence",
+              deductionDate: { gte: startDate, lte: endDate },
+            },
+          });
+
+          const waivedDates = new Set(
+            existingWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
+          );
+
+          // Get existing absence records
+          const existingAbsenceRecords = await tx.absencerecord.findMany({
+            where: {
+              teacherId,
+              classDate: { gte: startDate, lte: endDate },
+            },
+          });
+
+          const existingAbsenceDates = new Set(
+            existingAbsenceRecords.map((record) =>
+              record.classDate.toISOString().split("T")[0]
+            )
+          );
+
+          // Check for computed absences
+          const today = new Date();
+          today.setHours(23, 59, 59, 999);
+
+          const workingDaysConfig = await tx.setting.findUnique({
+            where: { key: "include_sundays_in_salary" },
+          });
+          const includeSundays = workingDaysConfig?.value === "true" || false;
+
+          const computedAbsenceWaivers = [];
+
+          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            if (d > today) continue;
+            if (!includeSundays && d.getDay() === 0) continue;
+
+            const dateStr = d.toISOString().split("T")[0];
+
+            // Skip if already have database record or waiver
+            if (existingAbsenceDates.has(dateStr) || waivedDates.has(dateStr)) continue;
+
+            // Check if teacher sent zoom links
+            const dayHasZoomLinks = currentStudents.some((student) =>
+              student.zoom_links.some((link) => {
+                if (!link.sent_time) return false;
+                const linkDate = link.sent_time.toISOString().split("T")[0];
+                return linkDate === dateStr;
+              })
+            );
+
+            // If no zoom links and has students, it's a computed absence
+            if (!dayHasZoomLinks && currentStudents.length > 0) {
+              let dailyDeduction = 0;
+              for (const student of currentStudents) {
+                const packageRate = student.package
+                  ? packageDeductionMap[student.package]?.absence || 25
+                  : 25;
+                dailyDeduction += packageRate;
+              }
+
+              if (dailyDeduction > 0) {
+                computedAbsenceWaivers.push({
+                  teacherId,
+                  deductionType: "absence" as const,
+                  deductionDate: new Date(d),
+                  originalAmount: dailyDeduction,
+                  reason: `${reason} | Computed absence: ${currentStudents.length} students affected`,
+                  adminId,
+                });
+                totalAmountWaived += dailyDeduction;
+              }
+            }
+          }
+
+          if (computedAbsenceWaivers.length > 0) {
+            console.log(`💾 CREATING ${computedAbsenceWaivers.length} COMPUTED ABSENCE WAIVERS FOR ${teacherId}`);
+            
+            const createdComputedWaivers = await tx.deduction_waivers.createMany({
+              data: computedAbsenceWaivers,
+              skipDuplicates: true,
+            });
+
+            console.log(`✅ CREATED ${createdComputedWaivers.count} COMPUTED ABSENCE WAIVERS`);
+            recordsAffected += createdComputedWaivers.count;
+          }
         }
       }
 
