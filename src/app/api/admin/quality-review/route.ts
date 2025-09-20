@@ -199,6 +199,25 @@ export async function GET(req: NextRequest) {
       return { ...a, examPassRate, adjustedExamPassRate, examSampleSize };
     })
   );
+  // Get all teacher IDs for rating lookup
+  const teacherIds = assessments.map(a => a.teacherId);
+  
+  // Get average ratings for all teachers
+  const teacherRatings = await prisma.teacherRating.groupBy({
+    by: ['teacherId'],
+    where: {
+      teacherId: { in: teacherIds }
+    },
+    _avg: {
+      rating: true
+    }
+  });
+  
+  // Create rating map
+  const ratingMap = Object.fromEntries(
+    teacherRatings.map(tr => [tr.teacherId, tr._avg.rating ? Number(tr._avg.rating.toFixed(1)) : null])
+  );
+
   // Aggregate per teacher
   const teachers = teacherStats.map((a) => {
     const feedback = aggregateControllerFeedback(a.supervisorFeedback);
@@ -220,7 +239,7 @@ export async function GET(req: NextRequest) {
       examPassRate: a.adjustedExamPassRate, // Use adjusted pass rate
       rawExamPassRate: a.examPassRate, // Keep raw for reference
       examSampleSize: a.examSampleSize,
-      examinerRating: a.examinerRating ?? Math.round(Math.random() * 10), // mock
+      examinerRating: ratingMap[a.teacherId] || null, // Real average rating
       overallQuality: a.overallQuality,
       managerOverride: a.managerOverride ? a.overallQuality : undefined,
       overrideNotes: a.overrideNotes,

@@ -35,6 +35,7 @@ model wpos_wpdatatable_24 {
   controller              wpos_wpdatatable_28?        @relation(fields: [control], references: [code])
   zoom_links              wpos_zoom_links[]
   coursePackage           coursePackage[]
+  teacherRating           teacherRating[]
 
   @@index([ustazid], map: "idx_ustazid")
   @@index([control], map: "wpos_wpdatatable_24_control_fkey")
@@ -822,4 +823,11 @@ model deduction_waivers {
   @@index([teacherId, deductionDate], map: "idx_teacher_date")
   @@index([deductionType, deductionDate], map: "idx_type_date")
   @@index([adminId], map: "idx_admin")
+}
+
+model teacherRating {
+  id        String               @id @default(uuid())
+  teacherId String
+  teacher   wpos_wpdatatable_24? @relation(fields: [teacherId], references: [ustazid], onDelete: Cascade) // 24
+  rating    Int // Rating from 1-5
 }
