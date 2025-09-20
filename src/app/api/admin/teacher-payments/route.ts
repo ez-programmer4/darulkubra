@@ -10,60 +10,69 @@ import { format } from "date-fns";
 // Helper function to check if a student is scheduled for a specific day
 // For now, return true for all students (no day-specific filtering)
 // This can be enhanced later when the schema supports day-specific scheduling
-async function checkIfStudentScheduledForDay(studentId: number, dayOfWeek: number): Promise<boolean> {
+async function checkIfStudentScheduledForDay(
+  studentId: number,
+  dayOfWeek: number
+): Promise<boolean> {
   // TODO: Implement day-specific scheduling when schema is available
   // For now, assume all students are scheduled for all days
   return true;
 }
 
 // Payment integration function
-async function processPayment(teacherId: string, amount: number, period: string) {
+async function processPayment(
+  teacherId: string,
+  amount: number,
+  period: string
+) {
   try {
     // Get teacher details for payment
     const teacher = await prisma.wpos_wpdatatable_24.findUnique({
       where: { ustazid: teacherId },
-      select: { ustazname: true, phone: true }
+      select: { ustazname: true, phone: true },
     });
 
-    if (!teacher) throw new Error('Teacher not found');
+    if (!teacher) throw new Error("Teacher not found");
 
     // Call external payment API
-    const paymentResponse = await fetch(process.env.PAYMENT_API_URL || '', {
-      method: 'POST',
+    const paymentResponse = await fetch(process.env.PAYMENT_API_URL || "", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.PAYMENT_API_KEY}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.PAYMENT_API_KEY}`,
       },
       body: JSON.stringify({
         recipient: {
           id: teacherId,
           name: teacher.ustazname,
           phone: teacher.phone,
-          email: teacher.phone ? `${teacher.phone}@darulkubra.com` : `teacher_${teacherId}@darulkubra.com`
+          email: teacher.phone
+            ? `${teacher.phone}@darulkubra.com`
+            : `teacher_${teacherId}@darulkubra.com`,
         },
         amount: amount,
-        currency: 'ETB',
+        currency: "ETB",
         reference: `salary_${teacherId}_${period}`,
-        description: `Teacher salary payment for ${period}`
-      })
+        description: `Teacher salary payment for ${period}`,
+      }),
     });
 
     const paymentResult = await paymentResponse.json();
-    
+
     if (!paymentResponse.ok) {
-      throw new Error(paymentResult.message || 'Payment failed');
+      throw new Error(paymentResult.message || "Payment failed");
     }
 
     return {
       success: true,
       transactionId: paymentResult.transactionId,
-      status: paymentResult.status
+      status: paymentResult.status,
     };
   } catch (error) {
-    console.error('Payment processing error:', error);
+    console.error("Payment processing error:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Payment failed'
+      error: error instanceof Error ? error.message : "Payment failed",
     };
   }
 }
@@ -324,7 +333,7 @@ export async function GET(req: NextRequest) {
       const teacherStudents = await prisma.wpos_wpdatatable_23.findMany({
         where: {
           ustaz: teacherId as string,
-          status: { in: ["active", "Active"] },
+          status: { in: ["active", "Active", "Not yet", "not yet"] },
         },
         select: {
           wdt_ID: true,
@@ -369,11 +378,15 @@ export async function GET(req: NextRequest) {
 
           for (const student of teacherStudents) {
             // Check if student is scheduled for this day
-            const shouldDeductForThisDay = await checkIfStudentScheduledForDay(student.wdt_ID, dayOfWeek);
-            
+            const shouldDeductForThisDay = await checkIfStudentScheduledForDay(
+              student.wdt_ID,
+              dayOfWeek
+            );
+
             if (shouldDeductForThisDay) {
               const studentPackage = student.package || "";
-              const packageRate = detailPackageDeductionMap[studentPackage]?.absence || 25;
+              const packageRate =
+                detailPackageDeductionMap[studentPackage]?.absence || 25;
               calculatedDeduction += packageRate;
 
               packageBreakdown.push({
@@ -481,7 +494,10 @@ export async function GET(req: NextRequest) {
         teachers.map(async (t) => {
           // === STEP 1: GET TEACHER'S STUDENTS AND BASIC INFO ===
           const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
-            where: { ustaz: t.ustazid, status: { in: ["active", "Active"] } },
+            where: {
+              ustaz: t.ustazid,
+              status: { in: ["active", "Active", "Not yet", "not yet"] },
+            },
             select: {
               wdt_ID: true,
               name: true,
@@ -885,11 +901,16 @@ export async function GET(req: NextRequest) {
 
                 for (const student of currentStudents) {
                   // Check if student is scheduled for this day
-                  const shouldDeductForThisDay = await checkIfStudentScheduledForDay(student.wdt_ID, dayOfWeek);
-                  
+                  const shouldDeductForThisDay =
+                    await checkIfStudentScheduledForDay(
+                      student.wdt_ID,
+                      dayOfWeek
+                    );
+
                   if (shouldDeductForThisDay) {
                     const studentPackage = student.package || "";
-                    const packageRate = packageDeductionMap[studentPackage]?.absence || 25;
+                    const packageRate =
+                      packageDeductionMap[studentPackage]?.absence || 25;
                     dailyDeduction += packageRate;
                     affectedStudents.push({
                       name: student.name,
@@ -1045,7 +1066,7 @@ export async function POST(req: NextRequest) {
       latenessDeduction,
       absenceDeduction,
       bonuses,
-      processPaymentNow = false
+      processPaymentNow = false,
     } = body;
     // Auth: Only admin or controller
     const session = await getToken({
@@ -1117,22 +1138,24 @@ export async function POST(req: NextRequest) {
         actionType: "teacher_salary_status_update",
         adminId: adminId || null,
         targetId: payment.id,
-        details: JSON.stringify({ 
-          teacherId, 
-          period, 
-          status, 
+        details: JSON.stringify({
+          teacherId,
+          period,
+          status,
           paymentProcessed: !!paymentResult?.success,
-          transactionId 
+          transactionId,
         }),
       },
     });
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       payment,
-      paymentResult: paymentResult?.success ? {
-        transactionId,
-        status: paymentResult.status
-      } : null
+      paymentResult: paymentResult?.success
+        ? {
+            transactionId,
+            status: paymentResult.status,
+          }
+        : null,
     });
   } catch (err) {
     return NextResponse.json(

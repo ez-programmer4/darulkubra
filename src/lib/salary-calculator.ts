@@ -39,7 +39,10 @@ export async function calculateTeacherSalary(
 
   // Get current students with zoom links
   const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
-    where: { ustaz: teacherId, status: { in: ["active", "Active"] } },
+    where: {
+      ustaz: teacherId,
+      status: { in: ["active", "Active", "Not yet", "not yet"] },
+    },
     select: {
       wdt_ID: true,
       name: true,

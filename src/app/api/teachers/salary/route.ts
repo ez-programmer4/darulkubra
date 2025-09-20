@@ -44,17 +44,24 @@ export async function GET(req: NextRequest) {
 
     // Get teacher's salary data using the same logic as admin
     const res = await fetch(
-      `${process.env.NEXTAUTH_URL}/api/admin/teacher-payments?startDate=${fromDate.toISOString()}&endDate=${toDate.toISOString()}`,
+      `${
+        process.env.NEXTAUTH_URL
+      }/api/admin/teacher-payments?startDate=${fromDate.toISOString()}&endDate=${toDate.toISOString()}`,
       {
         headers: {
-          'Authorization': `Bearer ${process.env.INTERNAL_API_KEY || 'internal'}`,
+          Authorization: `Bearer ${process.env.INTERNAL_API_KEY || "internal"}`,
         },
       }
     );
 
     if (!res.ok) {
       // Fallback to direct calculation if admin API fails
-      return await calculateTeacherSalaryDirect(teacherId, fromDate, toDate, includeDetails);
+      return await calculateTeacherSalaryDirect(
+        teacherId,
+        fromDate,
+        toDate,
+        includeDetails
+      );
     }
 
     const allTeachers = await res.json();
@@ -70,10 +77,14 @@ export async function GET(req: NextRequest) {
     // If details requested, get breakdown
     if (includeDetails) {
       const breakdownRes = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/admin/teacher-payments?teacherId=${teacherId}&from=${fromDate.toISOString()}&to=${toDate.toISOString()}`,
+        `${
+          process.env.NEXTAUTH_URL
+        }/api/admin/teacher-payments?teacherId=${teacherId}&from=${fromDate.toISOString()}&to=${toDate.toISOString()}`,
         {
           headers: {
-            'Authorization': `Bearer ${process.env.INTERNAL_API_KEY || 'internal'}`,
+            Authorization: `Bearer ${
+              process.env.INTERNAL_API_KEY || "internal"
+            }`,
           },
         }
       );
@@ -112,17 +123,14 @@ async function calculateTeacherSalaryDirect(
     });
 
     if (!teacher) {
-      return NextResponse.json(
-        { error: "Teacher not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
     }
 
     // Get teacher's students
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         ustaz: teacherId,
-        status: { in: ["active", "Active"] },
+        status: { in: ["active", "Active", "Not yet", "not yet"] },
       },
       select: {
         wdt_ID: true,
@@ -183,7 +191,10 @@ async function calculateTeacherSalaryDirect(
           const linkDate = new Date(link.sent_time);
           if (includeSundays || linkDate.getDay() !== 0) {
             const dateStr = link.sent_time.toISOString().split("T")[0];
-            if (!dailyLinks.has(dateStr) || link.sent_time < dailyLinks.get(dateStr)) {
+            if (
+              !dailyLinks.has(dateStr) ||
+              link.sent_time < dailyLinks.get(dateStr)
+            ) {
               dailyLinks.set(dateStr, link.sent_time);
             }
           }
@@ -199,7 +210,10 @@ async function calculateTeacherSalaryDirect(
       });
     }
 
-    baseSalary = Array.from(dailyEarnings.values()).reduce((sum, amount) => sum + amount, 0);
+    baseSalary = Array.from(dailyEarnings.values()).reduce(
+      (sum, amount) => sum + amount,
+      0
+    );
 
     // Get deductions and bonuses
     const [absenceRecords, bonusRecords] = await Promise.all([
@@ -219,7 +233,10 @@ async function calculateTeacherSalaryDirect(
       }),
     ]);
 
-    const absenceDeduction = absenceRecords.reduce((sum, r) => sum + r.deductionApplied, 0);
+    const absenceDeduction = absenceRecords.reduce(
+      (sum, r) => sum + r.deductionApplied,
+      0
+    );
     const bonuses = Math.round(bonusRecords._sum?.bonusAwarded ?? 0);
 
     // Calculate lateness deduction (simplified)
@@ -227,7 +244,9 @@ async function calculateTeacherSalaryDirect(
     // This would need the full lateness calculation logic from admin API
 
     // Get payment status
-    const period = `${fromDate.getFullYear()}-${String(fromDate.getMonth() + 1).padStart(2, "0")}`;
+    const period = `${fromDate.getFullYear()}-${String(
+      fromDate.getMonth() + 1
+    ).padStart(2, "0")}`;
     const payment = await prisma.teachersalarypayment.findUnique({
       where: {
         teacherId_period: { teacherId, period },
@@ -235,7 +254,9 @@ async function calculateTeacherSalaryDirect(
       select: { status: true },
     });
 
-    const totalSalary = Math.round(baseSalary - latenessDeduction - absenceDeduction + bonuses);
+    const totalSalary = Math.round(
+      baseSalary - latenessDeduction - absenceDeduction + bonuses
+    );
 
     const result = {
       id: teacherId,
