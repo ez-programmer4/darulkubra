@@ -601,10 +601,10 @@ export async function GET(req: NextRequest) {
           baseSalary = Math.round(baseSalary);
           
           // DEBUG: Focus on specific teacher for base salary analysis
-          const isDebugTeacher = t.ustazname.includes("CHALTU") || t.ustazname.includes("SEADA");
+          const isDebugTeacher = t.ustazname?.includes("CHALTU") || t.ustazname?.includes("SEADA") || false;
           
           if (isDebugTeacher) {
-            console.log(`\n💰 BASE SALARY DEBUG FOR ${t.ustazname}:`);
+            console.log(`\n💰 BASE SALARY DEBUG FOR ${t.ustazname || 'Unknown'}:`);
             console.log(`   Total students: ${currentStudents.length}`);
             console.log(`   Working days in month: ${workingDays}`);
             console.log(`   Teaching days (with zoom links): ${totalTeachingDays}`);
@@ -642,10 +642,8 @@ export async function GET(req: NextRequest) {
           });
           
           // DEBUG: Show package deduction rates for debug teacher
-          const isDebugTeacher = t.ustazname.includes("CHALTU") || t.ustazname.includes("SEADA");
-          
           if (isDebugTeacher) {
-            console.log(`\n💵 PACKAGE DEDUCTION RATES FOR ${t.ustazname}:`);
+            console.log(`\n💵 PACKAGE DEDUCTION RATES FOR ${t.ustazname || 'Unknown'}:`);
             Object.entries(packageDeductionMap).forEach(([pkg, rates]) => {
               console.log(`   ${pkg}: Absence=${rates.absence} ETB, Lateness=${rates.lateness} ETB`);
             });
@@ -947,10 +945,8 @@ export async function GET(req: NextRequest) {
               const presentStudents = [];
               
               // DEBUG: Focus on specific teacher for detailed analysis
-              const isDebugTeacher = t.ustazname.includes("CHALTU") || t.ustazname.includes("SEADA");
-              
               if (isDebugTeacher) {
-                console.log(`\n🔍 DEBUG ${t.ustazname} - ${dateStr}:`);
+                console.log(`\n🔍 DEBUG ${t.ustazname || 'Unknown'} - ${dateStr}:`);
                 console.log(`   Students: ${currentStudents.length}`);
                 console.log(`   Sunday included: ${includeSundays}`);
                 console.log(`   Day of week: ${d.getDay()} (0=Sunday)`);
@@ -1038,10 +1034,8 @@ export async function GET(req: NextRequest) {
 
           const computedAbsences = absenceBreakdown.length - teacherAbsenceRecords.length;
           const actualDeductions = absenceBreakdown.filter(a => a.deduction > 0).length;
-          const isDebugTeacher = t.ustazname.includes("CHALTU") || t.ustazname.includes("SEADA");
-          
           if (isDebugTeacher) {
-            console.log(`\n📊 SUMMARY FOR ${t.ustazname}:`);
+            console.log(`\n📊 SUMMARY FOR ${t.ustazname || 'Unknown'}:`);
             console.log(`   Students: ${currentStudents.length}`);
             console.log(`   Date range: ${format(from, "yyyy-MM-dd")} to ${format(endProcessDate, "yyyy-MM-dd")}`);
             console.log(`   Days processed: ${Math.ceil((endProcessDate.getTime() - from.getTime()) / (1000 * 60 * 60 * 24))}`);
@@ -1062,7 +1056,7 @@ export async function GET(req: NextRequest) {
           }
           
           console.log(
-            `Teacher ${t.ustazname}: DB=${teacherAbsenceRecords.length}, Computed=${computedAbsences}, Deductions=${actualDeductions}, Total=${absenceDeduction} ETB (DETAILED PER-STUDENT, PAST DATES ONLY)`
+            `Teacher ${t.ustazname || 'Unknown'}: DB=${teacherAbsenceRecords.length}, Computed=${computedAbsences}, Deductions=${actualDeductions}, Total=${absenceDeduction} ETB (DETAILED PER-STUDENT, PAST DATES ONLY)`
           );
 
           // === STEP 5: CALCULATE BONUSES ===
@@ -1092,10 +1086,10 @@ export async function GET(req: NextRequest) {
           const actualAbsenceCount = absenceBreakdown.filter(a => a.deduction > 0).length;
           if (finalAbsenceDeduction > 0) {
             console.log(
-              `✅ ${t.ustazname}: DETAILED ABSENCE DEDUCTION = ${finalAbsenceDeduction} ETB (${actualAbsenceCount} absences, PER-STUDENT TRACKING)`
+              `✅ ${t.ustazname || 'Unknown'}: DETAILED ABSENCE DEDUCTION = ${finalAbsenceDeduction} ETB (${actualAbsenceCount} absences, PER-STUDENT TRACKING)`
             );
           } else {
-            console.log(`✅ ${t.ustazname}: NO ABSENCE DEDUCTIONS (${absenceBreakdown.length} records checked, PER-STUDENT TRACKING)`);
+            console.log(`✅ ${t.ustazname || 'Unknown'}: NO ABSENCE DEDUCTIONS (${absenceBreakdown.length} records checked, PER-STUDENT TRACKING)`);
           }
 
           // === STEP 7: GET PAYMENT STATUS ===
