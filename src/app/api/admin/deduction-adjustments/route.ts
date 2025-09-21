@@ -224,15 +224,6 @@ export async function POST(req: NextRequest) {
             // Skip if already have database record or waiver
             if (existingAbsenceDates.has(dateStr) || waivedDates.has(dateStr)) continue;
 
-            // Check if teacher sent zoom links
-            const dayHasZoomLinks = currentStudents.some((student) =>
-              student.zoom_links.some((link) => {
-                if (!link.sent_time) return false;
-                const linkDate = link.sent_time.toISOString().split("T")[0];
-                return linkDate === dateStr;
-              })
-            );
-
             // Check if teacher sent ANY zoom links on this day
             const dayHasZoomLinks = currentStudents.some((student) =>
               student.zoom_links.some((link) => {
