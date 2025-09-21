@@ -369,50 +369,60 @@ export async function GET(req: NextRequest) {
           })
         );
 
-        // If no zoom links and has students, it's an absence
-        if (!dayHasZoomLinks && teacherStudents.length > 0) {
-          // Calculate package-based deduction (same logic as main table)
-          let calculatedDeduction = 0;
-          const packageBreakdown = [];
-          const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, 2=Tuesday, etc.
+        // NEW: Check per-schedule absences instead of whole-day
+        let calculatedDeduction = 0;
+        const packageBreakdown = [];
+        const affectedTimeSlots = [];
+        const dayOfWeek = d.getDay();
 
-          for (const student of teacherStudents) {
-            // Check if student is scheduled for this day
-            const shouldDeductForThisDay = await checkIfStudentScheduledForDay(
-              student.wdt_ID,
-              dayOfWeek
-            );
+        for (const student of teacherStudents) {
+          // Check if student is scheduled for this day
+          const shouldDeductForThisDay = await checkIfStudentScheduledForDay(
+            student.wdt_ID,
+            dayOfWeek
+          );
 
-            if (shouldDeductForThisDay) {
-              const studentPackage = student.package || "";
-              const packageRate =
-                detailPackageDeductionMap[studentPackage]?.absence || 25;
-              calculatedDeduction += packageRate;
+          if (!shouldDeductForThisDay) continue;
 
-              packageBreakdown.push({
-                studentId: student.wdt_ID,
-                package: studentPackage || "Unknown",
-                ratePerSlot: packageRate,
-                timeSlots: 1,
-                total: packageRate,
-              });
-            }
+          // Check if teacher sent zoom link specifically for this student
+          const studentHasZoomLink = student.zoom_links.some((link) => {
+            if (!link.sent_time) return false;
+            const linkDate = format(link.sent_time, "yyyy-MM-dd");
+            return linkDate === dateKey;
+          });
+
+          // If no zoom link for this specific student, deduct for this student's schedule
+          if (!studentHasZoomLink) {
+            const studentPackage = student.package || "";
+            const packageRate = detailPackageDeductionMap[studentPackage]?.absence || 25;
+            calculatedDeduction += packageRate;
+            affectedTimeSlots.push(`${student.name} (${studentPackage})`);
+
+            packageBreakdown.push({
+              studentId: student.wdt_ID,
+              studentName: student.name,
+              package: studentPackage || "Unknown",
+              ratePerSlot: packageRate,
+              timeSlots: 1,
+              total: packageRate,
+            });
           }
+        }
 
-          const timeSlots = JSON.stringify(["Whole Day"]);
-
+        // Only create absence record if there are actual deductions
+        if (calculatedDeduction > 0) {
           computedAbsences.push({
             id: 0,
             teacherId,
             classDate: new Date(d),
-            timeSlots: JSON.parse(timeSlots),
+            timeSlots: affectedTimeSlots,
             packageBreakdown: packageBreakdown,
-            uniqueTimeSlots: ["Whole Day"],
+            uniqueTimeSlots: affectedTimeSlots,
             permitted: false,
             permissionRequestId: null,
             deductionApplied: calculatedDeduction,
             reviewedByManager: true,
-            reviewNotes: `Auto-detected absence - ${teacherStudents.length} students affected`,
+            reviewNotes: `Per-schedule absence - ${packageBreakdown.length} students affected: ${packageBreakdown.map(p => `${p.studentName}(${p.package}): ${p.total}ETB`).join(", ")}`,
           });
         }
       }
@@ -890,62 +900,77 @@ export async function GET(req: NextRequest) {
               })
             );
 
-            // If no zoom links were sent and teacher has students, it's an absence
-            if (!dayHasZoomLinks && currentStudents.length > 0) {
-              // Check if this date is waived
-              if (!waivedDates.has(dateStr)) {
-                // Calculate package-based deduction for this absence
-                let dailyDeduction = 0;
-                const affectedStudents = [];
-                const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, 2=Tuesday, etc.
+            // NEW: Check per-schedule absences instead of whole-day
+            let dailyDeduction = 0;
+            const affectedStudents = [];
+            const dayOfWeek = d.getDay();
 
-                for (const student of currentStudents) {
-                  // Check if student is scheduled for this day
-                  const shouldDeductForThisDay =
-                    await checkIfStudentScheduledForDay(
-                      student.wdt_ID,
-                      dayOfWeek
-                    );
+            for (const student of currentStudents) {
+              // Check if student is scheduled for this day
+              const shouldDeductForThisDay = await checkIfStudentScheduledForDay(
+                student.wdt_ID,
+                dayOfWeek
+              );
 
-                  if (shouldDeductForThisDay) {
-                    const studentPackage = student.package || "";
-                    const packageRate =
-                      packageDeductionMap[studentPackage]?.absence || 25;
-                    dailyDeduction += packageRate;
-                    affectedStudents.push({
-                      name: student.name,
-                      package: studentPackage || "Unknown",
-                      rate: packageRate,
-                    });
-                  }
-                }
+              if (!shouldDeductForThisDay) continue;
 
-                if (dailyDeduction > 0) {
-                  absenceDeduction += dailyDeduction;
-                  absenceBreakdown.push({
-                    date: dateStr,
-                    reason: "Computed absence (no zoom links sent)",
-                    deduction: dailyDeduction,
-                    timeSlots: 1,
-                    uniqueTimeSlots: ["Whole Day"],
-                    permitted: false,
-                    reviewNotes: `Auto-detected: ${
-                      affectedStudents.length
-                    } students, packages: ${affectedStudents
-                      .map((s) => s.package)
-                      .join(", ")}`,
+              // Check if teacher sent zoom link specifically for this student
+              const studentHasZoomLink = student.zoom_links.some((link) => {
+                if (!link.sent_time) return false;
+                const linkDate = format(link.sent_time, "yyyy-MM-dd");
+                return linkDate === dateStr;
+              });
+
+              // If no zoom link for this specific student, deduct for this student's schedule
+              if (!studentHasZoomLink) {
+                // Check if this date is waived
+                if (!waivedDates.has(dateStr)) {
+                  const studentPackage = student.package || "";
+                  const packageRate = packageDeductionMap[studentPackage]?.absence || 25;
+                  dailyDeduction += packageRate;
+                  affectedStudents.push({
+                    name: student.name,
+                    package: studentPackage || "Unknown",
+                    rate: packageRate,
+                    studentId: student.wdt_ID,
                   });
                 }
-              } else {
+              }
+            }
+
+            // Only create absence record if there are actual deductions
+            if (dailyDeduction > 0) {
+              absenceDeduction += dailyDeduction;
+              absenceBreakdown.push({
+                date: dateStr,
+                reason: "Per-schedule absence (missing zoom links)",
+                deduction: dailyDeduction,
+                timeSlots: affectedStudents.length,
+                uniqueTimeSlots: affectedStudents.map(s => `${s.name} (${s.package})`),
+                permitted: false,
+                reviewNotes: `Per-schedule deduction: ${affectedStudents.length} students affected - ${affectedStudents.map(s => `${s.name}: ${s.rate} ETB`).join(", ")}`,
+              });
+            } else if (currentStudents.length > 0) {
+              // Check if all students were waived
+              const allWaived = currentStudents.every(student => {
+                const studentHasZoomLink = student.zoom_links.some((link) => {
+                  if (!link.sent_time) return false;
+                  const linkDate = format(link.sent_time, "yyyy-MM-dd");
+                  return linkDate === dateStr;
+                });
+                return studentHasZoomLink || waivedDates.has(dateStr);
+              });
+
+              if (!allWaived && waivedDates.has(dateStr)) {
                 // Add waived absence to breakdown with 0 deduction
                 absenceBreakdown.push({
                   date: dateStr,
-                  reason: "Waived absence (admin adjustment)",
+                  reason: "Waived per-schedule absence",
                   deduction: 0,
-                  timeSlots: 1,
-                  uniqueTimeSlots: ["Whole Day"],
+                  timeSlots: currentStudents.length,
+                  uniqueTimeSlots: ["All Schedules Waived"],
                   permitted: false,
-                  reviewNotes: "Deduction waived by admin",
+                  reviewNotes: "All student schedules waived by admin",
                 });
               }
             }
@@ -954,7 +979,7 @@ export async function GET(req: NextRequest) {
           console.log(
             `Teacher ${t.ustazname}: DB records=${
               teacherAbsenceRecords.length
-            }, Computed=${
+            }, Per-schedule computed=${
               absenceBreakdown.length - teacherAbsenceRecords.length
             }, Total Absence Deduction=${absenceDeduction} ETB`
           );
@@ -982,14 +1007,13 @@ export async function GET(req: NextRequest) {
               finalBonusAmount
           );
 
-          // Debug log to track absence deduction calculation
-          // Final debug log
+          // Debug log for per-schedule absence deduction
           if (finalAbsenceDeduction > 0) {
             console.log(
-              `✅ ${t.ustazname}: ABSENCE DEDUCTION = ${finalAbsenceDeduction} ETB (${absenceBreakdown.length} records)`
+              `✅ ${t.ustazname}: PER-SCHEDULE ABSENCE DEDUCTION = ${finalAbsenceDeduction} ETB (${absenceBreakdown.length} records)`
             );
           } else {
-            console.log(`❌ ${t.ustazname}: NO ABSENCE DEDUCTION`);
+            console.log(`❌ ${t.ustazname}: NO PER-SCHEDULE ABSENCE DEDUCTION`);
           }
 
           // === STEP 7: GET PAYMENT STATUS ===
