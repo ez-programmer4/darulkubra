@@ -233,55 +233,47 @@ export async function POST(req: NextRequest) {
               })
             );
 
-            // NEW: Check per-schedule absences instead of whole-day
-            let dailyDeduction = 0;
-            const affectedStudents = [];
-
-            for (const student of currentStudents) {
-              // Check if teacher sent zoom link specifically for this student
-              const studentHasZoomLink = student.zoom_links.some((link) => {
+            // Check if teacher sent ANY zoom links on this day
+            const dayHasZoomLinks = currentStudents.some((student) =>
+              student.zoom_links.some((link) => {
                 if (!link.sent_time) return false;
                 const linkDate = link.sent_time.toISOString().split("T")[0];
                 return linkDate === dateStr;
-              });
+              })
+            );
 
-              // If no zoom link for this specific student, deduct for this student's schedule
-              if (!studentHasZoomLink) {
+            // If no zoom links sent at all and has students, it's a daily absence
+            if (!dayHasZoomLinks && currentStudents.length > 0) {
+              // Calculate average package rate for fair deduction
+              const packageRates = currentStudents.map(student => {
                 const packageRate = student.package
                   ? packageDeductionMap[student.package]?.absence || 25
                   : 25;
-                dailyDeduction += packageRate;
-                affectedStudents.push({
-                  studentId: student.wdt_ID,
-                  name: student.name,
-                  package: student.package || "Unknown",
-                  rate: packageRate,
-                });
-              }
-            }
+                return packageRate;
+              });
+              const averageRate = Math.round(packageRates.reduce((sum, rate) => sum + rate, 0) / packageRates.length);
 
-            if (dailyDeduction > 0) {
               computedAbsenceWaivers.push({
                 teacherId,
                 deductionType: "absence" as const,
                 deductionDate: new Date(d),
-                originalAmount: dailyDeduction,
-                reason: `${reason} | Per-schedule absence: ${affectedStudents.length} students affected - ${affectedStudents.map(s => `${s.name}(${s.package}): ${s.rate}ETB`).join(", ")}`,
+                originalAmount: averageRate,
+                reason: `${reason} | Daily absence: ${currentStudents.length} students, avg rate: ${averageRate}ETB`,
                 adminId,
               });
-              totalAmountWaived += dailyDeduction;
+              totalAmountWaived += averageRate;
             }
           }
 
           if (computedAbsenceWaivers.length > 0) {
-            console.log(`💾 CREATING ${computedAbsenceWaivers.length} PER-SCHEDULE ABSENCE WAIVERS FOR ${teacherId}`);
+            console.log(`💾 CREATING ${computedAbsenceWaivers.length} DAILY ABSENCE WAIVERS FOR ${teacherId}`);
             
             const createdComputedWaivers = await tx.deduction_waivers.createMany({
               data: computedAbsenceWaivers,
               skipDuplicates: true,
             });
 
-            console.log(`✅ CREATED ${createdComputedWaivers.count} PER-SCHEDULE ABSENCE WAIVERS`);
+            console.log(`✅ CREATED ${createdComputedWaivers.count} DAILY ABSENCE WAIVERS`);
             recordsAffected += createdComputedWaivers.count;
           }
         }
