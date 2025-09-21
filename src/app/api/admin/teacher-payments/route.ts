@@ -600,29 +600,8 @@ export async function GET(req: NextRequest) {
           totalTeachingDays = dailyEarnings.size;
           baseSalary = Math.round(baseSalary);
           
-          // DEBUG: Focus on specific teacher for base salary analysis
+          // Simple debug for specific teacher
           const isDebugTeacher = t.ustazname?.includes("CHALTU") || t.ustazname?.includes("SEADA") || false;
-          
-          if (isDebugTeacher) {
-            console.log(`\n💰 BASE SALARY DEBUG FOR ${t.ustazname || 'Unknown'}:`);
-            console.log(`   Total students: ${currentStudents.length}`);
-            console.log(`   Working days in month: ${workingDays}`);
-            console.log(`   Teaching days (with zoom links): ${totalTeachingDays}`);
-            console.log(`   Base salary: ${baseSalary} ETB`);
-            
-            console.log(`   Student breakdown:`);
-            dailyBreakdown.forEach(student => {
-              console.log(`     ${student.studentName} (${student.package}): ${student.totalEarned} ETB (${student.daysWorked} days)`);
-            });
-            
-            console.log(`   Daily earnings:`);
-            Array.from(dailyEarnings.entries()).slice(0, 5).forEach(([date, amount]) => {
-              console.log(`     ${date}: ${amount} ETB`);
-            });
-            if (dailyEarnings.size > 5) {
-              console.log(`     ... and ${dailyEarnings.size - 5} more days`);
-            }
-          }
 
           // === STEP 3: CALCULATE LATENESS DEDUCTIONS ===
           let latenessDeduction = 0;
@@ -641,19 +620,7 @@ export async function GET(req: NextRequest) {
             };
           });
           
-          // DEBUG: Show package deduction rates for debug teacher
-          if (isDebugTeacher) {
-            console.log(`\n💵 PACKAGE DEDUCTION RATES FOR ${t.ustazname || 'Unknown'}:`);
-            Object.entries(packageDeductionMap).forEach(([pkg, rates]) => {
-              console.log(`   ${pkg}: Absence=${rates.absence} ETB, Lateness=${rates.lateness} ETB`);
-            });
-            
-            console.log(`   Teacher's student packages:`);
-            currentStudents.forEach(student => {
-              const rate = packageDeductionMap[student.package || ""]?.absence || 25;
-              console.log(`     ${student.name}: ${student.package || "Unknown"} (${rate} ETB per absence)`);
-            });
-          }
+
 
           // Get lateness waiver records for this teacher and period
           const latenessWaivers = await prisma.deduction_waivers.findMany({
@@ -944,14 +911,7 @@ export async function GET(req: NextRequest) {
               const affectedStudents = [];
               const presentStudents = [];
               
-              // DEBUG: Focus on specific teacher for detailed analysis
-              if (isDebugTeacher) {
-                console.log(`\n🔍 DEBUG ${t.ustazname || 'Unknown'} - ${dateStr}:`);
-                console.log(`   Students: ${currentStudents.length}`);
-                console.log(`   Sunday included: ${includeSundays}`);
-                console.log(`   Day of week: ${d.getDay()} (0=Sunday)`);
-                console.log(`   Waived: ${waivedDates.has(dateStr)}`);
-              }
+
               
               for (const student of currentStudents) {
                 const studentZoomLinks = student.zoom_links.filter((link) => {
@@ -962,15 +922,7 @@ export async function GET(req: NextRequest) {
                 
                 const studentHasZoomLink = studentZoomLinks.length > 0;
                 
-                if (isDebugTeacher) {
-                  console.log(`   Student ${student.name} (${student.package}):`);
-                  console.log(`     Zoom links on ${dateStr}: ${studentZoomLinks.length}`);
-                  if (studentZoomLinks.length > 0) {
-                    studentZoomLinks.forEach(link => {
-                      console.log(`       Link sent: ${link.sent_time}`);
-                    });
-                  }
-                }
+
                 
                 if (!studentHasZoomLink) {
                   // Student was absent
@@ -984,27 +936,17 @@ export async function GET(req: NextRequest) {
                       rate: packageRate,
                     });
                     
-                    if (isDebugTeacher) {
-                      console.log(`     ❌ ABSENT - Deduction: ${packageRate} ETB`);
-                    }
+
                   } else {
-                    if (isDebugTeacher) {
-                      console.log(`     ⚠️ ABSENT but WAIVED`);
-                    }
+
                   }
                 } else {
                   presentStudents.push(student.name);
-                  if (isDebugTeacher) {
-                    console.log(`     ✅ PRESENT`);
-                  }
+
                 }
               }
               
-              if (isDebugTeacher) {
-                console.log(`   Daily deduction: ${dailyDeduction} ETB`);
-                console.log(`   Affected students: ${affectedStudents.length}`);
-                console.log(`   Present students: ${presentStudents.length}`);
-              }
+
               
               if (affectedStudents.length > 0) {
                 absenceDeduction += dailyDeduction;
@@ -1034,25 +976,9 @@ export async function GET(req: NextRequest) {
 
           const computedAbsences = absenceBreakdown.length - teacherAbsenceRecords.length;
           const actualDeductions = absenceBreakdown.filter(a => a.deduction > 0).length;
-          if (isDebugTeacher) {
-            console.log(`\n📊 SUMMARY FOR ${t.ustazname || 'Unknown'}:`);
-            console.log(`   Students: ${currentStudents.length}`);
-            console.log(`   Date range: ${format(from, "yyyy-MM-dd")} to ${format(endProcessDate, "yyyy-MM-dd")}`);
-            console.log(`   Days processed: ${Math.ceil((endProcessDate.getTime() - from.getTime()) / (1000 * 60 * 60 * 24))}`);
-            console.log(`   DB absence records: ${teacherAbsenceRecords.length}`);
-            console.log(`   Computed absences: ${computedAbsences}`);
-            console.log(`   Days with deductions: ${actualDeductions}`);
-            console.log(`   Total absence deduction: ${absenceDeduction} ETB`);
-            console.log(`   Waived dates: ${Array.from(waivedDates).join(", ") || "None"}`);
-            
-            // Show breakdown of deductions
-            const deductionDays = absenceBreakdown.filter(a => a.deduction > 0);
-            if (deductionDays.length > 0) {
-              console.log(`   Deduction breakdown:`);
-              deductionDays.forEach(day => {
-                console.log(`     ${day.date}: ${day.deduction} ETB - ${day.reason}`);
-              });
-            }
+          // Simple debug summary
+          if (isDebugTeacher && finalAbsenceDeduction > 0) {
+            console.log(`\n🔍 ${t.ustazname}: ${currentStudents.length} students, ${actualDeductions} absence days, ${finalAbsenceDeduction} ETB total`);
           }
           
           console.log(
