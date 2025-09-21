@@ -976,10 +976,6 @@ export async function GET(req: NextRequest) {
 
           const computedAbsences = absenceBreakdown.length - teacherAbsenceRecords.length;
           const actualDeductions = absenceBreakdown.filter(a => a.deduction > 0).length;
-          // Simple debug summary
-          if (isDebugTeacher && finalAbsenceDeduction > 0) {
-            console.log(`\n🔍 ${t.ustazname}: ${currentStudents.length} students, ${actualDeductions} absence days, ${finalAbsenceDeduction} ETB total`);
-          }
           
           console.log(
             `Teacher ${t.ustazname || 'Unknown'}: DB=${teacherAbsenceRecords.length}, Computed=${computedAbsences}, Deductions=${actualDeductions}, Total=${absenceDeduction} ETB (DETAILED PER-STUDENT, PAST DATES ONLY)`
@@ -1007,6 +1003,11 @@ export async function GET(req: NextRequest) {
               finalAbsenceDeduction +
               finalBonusAmount
           );
+          
+          // Simple debug summary
+          if (isDebugTeacher && finalAbsenceDeduction > 0) {
+            console.log(`\n🔍 ${t.ustazname}: ${currentStudents.length} students, ${actualDeductions} absence days, ${finalAbsenceDeduction} ETB total`);
+          }
 
           // Debug log for fixed absence deduction
           const actualAbsenceCount = absenceBreakdown.filter(a => a.deduction > 0).length;
