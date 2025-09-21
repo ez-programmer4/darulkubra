@@ -360,15 +360,6 @@ export async function GET(req: NextRequest) {
         const dateKey = d.toISOString().split("T")[0];
         if (existingAbsenceDates.has(dateKey)) continue;
 
-        // Check if teacher sent any zoom links on this day (same logic as main table)
-        const dayHasZoomLinks = teacherStudents.some((student) =>
-          student.zoom_links.some((link) => {
-            if (!link.sent_time) return false;
-            const linkDate = format(link.sent_time, "yyyy-MM-dd");
-            return linkDate === dateKey;
-          })
-        );
-
         // Check if teacher sent ANY zoom links on this day
         const dayHasZoomLinks = teacherStudents.some((student) =>
           student.zoom_links.some((link) => {
@@ -875,15 +866,6 @@ export async function GET(req: NextRequest) {
 
             // Skip if we already have a database record for this date
             if (existingAbsenceDates.has(dateStr)) continue;
-
-            // Check if teacher sent any zoom links on this day
-            const dayHasZoomLinks = currentStudents.some((student) =>
-              student.zoom_links.some((link) => {
-                if (!link.sent_time) return false;
-                const linkDate = format(link.sent_time, "yyyy-MM-dd");
-                return linkDate === dateStr;
-              })
-            );
 
             // Check if teacher sent ANY zoom links on this day
             const dayHasZoomLinks = currentStudents.some((student) =>
