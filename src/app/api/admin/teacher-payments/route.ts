@@ -269,37 +269,9 @@ export async function GET(req: NextRequest) {
           });
         }
       }
-      // Absence and bonus records as before
-      let absenceRecords: any[] = [];
+      // Get bonus records
       let bonusRecords: any[] = [];
       if (typeof teacherId === "string") {
-        absenceRecords = await prisma.absencerecord
-          .findMany({
-            where: {
-              teacherId,
-              classDate: { gte: fromDate, lte: toDate },
-            },
-            include: {
-              permissionrequest: {
-                select: {
-                  reasonCategory: true,
-                  timeSlots: true,
-                },
-              },
-            },
-            orderBy: { classDate: "asc" },
-          })
-          .then((records) =>
-            records.map((record) => ({
-              ...record,
-              // Parse JSON fields properly
-              timeSlots: record.timeSlots
-                ? typeof record.timeSlots === "string"
-                  ? JSON.parse(record.timeSlots)
-                  : record.timeSlots
-                : null,
-            }))
-          );
         bonusRecords = await prisma.bonusrecord.findMany({
           where: {
             teacherId,
@@ -308,8 +280,8 @@ export async function GET(req: NextRequest) {
           orderBy: { createdAt: "asc" },
         });
       }
-      // UNIFIED ABSENCE CALCULATION - Same logic as main table
-      // Get package deduction rates for consistency
+      // ZOOM-BASED ABSENCE CALCULATION
+      // Get package deduction rates
       const detailPackageDeductions = await prisma.packageDeduction.findMany();
       const detailPackageDeductionMap: Record<
         string,
@@ -322,11 +294,25 @@ export async function GET(req: NextRequest) {
         };
       });
 
-      const existingAbsenceDates = new Set(
-        (absenceRecords || []).map(
-          (r: any) => new Date(r.classDate).toISOString().split("T")[0]
-        )
+      // Get Sunday configuration
+      const workingDaysConfig = await prisma.setting.findUnique({
+        where: { key: "include_sundays_in_salary" },
+      });
+      const includeSundays = workingDaysConfig?.value === "true" || false;
+
+      // Get absence waivers
+      const absenceWaivers = await prisma.deduction_waivers.findMany({
+        where: {
+          teacherId: teacherId as string,
+          deductionType: "absence",
+          deductionDate: { gte: fromDate, lte: toDate },
+        },
+      });
+
+      const waivedDates = new Set(
+        absenceWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
       );
+
       const computedAbsences: any[] = [];
 
       // Get teacher's current students for absence calculation
@@ -352,13 +338,16 @@ export async function GET(req: NextRequest) {
         d <= toDate;
         d.setDate(d.getDate() + 1)
       ) {
-        // Skip future dates - only process past and current dates
-        const today = new Date();
-        today.setHours(23, 59, 59, 999);
-        if (d > today) continue;
+        // Skip future dates - only process past dates
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setHours(23, 59, 59, 999);
+        if (d > yesterday) continue;
 
         const dateKey = d.toISOString().split("T")[0];
-        if (existingAbsenceDates.has(dateKey)) continue;
+        
+        // Skip Sundays based on configuration
+        if (!includeSundays && d.getDay() === 0) continue;
 
         // Check if teacher sent any zoom links on this day (same logic as main table)
         const dayHasZoomLinks = teacherStudents.some((student) =>
@@ -426,10 +415,9 @@ export async function GET(req: NextRequest) {
           });
         }
       }
-      const finalAbsences = [...absenceRecords, ...computedAbsences];
       return NextResponse.json({
         latenessRecords,
-        absenceRecords: finalAbsences,
+        absenceRecords: computedAbsences,
         bonusRecords,
       });
     }
@@ -828,15 +816,6 @@ export async function GET(req: NextRequest) {
           // ALWAYS check both database records AND compute missing absences
           // This ensures consistency between table and detail views
 
-          // Step 4A: Get existing absence records from database (excluding waived ones)
-          const teacherAbsenceRecords = await prisma.absencerecord.findMany({
-            where: {
-              teacherId: t.ustazid,
-              classDate: { gte: from, lte: to },
-            },
-            orderBy: { classDate: "asc" },
-          });
-
           // Get absence waiver records for this teacher and period
           const absenceWaivers = await prisma.deduction_waivers.findMany({
             where: {
@@ -852,35 +831,7 @@ export async function GET(req: NextRequest) {
             )
           );
 
-          // Create a set of dates that already have absence records
-          const existingAbsenceDates = new Set(
-            teacherAbsenceRecords.map((record) =>
-              format(record.classDate, "yyyy-MM-dd")
-            )
-          );
-
-          // Step 4B: Add deductions from existing records
-          for (const record of teacherAbsenceRecords) {
-            absenceDeduction += record.deductionApplied;
-            absenceBreakdown.push({
-              date: format(record.classDate, "yyyy-MM-dd"),
-              reason: record.permitted
-                ? "Permitted absence"
-                : "Unpermitted absence",
-              deduction: record.deductionApplied,
-              timeSlots: 1,
-              uniqueTimeSlots: ["Database Record"],
-              permitted: record.permitted,
-              reviewNotes: record.reviewNotes || "From database",
-            });
-          }
-
-          // Step 4C: Check for additional absences not in database
-          // This is the CRITICAL part that was missing!
-          const today = new Date();
-          today.setHours(23, 59, 59, 999); // End of today
-
-          // FIXED: Only process PAST dates (not today or future)
+          // Check for absences using only zoom links
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
           yesterday.setHours(23, 59, 59, 999);
@@ -892,9 +843,6 @@ export async function GET(req: NextRequest) {
             if (!includeSundays && d.getDay() === 0) continue;
 
             const dateStr = format(d, "yyyy-MM-dd");
-
-            // Skip if we already have a database record for this date
-            if (existingAbsenceDates.has(dateStr)) continue;
 
             // Check if teacher sent zoom links on this day
             const dayHasZoomLinks = currentStudents.some((student) =>
@@ -974,11 +922,10 @@ export async function GET(req: NextRequest) {
             }
           }
 
-          const computedAbsences = absenceBreakdown.length - teacherAbsenceRecords.length;
           const actualDeductions = absenceBreakdown.filter(a => a.deduction > 0).length;
           
           console.log(
-            `Teacher ${t.ustazname || 'Unknown'}: DB=${teacherAbsenceRecords.length}, Computed=${computedAbsences}, Deductions=${actualDeductions}, Total=${absenceDeduction} ETB (DETAILED PER-STUDENT, PAST DATES ONLY)`
+            `Teacher ${t.ustazname || 'Unknown'}: Zoom-based absences=${actualDeductions}, Total=${absenceDeduction} ETB (PER-STUDENT, PAST DATES ONLY)`
           );
 
           // === STEP 5: CALCULATE BONUSES ===
