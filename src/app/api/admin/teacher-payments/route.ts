@@ -508,6 +508,23 @@ export async function GET(req: NextRequest) {
               },
             },
           });
+          
+          // DEBUG: Log student data for debug teachers
+          const isDebugTeacher = t.ustazname?.includes("CHALTU") || t.ustazname?.includes("SEADA") || false;
+          
+          if (isDebugTeacher) {
+            console.log(`\n📊 STUDENT DATA FOR ${t.ustazname}:`);
+            console.log(`  Date range: ${format(from, "yyyy-MM-dd")} to ${format(to, "yyyy-MM-dd")}`);
+            console.log(`  Students found: ${currentStudents.length}`);
+            
+            currentStudents.forEach((student, i) => {
+              console.log(`  Student ${i + 1}: ${student.name} (${student.package})`);
+              console.log(`    Zoom links in range: ${student.zoom_links.length}`);
+              student.zoom_links.forEach((link, j) => {
+                console.log(`      Link ${j + 1}: ${link.sent_time}`);
+              });
+            });
+          }
 
           const numStudents = currentStudents.length;
 
@@ -587,9 +604,6 @@ export async function GET(req: NextRequest) {
           );
           totalTeachingDays = dailyEarnings.size;
           baseSalary = Math.round(baseSalary);
-          
-          // Simple debug for specific teacher
-          const isDebugTeacher = t.ustazname?.includes("CHALTU") || t.ustazname?.includes("SEADA") || false;
 
           // === STEP 3: CALCULATE LATENESS DEDUCTIONS ===
           let latenessDeduction = 0;
@@ -853,16 +867,26 @@ export async function GET(req: NextRequest) {
               })
             );
 
-            // DETAILED ABSENCE TRACKING WITH EXTENSIVE DEBUGGING
+            // DEBUG ABSENCE DETECTION (using isDebugTeacher from above)
+            
+            if (isDebugTeacher) {
+              console.log(`\n🔍 DEBUGGING ${t.ustazname} - ${dateStr}:`);
+              console.log(`  Students: ${currentStudents.length}`);
+              console.log(`  Day has zoom links: ${dayHasZoomLinks}`);
+              console.log(`  Waived: ${waivedDates.has(dateStr)}`);
+              console.log(`  Sunday (${d.getDay()}): ${d.getDay() === 0 ? 'YES' : 'NO'}`);
+              console.log(`  Include Sundays: ${includeSundays}`);
+            }
+            
             if (currentStudents.length > 0) {
               let dailyDeduction = 0;
               const affectedStudents = [];
               const presentStudents = [];
               
-
-              
               for (const student of currentStudents) {
-                const studentZoomLinks = student.zoom_links.filter((link) => {
+                // Get all zoom links for this student on this date
+                const allStudentLinks = student.zoom_links || [];
+                const studentZoomLinks = allStudentLinks.filter((link) => {
                   if (!link.sent_time) return false;
                   const linkDate = format(link.sent_time, "yyyy-MM-dd");
                   return linkDate === dateStr;
@@ -870,7 +894,17 @@ export async function GET(req: NextRequest) {
                 
                 const studentHasZoomLink = studentZoomLinks.length > 0;
                 
-
+                if (isDebugTeacher) {
+                  console.log(`    Student: ${student.name} (${student.package})`);
+                  console.log(`      Total zoom links: ${allStudentLinks.length}`);
+                  console.log(`      Links on ${dateStr}: ${studentZoomLinks.length}`);
+                  if (studentZoomLinks.length > 0) {
+                    studentZoomLinks.forEach((link, i) => {
+                      console.log(`        Link ${i + 1}: ${link.sent_time}`);
+                    });
+                  }
+                  console.log(`      Has zoom link: ${studentHasZoomLink}`);
+                }
                 
                 if (!studentHasZoomLink) {
                   // Student was absent
@@ -884,17 +918,27 @@ export async function GET(req: NextRequest) {
                       rate: packageRate,
                     });
                     
-
+                    if (isDebugTeacher) {
+                      console.log(`      ❌ ABSENT - Deduction: ${packageRate} ETB`);
+                    }
                   } else {
-
+                    if (isDebugTeacher) {
+                      console.log(`      ⚠️ ABSENT but WAIVED`);
+                    }
                   }
                 } else {
                   presentStudents.push(student.name);
-
+                  if (isDebugTeacher) {
+                    console.log(`      ✅ PRESENT`);
+                  }
                 }
               }
               
-
+              if (isDebugTeacher) {
+                console.log(`  Daily deduction: ${dailyDeduction} ETB`);
+                console.log(`  Affected students: ${affectedStudents.length}`);
+                console.log(`  Present students: ${presentStudents.length}`);
+              }
               
               if (affectedStudents.length > 0) {
                 absenceDeduction += dailyDeduction;
