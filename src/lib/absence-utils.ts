@@ -1,146 +1,156 @@
 import { prisma } from "@/lib/prisma";
+import { format } from "date-fns";
 
-export interface AbsenceDetectionResult {
+export interface StudentAbsenceResult {
+  studentId: number;
+  studentName: string;
+  package: string;
   isAbsent: boolean;
+  deductionRate: number;
+}
+
+export interface TeacherAbsenceResult {
+  hasAbsences: boolean;
+  totalDeduction: number;
+  studentAbsences: StudentAbsenceResult[];
   reason?: string;
 }
 
 /**
- * Centralized function to detect if a teacher is absent on a specific date
- * This ensures consistent absence detection logic across the system
+ * Per-student absence detection with package-based deductions
  */
-export async function isTeacherAbsent(
+export async function detectTeacherAbsences(
   teacherId: string,
   date: Date
-): Promise<AbsenceDetectionResult> {
-  const dateStr = date.toISOString().split("T")[0];
-  const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+): Promise<TeacherAbsenceResult> {
+  const dateStr = format(date, "yyyy-MM-dd");
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const checkDate = new Date(date);
-  checkDate.setHours(0, 0, 0, 0);
+  today.setDate(today.getDate() - 1); // Only process past dates
+  today.setHours(23, 59, 59, 999);
 
-  // Don't mark teachers as absent for future dates
-  if (checkDate > today) {
-    return { isAbsent: false, reason: "Future date" };
+  // Don't process future dates or today
+  if (date > today) {
+    return { hasAbsences: false, totalDeduction: 0, studentAbsences: [], reason: "Future date" };
   }
 
-  // Check Sunday exclusion setting
-  const sundayConfig = await prisma.deductionbonusconfig.findFirst({
+  // Check Sunday inclusion setting
+  const workingDaysConfig = await prisma.setting.findUnique({
+    where: { key: "include_sundays_in_salary" },
+  });
+  const includeSundays = workingDaysConfig?.value === "true" || false;
+
+  if (!includeSundays && date.getDay() === 0) {
+    return { hasAbsences: false, totalDeduction: 0, studentAbsences: [], reason: "Sunday excluded" };
+  }
+
+  // Get teacher's active students
+  const students = await prisma.wpos_wpdatatable_23.findMany({
     where: {
-      configType: "absence",
-      key: "exclude_sundays",
+      ustaz: teacherId,
+      status: { in: ["active", "Active", "Not yet", "not yet"] },
     },
-  });
-  const excludeSundays = sundayConfig?.value === "true";
-
-  if (excludeSundays && dayName === "Sunday") {
-    return { isAbsent: false, reason: "Sunday excluded from deductions" };
-  }
-
-  // Get teacher with students
-  const teacher = await prisma.wpos_wpdatatable_24.findUnique({
-    where: { ustazid: teacherId },
-    include: { students: true },
-  });
-
-  if (!teacher || teacher.students.length === 0) {
-    return { isAbsent: false, reason: "No students assigned" };
-  }
-
-  // Check if this is a workday for the teacher
-  const hasWorkDay = teacher.students.some((student) => {
-    if (!student.daypackages) return false;
-
-    // Check for "All days" which means every day is a workday
-    if (student.daypackages.includes("All days")) {
-      return true;
-    }
-
-    // Check for specific day names
-    const hasSpecificDay = student.daypackages.includes(dayName);
-    return hasSpecificDay;
-  });
-
-  if (!hasWorkDay) {
-    return { isAbsent: false, reason: "Not a workday" };
-  }
-
-  // Create copies of date to avoid modifying original
-  const dayStart = new Date(date);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(date);
-  dayEnd.setHours(23, 59, 59, 999);
-
-  // Check for zoom link activity
-  for (const student of teacher.students) {
-    const zoomLinks = await prisma.wpos_zoom_links.findMany({
-      where: {
-        studentid: student.wdt_ID,
-        ustazid: teacherId,
-        sent_time: {
-          gte: dayStart,
-          lt: dayEnd,
+    select: {
+      wdt_ID: true,
+      name: true,
+      package: true,
+      zoom_links: {
+        where: {
+          sent_time: {
+            gte: new Date(dateStr + "T00:00:00.000Z"),
+            lt: new Date(dateStr + "T23:59:59.999Z"),
+          },
         },
+        select: { sent_time: true },
       },
-    });
-    if (zoomLinks.length > 0) {
-      return { isAbsent: false, reason: "Zoom link sent" };
-    }
-  }
-
-  // Note: Attendance check removed as per user request
-  // Teachers are only considered absent if no zoom links sent and no approved permission
-
-  // Check for approved permission
-  const permissionRequest = await prisma.permissionrequest.findFirst({
-    where: {
-      teacherId: teacherId,
-      status: "Approved",
-      requestedDate: dateStr,
     },
   });
 
-  if (permissionRequest) {
-    return { isAbsent: false, reason: "Approved permission" };
+  if (students.length === 0) {
+    return { hasAbsences: false, totalDeduction: 0, studentAbsences: [], reason: "No students" };
   }
 
-  // Teacher is absent
-  return { isAbsent: true, reason: "No activity or permission" };
+  // Get package deduction rates
+  const packageDeductions = await prisma.packageDeduction.findMany();
+  const packageDeductionMap: Record<string, number> = {};
+  packageDeductions.forEach((pkg) => {
+    packageDeductionMap[pkg.packageName] = Number(pkg.absenceBaseAmount);
+  });
+
+  // Check for waivers
+  const waivers = await prisma.deduction_waivers.findMany({
+    where: {
+      teacherId,
+      deductionType: "absence",
+      deductionDate: date,
+    },
+  });
+  const isWaived = waivers.length > 0;
+
+  if (isWaived) {
+    return { hasAbsences: false, totalDeduction: 0, studentAbsences: [], reason: "Waived by admin" };
+  }
+
+  // Check each student for absence
+  const studentAbsences: StudentAbsenceResult[] = [];
+  let totalDeduction = 0;
+
+  for (const student of students) {
+    const hasZoomLink = student.zoom_links.length > 0;
+    const packageRate = packageDeductionMap[student.package || ""] || 25;
+
+    if (!hasZoomLink) {
+      studentAbsences.push({
+        studentId: student.wdt_ID,
+        studentName: student.name,
+        package: student.package || "Unknown",
+        isAbsent: true,
+        deductionRate: packageRate,
+      });
+      totalDeduction += packageRate;
+    }
+  }
+
+  return {
+    hasAbsences: studentAbsences.length > 0,
+    totalDeduction,
+    studentAbsences,
+  };
 }
 
 /**
  * Get absence deduction configuration
  */
 export async function getAbsenceDeductionConfig() {
-  const deductionConfig = await prisma.deductionbonusconfig.findFirst({
-    where: {
-      configType: "absence",
-      key: "unpermitted_absence_deduction",
-    },
+  // Get Sunday inclusion setting
+  const workingDaysConfig = await prisma.setting.findUnique({
+    where: { key: "include_sundays_in_salary" },
   });
+  const includeSundays = workingDaysConfig?.value === "true" || false;
 
-  const effectiveMonthsConfig = await prisma.deductionbonusconfig.findFirst({
-    where: {
-      configType: "absence",
-      key: "absence_deduction_effective_months",
-    },
+  // Get package deduction rates
+  const packageDeductions = await prisma.packageDeduction.findMany();
+  const packageRates: Record<string, number> = {};
+  packageDeductions.forEach((pkg) => {
+    packageRates[pkg.packageName] = Number(pkg.absenceBaseAmount);
   });
-
-  const sundayConfig = await prisma.deductionbonusconfig.findFirst({
-    where: {
-      configType: "absence",
-      key: "exclude_sundays",
-    },
-  });
-
-  const effectiveMonths =
-    effectiveMonthsConfig?.effectiveMonths?.split(",") || [];
-  const excludeSundays = sundayConfig?.value === "true";
 
   return {
-    deductionAmount: deductionConfig ? Number(deductionConfig.value) : 50,
-    effectiveMonths: effectiveMonths,
-    excludeSundays: excludeSundays,
+    includeSundays,
+    packageRates,
+    defaultRate: 25, // Default rate if package not found
+  };
+}
+
+/**
+ * Legacy function for backward compatibility
+ */
+export async function isTeacherAbsent(
+  teacherId: string,
+  date: Date
+): Promise<{ isAbsent: boolean; reason?: string }> {
+  const result = await detectTeacherAbsences(teacherId, date);
+  return {
+    isAbsent: result.hasAbsences,
+    reason: result.reason || (result.hasAbsences ? "Per-student absences detected" : "No absences"),
   };
 }
