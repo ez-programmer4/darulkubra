@@ -101,7 +101,7 @@ export async function detectTeacherAbsences(
     if (!hasZoomLink) {
       studentAbsences.push({
         studentId: student.wdt_ID,
-        studentName: student.name,
+        studentName: student.name || "Unknown Student",
         package: student.package || "Unknown",
         isAbsent: true,
         deductionRate: packageRate,

@@ -320,16 +320,8 @@ export async function calculateTeacherSalary(
 
   if (currentStudents.length > 0) {
     for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
-      const monthNumber = String(d.getMonth() + 1);
-      if (
-        absenceConfig.effectiveMonths.length > 0 &&
-        !absenceConfig.effectiveMonths.includes(monthNumber)
-      ) {
-        continue;
-      }
-
       // Skip Sundays if not included in working days
-      if (!includeSundays && d.getDay() === 0) {
+      if (!absenceConfig.includeSundays && d.getDay() === 0) {
         continue;
       }
 
@@ -378,7 +370,7 @@ export async function calculateTeacherSalary(
 
           deductionReason = `No zoom link sent (${uniqueTimeSlots.length} time slots, package-based)`;
         } else {
-          dailyDeduction = absenceConfig.deductionAmount;
+          dailyDeduction = absenceConfig.defaultRate;
           deductionReason = "No zoom link sent (whole day)";
         }
 
