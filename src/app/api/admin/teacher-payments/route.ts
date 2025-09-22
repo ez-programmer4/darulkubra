@@ -398,20 +398,20 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Track absences for transparency but no deduction
+        // Apply absence deduction if students were absent
         if (calculatedDeduction > 0) {
           computedAbsences.push({
-            id: `info_${dateKey}_${teacherId}`,
+            id: `absence_${dateKey}_${teacherId}`,
             teacherId,
             classDate: new Date(d),
             timeSlots: affectedTimeSlots,
-            packageBreakdown: packageBreakdown.map(p => ({...p, ratePerSlot: 0, total: 0})),
+            packageBreakdown: packageBreakdown,
             uniqueTimeSlots: affectedTimeSlots,
-            permitted: true,
+            permitted: false,
             permissionRequestId: null,
-            deductionApplied: 0,
+            deductionApplied: calculatedDeduction,
             reviewedByManager: true,
-            reviewNotes: `No deduction - salary based on zoom links sent. Absent: ${packageBreakdown.map(p => p.studentName).join(", ")}`,
+            reviewNotes: `Student absence - ${packageBreakdown.length} students affected: ${packageBreakdown.map(p => `${p.studentName}(${p.package}): ${p.total}ETB`).join(", ")}`,
           });
         }
       }
@@ -839,9 +839,31 @@ export async function GET(req: NextRequest) {
             }
           }
 
-          // === STEP 4: TRACK ABSENCES (No deduction - zoom-link based salary) ===
+          // === STEP 4: CALCULATE ABSENCE DEDUCTIONS ===
           let absenceDeduction = 0;
           const absenceBreakdown: any[] = [];
+
+          // Get package deduction rates
+          const packageDeductionMap: Record<string, { lateness: number; absence: number }> = {};
+          packageDeductions.forEach((pkg) => {
+            packageDeductionMap[pkg.packageName] = {
+              lateness: Number(pkg.latenessBaseAmount),
+              absence: Number(pkg.absenceBaseAmount),
+            };
+          });
+
+          // Get absence waivers
+          const absenceWaivers = await prisma.deduction_waivers.findMany({
+            where: {
+              teacherId: t.ustazid,
+              deductionType: "absence",
+              deductionDate: { gte: from, lte: to },
+            },
+          });
+
+          const waivedDates = new Set(
+            absenceWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
+          );
 
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
@@ -855,6 +877,7 @@ export async function GET(req: NextRequest) {
             const dateStr = format(d, "yyyy-MM-dd");
             
             if (currentStudents.length > 0) {
+              let dailyDeduction = 0;
               const affectedStudents = [];
               
               for (const student of currentStudents) {
@@ -865,35 +888,42 @@ export async function GET(req: NextRequest) {
                 });
                 
                 if (studentZoomLinks.length === 0) {
-                  const studentPackage = student.package || "";
-                  affectedStudents.push({
-                    name: student.name,
-                    package: studentPackage || "Unknown",
-                  });
+                  // Student was absent - apply deduction
+                  if (!waivedDates.has(dateStr)) {
+                    const studentPackage = student.package || "";
+                    const packageRate = packageDeductionMap[studentPackage]?.absence || 25;
+                    dailyDeduction += packageRate;
+                    affectedStudents.push({
+                      name: student.name,
+                      package: studentPackage || "Unknown",
+                      rate: packageRate,
+                    });
+                  }
                 }
               }
               
               if (affectedStudents.length > 0) {
+                absenceDeduction += dailyDeduction;
                 absenceBreakdown.push({
-                  id: `info_${dateStr}_${t.ustazid}`,
+                  id: `absence_${dateStr}_${t.ustazid}`,
                   teacherId: t.ustazid,
                   classDate: new Date(dateStr),
                   date: dateStr,
-                  reason: `Absence tracked (${affectedStudents.length}/${currentStudents.length} students absent)`,
-                  deductionApplied: 0,
-                  deduction: 0,
+                  reason: `Student absence (${affectedStudents.length}/${currentStudents.length} students absent)`,
+                  deductionApplied: dailyDeduction,
+                  deduction: dailyDeduction,
                   timeSlots: affectedStudents.length,
                   uniqueTimeSlots: affectedStudents.map(s => `${s.name} (${s.package})`),
                   packageBreakdown: affectedStudents.map(s => ({
                     studentName: s.name,
                     package: s.package,
-                    ratePerSlot: 0,
+                    ratePerSlot: s.rate,
                     timeSlots: 1,
-                    total: 0
+                    total: s.rate
                   })),
-                  permitted: true,
+                  permitted: false,
                   reviewedByManager: true,
-                  reviewNotes: `No deduction - salary based on zoom links sent. Absent: ${affectedStudents.map(s => s.name).join(", ")}`,
+                  reviewNotes: `Absent students: ${affectedStudents.map(s => `${s.name}: ${s.rate}ETB`).join(", ")}`,
                 });
               }
             }
