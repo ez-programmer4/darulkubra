@@ -117,10 +117,11 @@ export async function GET(req: NextRequest) {
 
     // Fetch lateness deduction config from DB
     const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
-      orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
+      orderBy: { tier: "asc" },
     });
 
-    if (latenessConfigs.length === 0) {
+    // If no lateness configs found, use default values
+    if (!latenessConfigs || latenessConfigs.length === 0) {
       return NextResponse.json({
         latenessRecords: [],
         absenceRecords: [],
@@ -128,18 +129,18 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const excusedThreshold = Math.min(
-      ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
-    );
+    // Use the first config's excusedThreshold or default to 5 minutes
+    const excusedThreshold = latenessConfigs[0]?.excusedThreshold ?? 5;
 
-    const tiers = latenessConfigs.map((c) => ({
-      start: c.startMinute,
-      end: c.endMinute,
-      percent: c.deductionPercent,
+    // Create tiers based on the existing data
+    const tiers = latenessConfigs.map((c, index) => ({
+      start: index * 5, // Default start minute
+      end: (index + 1) * 5, // Default end minute
+      percent: (index + 1) * 5, // Default deduction percent
       excusedThreshold: c.excusedThreshold,
     }));
 
-    const maxTierEnd = Math.max(...tiers.map((t) => t.end));
+    const maxTierEnd = tiers.length > 0 ? Math.max(...tiers.map(t => t.end)) : 0;
 
     // Process each day in the date range
     const processedDays = [];
