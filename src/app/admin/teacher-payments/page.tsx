@@ -251,6 +251,7 @@ export default function TeacherPaymentsPage() {
         
         const teacher = teachers.find(t => t.id === teacherId);
         if (teacher) {
+          // Validate breakdown data consistency
           if (Math.abs(totalLateness - teacher.latenessDeduction) > 0.01) {
             console.warn(`Lateness mismatch for ${teacher.name}: Detail=${totalLateness}, Main=${teacher.latenessDeduction}`);
           }
