@@ -908,15 +908,16 @@ export async function GET(req: NextRequest) {
               const presentStudents = [];
               
               for (const student of currentStudents) {
-                // Get all zoom links for this student on this date
+                // Check if student has ANY zoom links in the entire period (not just this specific day)
                 const allStudentLinks = student.zoom_links || [];
+                const studentHasZoomLink = allStudentLinks.length > 0;
+                
+                // For debugging, still show daily breakdown
                 const studentZoomLinks = allStudentLinks.filter((link) => {
                   if (!link.sent_time) return false;
                   const linkDate = format(link.sent_time, "yyyy-MM-dd");
                   return linkDate === dateStr;
                 });
-                
-                const studentHasZoomLink = studentZoomLinks.length > 0;
                 
                 if (isDebugTeacher) {
                   console.log(`    Student: ${student.name} (${student.package}) [Status: ${student.status || 'undefined'}]`);
