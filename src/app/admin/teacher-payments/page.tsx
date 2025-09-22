@@ -453,46 +453,79 @@ export default function TeacherPaymentsPage() {
       });
     } finally {
       setPackageSalaryLoading(false);
-    }
-  };
 
   useEffect(() => {
     async function fetchPayments() {
       setLoading(true);
       setError(null);
       try {
+        // Get all teachers first
+        const teachersRes = await fetch('/api/admin/teachers');
+        if (!teachersRes.ok) throw new Error("Failed to fetch teachers");
+        const teachersData = await teachersRes.json();
+        
+        // Get payment data for the selected month
         const { from, to } = getMonthRange(selectedYear, selectedMonth);
-        const res = await fetch(
+        const paymentsRes = await fetch(
           `/api/admin/teacher-payments?startDate=${from.toISOString()}&endDate=${to.toISOString()}`
         );
-        if (!res.ok) throw new Error("Failed to fetch teacher payments");
-        const data = await res.json();
+        if (!paymentsRes.ok) throw new Error("Failed to fetch teacher payment data");
+        const { latenessRecords, absenceRecords, bonusRecords } = await paymentsRes.json();
         
-        // Validate data consistency
-        const validatedData = data.map((teacher: any) => {
-          const calculatedTotal = teacher.baseSalary - teacher.latenessDeduction - teacher.absenceDeduction + teacher.bonuses;
-          if (Math.abs(calculatedTotal - teacher.totalSalary) > 0.01) {
-            console.warn(`Salary calculation mismatch for ${teacher.name}: Expected ${calculatedTotal}, Got ${teacher.totalSalary}`);
-          }
+        // Process teachers data
+        const processedTeachers = teachersData.map((teacher: any) => {
+          // Calculate total deductions and bonuses for this teacher
+          const teacherLateness = latenessRecords
+            .filter((r: any) => r.teacherId === teacher.ustazid)
+            .reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0);
+            
+          const teacherAbsences = absenceRecords
+            .filter((r: any) => r.teacherId === teacher.ustazid)
+            .reduce((sum: number, r: any) => sum + (r.deduction || 0), 0);
+            
+          const teacherBonuses = bonusRecords
+            .filter((r: any) => r.teacherId === teacher.ustazid)
+            .reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
+          
+          // Get base salary (you might need to adjust this based on your data structure)
+          const baseSalary = teacher.baseSalary || 0;
+          
+          // Calculate total salary
+          const totalSalary = Math.max(0, baseSalary - teacherLateness - teacherAbsences + teacherBonuses);
+          
           return {
-            ...teacher,
-            totalSalary: Math.round(calculatedTotal), // Ensure consistency
+            id: teacher.ustazid,
+            name: teacher.ustazname,
+            baseSalary,
+            latenessDeduction: teacherLateness,
+            absenceDeduction: teacherAbsences,
+            bonuses: teacherBonuses,
+            totalSalary,
+            status: "Unpaid" // Default status
           };
         });
         
-        setTeachers(validatedData);
+        // Update state
+        setTeachers(processedTeachers);
+        
+        // Set initial status (all unpaid by default)
         const statusMap: Record<string, "Paid" | "Unpaid"> = {};
-        for (const t of validatedData) {
+        for (const t of processedTeachers) {
           statusMap[t.id] = t.status || "Unpaid";
         }
         setSalaryStatus(statusMap);
       } catch (e: any) {
+        console.error("Error in fetchPayments:", e);
         setError(e.message || "Failed to fetch teacher payments");
         toast({
           title: "Error",
-          description: "Failed to load teacher payments",
+          description: e.message || "Failed to load teacher payments",
           variant: "destructive",
         });
+        
+        // Set empty arrays to prevent map errors
+        setTeachers([]);
+        setSalaryStatus({});
       } finally {
         setLoading(false);
       }
@@ -501,6 +534,7 @@ export default function TeacherPaymentsPage() {
   }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
+    // ... (rest of the code remains the same)
     setPage(1);
   }, [search, statusFilter, selectedMonth, selectedYear]);
 
