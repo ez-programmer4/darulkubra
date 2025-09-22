@@ -881,7 +881,7 @@ export async function GET(req: NextRequest) {
                 });
                 
                 if (studentZoomLinks.length === 0) {
-                  // Student was absent - apply deduction
+                  // Student was absent - calculate deduction for display only
                   if (!waivedDates.has(dateStr)) {
                     const studentPackage = student.package || "";
                     const packageRate = packageDeductionMap[studentPackage]?.absence || 25;
@@ -1011,7 +1011,7 @@ export async function GET(req: NextRequest) {
                   totalTeachingDays > 0
                     ? Math.round(finalBaseSalary / totalTeachingDays)
                     : 0,
-                totalDeductions: finalLatenessDeduction + finalAbsenceDeduction,
+                totalDeductions: finalLatenessDeduction,
                 netSalary: totalSalary,
               },
             },
