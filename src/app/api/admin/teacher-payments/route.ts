@@ -1047,6 +1047,7 @@ export async function POST(req: NextRequest) {
       req,
       secret: process.env.NEXTAUTH_SECRET,
     });
+    
     if (
       !session ||
       (session.role !== "admin" && session.role !== "controller")
