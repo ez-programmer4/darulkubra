@@ -824,19 +824,10 @@ export async function GET(req: NextRequest) {
             }
           }
 
-          // === STEP 4: NO ABSENCE DEDUCTIONS (Zoom-link based salary) ===
-          // Since base salary is calculated based on zoom links sent,
-          // teachers already don't earn for days they don't send links.
-          // No additional absence deduction needed.
+          // === STEP 4: TRACK ABSENCES (No deduction - zoom-link based salary) ===
           let absenceDeduction = 0;
           const absenceBreakdown: any[] = [];
 
-          // ALWAYS check both database records AND compute missing absences
-          // This ensures consistency between table and detail views
-
-
-
-          // Use SAME logic as detail view for consistency
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
           yesterday.setHours(23, 59, 59, 999);
@@ -847,8 +838,50 @@ export async function GET(req: NextRequest) {
             if (!includeSundays && d.getDay() === 0) continue;
 
             const dateStr = format(d, "yyyy-MM-dd");
-
-
+            
+            if (currentStudents.length > 0) {
+              const affectedStudents = [];
+              
+              for (const student of currentStudents) {
+                const studentZoomLinks = student.zoom_links.filter((link) => {
+                  if (!link.sent_time) return false;
+                  const linkDate = format(link.sent_time, "yyyy-MM-dd");
+                  return linkDate === dateStr;
+                });
+                
+                if (studentZoomLinks.length === 0) {
+                  const studentPackage = student.package || "";
+                  affectedStudents.push({
+                    name: student.name,
+                    package: studentPackage || "Unknown",
+                  });
+                }
+              }
+              
+              if (affectedStudents.length > 0) {
+                absenceBreakdown.push({
+                  id: `info_${dateStr}_${t.ustazid}`,
+                  teacherId: t.ustazid,
+                  classDate: new Date(dateStr),
+                  date: dateStr,
+                  reason: `Absence tracked (${affectedStudents.length}/${currentStudents.length} students absent)`,
+                  deductionApplied: 0,
+                  deduction: 0,
+                  timeSlots: affectedStudents.length,
+                  uniqueTimeSlots: affectedStudents.map(s => `${s.name} (${s.package})`),
+                  packageBreakdown: affectedStudents.map(s => ({
+                    studentName: s.name,
+                    package: s.package,
+                    ratePerSlot: 0,
+                    timeSlots: 1,
+                    total: 0
+                  })),
+                  permitted: true,
+                  reviewedByManager: true,
+                  reviewNotes: `No deduction - salary based on zoom links sent. Absent: ${affectedStudents.map(s => s.name).join(", ")}`,
+                });
+              }
+            }
           }
 
           const actualDeductions = absenceBreakdown.filter(a => a.deduction > 0).length;
