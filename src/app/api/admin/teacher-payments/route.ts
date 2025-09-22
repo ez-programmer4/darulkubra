@@ -88,11 +88,19 @@ export async function GET(req: NextRequest) {
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
 
-    if (!teacherId || !startDate || !endDate) {
+    if (!startDate || !endDate) {
       return NextResponse.json(
-        { error: "Missing required parameters" },
+        { error: "Missing required parameters: startDate and endDate" },
         { status: 400 }
       );
+    }
+
+    if (!teacherId) {
+      return NextResponse.json({
+        latenessRecords: [],
+        absenceRecords: [],
+        bonusRecords: [],
+      });
     }
 
     const fromDate = new Date(startDate);
