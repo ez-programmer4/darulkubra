@@ -2732,6 +2732,14 @@ export default function TeacherPaymentsPage() {
                             <span className="font-semibold text-black">
                               Absence Records
                             </span>
+                            <div className="flex items-center gap-2 ml-4">
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-medium">
+                                📅 {includeSundays ? 'Sundays Included' : 'Sundays Excluded'}
+                              </span>
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-medium">
+                                🔗 Zoom Link Based
+                              </span>
+                            </div>
                           </div>
                           {breakdown.absenceRecords?.length > 0 && (
                             <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-200">
@@ -2748,8 +2756,25 @@ export default function TeacherPaymentsPage() {
                                 {breakdown.absenceRecords.length} absence record
                                 {breakdown.absenceRecords.length > 1 ? "s" : ""}
                               </div>
+                              <div className="text-xs text-blue-600 mt-1">
+                                Per-student tracking system
+                              </div>
                             </div>
                           )}
+                        </div>
+                        
+                        {/* Absence Detection Info */}
+                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 mb-4">
+                          <div className="text-xs text-blue-800 font-medium mb-2 flex items-center gap-1">
+                            ℹ️ How Absence Detection Works
+                          </div>
+                          <div className="text-xs text-blue-700 space-y-1">
+                            <div>• <strong>Per-Student Tracking:</strong> Each student checked individually for zoom links</div>
+                            <div>• <strong>Date Range:</strong> Only past dates processed (not today or future)</div>
+                            <div>• <strong>Sunday Policy:</strong> {includeSundays ? 'Sundays count as working days' : 'Sundays excluded from calculations'}</div>
+                            <div>• <strong>Package Rates:</strong> Different deduction amounts per student package</div>
+                            <div>• <strong>Admin Waivers:</strong> System incidents can waive deductions</div>
+                          </div>
                         </div>
                       </div>
                       {breakdown.absenceRecords?.length === 0 ? (
@@ -2807,13 +2832,25 @@ export default function TeacherPaymentsPage() {
                                           r.classDate
                                         ).toLocaleDateString()}
                                       </span>
-                                      <span className="text-xs text-gray-500">
-                                        {new Date(
-                                          r.classDate
-                                        ).toLocaleDateString("en-US", {
-                                          weekday: "long",
-                                        })}
-                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500">
+                                          {new Date(
+                                            r.classDate
+                                          ).toLocaleDateString("en-US", {
+                                            weekday: "long",
+                                          })}
+                                        </span>
+                                        {new Date(r.classDate).getDay() === 0 && (
+                                          <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded font-medium">
+                                            📅 Sunday
+                                          </span>
+                                        )}
+                                        {r.reviewNotes?.includes('WAIVED') && (
+                                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-medium">
+                                            ✅ Waived
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                     <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-bold text-sm">
                                       -{r.deductionApplied} ETB
@@ -3165,12 +3202,47 @@ export default function TeacherPaymentsPage() {
                                     <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
                                       <div className="text-xs text-yellow-800 mb-2">
                                         <span className="font-medium flex items-center gap-1">
-                                          📝 Admin Notes
+                                          📝 System Notes
                                         </span>
                                       </div>
                                       <div className="text-xs text-yellow-700 bg-white rounded p-2 border border-yellow-300">
                                         {r.reviewNotes}
                                       </div>
+                                      
+                                      {/* Parse and display detailed absence info */}
+                                      {(() => {
+                                        const notes = r.reviewNotes || '';
+                                        const absentMatch = notes.match(/Absent: ([^.]+)/);
+                                        const presentMatch = notes.match(/Present: ([^.]+)/);
+                                        
+                                        if (absentMatch || presentMatch) {
+                                          return (
+                                            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                                              {absentMatch && (
+                                                <div className="bg-red-50 rounded p-2 border border-red-200">
+                                                  <div className="text-xs font-medium text-red-800 mb-1">
+                                                    ❌ Absent Students:
+                                                  </div>
+                                                  <div className="text-xs text-red-700">
+                                                    {absentMatch[1]}
+                                                  </div>
+                                                </div>
+                                              )}
+                                              {presentMatch && (
+                                                <div className="bg-green-50 rounded p-2 border border-green-200">
+                                                  <div className="text-xs font-medium text-green-800 mb-1">
+                                                    ✅ Present Students:
+                                                  </div>
+                                                  <div className="text-xs text-green-700">
+                                                    {presentMatch[1] || 'None'}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
                                     </div>
                                   )}
 
@@ -3228,6 +3300,68 @@ export default function TeacherPaymentsPage() {
                             );
                           })}
                         </ul>
+                      )}
+                      
+                      {/* Absence Detection Summary */}
+                      {breakdown.absenceRecords?.length > 0 && (
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200 mb-6">
+                          <div className="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+                            📊 Absence Detection Summary
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div className="bg-white rounded-lg p-3 border border-blue-200">
+                              <div className="text-xs text-blue-600 font-medium mb-1">Total Days Processed</div>
+                              <div className="text-lg font-bold text-blue-900">
+                                {breakdown.absenceRecords.length}
+                              </div>
+                              <div className="text-xs text-blue-600">Past dates only</div>
+                            </div>
+                            
+                            <div className="bg-white rounded-lg p-3 border border-blue-200">
+                              <div className="text-xs text-blue-600 font-medium mb-1">Students Affected</div>
+                              <div className="text-lg font-bold text-red-900">
+                                {(() => {
+                                  const uniqueStudents = new Set();
+                                  breakdown.absenceRecords.forEach((r: any) => {
+                                    if (r.packageBreakdown) {
+                                      try {
+                                        const packages = typeof r.packageBreakdown === 'string' 
+                                          ? JSON.parse(r.packageBreakdown) 
+                                          : r.packageBreakdown;
+                                        if (Array.isArray(packages)) {
+                                          packages.forEach((p: any) => {
+                                            if (p.studentName) uniqueStudents.add(p.studentName);
+                                          });
+                                        }
+                                      } catch {}
+                                    }
+                                  });
+                                  return uniqueStudents.size;
+                                })()}
+                              </div>
+                              <div className="text-xs text-red-600">Unique students</div>
+                            </div>
+                            
+                            <div className="bg-white rounded-lg p-3 border border-blue-200">
+                              <div className="text-xs text-blue-600 font-medium mb-1">Detection Method</div>
+                              <div className="text-sm font-bold text-green-900">
+                                Per-Student
+                              </div>
+                              <div className="text-xs text-green-600">Zoom link tracking</div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-white rounded-lg p-3 border border-blue-200">
+                            <div className="text-xs text-blue-800 font-medium mb-2">System Configuration:</div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-700">
+                              <div>• <strong>Sunday Policy:</strong> {includeSundays ? 'Included in working days' : 'Excluded from working days'}</div>
+                              <div>• <strong>Detection:</strong> Per-student zoom link presence</div>
+                              <div>• <strong>Deductions:</strong> Package-based rates applied</div>
+                              <div>• <strong>Waivers:</strong> Admin can waive system incidents</div>
+                            </div>
+                          </div>
+                        </div>
                       )}
 
                       <div className="mb-4 font-semibold text-black flex items-center gap-2">
