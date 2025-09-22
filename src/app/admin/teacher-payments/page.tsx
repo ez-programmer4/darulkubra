@@ -591,7 +591,7 @@ export default function TeacherPaymentsPage() {
   }
 
   const filteredTeachers = teachers.filter((t) => {
-    const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (t.name || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus =
       !statusFilter || (salaryStatus[t.id] || "Unpaid") === statusFilter;
 
@@ -1356,7 +1356,7 @@ export default function TeacherPaymentsPage() {
                   <div className="flex items-center gap-4 mb-6">
                     <div className="relative">
                       <div className="absolute inset-0 bg-gradient-to-br from-green-600 to-emerald-700 rounded-xl blur-sm"></div>
-                      <div className="relative p-3  rounded-xl shadow-lg">
+                      <div className="relative p-3 bg-gradient-to-br from-green-600 to-emerald-700 rounded-xl shadow-lg">
                         <FiInfo className="h-6 w-6 text-white" />
                       </div>
                     </div>
