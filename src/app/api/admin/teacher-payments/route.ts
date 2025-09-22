@@ -876,6 +876,14 @@ export async function GET(req: NextRequest) {
               console.log(`  Waived: ${waivedDates.has(dateStr)}`);
               console.log(`  Sunday (${d.getDay()}): ${d.getDay() === 0 ? 'YES' : 'NO'}`);
               console.log(`  Include Sundays: ${includeSundays}`);
+              
+              // Show student statuses to verify filtering
+              const statusCounts = {};
+              currentStudents.forEach(student => {
+                const status = student.status || 'undefined';
+                statusCounts[status] = (statusCounts[status] || 0) + 1;
+              });
+              console.log(`  Student statuses:`, statusCounts);
             }
             
             if (currentStudents.length > 0) {
@@ -895,7 +903,7 @@ export async function GET(req: NextRequest) {
                 const studentHasZoomLink = studentZoomLinks.length > 0;
                 
                 if (isDebugTeacher) {
-                  console.log(`    Student: ${student.name} (${student.package})`);
+                  console.log(`    Student: ${student.name} (${student.package}) [Status: ${student.status || 'undefined'}]`);
                   console.log(`      Total zoom links: ${allStudentLinks.length}`);
                   console.log(`      Links on ${dateStr}: ${studentZoomLinks.length}`);
                   if (studentZoomLinks.length > 0) {
