@@ -510,7 +510,7 @@ export async function GET(req: NextRequest) {
           });
           
           // DEBUG: Log student data for debug teachers
-          const isDebugTeacher = t.ustazname?.includes("CHALTU") || t.ustazname?.includes("SEADA") || false;
+          const isDebugTeacher = t.ustazname?.includes("CHALTU") || t.ustazname?.includes("SEADA") || t.ustazname?.includes("ABDULJELIL") || false;
           
           if (isDebugTeacher) {
             console.log(`\n📊 STUDENT DATA FOR ${t.ustazname}:`);
