@@ -1,12 +1,15 @@
-import { prisma } from "@/lib/prisma";
-import { format } from "date-fns";
+ import { prisma } from "@/lib/prisma";
+import { format, parse, isWithinInterval, addMinutes, isBefore, isAfter, parseISO } from "date-fns";
 
 export interface StudentAbsenceResult {
   studentId: number;
   studentName: string;
   package: string;
+  timeSlot: string;
   isAbsent: boolean;
   deductionRate: number;
+  scheduledTime?: Date;
+  actualTime?: Date | null;
 }
 
 export interface TeacherAbsenceResult {
@@ -17,7 +20,97 @@ export interface TeacherAbsenceResult {
 }
 
 /**
- * Per-student absence detection with package-based deductions
+ * Parse time string (HH:MM) to Date object
+ */
+function parseTimeString(timeStr: string, baseDate: Date): Date {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const date = new Date(baseDate);
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+}
+
+/**
+ * Check if a time falls within a time slot
+ */
+function isWithinTimeSlot(timeToCheck: Date | null, timeSlot: string | null, bufferMinutes = 30): boolean {
+  if (!timeToCheck || !timeSlot) return false;
+  
+  try {
+    const [startStr, endStr] = timeSlot.split('-');
+    if (!startStr || !endStr) return false;
+
+    const startTime = parseTimeString(startStr.trim(), timeToCheck);
+    const endTime = parseTimeString(endStr.trim(), timeToCheck);
+    
+    // Add buffer to start time (teacher can be early)
+    const bufferedStart = addMinutes(startTime, -bufferMinutes);
+    
+    return isWithinInterval(timeToCheck, {
+      start: bufferedStart,
+      end: endTime
+    });
+  } catch (error) {
+    console.error('Error in isWithinTimeSlot:', error);
+    return false;
+  }
+}
+
+/**
+ * Get teacher's schedule for a specific day of week
+ */
+async function getTeacherSchedule(teacherId: string, dayOfWeek: number) {
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayName = dayNames[dayOfWeek];
+  
+  // First get the occupied times
+  const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+    where: {
+      ustaz_id: teacherId,
+      daypackage: {
+        contains: dayName
+      }
+    }
+  });
+
+  // Then get student details in a single query
+  const studentIds = [...new Set(occupiedTimes.map(ot => ot.student_id))];
+  const students = await prisma.wpos_wpdatatable_23.findMany({
+    where: {
+      wdt_ID: { in: studentIds }
+    },
+    select: {
+      wdt_ID: true,
+      name: true,
+      package: true
+    }
+  });
+
+  // Combine the data
+  return occupiedTimes.map(ot => ({
+    ...ot,
+    student: students.find(s => s.wdt_ID === ot.student_id) || {
+      wdt_ID: ot.student_id,
+      name: 'Unknown Student',
+      package: 'Unknown'
+    }
+  }));
+}
+
+/**
+ * Get package-specific deduction rate
+ */
+async function getPackageDeductionRate(packageName: string | null): Promise<number> {
+  if (!packageName) return 25; // Default rate
+  
+  const pkg = await prisma.packageDeduction.findFirst({
+    where: { packageName }
+  });
+  
+  return pkg ? Number(pkg.absenceBaseAmount) : 25;
+}
+
+/**
+ * Per-student absence detection with package-based deductions and time slot validation
  */
 export async function detectTeacherAbsences(
   teacherId: string,
@@ -42,38 +135,25 @@ export async function detectTeacherAbsences(
   if (!includeSundays && date.getDay() === 0) {
     return { hasAbsences: false, totalDeduction: 0, studentAbsences: [], reason: "Sunday excluded" };
   }
-
-  // Get teacher's active students
-  const students = await prisma.wpos_wpdatatable_23.findMany({
-    where: {
-      ustaz: teacherId,
-      status: { in: ["active", "Active", "Not yet", "not yet"] },
-    },
-    select: {
-      wdt_ID: true,
-      name: true,
-      package: true,
-      zoom_links: {
-        where: {
-          sent_time: {
-            gte: new Date(dateStr + "T00:00:00.000Z"),
-            lt: new Date(dateStr + "T23:59:59.999Z"),
-          },
-        },
-        select: { sent_time: true },
-      },
-    },
-  });
-
-  if (students.length === 0) {
-    return { hasAbsences: false, totalDeduction: 0, studentAbsences: [], reason: "No students" };
+  
+  // Get teacher's schedule for this day of week
+  const schedule = await getTeacherSchedule(teacherId, date.getDay());
+  if (schedule.length === 0) {
+    return { hasAbsences: false, totalDeduction: 0, studentAbsences: [], reason: "No scheduled classes" };
   }
 
-  // Get package deduction rates
-  const packageDeductions = await prisma.packageDeduction.findMany();
-  const packageDeductionMap: Record<string, number> = {};
-  packageDeductions.forEach((pkg) => {
-    packageDeductionMap[pkg.packageName] = Number(pkg.absenceBaseAmount);
+  // Get all zoom links for this teacher on this date
+  const zoomLinks = await prisma.wpos_zoom_links.findMany({
+    where: {
+      ustazid: teacherId,
+      sent_time: {
+        gte: new Date(dateStr + "T00:00:00.000Z"),
+        lt: new Date(dateStr + "T23:59:59.999Z"),
+      },
+    },
+    orderBy: {
+      sent_time: 'asc'
+    }
   });
 
   // Check for waivers
@@ -90,21 +170,57 @@ export async function detectTeacherAbsences(
     return { hasAbsences: false, totalDeduction: 0, studentAbsences: [], reason: "Waived by admin" };
   }
 
-  // Check each student for absence
+  // Check each scheduled time slot for absence
   const studentAbsences: StudentAbsenceResult[] = [];
   let totalDeduction = 0;
+  const processedSlots = new Set<string>();
+  const studentMap = new Map<number, { wdt_ID: number; name: string | null; package: string | null }>();
 
-  for (const student of students) {
-    const hasZoomLink = student.zoom_links.length > 0;
-    const packageRate = packageDeductionMap[student.package || ""] || 25;
-
-    if (!hasZoomLink) {
+  // Create a map of student details for quick lookup
+  for (const slot of schedule) {
+    if (!slot.time_slot) continue;
+    
+    const slotKey = `${slot.time_slot}_${slot.student_id}`;
+    if (processedSlots.has(slotKey)) continue;
+    
+    processedSlots.add(slotKey);
+    
+    // Get or fetch student details
+    let student = studentMap.get(slot.student_id);
+    if (!student) {
+      const studentData = await prisma.wpos_wpdatatable_23.findUnique({
+        where: { wdt_ID: slot.student_id },
+        select: { wdt_ID: true, name: true, package: true }
+      });
+      
+      student = studentData || {
+        wdt_ID: slot.student_id,
+        name: 'Unknown Student',
+        package: 'Unknown'
+      };
+      studentMap.set(slot.student_id, student);
+    }
+    
+    // Find matching zoom link for this time slot
+    const matchingLink = zoomLinks.find(link => {
+      if (!link.sent_time) return false;
+      return link.studentid === slot.student_id && 
+             isWithinTimeSlot(link.sent_time, slot.time_slot);
+    });
+    
+    if (!matchingLink) {
+      const packageRate = await getPackageDeductionRate(student.package || null);
+      const [startTime] = slot.time_slot.split('-').map(t => t.trim());
+      const scheduledTime = parseTimeString(startTime, date);
+      
       studentAbsences.push({
         studentId: student.wdt_ID,
         studentName: student.name || "Unknown Student",
         package: student.package || "Unknown",
+        timeSlot: slot.time_slot,
+        scheduledTime,
         isAbsent: true,
-        deductionRate: packageRate,
+        deductionRate: packageRate
       });
       totalDeduction += packageRate;
     }
@@ -114,6 +230,9 @@ export async function detectTeacherAbsences(
     hasAbsences: studentAbsences.length > 0,
     totalDeduction,
     studentAbsences,
+    reason: studentAbsences.length > 0 
+      ? `${studentAbsences.length} absence(s) detected` 
+      : "No absences detected"
   };
 }
 

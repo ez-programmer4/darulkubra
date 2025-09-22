@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import dayjs from "dayjs";
+import { TeacherPayment } from "@/types/teacher-payments";
 import {
   FiCalendar,
   FiUser,
@@ -38,101 +39,96 @@ const compactCurrencyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
 });
 
-export type TeacherPayment = {
-  id: string;
-  name: string;
-  latenessDeduction: number;
-  absenceDeduction: number;
-  bonuses: number;
-  baseSalary: number;
-  totalSalary: number;
-  status?: "Paid" | "Unpaid";
-  numStudents?: number;
-  teachingDays?: number;
-  breakdown?: {
-    dailyEarnings: Array<{ date: string; amount: number }>;
-    studentBreakdown: Array<{
-      studentName: string;
-      package: string;
-      monthlyRate: number;
-      dailyRate: number;
-      daysWorked: number;
-      totalEarned: number;
-    }>;
-    summary: {
-      workingDaysInMonth: number;
-      actualTeachingDays: number;
-      averageDailyEarning: number;
-      totalDeductions: number;
-      netSalary: number;
-    };
-  };
-};
+// Helper function to get the date range for a given month and year
+function getMonthRange(year: number, month: number) {
+  const startDate = dayjs().year(year).month(month - 1).date(1);
+  const endDate = startDate.endOf('month');
+  return { from: startDate, to: endDate };
+}
 
 export default function TeacherPaymentsPage() {
+  // Date and filter states
   const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1);
   const [selectedYear, setSelectedYear] = useState(dayjs().year());
-  const [teachers, setTeachers] = useState<TeacherPayment[]>([]);
-  const [selectedTeacher, setSelectedTeacher] = useState<TeacherPayment | null>(
-    null
-  );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [salaryStatus, setSalaryStatus] = useState<
-    Record<string, "Paid" | "Unpaid">
-  >({});
-  const [showDetails, setShowDetails] = useState(false);
-  const [breakdown, setBreakdown] = useState<{
-    latenessRecords: any[];
-    absenceRecords: any[];
-    bonusRecords: any[];
-  }>({ latenessRecords: [], absenceRecords: [], bonusRecords: [] });
-  const [breakdownLoading, setBreakdownLoading] = useState(false);
-  const [breakdownError, setBreakdownError] = useState<string | null>(null);
-  const [packageSalaries, setPackageSalaries] = useState<
-    Record<string, number>
-  >({});
-  const [packageSalaryInputs, setPackageSalaryInputs] = useState<
-    Record<string, string>
-  >({});
-  const [packageSalaryLoading, setPackageSalaryLoading] = useState(false);
-  const [packageSalaryError, setPackageSalaryError] = useState<string | null>(
-    null
-  );
-  const [packageSalarySuccess, setPackageSalarySuccess] = useState<
-    string | null
-  >(null);
-  const [availablePackages, setAvailablePackages] = useState<string[]>([]);
-  const [teacherSalaryVisible, setTeacherSalaryVisible] = useState(true);
-  const [salaryVisibilityLoading, setSalaryVisibilityLoading] = useState(false);
-  const [includeSundays, setIncludeSundays] = useState(false); // Default: exclude Sundays
-  const [sundayLoading, setSundayLoading] = useState(false);
-  const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(
-    new Set()
-  );
-  const [bulkAction, setBulkAction] = useState<
-    "mark-paid" | "mark-unpaid" | ""
-  >("");
-  const [bulkLoading, setBulkLoading] = useState(false);
-  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [sortKey, setSortKey] = useState<keyof TeacherPayment | "status">(
-    "name"
-  );
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [showReportOptions, setShowReportOptions] = useState(false);
-  const [showAdvancedView, setShowAdvancedView] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [salaryRangeFilter, setSalaryRangeFilter] = useState({
     min: "",
-    max: "",
+    max: ""
   });
-  const [deductionFilter, setDeductionFilter] = useState("");
-  const [performanceFilter, setPerformanceFilter] = useState("");
+  const [deductionFilter, setDeductionFilter] = useState<string>('all');
+  const [performanceFilter, setPerformanceFilter] = useState<string>('all');
+  
+  // Data states
+  const [teachers, setTeachers] = useState<TeacherPayment[]>([]);
+  const [selectedTeacher, setSelectedTeacher] = useState<TeacherPayment | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // UI states
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [showReportOptions, setShowReportOptions] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [showAdvancedView, setShowAdvancedView] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  
+  // Bulk actions
+  const [bulkAction, setBulkAction] = useState<"mark-paid" | "mark-unpaid" | "">("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(new Set());
+  
+  // Payment processing states
   const [paymentProcessing, setPaymentProcessing] = useState<Set<string>>(new Set());
-  const [paymentResults, setPaymentResults] = useState<Record<string, any>>({});
+  const [paymentResults, setPaymentResults] = useState<Record<string, {success: boolean, message: string}>>({});
+  const [salaryStatus, setSalaryStatus] = useState<Record<string, 'Paid' | 'Unpaid'>>({});
+  
+  // Package salary management states
+  const [packageSalaryLoading, setPackageSalaryLoading] = useState(false);
+  const [packageSalaryError, setPackageSalaryError] = useState<string | null>(null);
+  const [packageSalarySuccess, setPackageSalarySuccess] = useState<string | null>(null);
+  const [availablePackages, setAvailablePackages] = useState<string[]>([]);
+  const [packageSalaries, setPackageSalaries] = useState<Record<string, number>>({});
+  const [packageSalaryInputs, setPackageSalaryInputs] = useState<Record<string, string>>({});
+  
+  // Breakdown and details states
+  const [breakdown, setBreakdown] = useState<{
+    latenessRecords: Array<{ date: string; timeSlot: string; studentName: string; minutesLate: number; deduction: number }>;
+    absenceRecords: Array<{ date: string; timeSlot: string; status: string; studentName: string; package: string; deduction: number }>;
+    bonusRecords: Array<{ date: string; amount: number; reason: string }>;
+  }>({ 
+    latenessRecords: [], 
+    absenceRecords: [], 
+    bonusRecords: [] 
+  });
+  
+  interface PackageBreakdown {
+    studentName: string;
+    package: string;
+    monthlyRate: number;
+    dailyRate: number;
+    daysWorked: number;
+    totalEarned: number;
+  }
+
+  const [teacherPackageBreakdown, setTeacherPackageBreakdown] = useState<{
+    packageBreakdown?: PackageBreakdown[];
+    daysInMonth?: number;
+    workingDays?: number;
+  } | null>(null);
+  
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
+  const [breakdownError, setBreakdownError] = useState<string | null>(null);
+  
+  // View and visibility states
+  const [showTeacherSalary, setTeacherSalaryVisible] = useState(true);
+  const [includeSundays, setIncludeSundays] = useState(false);
+  const [salaryVisibilityLoading, setSalaryVisibilityLoading] = useState(false);
+  const [sundayLoading, setSundayLoading] = useState(false);
+  
+  // Sorting
+  const [sortKey, setSortKey] = useState<keyof TeacherPayment | "status">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const months = [
     { value: "1", label: "January" },
@@ -195,8 +191,6 @@ export default function TeacherPaymentsPage() {
     });
   };
 
-  const [teacherPackageBreakdown, setTeacherPackageBreakdown] =
-    useState<any>(null);
 
   const refreshTeacherData = useCallback(async () => {
     const { from, to } = getMonthRange(selectedYear, selectedMonth);
@@ -230,46 +224,123 @@ export default function TeacherPaymentsPage() {
     async (teacherId: string) => {
       setBreakdownLoading(true);
       setBreakdownError(null);
+      
       try {
         const { from, to } = getMonthRange(selectedYear, selectedMonth);
-        const [breakdownRes, studentsRes] = await Promise.all([
+        
+        // Make all API calls in parallel
+        const [breakdownRes, studentsRes, absenceRes, latenessRes] = await Promise.all([
           fetch(
             `/api/admin/teacher-payments?teacherId=${teacherId}&from=${from.toISOString()}&to=${to.toISOString()}`
           ),
           fetch(
             `/api/admin/teacher-students/${teacherId}?month=${selectedMonth}&year=${selectedYear}`
           ),
+          fetch(
+            `/api/admin/teacher-absences?teacherId=${teacherId}&month=${selectedMonth}&year=${selectedYear}`
+          ),
+          fetch(
+            `/api/admin/teacher-lateness?teacherId=${teacherId}&month=${selectedMonth}&year=${selectedYear}`
+          )
         ]);
 
         if (!breakdownRes.ok) throw new Error("Failed to fetch breakdown");
-        const data = await breakdownRes.json();
+        const breakdownData = await breakdownRes.json();
+        
+        // Process absence details if available
+        let absenceDetails = null;
+        if (absenceRes.ok) {
+          const absenceData = await absenceRes.json();
+          if (absenceData.success) {
+            absenceDetails = {
+              totalTimeSlots: absenceData.totalTimeSlots || 0,
+              missedTimeSlots: absenceData.missedTimeSlots || 0,
+              attendedTimeSlots: absenceData.attendedTimeSlots || 0,
+              absenceRate: absenceData.absenceRate || 0,
+              timeSlotBreakdown: (absenceData.timeSlotBreakdown || []).map((slot: any) => ({
+                date: slot.date,
+                timeSlot: slot.timeSlot,
+                status: slot.status,
+                studentName: slot.studentName,
+                package: slot.package,
+                deduction: slot.deduction || 0
+              }))
+            };
+          }
+        }
+
+        // Process lateness details if available
+        let latenessDetails = null;
+        if (latenessRes.ok) {
+          const latenessData = await latenessRes.json();
+          if (latenessData.success) {
+            latenessDetails = {
+              totalLateMinutes: latenessData.totalLateMinutes || 0,
+              lateOccurrences: latenessData.lateOccurrences || 0,
+              lateTimeSlots: (latenessData.lateTimeSlots || []).map((slot: any) => ({
+                date: slot.date,
+                timeSlot: slot.timeSlot,
+                studentName: slot.studentName || 'Unknown',
+                minutesLate: slot.minutesLate || 0,
+                deduction: slot.deduction || 0
+              }))
+            };
+          }
+        }
+        
+        // Process students data if available
+        let packageBreakdown = null;
+        if (studentsRes.ok) {
+          packageBreakdown = await studentsRes.json();
+          setTeacherPackageBreakdown(packageBreakdown);
+        }
+        
+        // Update teacher with the fetched details
+        setTeachers(prevTeachers => 
+          prevTeachers.map(teacher => 
+            teacher.id === teacherId 
+              ? { 
+                  ...teacher, 
+                  ...(absenceDetails ? { absenceDetails } : {}),
+                  ...(latenessDetails ? { latenessDetails } : {}),
+                  breakdown: breakdownData
+                } 
+              : teacher
+          )
+        );
+        
+        // Set the breakdown data for the UI
+        setBreakdown(breakdownData);
         
         // Validate breakdown data consistency
-        const totalLateness = data.latenessRecords?.reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0) || 0;
-        const totalAbsence = data.absenceRecords?.reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0) || 0;
-        const totalBonus = data.bonusRecords?.reduce((sum: number, r: any) => sum + (r.amount || 0), 0) || 0;
-        
         const teacher = teachers.find(t => t.id === teacherId);
         if (teacher) {
-          // Validate breakdown data consistency
-          if (Math.abs(totalLateness - teacher.latenessDeduction) > 0.01) {
+          const totalLateness = breakdownData.latenessRecords?.reduce(
+            (sum: number, r: any) => sum + (r.deductionApplied || 0), 0
+          ) || 0;
+            
+          const totalAbsence = breakdownData.absenceRecords?.reduce(
+            (sum: number, r: any) => sum + (r.deductionApplied || 0), 0
+          ) || 0;
+            
+          const totalBonus = breakdownData.bonusRecords?.reduce(
+            (sum: number, r: any) => sum + (r.amount || 0), 0
+          ) || 0;
+          
+          if (Math.abs(totalLateness - (teacher.latenessDeduction || 0)) > 0.01) {
             console.warn(`Lateness mismatch for ${teacher.name}: Detail=${totalLateness}, Main=${teacher.latenessDeduction}`);
           }
-          if (Math.abs(totalAbsence - teacher.absenceDeduction) > 0.01) {
+          
+          if (Math.abs(totalAbsence - (teacher.absenceDeduction || 0)) > 0.01) {
             console.warn(`Absence mismatch for ${teacher.name}: Detail=${totalAbsence}, Main=${teacher.absenceDeduction}`);
           }
-          if (Math.abs(totalBonus - teacher.bonuses) > 0.01) {
+          
+          if (Math.abs(totalBonus - (teacher.bonuses || 0)) > 0.01) {
             console.warn(`Bonus mismatch for ${teacher.name}: Detail=${totalBonus}, Main=${teacher.bonuses}`);
           }
         }
-        
-        setBreakdown(data);
-
-        if (studentsRes.ok) {
-          const studentsData = await studentsRes.json();
-          setTeacherPackageBreakdown(studentsData);
-        }
       } catch (err: any) {
+        console.error('Error in fetchBreakdown:', err);
         setBreakdownError(err.message || "Failed to fetch breakdown");
         setBreakdown({
           latenessRecords: [],
@@ -1270,14 +1341,14 @@ export default function TeacherPaymentsPage() {
                         <div className="relative">
                           <input
                             type="checkbox"
-                            checked={teacherSalaryVisible}
+                            checked={showTeacherSalary}
                             onChange={(e) =>
                               setTeacherSalaryVisible(e.target.checked)
                             }
                             className="w-5 h-5 rounded border-2 border-green-300 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all"
                             disabled={salaryVisibilityLoading}
                           />
-                          {teacherSalaryVisible && (
+                          {showTeacherSalary && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                               <FiCheck className="h-3 w-3 text-white" />
                             </div>
@@ -1289,7 +1360,7 @@ export default function TeacherPaymentsPage() {
                           </span>
                           <div
                             className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                              teacherSalaryVisible
+                              showTeacherSalary
                                 ? "bg-green-500 shadow-lg shadow-green-500/50"
                                 : "bg-gray-300"
                             }`}
@@ -1306,7 +1377,7 @@ export default function TeacherPaymentsPage() {
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 key: "teacher_salary_visible",
-                                value: teacherSalaryVisible.toString(),
+                                value: showTeacherSalary.toString(),
                               }),
                             });
                             if (res.ok) {
@@ -2191,7 +2262,7 @@ export default function TeacherPaymentsPage() {
                                 
                                 {paymentResults[t.id] && (
                                   <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded border">
-                                    TX: {paymentResults[t.id].transactionId?.slice(-8) || 'N/A'}
+                                    TX: {(paymentResults[t.id] as any)?.transactionId?.slice(-8) || 'N/A'}
                                   </div>
                                 )}
                               </div>
@@ -2417,6 +2488,161 @@ export default function TeacherPaymentsPage() {
                   </div>
                 </div>
               )}
+
+              <div className="mt-8 space-y-8">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Salary Breakdown
+                  </h3>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <h4 className="font-medium text-gray-700 mb-2">Earnings</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Base Salary:</span>
+                            <span className="font-medium">
+                              {selectedTeacher.baseSalary} ETB
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Bonuses:</span>
+                            <span className="text-green-600 font-medium">
+                              +{selectedTeacher.bonuses} ETB
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <h4 className="font-medium text-gray-700 mb-2">Deductions</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Lateness:</span>
+                            <span className="text-red-600 font-medium">
+                              -{selectedTeacher.latenessDeduction} ETB
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Absence:</span>
+                            <span className="text-red-600 font-medium">
+                              -{selectedTeacher.absenceDeduction} ETB
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-gray-900">
+                          Net Salary:
+                        </span>
+                        <span className="text-xl font-bold text-purple-700">
+                          {selectedTeacher.totalSalary} ETB
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Absence and Lateness Details */}
+                <div className="space-y-6">
+                  {/* Absence Details */}
+                  {selectedTeacher.absenceDetails && (
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <div className="p-4 bg-gray-50 border-b border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Absence Details
+                        </h3>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                            <span>{selectedTeacher.absenceDetails.attendedTimeSlots} attended</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                            <span>{selectedTeacher.absenceDetails.missedTimeSlots} missed</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+                            <span>{selectedTeacher.absenceDetails.timeSlotBreakdown.filter(t => t.status === 'waived').length} waived</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+
+                      <div className="divide-y divide-gray-100">
+                        {selectedTeacher.absenceDetails.timeSlotBreakdown.map((slot, idx) => (
+                          <div key={idx} className="p-4 hover:bg-gray-50">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-medium">{slot.studentName}</p>
+                                <p className="text-sm text-gray-500">
+                                  {dayjs(slot.date).format('MMM D, YYYY')} • {slot.timeSlot}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                  slot.status === 'attended' ? 'bg-green-100 text-green-800' :
+                                  slot.status === 'missed' ? 'bg-red-100 text-red-800' :
+                                  'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {slot.status.charAt(0).toUpperCase() + slot.status.slice(1)}
+                                </span>
+                                {slot.status === 'missed' && (
+                                  <span className="text-sm font-medium">-{slot.deduction} ETB</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lateness Details */}
+                  {selectedTeacher.latenessDetails && selectedTeacher.latenessDetails.lateTimeSlots.length > 0 && (
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <div className="p-4 bg-gray-50 border-b border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Lateness Details
+                        </h3>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                          <div>
+                            <span className="font-medium">{selectedTeacher.latenessDetails.lateOccurrences} </span>
+                            <span>occurrences</span>
+                          </div>
+                          <div>
+                            <span className="font-medium">{selectedTeacher.latenessDetails.totalLateMinutes} </span>
+                            <span>total minutes late</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+
+                      <div className="divide-y divide-gray-100">
+                        {selectedTeacher.latenessDetails.lateTimeSlots.map((slot, idx) => (
+                          <div key={idx} className="p-4 hover:bg-gray-50">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-medium">{slot.studentName}</p>
+                                <p className="text-sm text-gray-500">
+                                  {dayjs(slot.date).format('MMM D, YYYY')} • {slot.timeSlot}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+                                  {slot.minutesLate} min late
+                                </span>
+                                <span className="text-sm font-medium text-red-600">-{slot.deduction} ETB</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="space-y-4">
