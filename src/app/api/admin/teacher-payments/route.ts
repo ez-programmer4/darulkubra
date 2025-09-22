@@ -922,6 +922,19 @@ export async function GET(req: NextRequest) {
                   console.log(`    Student: ${student.name} (${student.package}) [Status: ${student.status || 'undefined'}]`);
                   console.log(`      Total zoom links: ${allStudentLinks.length}`);
                   console.log(`      Links on ${dateStr}: ${studentZoomLinks.length}`);
+                  
+                  // Debug date comparison
+                  if (allStudentLinks.length > 0 && studentZoomLinks.length === 0) {
+                    console.log(`      DEBUG: Date comparison issue detected!`);
+                    console.log(`      Looking for: ${dateStr}`);
+                    allStudentLinks.slice(0, 2).forEach((link, i) => {
+                      if (link.sent_time) {
+                        const linkDateStr = format(link.sent_time, "yyyy-MM-dd");
+                        console.log(`        Link ${i + 1}: ${link.sent_time} -> ${linkDateStr} (Match: ${linkDateStr === dateStr})`);
+                      }
+                    });
+                  }
+                  
                   if (studentZoomLinks.length > 0) {
                     studentZoomLinks.forEach((link, i) => {
                       console.log(`        Link ${i + 1}: ${link.sent_time}`);
