@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState, useEffect, useCallback } from "react";
 import dayjs from "dayjs";
 import { TeacherPayment } from "@/types/teacher-payments";
@@ -453,8 +453,6 @@ export default function TeacherPaymentsPage() {
       });
     } finally {
       setPackageSalaryLoading(false);
-    }
-  };
 
   useEffect(() => {
     async function fetchPayments() {
@@ -1021,30 +1019,30 @@ export default function TeacherPaymentsPage() {
                     </h4>
                     <ul className="text-blue-700 text-sm space-y-1">
                       <li>
-                        â€¢ Monthly package salary أ· Working days = Daily rate
+                        • Monthly package salary ÷ Working days = Daily rate
                       </li>
                       <li>
-                        â€¢ Teacher earns daily rate when Zoom link is sent{" "}
+                        • Teacher earns daily rate when Zoom link is sent{" "}
                         {!includeSundays && "(excludes Sundays)"}
                       </li>
                       <li>
-                        â€¢ Mid-month student changes are handled automatically
+                        • Mid-month student changes are handled automatically
                       </li>
                       <li>
-                        â€¢ Teacher replacements get fair pro-rated payments
+                        • Teacher replacements get fair pro-rated payments
                       </li>
                       <li>
-                        â€¢ Working days ensure full monthly salary when all days
+                        • Working days ensure full monthly salary when all days
                         taught
                       </li>
                       <li>
-                        â€¢ Deduction adjustments are automatically integrated
+                        • Deduction adjustments are automatically integrated
                       </li>
                     </ul>
                     <div className="mt-3 p-2 bg-white rounded-lg border border-blue-300">
                       <div className="text-xs text-blue-700">
                         <strong>
-                          ًں“¦ Active Packages ({availablePackages.length}):
+                          📦 Active Packages ({availablePackages.length}):
                         </strong>{" "}
                         {availablePackages.length > 0
                           ? availablePackages.join(", ")
@@ -1341,7 +1339,7 @@ export default function TeacherPaymentsPage() {
                       className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
                     >
                       <FiAlertTriangle className="h-4 w-4" />
-                      ًں’° Adjust Salary Deductions
+                      💰 Adjust Salary Deductions
                     </button>
                   </div>
                 </div>
@@ -1853,7 +1851,7 @@ export default function TeacherPaymentsPage() {
                     <option value="top">Top Performers ({">"}2000 ETB)</option>
                     <option value="good">Good (1501-2000 ETB)</option>
                     <option value="average">Average (1001-1500 ETB)</option>
-                    <option value="low">Below Average (â‰¤1000 ETB)</option>
+                    <option value="low">Below Average (≤1000 ETB)</option>
                   </select>
                 </div>
 
@@ -2290,7 +2288,7 @@ export default function TeacherPaymentsPage() {
                                       {paymentProcessing.has(t.id) ? (
                                         <FiLoader className="animate-spin h-3 w-3" />
                                       ) : (
-                                        "ًں’³ Pay"
+                                        "💳 Pay"
                                       )}
                                     </button>
                                   )}
@@ -2462,19 +2460,19 @@ export default function TeacherPaymentsPage() {
                   </h3>
                   <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
                     <h4 className="font-semibold text-blue-800 mb-2">
-                      ًںژ¯ Package-Specific Deductions Active
+                      🎯 Package-Specific Deductions Active
                     </h4>
                     <div className="text-sm text-blue-700 space-y-1">
                       <p>
-                        â€¢ <strong>Lateness:</strong> Base amount varies by
+                        • <strong>Lateness:</strong> Base amount varies by
                         student's package (used with tier percentages)
                       </p>
                       <p>
-                        â€¢ <strong>Absence:</strong> Per-slot deduction varies by
+                        • <strong>Absence:</strong> Per-slot deduction varies by
                         student's package
                       </p>
                       <p>
-                        â€¢ <strong>Fair System:</strong> Higher-fee packages =
+                        • <strong>Fair System:</strong> Higher-fee packages =
                         higher deductions, lower-fee packages = lower deductions
                       </p>
                     </div>
@@ -2613,7 +2611,7 @@ export default function TeacherPaymentsPage() {
                               <div>
                                 <p className="font-medium">{slot.studentName}</p>
                                 <p className="text-sm text-gray-500">
-                                  {dayjs(slot.date).format('MMM D, YYYY')} â€¢ {slot.timeSlot}
+                                  {dayjs(slot.date).format('MMM D, YYYY')} • {slot.timeSlot}
                                 </p>
                               </div>
                               <div className="flex items-center gap-2">
@@ -2662,7 +2660,7 @@ export default function TeacherPaymentsPage() {
                               <div>
                                 <p className="font-medium">{slot.studentName}</p>
                                 <p className="text-sm text-gray-500">
-                                  {dayjs(slot.date).format('MMM D, YYYY')} â€¢ {slot.timeSlot}
+                                  {dayjs(slot.date).format('MMM D, YYYY')} • {slot.timeSlot}
                                 </p>
                               </div>
                               <div className="flex items-center gap-3">
@@ -2914,14 +2912,14 @@ export default function TeacherPaymentsPage() {
                                 {/* Lateness Details */}
                                 <div className="flex items-center gap-3 flex-wrap">
                                   <span className="inline-block px-3 py-1 rounded-full bg-orange-100 text-orange-800 font-semibold text-xs">
-                                    âڈ° {r.latenessMinutes} minutes late
+                                    ⏰ {r.latenessMinutes} minutes late
                                   </span>
                                   <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-semibold text-xs">
-                                    ًں“ٹ {r.deductionTier}
+                                    📊 {r.deductionTier}
                                   </span>
                                   {r.studentName && (
                                     <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-800 font-semibold text-xs">
-                                      ًں‘¤ {r.studentName}
+                                      👤 {r.studentName}
                                     </span>
                                   )}
                                 </div>
@@ -2954,7 +2952,7 @@ export default function TeacherPaymentsPage() {
                                       </div>
                                     )}
                                   <div className="text-xs text-green-600 mt-1 font-medium">
-                                    âœ“ Deduction calculated using {r.studentName}
+                                    ✓ Deduction calculated using {r.studentName}
                                     's package-specific base rate
                                   </div>
                                   {r.scheduledTime && r.actualStartTime && (
@@ -2997,10 +2995,10 @@ export default function TeacherPaymentsPage() {
                             </span>
                             <div className="flex items-center gap-2 ml-4">
                               <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-medium">
-                                ًں“… {includeSundays ? 'Sundays Included' : 'Sundays Excluded'}
+                                📅 {includeSundays ? 'Sundays Included' : 'Sundays Excluded'}
                               </span>
                               <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-medium">
-                                ًں”— Zoom Link Based
+                                🔗 Zoom Link Based
                               </span>
                             </div>
                           </div>
@@ -3029,14 +3027,14 @@ export default function TeacherPaymentsPage() {
                         {/* Absence Detection Info */}
                         <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 mb-4">
                           <div className="text-xs text-blue-800 font-medium mb-2 flex items-center gap-1">
-                            â„¹ï¸ڈ How Absence Detection Works
+                            ℹ️ How Absence Detection Works
                           </div>
                           <div className="text-xs text-blue-700 space-y-1">
-                            <div>â€¢ <strong>Per-Student Tracking:</strong> Each student checked individually for zoom links</div>
-                            <div>â€¢ <strong>Date Range:</strong> Only past dates processed (not today or future)</div>
-                            <div>â€¢ <strong>Sunday Policy:</strong> {includeSundays ? 'Sundays count as working days' : 'Sundays excluded from calculations'}</div>
-                            <div>â€¢ <strong>Package Rates:</strong> Different deduction amounts per student package</div>
-                            <div>â€¢ <strong>Admin Waivers:</strong> System incidents can waive deductions</div>
+                            <div>• <strong>Per-Student Tracking:</strong> Each student checked individually for zoom links</div>
+                            <div>• <strong>Date Range:</strong> Only past dates processed (not today or future)</div>
+                            <div>• <strong>Sunday Policy:</strong> {includeSundays ? 'Sundays count as working days' : 'Sundays excluded from calculations'}</div>
+                            <div>• <strong>Package Rates:</strong> Different deduction amounts per student package</div>
+                            <div>• <strong>Admin Waivers:</strong> System incidents can waive deductions</div>
                           </div>
                         </div>
                       </div>
@@ -3061,20 +3059,20 @@ export default function TeacherPaymentsPage() {
                                 0
                               );
                               const packageCount = r.packageBreakdown.length;
-                              timeSlotsInfo = `âڈ° ${slotsCount} Time Slot${
+                              timeSlotsInfo = `⏰ ${slotsCount} Time Slot${
                                 slotsCount > 1 ? "s" : ""
                               }`;
-                              packageInfo = `ًں“¦ ${packageCount} Package${
+                              packageInfo = `📦 ${packageCount} Package${
                                 packageCount > 1 ? "s" : ""
                               }`;
                             } else if (r.timeSlots) {
                               try {
                                 const slots = JSON.parse(r.timeSlots);
                                 if (slots.includes("Whole Day")) {
-                                  timeSlotsInfo = "ًںڑ« Whole Day";
+                                  timeSlotsInfo = "🚫 Whole Day";
                                 } else {
                                   slotsCount = slots.length;
-                                  timeSlotsInfo = `âڈ° ${slotsCount} Time Slot${
+                                  timeSlotsInfo = `⏰ ${slotsCount} Time Slot${
                                     slotsCount > 1 ? "s" : ""
                                   }`;
                                 }
@@ -3105,12 +3103,12 @@ export default function TeacherPaymentsPage() {
                                         </span>
                                         {new Date(r.classDate).getDay() === 0 && (
                                           <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded font-medium">
-                                            ًں“… Sunday
+                                            📅 Sunday
                                           </span>
                                         )}
                                         {r.reviewNotes?.includes('WAIVED') && (
                                           <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-medium">
-                                            âœ… Waived
+                                            ✅ Waived
                                           </span>
                                         )}
                                       </div>
@@ -3144,8 +3142,8 @@ export default function TeacherPaymentsPage() {
                                       }`}
                                     >
                                       {r.permitted
-                                        ? "âœ… Permitted"
-                                        : "â‌Œ Unpermitted"}
+                                        ? "✅ Permitted"
+                                        : "❌ Unpermitted"}
                                     </span>
                                     <span
                                       className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -3155,8 +3153,8 @@ export default function TeacherPaymentsPage() {
                                       }`}
                                     >
                                       {r.reviewedByManager
-                                        ? "ًں¤– Auto-Detected"
-                                        : "ًں‘پï¸ڈ Manual Review"}
+                                        ? "🤖 Auto-Detected"
+                                        : "👁️ Manual Review"}
                                     </span>
                                   </div>
 
@@ -3202,12 +3200,12 @@ export default function TeacherPaymentsPage() {
                                           calculatedTotal - r.deductionApplied
                                         ) < 0.01;
 
-                                      calculationDisplay = `ًںژ¯ Package-Based Calculation: ${totalSlots} time slot${
+                                      calculationDisplay = `🎯 Package-Based Calculation: ${totalSlots} time slot${
                                         totalSlots > 1 ? "s" : ""
                                       } across ${packageCount} package type${
                                         packageCount > 1 ? "s" : ""
                                       } = ${r.deductionApplied} ETB ${
-                                        isAccurate ? "âœ“" : "âڑ ï¸ڈ"
+                                        isAccurate ? "✓" : "⚠️"
                                       }`;
                                       packageDetails = parsedPackageBreakdown;
                                     } else if (r.timeSlots) {
@@ -3217,18 +3215,18 @@ export default function TeacherPaymentsPage() {
                                             ? JSON.parse(r.timeSlots)
                                             : r.timeSlots;
                                         if (slots.includes("Whole Day")) {
-                                          calculationDisplay = `ًںڑ« Whole Day Absence: ${r.deductionApplied} ETB (Package-weighted rates applied)`;
+                                          calculationDisplay = `🚫 Whole Day Absence: ${r.deductionApplied} ETB (Package-weighted rates applied)`;
                                         } else {
                                           const avgRate = Math.round(
                                             r.deductionApplied / slots.length
                                           );
-                                          calculationDisplay = `âڈ±ï¸ڈ Partial Absence: ${avgRate} ETB avg/slot أ— ${slots.length} slots = ${r.deductionApplied} ETB`;
+                                          calculationDisplay = `⏱️ Partial Absence: ${avgRate} ETB avg/slot × ${slots.length} slots = ${r.deductionApplied} ETB`;
                                         }
                                       } catch {
-                                        calculationDisplay = `ًں“ٹ Standard Calculation: ${r.deductionApplied} ETB (Package-based system)`;
+                                        calculationDisplay = `📊 Standard Calculation: ${r.deductionApplied} ETB (Package-based system)`;
                                       }
                                     } else {
-                                      calculationDisplay = `ًںڑ« Full Day Absence: ${r.deductionApplied} ETB (Package-weighted deduction)`;
+                                      calculationDisplay = `🚫 Full Day Absence: ${r.deductionApplied} ETB (Package-weighted deduction)`;
                                     }
 
                                     return (
@@ -3242,11 +3240,11 @@ export default function TeacherPaymentsPage() {
                                             parsedPackageBreakdown.length >
                                               0 ? (
                                               <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
-                                                âœ“ Verified
+                                                ✓ Verified
                                               </span>
                                             ) : (
                                               <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-medium">
-                                                âڑ ï¸ڈ Basic
+                                                ⚠️ Basic
                                               </span>
                                             )}
                                           </div>
@@ -3258,7 +3256,7 @@ export default function TeacherPaymentsPage() {
                                             <div className="bg-blue-50 rounded p-3 mb-3 border border-blue-200">
                                               <div className="flex items-center justify-between mb-3">
                                                 <div className="text-xs text-blue-800 font-medium flex items-center gap-1">
-                                                  ًں“ٹ Package-Specific Breakdown
+                                                  📊 Package-Specific Breakdown
                                                 </div>
                                                 <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
                                                   {packageDetails.length}{" "}
@@ -3307,7 +3305,7 @@ export default function TeacherPaymentsPage() {
                                                         <div className="text-xs text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">
                                                           {slots} slot
                                                           {slots > 1 ? "s" : ""}{" "}
-                                                          أ— {rate} ETB/slot ={" "}
+                                                          × {rate} ETB/slot ={" "}
                                                           {total} ETB
                                                         </div>
                                                         {pkg.studentName && (
@@ -3357,12 +3355,12 @@ export default function TeacherPaymentsPage() {
                                                     );
                                                     return diff > 0.01 ? (
                                                       <span className="text-orange-600 ml-2">
-                                                        âڑ ï¸ڈ Variance:{" "}
+                                                        ⚠️ Variance:{" "}
                                                         {diff.toFixed(2)} ETB
                                                       </span>
                                                     ) : (
                                                       <span className="text-green-600 ml-2">
-                                                        âœ“ Verified
+                                                        ✓ Verified
                                                       </span>
                                                     );
                                                   })()}
@@ -3375,7 +3373,7 @@ export default function TeacherPaymentsPage() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                                           <div className="bg-green-50 rounded p-2 border border-green-200">
                                             <div className="text-xs text-green-800 font-medium mb-1 flex items-center gap-1">
-                                              âœ“ System Verification
+                                              ✓ System Verification
                                             </div>
                                             <div className="text-xs text-green-700">
                                               {packageDetails &&
@@ -3388,14 +3386,14 @@ export default function TeacherPaymentsPage() {
                                             </div>
                                             <div className="text-xs text-green-600 mt-1">
                                               {r.reviewedByManager
-                                                ? "ًں¤– Auto-verified"
-                                                : "ًں‘پï¸ڈ Manual review"}
+                                                ? "🤖 Auto-verified"
+                                                : "👁️ Manual review"}
                                             </div>
                                           </div>
 
                                           <div className="bg-purple-50 rounded p-2 border border-purple-200">
                                             <div className="text-xs text-purple-800 font-medium mb-1 flex items-center gap-1">
-                                              ًں“ˆ Impact Analysis
+                                              📈 Impact Analysis
                                             </div>
                                             <div className="text-xs text-purple-700">
                                               Revenue impact:{" "}
@@ -3417,7 +3415,7 @@ export default function TeacherPaymentsPage() {
                                           r.uniqueTimeSlots.length > 0 && (
                                             <div className="bg-gray-50 rounded p-2 border border-gray-200">
                                               <div className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                                                âڈ° Time Slots Affected (
+                                                ⏰ Time Slots Affected (
                                                 {r.uniqueTimeSlots.length})
                                               </div>
                                               <div className="flex flex-wrap gap-1">
@@ -3465,7 +3463,7 @@ export default function TeacherPaymentsPage() {
                                     <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
                                       <div className="text-xs text-yellow-800 mb-2">
                                         <span className="font-medium flex items-center gap-1">
-                                          ًں“‌ System Notes
+                                          📝 System Notes
                                         </span>
                                       </div>
                                       <div className="text-xs text-yellow-700 bg-white rounded p-2 border border-yellow-300">
@@ -3484,7 +3482,7 @@ export default function TeacherPaymentsPage() {
                                               {absentMatch && (
                                                 <div className="bg-red-50 rounded p-2 border border-red-200">
                                                   <div className="text-xs font-medium text-red-800 mb-1">
-                                                    â‌Œ Absent Students:
+                                                    ❌ Absent Students:
                                                   </div>
                                                   <div className="text-xs text-red-700">
                                                     {absentMatch[1]}
@@ -3494,7 +3492,7 @@ export default function TeacherPaymentsPage() {
                                               {presentMatch && (
                                                 <div className="bg-green-50 rounded p-2 border border-green-200">
                                                   <div className="text-xs font-medium text-green-800 mb-1">
-                                                    âœ… Present Students:
+                                                    ✅ Present Students:
                                                   </div>
                                                   <div className="text-xs text-green-700">
                                                     {presentMatch[1] || 'None'}
@@ -3569,7 +3567,7 @@ export default function TeacherPaymentsPage() {
                       {breakdown.absenceRecords?.length > 0 && (
                         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200 mb-6">
                           <div className="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
-                            ًں“ٹ Absence Detection Summary
+                            📊 Absence Detection Summary
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -3618,10 +3616,10 @@ export default function TeacherPaymentsPage() {
                           <div className="bg-white rounded-lg p-3 border border-blue-200">
                             <div className="text-xs text-blue-800 font-medium mb-2">System Configuration:</div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-700">
-                              <div>â€¢ <strong>Sunday Policy:</strong> {includeSundays ? 'Included in working days' : 'Excluded from working days'}</div>
-                              <div>â€¢ <strong>Detection:</strong> Per-student zoom link presence</div>
-                              <div>â€¢ <strong>Deductions:</strong> Package-based rates applied</div>
-                              <div>â€¢ <strong>Waivers:</strong> Admin can waive system incidents</div>
+                              <div>• <strong>Sunday Policy:</strong> {includeSundays ? 'Included in working days' : 'Excluded from working days'}</div>
+                              <div>• <strong>Detection:</strong> Per-student zoom link presence</div>
+                              <div>• <strong>Deductions:</strong> Package-based rates applied</div>
+                              <div>• <strong>Waivers:</strong> Admin can waive system incidents</div>
                             </div>
                           </div>
                         </div>
@@ -3898,24 +3896,24 @@ function PackageDeductionManager() {
         <div className="text-purple-800 text-sm space-y-1">
           {activeTab === "lateness" ? (
             <>
-              <p>â€¢ Base amount أ— Tier percentage = Final deduction</p>
-              <p>â€¢ Each student's package determines their base amount</p>
-              <p>â€¢ Tier percentages are configured in Lateness Management</p>
+              <p>• Base amount × Tier percentage = Final deduction</p>
+              <p>• Each student's package determines their base amount</p>
+              <p>• Tier percentages are configured in Lateness Management</p>
             </>
           ) : (
             <>
               <p>
-                â€¢ Per time slot amount أ— Number of missed slots = Final
+                • Per time slot amount × Number of missed slots = Final
                 deduction
               </p>
-              <p>â€¢ Each student's package determines their slot rate</p>
-              <p>â€¢ Mixed classes calculate fairly per student's package</p>
+              <p>• Each student's package determines their slot rate</p>
+              <p>• Mixed classes calculate fairly per student's package</p>
             </>
           )}
         </div>
         <div className="mt-3 p-2 bg-white rounded-lg border border-purple-300">
           <div className="text-xs text-purple-700">
-            <strong>ًں“¦ Active Packages:</strong>{" "}
+            <strong>📦 Active Packages:</strong>{" "}
             {activePackages.length > 0
               ? activePackages.join(", ")
               : "Loading..."}
