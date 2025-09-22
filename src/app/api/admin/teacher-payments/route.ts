@@ -946,8 +946,7 @@ export async function GET(req: NextRequest) {
           const finalBonusAmount = Math.round(bonusAmount);
           const totalSalary = Math.round(
             finalBaseSalary -
-              finalLatenessDeduction -
-              finalAbsenceDeduction +
+              finalLatenessDeduction +
               finalBonusAmount
           );
           
