@@ -518,13 +518,28 @@ export async function GET(req: NextRequest) {
             console.log(`  Date range: ${format(from, "yyyy-MM-dd")} to ${format(to, "yyyy-MM-dd")}`);
             console.log(`  Students found: ${currentStudents.length}`);
             
-            currentStudents.forEach((student, i) => {
-              console.log(`  Student ${i + 1}: ${student.name} (${student.package})`);
-              console.log(`    Zoom links in range: ${student.zoom_links.length}`);
-              student.zoom_links.forEach((link, j) => {
-                console.log(`      Link ${j + 1}: ${link.sent_time}`);
-              });
+            // Show student status distribution
+            const statusCounts: Record<string, number> = {};
+            currentStudents.forEach(student => {
+              const status = student.status || 'undefined';
+              statusCounts[status] = (statusCounts[status] || 0) + 1;
             });
+            console.log(`  Student statuses:`, statusCounts);
+            
+            // Show zoom link summary
+            const studentsWithLinks = currentStudents.filter(s => s.zoom_links.length > 0).length;
+            const studentsWithoutLinks = currentStudents.length - studentsWithLinks;
+            console.log(`  Students with zoom links: ${studentsWithLinks}`);
+            console.log(`  Students without zoom links: ${studentsWithoutLinks}`);
+            
+            // Show sample students without links
+            const studentsNoLinks = currentStudents.filter(s => s.zoom_links.length === 0).slice(0, 3);
+            if (studentsNoLinks.length > 0) {
+              console.log(`  Sample students with NO zoom links:`);
+              studentsNoLinks.forEach((student, i) => {
+                console.log(`    ${i + 1}. ${student.name} (${student.package}) [${student.status}]`);
+              });
+            }
           }
 
           const numStudents = currentStudents.length;
