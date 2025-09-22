@@ -373,15 +373,15 @@ export async function GET(req: NextRequest) {
 
           if (!shouldDeductForThisDay) continue;
 
-          // Check if teacher sent zoom link specifically for this student
-          const studentHasZoomLink = student.zoom_links.some((link) => {
+          // Check if student has zoom link on this specific day
+          const studentZoomLinks = student.zoom_links.filter((link) => {
             if (!link.sent_time) return false;
             const linkDate = format(link.sent_time, "yyyy-MM-dd");
             return linkDate === dateKey;
           });
 
-          // If no zoom link for this specific student, deduct for this student's schedule
-          if (!studentHasZoomLink) {
+          // If no zoom link for this student on this day, deduct
+          if (studentZoomLinks.length === 0) {
             const studentPackage = student.package || "";
             const packageRate = detailPackageDeductionMap[studentPackage]?.absence || 25;
             calculatedDeduction += packageRate;
@@ -876,7 +876,7 @@ export async function GET(req: NextRequest) {
             )
           );
 
-          // Check for absences using only zoom links
+          // Use SAME logic as detail view for consistency
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
           yesterday.setHours(23, 59, 59, 999);
@@ -884,83 +884,24 @@ export async function GET(req: NextRequest) {
           const endProcessDate = new Date(Math.min(to.getTime(), yesterday.getTime()));
 
           for (let d = new Date(from); d <= endProcessDate; d.setDate(d.getDate() + 1)) {
-            // Skip Sundays based on configuration
             if (!includeSundays && d.getDay() === 0) continue;
 
             const dateStr = format(d, "yyyy-MM-dd");
 
-            // Check if teacher sent zoom links on this day
-            const dayHasZoomLinks = currentStudents.some((student) =>
-              student.zoom_links.some((link) => {
-                if (!link.sent_time) return false;
-                const linkDate = format(link.sent_time, "yyyy-MM-dd");
-                return linkDate === dateStr;
-              })
-            );
-
-            // DEBUG ABSENCE DETECTION (using isDebugTeacher from above)
-            
-            if (isDebugTeacher) {
-              console.log(`\n🔍 DEBUGGING ${t.ustazname} - ${dateStr}:`);
-              console.log(`  Students: ${currentStudents.length}`);
-              console.log(`  Day has zoom links: ${dayHasZoomLinks}`);
-              console.log(`  Waived: ${waivedDates.has(dateStr)}`);
-              console.log(`  Sunday (${d.getDay()}): ${d.getDay() === 0 ? 'YES' : 'NO'}`);
-              console.log(`  Include Sundays: ${includeSundays}`);
-              
-              // Show student statuses to verify filtering
-              const statusCounts: Record<string, number> = {};
-              currentStudents.forEach(student => {
-                const status = student.status || 'undefined';
-                statusCounts[status] = (statusCounts[status] || 0) + 1;
-              });
-              console.log(`  Student statuses:`, statusCounts);
-            }
-            
             if (currentStudents.length > 0) {
               let dailyDeduction = 0;
               const affectedStudents = [];
-              const presentStudents = [];
               
               for (const student of currentStudents) {
-                // Check if student has ANY zoom links in the entire period (not just this specific day)
-                const allStudentLinks = student.zoom_links || [];
-                const studentHasZoomLink = allStudentLinks.length > 0;
-                
-                // For debugging, still show daily breakdown
-                const studentZoomLinks = allStudentLinks.filter((link) => {
+                // Check if student has zoom link on THIS specific day
+                const studentZoomLinks = student.zoom_links.filter((link) => {
                   if (!link.sent_time) return false;
                   const linkDate = format(link.sent_time, "yyyy-MM-dd");
                   return linkDate === dateStr;
                 });
                 
-                if (isDebugTeacher) {
-                  console.log(`    Student: ${student.name} (${student.package}) [Status: ${student.status || 'undefined'}]`);
-                  console.log(`      Total zoom links: ${allStudentLinks.length}`);
-                  console.log(`      Links on ${dateStr}: ${studentZoomLinks.length}`);
-                  
-                  // Debug date comparison
-                  if (allStudentLinks.length > 0 && studentZoomLinks.length === 0) {
-                    console.log(`      DEBUG: Date comparison issue detected!`);
-                    console.log(`      Looking for: ${dateStr}`);
-                    allStudentLinks.slice(0, 2).forEach((link, i) => {
-                      if (link.sent_time) {
-                        const linkDateStr = format(link.sent_time, "yyyy-MM-dd");
-                        console.log(`        Link ${i + 1}: ${link.sent_time} -> ${linkDateStr} (Match: ${linkDateStr === dateStr})`);
-                      }
-                    });
-                  }
-                  
-                  if (studentZoomLinks.length > 0) {
-                    studentZoomLinks.forEach((link, i) => {
-                      console.log(`        Link ${i + 1}: ${link.sent_time}`);
-                    });
-                  }
-                  console.log(`      Has zoom link: ${studentHasZoomLink}`);
-                }
-                
-                if (!studentHasZoomLink) {
-                  // Student was absent
+                if (studentZoomLinks.length === 0) {
+                  // Student was absent on this day
                   if (!waivedDates.has(dateStr)) {
                     const studentPackage = student.package || "";
                     const packageRate = packageDeductionMap[studentPackage]?.absence || 25;
@@ -970,27 +911,8 @@ export async function GET(req: NextRequest) {
                       package: studentPackage || "Unknown",
                       rate: packageRate,
                     });
-                    
-                    if (isDebugTeacher) {
-                      console.log(`      ❌ ABSENT - Deduction: ${packageRate} ETB`);
-                    }
-                  } else {
-                    if (isDebugTeacher) {
-                      console.log(`      ⚠️ ABSENT but WAIVED`);
-                    }
-                  }
-                } else {
-                  presentStudents.push(student.name);
-                  if (isDebugTeacher) {
-                    console.log(`      ✅ PRESENT`);
                   }
                 }
-              }
-              
-              if (isDebugTeacher) {
-                console.log(`  Daily deduction: ${dailyDeduction} ETB`);
-                console.log(`  Affected students: ${affectedStudents.length}`);
-                console.log(`  Present students: ${presentStudents.length}`);
               }
               
               if (affectedStudents.length > 0) {
@@ -1014,24 +936,7 @@ export async function GET(req: NextRequest) {
                   })),
                   permitted: false,
                   reviewedByManager: true,
-                  reviewNotes: `Absent: ${affectedStudents.map(s => `${s.name}: ${s.rate}ETB`).join(", ")}. Present: ${presentStudents.join(", ") || "None"}`,
-                });
-              } else if (waivedDates.has(dateStr) && !dayHasZoomLinks) {
-                // All students absent but waived
-                absenceBreakdown.push({
-                  id: `waived_main_${dateStr}_${t.ustazid}`,
-                  teacherId: t.ustazid,
-                  classDate: new Date(dateStr),
-                  date: dateStr,
-                  reason: "Waived full-day absence",
-                  deductionApplied: 0,
-                  deduction: 0,
-                  timeSlots: currentStudents.length,
-                  uniqueTimeSlots: ["All Students Waived"],
-                  packageBreakdown: [],
-                  permitted: true,
-                  reviewedByManager: true,
-                  reviewNotes: "Full day absence waived by admin",
+                  reviewNotes: `Absent: ${affectedStudents.map(s => `${s.name}: ${s.rate}ETB`).join(", ")}`,
                 });
               }
             }
