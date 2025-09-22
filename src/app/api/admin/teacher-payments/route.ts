@@ -85,18 +85,18 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const teacherId = url.searchParams.get("teacherId");
-    const from = url.searchParams.get("from");
-    const to = url.searchParams.get("to");
+    const startDate = url.searchParams.get("startDate");
+    const endDate = url.searchParams.get("endDate");
 
-    if (!teacherId || !from || !to) {
+    if (!teacherId || !startDate || !endDate) {
       return NextResponse.json(
         { error: "Missing required parameters" },
         { status: 400 }
       );
     }
 
-    const fromDate = new Date(from);
-    const toDate = new Date(to);
+    const fromDate = new Date(startDate);
+    const toDate = new Date(endDate);
 
     // Get package-specific deduction configurations
     const packageDeductions = await prisma.packageDeduction.findMany();
