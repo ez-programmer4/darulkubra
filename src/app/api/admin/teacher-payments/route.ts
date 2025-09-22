@@ -500,6 +500,7 @@ export async function GET(req: NextRequest) {
               wdt_ID: true,
               name: true,
               package: true,
+              status: true,
               zoom_links: {
                 where: {
                   sent_time: { gte: from, lte: to },
@@ -878,7 +879,7 @@ export async function GET(req: NextRequest) {
               console.log(`  Include Sundays: ${includeSundays}`);
               
               // Show student statuses to verify filtering
-              const statusCounts = {};
+              const statusCounts: Record<string, number> = {};
               currentStudents.forEach(student => {
                 const status = student.status || 'undefined';
                 statusCounts[status] = (statusCounts[status] || 0) + 1;
