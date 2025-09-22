@@ -398,7 +398,22 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // No absence deductions - salary already based on zoom links sent
+        // Track absences for transparency but no deduction
+        if (calculatedDeduction > 0) {
+          computedAbsences.push({
+            id: `info_${dateKey}_${teacherId}`,
+            teacherId,
+            classDate: new Date(d),
+            timeSlots: affectedTimeSlots,
+            packageBreakdown: packageBreakdown.map(p => ({...p, ratePerSlot: 0, total: 0})),
+            uniqueTimeSlots: affectedTimeSlots,
+            permitted: true,
+            permissionRequestId: null,
+            deductionApplied: 0,
+            reviewedByManager: true,
+            reviewNotes: `No deduction - salary based on zoom links sent. Absent: ${packageBreakdown.map(p => p.studentName).join(", ")}`,
+          });
+        }
       }
       return NextResponse.json({
         latenessRecords,
