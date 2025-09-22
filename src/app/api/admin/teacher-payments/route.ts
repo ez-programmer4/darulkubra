@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
-import { detectTeacherAbsences } from "@/lib/absence-utils";
 import { format, addDays, isWithinInterval } from "date-fns";
 
 // Helper function to check if a student is scheduled for a specific day
@@ -151,27 +150,14 @@ export async function GET(req: NextRequest) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    // Process absences using our enhanced detection
-    const absencePromises = processedDays.map(async (date) => {
-      const result = await detectTeacherAbsences(teacherId, date);
-      if (!result.hasAbsences) return [];
-      
-      return result.studentAbsences.map((absence) => ({
-        id: `absence_${format(date, 'yyyy-MM-dd')}_${absence.studentId}`,
+    // Get absence records from database
+    const absenceRecords = await prisma.absencerecord.findMany({
+      where: {
         teacherId,
-        classDate: new Date(date),
-        studentId: absence.studentId,
-        studentName: absence.studentName,
-        package: absence.package,
-        timeSlot: absence.timeSlot,
-        scheduledTime: absence.scheduledTime,
-        deductionRate: absence.deductionRate,
-        isAbsent: true,
-      }));
+        classDate: { gte: fromDate, lte: toDate },
+      },
+      orderBy: { classDate: "asc" },
     });
-
-    const nestedAbsenceRecords = await Promise.all(absencePromises);
-    const absenceRecords = nestedAbsenceRecords.flat();
 
     // Process lateness for each day
     const latenessRecords = [];
@@ -298,10 +284,12 @@ export async function GET(req: NextRequest) {
 
   } catch (error) {
     console.error("Error in teacher payments API:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      latenessRecords: [],
+      absenceRecords: [],
+      bonusRecords: [],
+      error: "Internal server error"
+    });
   }
 }
 
