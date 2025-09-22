@@ -843,14 +843,7 @@ export async function GET(req: NextRequest) {
           let absenceDeduction = 0;
           const absenceBreakdown: any[] = [];
 
-          // Get package deduction rates
-          const packageDeductionMap: Record<string, { lateness: number; absence: number }> = {};
-          packageDeductions.forEach((pkg) => {
-            packageDeductionMap[pkg.packageName] = {
-              lateness: Number(pkg.latenessBaseAmount),
-              absence: Number(pkg.absenceBaseAmount),
-            };
-          });
+          // Use existing packageDeductionMap from lateness section
 
           // Get absence waivers
           const absenceWaivers = await prisma.deduction_waivers.findMany({
