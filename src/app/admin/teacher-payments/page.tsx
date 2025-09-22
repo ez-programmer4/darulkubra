@@ -2778,7 +2778,7 @@ export default function TeacherPaymentsPage() {
                           </div>
                         </div>
                       </div>
-                      {breakdown.absenceRecords?.length === 0 ? (
+                      {!breakdown.absenceRecords || breakdown.absenceRecords.length === 0 ? (
                         <div className="text-gray-500 mb-4">
                           No absence records.
                         </div>
