@@ -1,7 +1,6 @@
 ﻿"use client";
 import { useState, useEffect, useCallback } from "react";
 import dayjs from "dayjs";
-import { TeacherPayment } from "@/types/teacher-payments";
 import {
   FiCalendar,
   FiUser,
@@ -39,66 +38,65 @@ const compactCurrencyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
 });
 
-// Helper function to get the date range for a given month and year
-function getMonthRange(year: number, month: number) {
-  const startDate = dayjs()
-    .year(year)
-    .month(month - 1)
-    .date(1);
-  const endDate = startDate.endOf("month");
-  return { from: startDate, to: endDate };
-}
+export type TeacherPayment = {
+  id: string;
+  name: string;
+  latenessDeduction: number;
+  absenceDeduction: number;
+  bonuses: number;
+  baseSalary: number;
+  totalSalary: number;
+  status?: "Paid" | "Unpaid";
+  numStudents?: number;
+  teachingDays?: number;
+  breakdown?: {
+    dailyEarnings: Array<{ date: string; amount: number }>;
+    studentBreakdown: Array<{
+      studentName: string;
+      package: string;
+      monthlyRate: number;
+      dailyRate: number;
+      daysWorked: number;
+      totalEarned: number;
+    }>;
+    summary: {
+      workingDaysInMonth: number;
+      actualTeachingDays: number;
+      averageDailyEarning: number;
+      totalDeductions: number;
+      netSalary: number;
+    };
+  };
+};
 
 export default function TeacherPaymentsPage() {
-  // Date and filter states
   const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1);
   const [selectedYear, setSelectedYear] = useState(dayjs().year());
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [salaryRangeFilter, setSalaryRangeFilter] = useState({
-    min: "",
-    max: "",
-  });
-  const [deductionFilter, setDeductionFilter] = useState<string>("all");
-  const [performanceFilter, setPerformanceFilter] = useState<string>("all");
-
-  // Data states
   const [teachers, setTeachers] = useState<TeacherPayment[]>([]);
   const [selectedTeacher, setSelectedTeacher] = useState<TeacherPayment | null>(
     null
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // UI states
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [showReportOptions, setShowReportOptions] = useState(false);
-  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
-  const [showAdvancedView, setShowAdvancedView] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
-
-  // Bulk actions
-  const [bulkAction, setBulkAction] = useState<
-    "mark-paid" | "mark-unpaid" | ""
-  >("");
-  const [bulkLoading, setBulkLoading] = useState(false);
-  const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(
-    new Set()
-  );
-
-  // Payment processing states
-  const [paymentProcessing, setPaymentProcessing] = useState<Set<string>>(
-    new Set()
-  );
-  const [paymentResults, setPaymentResults] = useState<
-    Record<string, { success: boolean; message: string }>
-  >({});
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [salaryStatus, setSalaryStatus] = useState<
     Record<string, "Paid" | "Unpaid">
   >({});
-
-  // Package salary management states
+  const [showDetails, setShowDetails] = useState(false);
+  const [breakdown, setBreakdown] = useState<{
+    latenessRecords: any[];
+    absenceRecords: any[];
+    bonusRecords: any[];
+  }>({ latenessRecords: [], absenceRecords: [], bonusRecords: [] });
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
+  const [breakdownError, setBreakdownError] = useState<string | null>(null);
+  const [packageSalaries, setPackageSalaries] = useState<
+    Record<string, number>
+  >({});
+  const [packageSalaryInputs, setPackageSalaryInputs] = useState<
+    Record<string, string>
+  >({});
   const [packageSalaryLoading, setPackageSalaryLoading] = useState(false);
   const [packageSalaryError, setPackageSalaryError] = useState<string | null>(
     null
@@ -107,66 +105,36 @@ export default function TeacherPaymentsPage() {
     string | null
   >(null);
   const [availablePackages, setAvailablePackages] = useState<string[]>([]);
-  const [packageSalaries, setPackageSalaries] = useState<
-    Record<string, number>
-  >({});
-  const [packageSalaryInputs, setPackageSalaryInputs] = useState<
-    Record<string, string>
-  >({});
-
-  // Breakdown and details states
-  const [breakdown, setBreakdown] = useState<{
-    latenessRecords: Array<{
-      date: string;
-      timeSlot: string;
-      studentName: string;
-      minutesLate: number;
-      deduction: number;
-    }>;
-    absenceRecords: Array<{
-      date: string;
-      timeSlot: string;
-      status: string;
-      studentName: string;
-      package: string;
-      deduction: number;
-    }>;
-    bonusRecords: Array<{ date: string; amount: number; reason: string }>;
-  }>({
-    latenessRecords: [],
-    absenceRecords: [],
-    bonusRecords: [],
-  });
-
-  interface PackageBreakdown {
-    studentName: string;
-    package: string;
-    monthlyRate: number;
-    dailyRate: number;
-    daysWorked: number;
-    totalEarned: number;
-  }
-
-  const [teacherPackageBreakdown, setTeacherPackageBreakdown] = useState<{
-    packageBreakdown?: PackageBreakdown[];
-    daysInMonth?: number;
-    workingDays?: number;
-  } | null>(null);
-
-  const [breakdownLoading, setBreakdownLoading] = useState(false);
-  const [breakdownError, setBreakdownError] = useState<string | null>(null);
-
-  // View and visibility states
-  const [showTeacherSalary, setTeacherSalaryVisible] = useState(true);
-  const [includeSundays, setIncludeSundays] = useState(false);
+  const [teacherSalaryVisible, setTeacherSalaryVisible] = useState(true);
   const [salaryVisibilityLoading, setSalaryVisibilityLoading] = useState(false);
+  const [includeSundays, setIncludeSundays] = useState(false); // Default: exclude Sundays
   const [sundayLoading, setSundayLoading] = useState(false);
-
-  // Sorting
+  const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(
+    new Set()
+  );
+  const [bulkAction, setBulkAction] = useState<
+    "mark-paid" | "mark-unpaid" | ""
+  >("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [sortKey, setSortKey] = useState<keyof TeacherPayment | "status">(
     "name"
   );
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [showReportOptions, setShowReportOptions] = useState(false);
+  const [showAdvancedView, setShowAdvancedView] = useState(false);
+  const [salaryRangeFilter, setSalaryRangeFilter] = useState({
+    min: "",
+    max: "",
+  });
+  const [deductionFilter, setDeductionFilter] = useState("");
+  const [performanceFilter, setPerformanceFilter] = useState("");
+  const [paymentProcessing, setPaymentProcessing] = useState<Set<string>>(
+    new Set()
+  );
+  const [paymentResults, setPaymentResults] = useState<Record<string, any>>({});
 
   const months = [
     { value: "1", label: "January" },
@@ -229,9 +197,10 @@ export default function TeacherPaymentsPage() {
     });
   };
 
+  const [teacherPackageBreakdown, setTeacherPackageBreakdown] =
+    useState<any>(null);
+
   const refreshTeacherData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     const { from, to } = getMonthRange(selectedYear, selectedMonth);
     try {
       const res = await fetch(
@@ -239,207 +208,91 @@ export default function TeacherPaymentsPage() {
       );
       if (res.ok) {
         const data = await res.json();
-        console.log("API Response:", data);
-        
-        // Check if data is an array of teachers or an object with records
-        let teachersData = [];
-        if (Array.isArray(data)) {
-          teachersData = data;
-        } else {
-          // If it's an object with records, we need to get teachers from another endpoint
-          const teachersRes = await fetch('/api/admin/teachers');
-          if (teachersRes.ok) {
-            teachersData = await teachersRes.json();
-          }
-        }
-        
-        console.log("Teachers data:", teachersData);
-        
-        if (Array.isArray(teachersData)) {
-          const validatedData = teachersData.map((teacher: any) => {
-            const calculatedTotal =
-              (teacher.baseSalary || 0) -
-              (teacher.latenessDeduction || 0) -
-              (teacher.absenceDeduction || 0) +
-              (teacher.bonuses || 0);
-            return {
-              id: teacher.ustazid || teacher.id || 'unknown',
-              name: teacher.ustazname || teacher.name || 'Unknown Teacher',
-              baseSalary: teacher.baseSalary || 0,
-              latenessDeduction: teacher.latenessDeduction || 0,
-              absenceDeduction: teacher.absenceDeduction || 0,
-              bonuses: teacher.bonuses || 0,
-              numStudents: teacher.numStudents || 0,
-              teachingDays: teacher.teachingDays || 0,
-              totalSalary: Math.round(calculatedTotal),
-              status: teacher.status || 'Unpaid'
-            };
-          });
-          console.log("Setting teachers:", validatedData.length);
-          setTeachers(validatedData);
+        const validatedData = data.map((teacher: any) => {
+          const calculatedTotal =
+            teacher.baseSalary -
+            teacher.latenessDeduction -
+            teacher.absenceDeduction +
+            teacher.bonuses;
+          return {
+            ...teacher,
+            totalSalary: Math.round(calculatedTotal),
+          };
+        });
+        setTeachers(validatedData);
 
-          const statusMap: Record<string, "Paid" | "Unpaid"> = {};
-          for (const t of validatedData) {
-            statusMap[t.id] = t.status || "Unpaid";
-          }
-          setSalaryStatus(statusMap);
-        } else {
-          console.error('Teachers data is not an array:', teachersData);
-          setError('Invalid data format received');
+        const statusMap: Record<string, "Paid" | "Unpaid"> = {};
+        for (const t of validatedData) {
+          statusMap[t.id] = t.status || "Unpaid";
         }
+        setSalaryStatus(statusMap);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to refresh teacher data:", error);
-      setError(error.message || "Failed to load teacher data");
-    } finally {
-      setLoading(false);
     }
   }, [selectedMonth, selectedYear]);
-
-  useEffect(() => {
-    refreshTeacherData();
-  }, [refreshTeacherData]);
 
   const fetchBreakdown = useCallback(
     async (teacherId: string) => {
       setBreakdownLoading(true);
       setBreakdownError(null);
-
       try {
         const { from, to } = getMonthRange(selectedYear, selectedMonth);
-
-        // Make all API calls in parallel
-        const [breakdownRes, studentsRes, absenceRes, latenessRes] =
-          await Promise.all([
-            fetch(
-              `/api/admin/teacher-payments?teacherId=${teacherId}&from=${from.toISOString()}&to=${to.toISOString()}`
-            ),
-            fetch(
-              `/api/admin/teacher-students/${teacherId}?month=${selectedMonth}&year=${selectedYear}`
-            ),
-            fetch(
-              `/api/admin/teacher-absences?teacherId=${teacherId}&month=${selectedMonth}&year=${selectedYear}`
-            ),
-            fetch(
-              `/api/admin/teacher-lateness?teacherId=${teacherId}&month=${selectedMonth}&year=${selectedYear}`
-            ),
-          ]);
+        const [breakdownRes, studentsRes] = await Promise.all([
+          fetch(
+            `/api/admin/teacher-payments?teacherId=${teacherId}&from=${from.toISOString()}&to=${to.toISOString()}`
+          ),
+          fetch(
+            `/api/admin/teacher-students/${teacherId}?month=${selectedMonth}&year=${selectedYear}`
+          ),
+        ]);
 
         if (!breakdownRes.ok) throw new Error("Failed to fetch breakdown");
-        const breakdownData = await breakdownRes.json();
-
-        // Process absence details if available
-        let absenceDetails = null;
-        if (absenceRes.ok) {
-          const absenceData = await absenceRes.json();
-          if (absenceData.success) {
-            absenceDetails = {
-              totalTimeSlots: absenceData.totalTimeSlots || 0,
-              missedTimeSlots: absenceData.missedTimeSlots || 0,
-              attendedTimeSlots: absenceData.attendedTimeSlots || 0,
-              absenceRate: absenceData.absenceRate || 0,
-              timeSlotBreakdown: (absenceData.timeSlotBreakdown || []).map(
-                (slot: any) => ({
-                  date: slot.date,
-                  timeSlot: slot.timeSlot,
-                  status: slot.status,
-                  studentName: slot.studentName,
-                  package: slot.package,
-                  deduction: slot.deduction || 0,
-                })
-              ),
-            };
-          }
-        }
-
-        // Process lateness details if available
-        let latenessDetails = null;
-        if (latenessRes.ok) {
-          const latenessData = await latenessRes.json();
-          if (latenessData.success) {
-            latenessDetails = {
-              totalLateMinutes: latenessData.totalLateMinutes || 0,
-              lateOccurrences: latenessData.lateOccurrences || 0,
-              lateTimeSlots: (latenessData.lateTimeSlots || []).map(
-                (slot: any) => ({
-                  date: slot.date,
-                  timeSlot: slot.timeSlot,
-                  studentName: slot.studentName || "Unknown",
-                  minutesLate: slot.minutesLate || 0,
-                  deduction: slot.deduction || 0,
-                })
-              ),
-            };
-          }
-        }
-
-        // Process students data if available
-        let packageBreakdown = null;
-        if (studentsRes.ok) {
-          packageBreakdown = await studentsRes.json();
-          setTeacherPackageBreakdown(packageBreakdown);
-        }
-
-        // Update teacher with the fetched details
-        setTeachers((prevTeachers) =>
-          prevTeachers.map((teacher) =>
-            teacher.id === teacherId
-              ? {
-                  ...teacher,
-                  ...(absenceDetails ? { absenceDetails } : {}),
-                  ...(latenessDetails ? { latenessDetails } : {}),
-                  breakdown: breakdownData,
-                }
-              : teacher
-          )
-        );
-
-        // Set the breakdown data for the UI
-        setBreakdown(breakdownData);
+        const data = await breakdownRes.json();
 
         // Validate breakdown data consistency
+        const totalLateness =
+          data.latenessRecords?.reduce(
+            (sum: number, r: any) => sum + (r.deductionApplied || 0),
+            0
+          ) || 0;
+        const totalAbsence =
+          data.absenceRecords?.reduce(
+            (sum: number, r: any) => sum + (r.deductionApplied || 0),
+            0
+          ) || 0;
+        const totalBonus =
+          data.bonusRecords?.reduce(
+            (sum: number, r: any) => sum + (r.amount || 0),
+            0
+          ) || 0;
+
         const teacher = teachers.find((t) => t.id === teacherId);
         if (teacher) {
-          const totalLateness =
-            breakdownData.latenessRecords?.reduce(
-              (sum: number, r: any) => sum + (r.deductionApplied || 0),
-              0
-            ) || 0;
-
-          const totalAbsence =
-            breakdownData.absenceRecords?.reduce(
-              (sum: number, r: any) => sum + (r.deductionApplied || 0),
-              0
-            ) || 0;
-
-          const totalBonus =
-            breakdownData.bonusRecords?.reduce(
-              (sum: number, r: any) => sum + (r.amount || 0),
-              0
-            ) || 0;
-
-          if (
-            Math.abs(totalLateness - (teacher.latenessDeduction || 0)) > 0.01
-          ) {
+          if (Math.abs(totalLateness - teacher.latenessDeduction) > 0.01) {
             console.warn(
               `Lateness mismatch for ${teacher.name}: Detail=${totalLateness}, Main=${teacher.latenessDeduction}`
             );
           }
-
-          if (Math.abs(totalAbsence - (teacher.absenceDeduction || 0)) > 0.01) {
+          if (Math.abs(totalAbsence - teacher.absenceDeduction) > 0.01) {
             console.warn(
               `Absence mismatch for ${teacher.name}: Detail=${totalAbsence}, Main=${teacher.absenceDeduction}`
             );
           }
-
-          if (Math.abs(totalBonus - (teacher.bonuses || 0)) > 0.01) {
+          if (Math.abs(totalBonus - teacher.bonuses) > 0.01) {
             console.warn(
               `Bonus mismatch for ${teacher.name}: Detail=${totalBonus}, Main=${teacher.bonuses}`
             );
           }
         }
+
+        setBreakdown(data);
+
+        if (studentsRes.ok) {
+          const studentsData = await studentsRes.json();
+          setTeacherPackageBreakdown(studentsData);
+        }
       } catch (err: any) {
-        console.error("Error in fetchBreakdown:", err);
         setBreakdownError(err.message || "Failed to fetch breakdown");
         setBreakdown({
           latenessRecords: [],
@@ -555,10 +408,57 @@ export default function TeacherPaymentsPage() {
     }
   };
 
+  useEffect(() => {
+    async function fetchPayments() {
+      setLoading(true);
+      setError(null);
+      try {
+        const { from, to } = getMonthRange(selectedYear, selectedMonth);
+        const res = await fetch(
+          `/api/admin/teacher-payments?startDate=${from.toISOString()}&endDate=${to.toISOString()}`
+        );
+        if (!res.ok) throw new Error("Failed to fetch teacher payments");
+        const data = await res.json();
 
+        // Validate data consistency
+        const validatedData = data.map((teacher: any) => {
+          const calculatedTotal =
+            teacher.baseSalary -
+            teacher.latenessDeduction -
+            teacher.absenceDeduction +
+            teacher.bonuses;
+          if (Math.abs(calculatedTotal - teacher.totalSalary) > 0.01) {
+            console.warn(
+              `Salary calculation mismatch for ${teacher.name}: Expected ${calculatedTotal}, Got ${teacher.totalSalary}`
+            );
+          }
+          return {
+            ...teacher,
+            totalSalary: Math.round(calculatedTotal), // Ensure consistency
+          };
+        });
+
+        setTeachers(validatedData);
+        const statusMap: Record<string, "Paid" | "Unpaid"> = {};
+        for (const t of validatedData) {
+          statusMap[t.id] = t.status || "Unpaid";
+        }
+        setSalaryStatus(statusMap);
+      } catch (e: any) {
+        setError(e.message || "Failed to fetch teacher payments");
+        toast({
+          title: "Error",
+          description: "Failed to load teacher payments",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPayments();
+  }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
-    // ... (rest of the code remains the same)
     setPage(1);
   }, [search, statusFilter, selectedMonth, selectedYear]);
 
@@ -613,29 +513,21 @@ export default function TeacherPaymentsPage() {
   }
 
   const filteredTeachers = teachers.filter((t) => {
-    console.log('Filtering teacher:', t);
-    
-    const matchesSearch = (t.name || "")
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    console.log('Search match:', matchesSearch, 'for', t.name);
-    
+    const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus =
-      !statusFilter || statusFilter === "" || (salaryStatus[t.id] || "Unpaid") === statusFilter;
-    console.log('Status match:', matchesStatus, 'filter:', statusFilter, 'teacher status:', salaryStatus[t.id]);
+      !statusFilter || (salaryStatus[t.id] || "Unpaid") === statusFilter;
 
     // Salary range filter
     const matchesSalaryRange =
-      (!salaryRangeFilter.min || salaryRangeFilter.min === "" ||
-        (t.totalSalary || 0) >= Number(salaryRangeFilter.min)) &&
-      (!salaryRangeFilter.max || salaryRangeFilter.max === "" ||
-        (t.totalSalary || 0) <= Number(salaryRangeFilter.max));
-    console.log('Salary range match:', matchesSalaryRange);
+      (!salaryRangeFilter.min ||
+        t.totalSalary >= Number(salaryRangeFilter.min)) &&
+      (!salaryRangeFilter.max ||
+        t.totalSalary <= Number(salaryRangeFilter.max));
 
     // Deduction filter
-    const totalDeductions = (t.latenessDeduction || 0) + (t.absenceDeduction || 0);
+    const totalDeductions = t.latenessDeduction + t.absenceDeduction;
     const matchesDeduction =
-      !deductionFilter || deductionFilter === "" ||
+      !deductionFilter ||
       (deductionFilter === "high" && totalDeductions > 100) ||
       (deductionFilter === "medium" &&
         totalDeductions > 50 &&
@@ -644,29 +536,26 @@ export default function TeacherPaymentsPage() {
         totalDeductions > 0 &&
         totalDeductions <= 50) ||
       (deductionFilter === "none" && totalDeductions === 0);
-    console.log('Deduction match:', matchesDeduction);
 
     // Performance filter
     const matchesPerformance =
-      !performanceFilter || performanceFilter === "" ||
-      (performanceFilter === "top" && (t.totalSalary || 0) > 2000) ||
+      !performanceFilter ||
+      (performanceFilter === "top" && t.totalSalary > 2000) ||
       (performanceFilter === "good" &&
-        (t.totalSalary || 0) > 1500 &&
-        (t.totalSalary || 0) <= 2000) ||
+        t.totalSalary > 1500 &&
+        t.totalSalary <= 2000) ||
       (performanceFilter === "average" &&
-        (t.totalSalary || 0) > 1000 &&
-        (t.totalSalary || 0) <= 1500) ||
-      (performanceFilter === "low" && (t.totalSalary || 0) <= 1000);
-    console.log('Performance match:', matchesPerformance);
+        t.totalSalary > 1000 &&
+        t.totalSalary <= 1500) ||
+      (performanceFilter === "low" && t.totalSalary <= 1000);
 
-    const result = matchesSearch &&
+    return (
+      matchesSearch &&
       matchesStatus &&
       matchesSalaryRange &&
       matchesDeduction &&
-      matchesPerformance;
-    
-    console.log('Final result for', t.name, ':', result);
-    return result;
+      matchesPerformance
+    );
   });
 
   const canMarkPaid = (() => {
@@ -1070,30 +959,30 @@ export default function TeacherPaymentsPage() {
                     </h4>
                     <ul className="text-blue-700 text-sm space-y-1">
                       <li>
-                        â€¢ Monthly package salary أ· Working days = Daily rate
+                        • Monthly package salary ÷ Working days = Daily rate
                       </li>
                       <li>
-                        â€¢ Teacher earns daily rate when Zoom link is sent{" "}
+                        • Teacher earns daily rate when Zoom link is sent{" "}
                         {!includeSundays && "(excludes Sundays)"}
                       </li>
                       <li>
-                        â€¢ Mid-month student changes are handled automatically
+                        • Mid-month student changes are handled automatically
                       </li>
                       <li>
-                        â€¢ Teacher replacements get fair pro-rated payments
+                        • Teacher replacements get fair pro-rated payments
                       </li>
                       <li>
-                        â€¢ Working days ensure full monthly salary when all
-                        days taught
+                        • Working days ensure full monthly salary when all days
+                        taught
                       </li>
                       <li>
-                        â€¢ Deduction adjustments are automatically integrated
+                        • Deduction adjustments are automatically integrated
                       </li>
                     </ul>
                     <div className="mt-3 p-2 bg-white rounded-lg border border-blue-300">
                       <div className="text-xs text-blue-700">
                         <strong>
-                          ًں“¦ Active Packages ({availablePackages.length}):
+                          📦 Active Packages ({availablePackages.length}):
                         </strong>{" "}
                         {availablePackages.length > 0
                           ? availablePackages.join(", ")
@@ -1390,7 +1279,7 @@ export default function TeacherPaymentsPage() {
                       className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
                     >
                       <FiAlertTriangle className="h-4 w-4" />
-                      ًں’° Adjust Salary Deductions
+                      💰 Adjust Salary Deductions
                     </button>
                   </div>
                 </div>
@@ -1405,7 +1294,7 @@ export default function TeacherPaymentsPage() {
                   <div className="flex items-center gap-4 mb-6">
                     <div className="relative">
                       <div className="absolute inset-0 bg-gradient-to-br from-green-600 to-emerald-700 rounded-xl blur-sm"></div>
-                      <div className="relative p-3 bg-gradient-to-br from-green-600 to-emerald-700 rounded-xl shadow-lg">
+                      <div className="relative p-3  rounded-xl shadow-lg">
                         <FiInfo className="h-6 w-6 text-white" />
                       </div>
                     </div>
@@ -1426,14 +1315,14 @@ export default function TeacherPaymentsPage() {
                         <div className="relative">
                           <input
                             type="checkbox"
-                            checked={showTeacherSalary}
+                            checked={teacherSalaryVisible}
                             onChange={(e) =>
                               setTeacherSalaryVisible(e.target.checked)
                             }
                             className="w-5 h-5 rounded border-2 border-green-300 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all"
                             disabled={salaryVisibilityLoading}
                           />
-                          {showTeacherSalary && (
+                          {teacherSalaryVisible && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                               <FiCheck className="h-3 w-3 text-white" />
                             </div>
@@ -1445,7 +1334,7 @@ export default function TeacherPaymentsPage() {
                           </span>
                           <div
                             className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                              showTeacherSalary
+                              teacherSalaryVisible
                                 ? "bg-green-500 shadow-lg shadow-green-500/50"
                                 : "bg-gray-300"
                             }`}
@@ -1462,7 +1351,7 @@ export default function TeacherPaymentsPage() {
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 key: "teacher_salary_visible",
-                                value: showTeacherSalary.toString(),
+                                value: teacherSalaryVisible.toString(),
                               }),
                             });
                             if (res.ok) {
@@ -1902,7 +1791,7 @@ export default function TeacherPaymentsPage() {
                     <option value="top">Top Performers ({">"}2000 ETB)</option>
                     <option value="good">Good (1501-2000 ETB)</option>
                     <option value="average">Average (1001-1500 ETB)</option>
-                    <option value="low">Below Average (â‰¤1000 ETB)</option>
+                    <option value="low">Below Average (≤1000 ETB)</option>
                   </select>
                 </div>
 
@@ -2038,18 +1927,9 @@ export default function TeacherPaymentsPage() {
                 <p className="text-gray-600 text-xl">
                   No teachers match your current filters.
                 </p>
-                <div className="mt-4 text-sm text-gray-500">
-                  <p>Debug: Total teachers: {teachers.length}</p>
-                  <p>Filtered teachers: {filteredTeachers.length}</p>
-                  <p>Loading: {loading.toString()}</p>
-                  <p>Error: {error || 'none'}</p>
-                </div>
               </div>
             ) : (
               <>
-                <div className="mb-4 text-sm text-gray-500">
-                  Debug: Showing {filteredTeachers.length} of {teachers.length} teachers
-                </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -2382,7 +2262,7 @@ export default function TeacherPaymentsPage() {
                                         {paymentProcessing.has(t.id) ? (
                                           <FiLoader className="animate-spin h-3 w-3" />
                                         ) : (
-                                          "ًں’³ Pay"
+                                          "💳 Pay"
                                         )}
                                       </button>
                                     )}
@@ -2391,9 +2271,9 @@ export default function TeacherPaymentsPage() {
                                 {paymentResults[t.id] && (
                                   <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded border">
                                     TX:{" "}
-                                    {(
-                                      paymentResults[t.id] as any
-                                    )?.transactionId?.slice(-8) || "N/A"}
+                                    {paymentResults[t.id].transactionId?.slice(
+                                      -8
+                                    ) || "N/A"}
                                   </div>
                                 )}
                               </div>
@@ -2568,19 +2448,19 @@ export default function TeacherPaymentsPage() {
                   </h3>
                   <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
                     <h4 className="font-semibold text-blue-800 mb-2">
-                      ًںژ¯ Package-Specific Deductions Active
+                      🎯 Package-Specific Deductions Active
                     </h4>
                     <div className="text-sm text-blue-700 space-y-1">
                       <p>
-                        â€¢ <strong>Lateness:</strong> Base amount varies by
+                        • <strong>Lateness:</strong> Base amount varies by
                         student's package (used with tier percentages)
                       </p>
                       <p>
-                        â€¢ <strong>Absence:</strong> Per-slot deduction varies
-                        by student's package
+                        • <strong>Absence:</strong> Per-slot deduction varies by
+                        student's package
                       </p>
                       <p>
-                        â€¢ <strong>Fair System:</strong> Higher-fee packages =
+                        • <strong>Fair System:</strong> Higher-fee packages =
                         higher deductions, lower-fee packages = lower deductions
                       </p>
                     </div>
@@ -2630,207 +2510,6 @@ export default function TeacherPaymentsPage() {
                   </div>
                 </div>
               )}
-
-              <div className="mt-8 space-y-8">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Salary Breakdown
-                  </h3>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <h4 className="font-medium text-gray-700 mb-2">
-                          Earnings
-                        </h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Base Salary:</span>
-                            <span className="font-medium">
-                              {selectedTeacher.baseSalary} ETB
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Bonuses:</span>
-                            <span className="text-green-600 font-medium">
-                              +{selectedTeacher.bonuses} ETB
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <h4 className="font-medium text-gray-700 mb-2">
-                          Deductions
-                        </h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Lateness:</span>
-                            <span className="text-red-600 font-medium">
-                              -{selectedTeacher.latenessDeduction} ETB
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Absence:</span>
-                            <span className="text-red-600 font-medium">
-                              -{selectedTeacher.absenceDeduction} ETB
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-gray-900">
-                          Net Salary:
-                        </span>
-                        <span className="text-xl font-bold text-purple-700">
-                          {selectedTeacher.totalSalary} ETB
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Absence and Lateness Details */}
-                <div className="space-y-6">
-                  {/* Absence Details */}
-                  {selectedTeacher.absenceDetails && (
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                      <div className="p-4 bg-gray-50 border-b border-gray-200">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          Absence Details
-                        </h3>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                            <span>
-                              {selectedTeacher.absenceDetails.attendedTimeSlots}{" "}
-                              attended
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-3 h-3 rounded-full bg-red-500"></span>
-                            <span>
-                              {selectedTeacher.absenceDetails.missedTimeSlots}{" "}
-                              missed
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-                            <span>
-                              {
-                                selectedTeacher.absenceDetails.timeSlotBreakdown.filter(
-                                  (t) => t.status === "waived"
-                                ).length
-                              }{" "}
-                              waived
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="divide-y divide-gray-100">
-                        {selectedTeacher.absenceDetails.timeSlotBreakdown.map(
-                          (slot, idx) => (
-                            <div key={idx} className="p-4 hover:bg-gray-50">
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <p className="font-medium">
-                                    {slot.studentName}
-                                  </p>
-                                  <p className="text-sm text-gray-500">
-                                    {dayjs(slot.date).format("MMM D, YYYY")} â€¢{" "}
-                                    {slot.timeSlot}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className={`px-2 py-1 text-xs rounded-full ${
-                                      slot.status === "attended"
-                                        ? "bg-green-100 text-green-800"
-                                        : slot.status === "missed"
-                                        ? "bg-red-100 text-red-800"
-                                        : "bg-yellow-100 text-yellow-800"
-                                    }`}
-                                  >
-                                    {slot.status.charAt(0).toUpperCase() +
-                                      slot.status.slice(1)}
-                                  </span>
-                                  {slot.status === "missed" && (
-                                    <span className="text-sm font-medium">
-                                      -{slot.deduction} ETB
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Lateness Details */}
-                  {selectedTeacher.latenessDetails &&
-                    selectedTeacher.latenessDetails.lateTimeSlots.length >
-                      0 && (
-                      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                        <div className="p-4 bg-gray-50 border-b border-gray-200">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            Lateness Details
-                          </h3>
-                          <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                            <div>
-                              <span className="font-medium">
-                                {
-                                  selectedTeacher.latenessDetails
-                                    .lateOccurrences
-                                }{" "}
-                              </span>
-                              <span>occurrences</span>
-                            </div>
-                            <div>
-                              <span className="font-medium">
-                                {
-                                  selectedTeacher.latenessDetails
-                                    .totalLateMinutes
-                                }{" "}
-                              </span>
-                              <span>total minutes late</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="divide-y divide-gray-100">
-                          {selectedTeacher.latenessDetails.lateTimeSlots.map(
-                            (slot, idx) => (
-                              <div key={idx} className="p-4 hover:bg-gray-50">
-                                <div className="flex justify-between items-center">
-                                  <div>
-                                    <p className="font-medium">
-                                      {slot.studentName}
-                                    </p>
-                                    <p className="text-sm text-gray-500">
-                                      {dayjs(slot.date).format("MMM D, YYYY")}{" "}
-                                      â€¢ {slot.timeSlot}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-sm text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
-                                      {slot.minutesLate} min late
-                                    </span>
-                                    <span className="text-sm font-medium text-red-600">
-                                      -{slot.deduction} ETB
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    )}
-                </div>
-              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="space-y-4">
@@ -3066,14 +2745,14 @@ export default function TeacherPaymentsPage() {
                                 {/* Lateness Details */}
                                 <div className="flex items-center gap-3 flex-wrap">
                                   <span className="inline-block px-3 py-1 rounded-full bg-orange-100 text-orange-800 font-semibold text-xs">
-                                    âڈ° {r.latenessMinutes} minutes late
+                                    ⏰ {r.latenessMinutes} minutes late
                                   </span>
                                   <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-semibold text-xs">
-                                    ًں“ٹ {r.deductionTier}
+                                    📊 {r.deductionTier}
                                   </span>
                                   {r.studentName && (
                                     <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-800 font-semibold text-xs">
-                                      ًں‘¤ {r.studentName}
+                                      👤 {r.studentName}
                                     </span>
                                   )}
                                 </div>
@@ -3106,8 +2785,7 @@ export default function TeacherPaymentsPage() {
                                       </div>
                                     )}
                                   <div className="text-xs text-green-600 mt-1 font-medium">
-                                    âœ“ Deduction calculated using{" "}
-                                    {r.studentName}
+                                    ✓ Deduction calculated using {r.studentName}
                                     's package-specific base rate
                                   </div>
                                   {r.scheduledTime && r.actualStartTime && (
@@ -3148,17 +2826,6 @@ export default function TeacherPaymentsPage() {
                             <span className="font-semibold text-black">
                               Absence Records
                             </span>
-                            <div className="flex items-center gap-2 ml-4">
-                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-medium">
-                                ًں“…{" "}
-                                {includeSundays
-                                  ? "Sundays Included"
-                                  : "Sundays Excluded"}
-                              </span>
-                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-medium">
-                                ًں”— Zoom Link Based
-                              </span>
-                            </div>
                           </div>
                           {breakdown.absenceRecords?.length > 0 && (
                             <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-200">
@@ -3175,46 +2842,11 @@ export default function TeacherPaymentsPage() {
                                 {breakdown.absenceRecords.length} absence record
                                 {breakdown.absenceRecords.length > 1 ? "s" : ""}
                               </div>
-                              <div className="text-xs text-blue-600 mt-1">
-                                Per-student tracking system
-                              </div>
                             </div>
                           )}
                         </div>
-
-                        {/* Absence Detection Info */}
-                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 mb-4">
-                          <div className="text-xs text-blue-800 font-medium mb-2 flex items-center gap-1">
-                            â„¹ï¸ڈ How Absence Detection Works
-                          </div>
-                          <div className="text-xs text-blue-700 space-y-1">
-                            <div>
-                              â€¢ <strong>Per-Student Tracking:</strong> Each
-                              student checked individually for zoom links
-                            </div>
-                            <div>
-                              â€¢ <strong>Date Range:</strong> Only past dates
-                              processed (not today or future)
-                            </div>
-                            <div>
-                              â€¢ <strong>Sunday Policy:</strong>{" "}
-                              {includeSundays
-                                ? "Sundays count as working days"
-                                : "Sundays excluded from calculations"}
-                            </div>
-                            <div>
-                              â€¢ <strong>Package Rates:</strong> Different
-                              deduction amounts per student package
-                            </div>
-                            <div>
-                              â€¢ <strong>Admin Waivers:</strong> System
-                              incidents can waive deductions
-                            </div>
-                          </div>
-                        </div>
                       </div>
-                      {!breakdown.absenceRecords ||
-                      breakdown.absenceRecords.length === 0 ? (
+                      {breakdown.absenceRecords?.length === 0 ? (
                         <div className="text-gray-500 mb-4">
                           No absence records.
                         </div>
@@ -3235,20 +2867,20 @@ export default function TeacherPaymentsPage() {
                                 0
                               );
                               const packageCount = r.packageBreakdown.length;
-                              timeSlotsInfo = `âڈ° ${slotsCount} Time Slot${
+                              timeSlotsInfo = `⏰ ${slotsCount} Time Slot${
                                 slotsCount > 1 ? "s" : ""
                               }`;
-                              packageInfo = `ًں“¦ ${packageCount} Package${
+                              packageInfo = `📦 ${packageCount} Package${
                                 packageCount > 1 ? "s" : ""
                               }`;
                             } else if (r.timeSlots) {
                               try {
                                 const slots = JSON.parse(r.timeSlots);
                                 if (slots.includes("Whole Day")) {
-                                  timeSlotsInfo = "ًںڑ« Whole Day";
+                                  timeSlotsInfo = "🚫 Whole Day";
                                 } else {
                                   slotsCount = slots.length;
-                                  timeSlotsInfo = `âڈ° ${slotsCount} Time Slot${
+                                  timeSlotsInfo = `⏰ ${slotsCount} Time Slot${
                                     slotsCount > 1 ? "s" : ""
                                   }`;
                                 }
@@ -3269,26 +2901,13 @@ export default function TeacherPaymentsPage() {
                                           r.classDate
                                         ).toLocaleDateString()}
                                       </span>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-500">
-                                          {new Date(
-                                            r.classDate
-                                          ).toLocaleDateString("en-US", {
-                                            weekday: "long",
-                                          })}
-                                        </span>
-                                        {new Date(r.classDate).getDay() ===
-                                          0 && (
-                                          <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded font-medium">
-                                            ًں“… Sunday
-                                          </span>
-                                        )}
-                                        {r.reviewNotes?.includes("WAIVED") && (
-                                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-medium">
-                                            âœ… Waived
-                                          </span>
-                                        )}
-                                      </div>
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(
+                                          r.classDate
+                                        ).toLocaleDateString("en-US", {
+                                          weekday: "long",
+                                        })}
+                                      </span>
                                     </div>
                                     <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-bold text-sm">
                                       -{r.deductionApplied} ETB
@@ -3319,8 +2938,8 @@ export default function TeacherPaymentsPage() {
                                       }`}
                                     >
                                       {r.permitted
-                                        ? "âœ… Permitted"
-                                        : "â‌Œ Unpermitted"}
+                                        ? "✅ Permitted"
+                                        : "❌ Unpermitted"}
                                     </span>
                                     <span
                                       className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -3330,8 +2949,8 @@ export default function TeacherPaymentsPage() {
                                       }`}
                                     >
                                       {r.reviewedByManager
-                                        ? "ًں¤– Auto-Detected"
-                                        : "ًں‘پï¸ڈ Manual Review"}
+                                        ? "🤖 Auto-Detected"
+                                        : "👁️ Manual Review"}
                                     </span>
                                   </div>
 
@@ -3377,12 +2996,12 @@ export default function TeacherPaymentsPage() {
                                           calculatedTotal - r.deductionApplied
                                         ) < 0.01;
 
-                                      calculationDisplay = `ًںژ¯ Package-Based Calculation: ${totalSlots} time slot${
+                                      calculationDisplay = `🎯 Package-Based Calculation: ${totalSlots} time slot${
                                         totalSlots > 1 ? "s" : ""
                                       } across ${packageCount} package type${
                                         packageCount > 1 ? "s" : ""
                                       } = ${r.deductionApplied} ETB ${
-                                        isAccurate ? "âœ“" : "âڑ ï¸ڈ"
+                                        isAccurate ? "✓" : "⚠️"
                                       }`;
                                       packageDetails = parsedPackageBreakdown;
                                     } else if (r.timeSlots) {
@@ -3392,18 +3011,18 @@ export default function TeacherPaymentsPage() {
                                             ? JSON.parse(r.timeSlots)
                                             : r.timeSlots;
                                         if (slots.includes("Whole Day")) {
-                                          calculationDisplay = `ًںڑ« Whole Day Absence: ${r.deductionApplied} ETB (Package-weighted rates applied)`;
+                                          calculationDisplay = `🚫 Whole Day Absence: ${r.deductionApplied} ETB (Package-weighted rates applied)`;
                                         } else {
                                           const avgRate = Math.round(
                                             r.deductionApplied / slots.length
                                           );
-                                          calculationDisplay = `âڈ±ï¸ڈ Partial Absence: ${avgRate} ETB avg/slot أ— ${slots.length} slots = ${r.deductionApplied} ETB`;
+                                          calculationDisplay = `⏱️ Partial Absence: ${avgRate} ETB avg/slot × ${slots.length} slots = ${r.deductionApplied} ETB`;
                                         }
                                       } catch {
-                                        calculationDisplay = `ًں“ٹ Standard Calculation: ${r.deductionApplied} ETB (Package-based system)`;
+                                        calculationDisplay = `📊 Standard Calculation: ${r.deductionApplied} ETB (Package-based system)`;
                                       }
                                     } else {
-                                      calculationDisplay = `ًںڑ« Full Day Absence: ${r.deductionApplied} ETB (Package-weighted deduction)`;
+                                      calculationDisplay = `🚫 Full Day Absence: ${r.deductionApplied} ETB (Package-weighted deduction)`;
                                     }
 
                                     return (
@@ -3417,11 +3036,11 @@ export default function TeacherPaymentsPage() {
                                             parsedPackageBreakdown.length >
                                               0 ? (
                                               <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
-                                                âœ“ Verified
+                                                ✓ Verified
                                               </span>
                                             ) : (
                                               <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-medium">
-                                                âڑ ï¸ڈ Basic
+                                                ⚠️ Basic
                                               </span>
                                             )}
                                           </div>
@@ -3433,8 +3052,7 @@ export default function TeacherPaymentsPage() {
                                             <div className="bg-blue-50 rounded p-3 mb-3 border border-blue-200">
                                               <div className="flex items-center justify-between mb-3">
                                                 <div className="text-xs text-blue-800 font-medium flex items-center gap-1">
-                                                  ًں“ٹ Package-Specific
-                                                  Breakdown
+                                                  📊 Package-Specific Breakdown
                                                 </div>
                                                 <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
                                                   {packageDetails.length}{" "}
@@ -3485,7 +3103,7 @@ export default function TeacherPaymentsPage() {
                                                           {slots > 1
                                                             ? "s"
                                                             : ""}{" "}
-                                                          أ— {rate} ETB/slot ={" "}
+                                                          × {rate} ETB/slot ={" "}
                                                           {total} ETB
                                                         </div>
                                                         {pkg.studentName && (
@@ -3535,12 +3153,12 @@ export default function TeacherPaymentsPage() {
                                                     );
                                                     return diff > 0.01 ? (
                                                       <span className="text-orange-600 ml-2">
-                                                        âڑ ï¸ڈ Variance:{" "}
+                                                        ⚠️ Variance:{" "}
                                                         {diff.toFixed(2)} ETB
                                                       </span>
                                                     ) : (
                                                       <span className="text-green-600 ml-2">
-                                                        âœ“ Verified
+                                                        ✓ Verified
                                                       </span>
                                                     );
                                                   })()}
@@ -3553,7 +3171,7 @@ export default function TeacherPaymentsPage() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                                           <div className="bg-green-50 rounded p-2 border border-green-200">
                                             <div className="text-xs text-green-800 font-medium mb-1 flex items-center gap-1">
-                                              âœ“ System Verification
+                                              ✓ System Verification
                                             </div>
                                             <div className="text-xs text-green-700">
                                               {packageDetails &&
@@ -3566,14 +3184,14 @@ export default function TeacherPaymentsPage() {
                                             </div>
                                             <div className="text-xs text-green-600 mt-1">
                                               {r.reviewedByManager
-                                                ? "ًں¤– Auto-verified"
-                                                : "ًں‘پï¸ڈ Manual review"}
+                                                ? "🤖 Auto-verified"
+                                                : "👁️ Manual review"}
                                             </div>
                                           </div>
 
                                           <div className="bg-purple-50 rounded p-2 border border-purple-200">
                                             <div className="text-xs text-purple-800 font-medium mb-1 flex items-center gap-1">
-                                              ًں“ˆ Impact Analysis
+                                              📈 Impact Analysis
                                             </div>
                                             <div className="text-xs text-purple-700">
                                               Revenue impact:{" "}
@@ -3595,7 +3213,7 @@ export default function TeacherPaymentsPage() {
                                           r.uniqueTimeSlots.length > 0 && (
                                             <div className="bg-gray-50 rounded p-2 border border-gray-200">
                                               <div className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                                                âڈ° Time Slots Affected (
+                                                ⏰ Time Slots Affected (
                                                 {r.uniqueTimeSlots.length})
                                               </div>
                                               <div className="flex flex-wrap gap-1">
@@ -3643,49 +3261,12 @@ export default function TeacherPaymentsPage() {
                                     <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
                                       <div className="text-xs text-yellow-800 mb-2">
                                         <span className="font-medium flex items-center gap-1">
-                                          ًں“‌ System Notes
+                                          📝 Admin Notes
                                         </span>
                                       </div>
                                       <div className="text-xs text-yellow-700 bg-white rounded p-2 border border-yellow-300">
                                         {r.reviewNotes}
                                       </div>
-
-                                      {/* Parse and display detailed absence info */}
-                                      {(() => {
-                                        const notes = r.reviewNotes || "";
-                                        const absentMatch =
-                                          notes.match(/Absent: ([^.]+)/);
-                                        const presentMatch =
-                                          notes.match(/Present: ([^.]+)/);
-
-                                        if (absentMatch || presentMatch) {
-                                          return (
-                                            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-                                              {absentMatch && (
-                                                <div className="bg-red-50 rounded p-2 border border-red-200">
-                                                  <div className="text-xs font-medium text-red-800 mb-1">
-                                                    â‌Œ Absent Students:
-                                                  </div>
-                                                  <div className="text-xs text-red-700">
-                                                    {absentMatch[1]}
-                                                  </div>
-                                                </div>
-                                              )}
-                                              {presentMatch && (
-                                                <div className="bg-green-50 rounded p-2 border border-green-200">
-                                                  <div className="text-xs font-medium text-green-800 mb-1">
-                                                    âœ… Present Students:
-                                                  </div>
-                                                  <div className="text-xs text-green-700">
-                                                    {presentMatch[1] || "None"}
-                                                  </div>
-                                                </div>
-                                              )}
-                                            </div>
-                                          );
-                                        }
-                                        return null;
-                                      })()}
                                     </div>
                                   )}
 
@@ -3743,98 +3324,6 @@ export default function TeacherPaymentsPage() {
                             );
                           })}
                         </ul>
-                      )}
-
-                      {/* Absence Detection Summary */}
-                      {breakdown.absenceRecords?.length > 0 && (
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200 mb-6">
-                          <div className="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
-                            ًں“ٹ Absence Detection Summary
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            <div className="bg-white rounded-lg p-3 border border-blue-200">
-                              <div className="text-xs text-blue-600 font-medium mb-1">
-                                Total Days Processed
-                              </div>
-                              <div className="text-lg font-bold text-blue-900">
-                                {breakdown.absenceRecords.length}
-                              </div>
-                              <div className="text-xs text-blue-600">
-                                Past dates only
-                              </div>
-                            </div>
-
-                            <div className="bg-white rounded-lg p-3 border border-blue-200">
-                              <div className="text-xs text-blue-600 font-medium mb-1">
-                                Students Affected
-                              </div>
-                              <div className="text-lg font-bold text-red-900">
-                                {(() => {
-                                  const uniqueStudents = new Set();
-                                  breakdown.absenceRecords.forEach((r: any) => {
-                                    if (r.packageBreakdown) {
-                                      try {
-                                        const packages =
-                                          typeof r.packageBreakdown === "string"
-                                            ? JSON.parse(r.packageBreakdown)
-                                            : r.packageBreakdown;
-                                        if (Array.isArray(packages)) {
-                                          packages.forEach((p: any) => {
-                                            if (p.studentName)
-                                              uniqueStudents.add(p.studentName);
-                                          });
-                                        }
-                                      } catch {}
-                                    }
-                                  });
-                                  return uniqueStudents.size;
-                                })()}
-                              </div>
-                              <div className="text-xs text-red-600">
-                                Unique students
-                              </div>
-                            </div>
-
-                            <div className="bg-white rounded-lg p-3 border border-blue-200">
-                              <div className="text-xs text-blue-600 font-medium mb-1">
-                                Detection Method
-                              </div>
-                              <div className="text-sm font-bold text-green-900">
-                                Per-Student
-                              </div>
-                              <div className="text-xs text-green-600">
-                                Zoom link tracking
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="bg-white rounded-lg p-3 border border-blue-200">
-                            <div className="text-xs text-blue-800 font-medium mb-2">
-                              System Configuration:
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-700">
-                              <div>
-                                â€¢ <strong>Sunday Policy:</strong>{" "}
-                                {includeSundays
-                                  ? "Included in working days"
-                                  : "Excluded from working days"}
-                              </div>
-                              <div>
-                                â€¢ <strong>Detection:</strong> Per-student zoom
-                                link presence
-                              </div>
-                              <div>
-                                â€¢ <strong>Deductions:</strong> Package-based
-                                rates applied
-                              </div>
-                              <div>
-                                â€¢ <strong>Waivers:</strong> Admin can waive
-                                system incidents
-                              </div>
-                            </div>
-                          </div>
-                        </div>
                       )}
 
                       <div className="mb-4 font-semibold text-black flex items-center gap-2">
@@ -4108,31 +3597,31 @@ function PackageDeductionManager() {
         <div className="text-purple-800 text-sm space-y-1">
           {activeTab === "lateness" ? (
             <>
-              <p>â€¢ Base amount أ— Tier percentage = Final deduction</p>
-              <p>â€¢ Each student's package determines their base amount</p>
-              <p>â€¢ Tier percentages are configured in Lateness Management</p>
+              <p>• Base amount × Tier percentage = Final deduction</p>
+              <p>• Each student's package determines their base amount</p>
+              <p>• Tier percentages are configured in Lateness Management</p>
             </>
           ) : (
             <>
               <p>
-                â€¢ Per time slot amount أ— Number of missed slots = Final
+                • Per time slot amount × Number of missed slots = Final
                 deduction
               </p>
-              <p>â€¢ Each student's package determines their slot rate</p>
-              <p>â€¢ Mixed classes calculate fairly per student's package</p>
+              <p>• Each student's package determines their slot rate</p>
+              <p>• Mixed classes calculate fairly per student's package</p>
             </>
           )}
         </div>
         <div className="mt-3 p-2 bg-white rounded-lg border border-purple-300">
           <div className="text-xs text-purple-700">
-            <strong>ًں“¦ Active Packages:</strong>{" "}
+            <strong>📦 Active Packages:</strong>{" "}
             {activePackages.length > 0
               ? activePackages.join(", ")
               : "Loading..."}
           </div>
           <div className="text-xs text-purple-600 mt-1">
             Packages are automatically detected from active students with
-            configured salaries
+            configured salarie
           </div>
         </div>
       </div>
