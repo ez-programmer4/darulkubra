@@ -1030,12 +1030,23 @@ export async function GET(req: NextRequest) {
           const finalLatenessDeduction = Math.round(latenessDeduction);
           const finalAbsenceDeduction = Math.round(absenceDeduction);
           const finalBonusAmount = Math.round(bonusAmount);
+          // Base salary already reflects actual work (Zoom links sent)
+          // Absence deduction is informational only - not subtracted from salary
           const totalSalary = Math.round(
             finalBaseSalary -
-              finalLatenessDeduction -
-              finalAbsenceDeduction +
+              finalLatenessDeduction +
               finalBonusAmount
           );
+          
+          // Debug salary calculation for high deduction cases
+          if (finalLatenessDeduction > 1000 || finalAbsenceDeduction > 1000) {
+            console.log(`🔍 API SALARY CALCULATION for ${t.ustazname}:`);
+            console.log(`  Base Salary: ${finalBaseSalary} ETB`);
+            console.log(`  Lateness Deduction: -${finalLatenessDeduction} ETB`);
+            console.log(`  Absence Deduction: ${finalAbsenceDeduction} ETB (INFO ONLY - NOT SUBTRACTED)`);
+            console.log(`  Bonuses: +${finalBonusAmount} ETB`);
+            console.log(`  Final Calculation: ${finalBaseSalary} - ${finalLatenessDeduction} + ${finalBonusAmount} = ${totalSalary} ETB`);
+          }
 
           // Simple debug summary
           if (isDebugTeacher && finalAbsenceDeduction > 0) {
@@ -1108,7 +1119,7 @@ export async function GET(req: NextRequest) {
                   totalTeachingDays > 0
                     ? Math.round(finalBaseSalary / totalTeachingDays)
                     : 0,
-                totalDeductions: finalLatenessDeduction + finalAbsenceDeduction,
+                totalDeductions: finalLatenessDeduction, // Only lateness affects salary
                 netSalary: totalSalary,
               },
             },

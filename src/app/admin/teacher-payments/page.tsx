@@ -217,6 +217,19 @@ export default function TeacherPaymentsPage() {
             teacher.baseSalary -
             teacher.latenessDeduction +
             teacher.bonuses;
+          
+          // Debug salary calculation
+          if (teacher.latenessDeduction > 1000 || teacher.absenceDeduction > 1000) {
+            console.log(`🔍 SALARY DEBUG for ${teacher.name}:`);
+            console.log(`  Base Salary: ${teacher.baseSalary} ETB`);
+            console.log(`  Lateness Deduction: -${teacher.latenessDeduction} ETB`);
+            console.log(`  Absence Deduction: ${teacher.absenceDeduction} ETB (INFO ONLY)`);
+            console.log(`  Bonuses: +${teacher.bonuses} ETB`);
+            console.log(`  Calculated Total: ${calculatedTotal} ETB`);
+            console.log(`  API Total: ${teacher.totalSalary} ETB`);
+            console.log(`  Match: ${Math.abs(calculatedTotal - teacher.totalSalary) < 0.01 ? '✅' : '❌'}`);
+          }
+          
           return {
             ...teacher,
             totalSalary: Math.round(calculatedTotal),
@@ -466,11 +479,14 @@ export default function TeacherPaymentsPage() {
             teacher.baseSalary -
             teacher.latenessDeduction +
             teacher.bonuses;
+          
           if (Math.abs(calculatedTotal - teacher.totalSalary) > 0.01) {
-            console.warn(
-              `Salary calculation mismatch for ${teacher.name}: Expected ${calculatedTotal}, Got ${teacher.totalSalary}`
-            );
+            console.warn(`🚨 SALARY MISMATCH for ${teacher.name}:`);
+            console.warn(`  Expected: ${calculatedTotal} ETB`);
+            console.warn(`  API Returned: ${teacher.totalSalary} ETB`);
+            console.warn(`  Base: ${teacher.baseSalary}, Lateness: -${teacher.latenessDeduction}, Bonuses: +${teacher.bonuses}`);
           }
+          
           return {
             ...teacher,
             totalSalary: Math.round(calculatedTotal), // Ensure consistency
