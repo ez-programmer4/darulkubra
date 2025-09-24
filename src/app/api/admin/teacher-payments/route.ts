@@ -522,7 +522,7 @@ export async function GET(req: NextRequest) {
           // Filter zoom links to prevent new teachers getting old teacher's work
           const filteredStudents = currentStudents.map(student => ({
             ...student,
-            zoom_links: student.zoom_links.filter(link => link.sent_time >= from)
+            zoom_links: student.zoom_links.filter(link => link.sent_time && link.sent_time >= from)
           }));
 
           // DEBUG: Log student data for debug teachers
