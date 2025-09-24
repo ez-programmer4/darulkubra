@@ -41,8 +41,11 @@ const compactCurrencyFormatter = new Intl.NumberFormat("en-US", {
 
 // Helper function to get the date range for a given month and year
 function getMonthRange(year: number, month: number) {
-  const startDate = dayjs().year(year).month(month - 1).date(1);
-  const endDate = startDate.endOf('month');
+  const startDate = dayjs()
+    .year(year)
+    .month(month - 1)
+    .date(1);
+  const endDate = startDate.endOf("month");
   return { from: startDate, to: endDate };
 }
 
@@ -50,21 +53,23 @@ export default function TeacherPaymentsPage() {
   // Date and filter states
   const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1);
   const [selectedYear, setSelectedYear] = useState(dayjs().year());
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [salaryRangeFilter, setSalaryRangeFilter] = useState({
     min: "",
-    max: ""
+    max: "",
   });
-  const [deductionFilter, setDeductionFilter] = useState<string>('all');
-  const [performanceFilter, setPerformanceFilter] = useState<string>('all');
-  
+  const [deductionFilter, setDeductionFilter] = useState<string>("all");
+  const [performanceFilter, setPerformanceFilter] = useState<string>("all");
+
   // Data states
   const [teachers, setTeachers] = useState<TeacherPayment[]>([]);
-  const [selectedTeacher, setSelectedTeacher] = useState<TeacherPayment | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<TeacherPayment | null>(
+    null
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // UI states
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -72,36 +77,67 @@ export default function TeacherPaymentsPage() {
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [showAdvancedView, setShowAdvancedView] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  
+
   // Bulk actions
-  const [bulkAction, setBulkAction] = useState<"mark-paid" | "mark-unpaid" | "">("");
+  const [bulkAction, setBulkAction] = useState<
+    "mark-paid" | "mark-unpaid" | ""
+  >("");
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(new Set());
-  
+  const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(
+    new Set()
+  );
+
   // Payment processing states
-  const [paymentProcessing, setPaymentProcessing] = useState<Set<string>>(new Set());
-  const [paymentResults, setPaymentResults] = useState<Record<string, {success: boolean, message: string}>>({});
-  const [salaryStatus, setSalaryStatus] = useState<Record<string, 'Paid' | 'Unpaid'>>({});
-  
+  const [paymentProcessing, setPaymentProcessing] = useState<Set<string>>(
+    new Set()
+  );
+  const [paymentResults, setPaymentResults] = useState<
+    Record<string, { success: boolean; message: string }>
+  >({});
+  const [salaryStatus, setSalaryStatus] = useState<
+    Record<string, "Paid" | "Unpaid">
+  >({});
+
   // Package salary management states
   const [packageSalaryLoading, setPackageSalaryLoading] = useState(false);
-  const [packageSalaryError, setPackageSalaryError] = useState<string | null>(null);
-  const [packageSalarySuccess, setPackageSalarySuccess] = useState<string | null>(null);
+  const [packageSalaryError, setPackageSalaryError] = useState<string | null>(
+    null
+  );
+  const [packageSalarySuccess, setPackageSalarySuccess] = useState<
+    string | null
+  >(null);
   const [availablePackages, setAvailablePackages] = useState<string[]>([]);
-  const [packageSalaries, setPackageSalaries] = useState<Record<string, number>>({});
-  const [packageSalaryInputs, setPackageSalaryInputs] = useState<Record<string, string>>({});
-  
+  const [packageSalaries, setPackageSalaries] = useState<
+    Record<string, number>
+  >({});
+  const [packageSalaryInputs, setPackageSalaryInputs] = useState<
+    Record<string, string>
+  >({});
+
   // Breakdown and details states
   const [breakdown, setBreakdown] = useState<{
-    latenessRecords: Array<{ date: string; timeSlot: string; studentName: string; minutesLate: number; deduction: number }>;
-    absenceRecords: Array<{ date: string; timeSlot: string; status: string; studentName: string; package: string; deduction: number }>;
+    latenessRecords: Array<{
+      date: string;
+      timeSlot: string;
+      studentName: string;
+      minutesLate: number;
+      deduction: number;
+    }>;
+    absenceRecords: Array<{
+      date: string;
+      timeSlot: string;
+      status: string;
+      studentName: string;
+      package: string;
+      deduction: number;
+    }>;
     bonusRecords: Array<{ date: string; amount: number; reason: string }>;
-  }>({ 
-    latenessRecords: [], 
-    absenceRecords: [], 
-    bonusRecords: [] 
+  }>({
+    latenessRecords: [],
+    absenceRecords: [],
+    bonusRecords: [],
   });
-  
+
   interface PackageBreakdown {
     studentName: string;
     package: string;
@@ -116,18 +152,20 @@ export default function TeacherPaymentsPage() {
     daysInMonth?: number;
     workingDays?: number;
   } | null>(null);
-  
+
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [breakdownError, setBreakdownError] = useState<string | null>(null);
-  
+
   // View and visibility states
   const [showTeacherSalary, setTeacherSalaryVisible] = useState(true);
   const [includeSundays, setIncludeSundays] = useState(false);
   const [salaryVisibilityLoading, setSalaryVisibilityLoading] = useState(false);
   const [sundayLoading, setSundayLoading] = useState(false);
-  
+
   // Sorting
-  const [sortKey, setSortKey] = useState<keyof TeacherPayment | "status">("name");
+  const [sortKey, setSortKey] = useState<keyof TeacherPayment | "status">(
+    "name"
+  );
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const months = [
@@ -191,7 +229,6 @@ export default function TeacherPaymentsPage() {
     });
   };
 
-
   const refreshTeacherData = useCallback(async () => {
     const { from, to } = getMonthRange(selectedYear, selectedMonth);
     try {
@@ -201,14 +238,18 @@ export default function TeacherPaymentsPage() {
       if (res.ok) {
         const data = await res.json();
         const validatedData = data.map((teacher: any) => {
-          const calculatedTotal = teacher.baseSalary - teacher.latenessDeduction - teacher.absenceDeduction + teacher.bonuses;
+          const calculatedTotal =
+            teacher.baseSalary -
+            teacher.latenessDeduction -
+            teacher.absenceDeduction +
+            teacher.bonuses;
           return {
             ...teacher,
             totalSalary: Math.round(calculatedTotal),
           };
         });
         setTeachers(validatedData);
-        
+
         const statusMap: Record<string, "Paid" | "Unpaid"> = {};
         for (const t of validatedData) {
           statusMap[t.id] = t.status || "Unpaid";
@@ -216,7 +257,7 @@ export default function TeacherPaymentsPage() {
         setSalaryStatus(statusMap);
       }
     } catch (error) {
-      console.error('Failed to refresh teacher data:', error);
+      console.error("Failed to refresh teacher data:", error);
     }
   }, [selectedMonth, selectedYear]);
 
@@ -224,29 +265,30 @@ export default function TeacherPaymentsPage() {
     async (teacherId: string) => {
       setBreakdownLoading(true);
       setBreakdownError(null);
-      
+
       try {
         const { from, to } = getMonthRange(selectedYear, selectedMonth);
-        
+
         // Make all API calls in parallel
-        const [breakdownRes, studentsRes, absenceRes, latenessRes] = await Promise.all([
-          fetch(
-            `/api/admin/teacher-payments?teacherId=${teacherId}&from=${from.toISOString()}&to=${to.toISOString()}`
-          ),
-          fetch(
-            `/api/admin/teacher-students/${teacherId}?month=${selectedMonth}&year=${selectedYear}`
-          ),
-          fetch(
-            `/api/admin/teacher-absences?teacherId=${teacherId}&month=${selectedMonth}&year=${selectedYear}`
-          ),
-          fetch(
-            `/api/admin/teacher-lateness?teacherId=${teacherId}&month=${selectedMonth}&year=${selectedYear}`
-          )
-        ]);
+        const [breakdownRes, studentsRes, absenceRes, latenessRes] =
+          await Promise.all([
+            fetch(
+              `/api/admin/teacher-payments?teacherId=${teacherId}&from=${from.toISOString()}&to=${to.toISOString()}`
+            ),
+            fetch(
+              `/api/admin/teacher-students/${teacherId}?month=${selectedMonth}&year=${selectedYear}`
+            ),
+            fetch(
+              `/api/admin/teacher-absences?teacherId=${teacherId}&month=${selectedMonth}&year=${selectedYear}`
+            ),
+            fetch(
+              `/api/admin/teacher-lateness?teacherId=${teacherId}&month=${selectedMonth}&year=${selectedYear}`
+            ),
+          ]);
 
         if (!breakdownRes.ok) throw new Error("Failed to fetch breakdown");
         const breakdownData = await breakdownRes.json();
-        
+
         // Process absence details if available
         let absenceDetails = null;
         if (absenceRes.ok) {
@@ -257,14 +299,16 @@ export default function TeacherPaymentsPage() {
               missedTimeSlots: absenceData.missedTimeSlots || 0,
               attendedTimeSlots: absenceData.attendedTimeSlots || 0,
               absenceRate: absenceData.absenceRate || 0,
-              timeSlotBreakdown: (absenceData.timeSlotBreakdown || []).map((slot: any) => ({
-                date: slot.date,
-                timeSlot: slot.timeSlot,
-                status: slot.status,
-                studentName: slot.studentName,
-                package: slot.package,
-                deduction: slot.deduction || 0
-              }))
+              timeSlotBreakdown: (absenceData.timeSlotBreakdown || []).map(
+                (slot: any) => ({
+                  date: slot.date,
+                  timeSlot: slot.timeSlot,
+                  status: slot.status,
+                  studentName: slot.studentName,
+                  package: slot.package,
+                  deduction: slot.deduction || 0,
+                })
+              ),
             };
           }
         }
@@ -277,70 +321,86 @@ export default function TeacherPaymentsPage() {
             latenessDetails = {
               totalLateMinutes: latenessData.totalLateMinutes || 0,
               lateOccurrences: latenessData.lateOccurrences || 0,
-              lateTimeSlots: (latenessData.lateTimeSlots || []).map((slot: any) => ({
-                date: slot.date,
-                timeSlot: slot.timeSlot,
-                studentName: slot.studentName || 'Unknown',
-                minutesLate: slot.minutesLate || 0,
-                deduction: slot.deduction || 0
-              }))
+              lateTimeSlots: (latenessData.lateTimeSlots || []).map(
+                (slot: any) => ({
+                  date: slot.date,
+                  timeSlot: slot.timeSlot,
+                  studentName: slot.studentName || "Unknown",
+                  minutesLate: slot.minutesLate || 0,
+                  deduction: slot.deduction || 0,
+                })
+              ),
             };
           }
         }
-        
+
         // Process students data if available
         let packageBreakdown = null;
         if (studentsRes.ok) {
           packageBreakdown = await studentsRes.json();
           setTeacherPackageBreakdown(packageBreakdown);
         }
-        
+
         // Update teacher with the fetched details
-        setTeachers(prevTeachers => 
-          prevTeachers.map(teacher => 
-            teacher.id === teacherId 
-              ? { 
-                  ...teacher, 
+        setTeachers((prevTeachers) =>
+          prevTeachers.map((teacher) =>
+            teacher.id === teacherId
+              ? {
+                  ...teacher,
                   ...(absenceDetails ? { absenceDetails } : {}),
                   ...(latenessDetails ? { latenessDetails } : {}),
-                  breakdown: breakdownData
-                } 
+                  breakdown: breakdownData,
+                }
               : teacher
           )
         );
-        
+
         // Set the breakdown data for the UI
         setBreakdown(breakdownData);
-        
+
         // Validate breakdown data consistency
-        const teacher = teachers.find(t => t.id === teacherId);
+        const teacher = teachers.find((t) => t.id === teacherId);
         if (teacher) {
-          const totalLateness = breakdownData.latenessRecords?.reduce(
-            (sum: number, r: any) => sum + (r.deductionApplied || 0), 0
-          ) || 0;
-            
-          const totalAbsence = breakdownData.absenceRecords?.reduce(
-            (sum: number, r: any) => sum + (r.deductionApplied || 0), 0
-          ) || 0;
-            
-          const totalBonus = breakdownData.bonusRecords?.reduce(
-            (sum: number, r: any) => sum + (r.amount || 0), 0
-          ) || 0;
-          
-          if (Math.abs(totalLateness - (teacher.latenessDeduction || 0)) > 0.01) {
-            console.warn(`Lateness mismatch for ${teacher.name}: Detail=${totalLateness}, Main=${teacher.latenessDeduction}`);
+          const totalLateness =
+            breakdownData.latenessRecords?.reduce(
+              (sum: number, r: any) => sum + (r.deductionApplied || 0),
+              0
+            ) || 0;
+
+          const totalAbsence =
+            breakdownData.absenceRecords?.reduce(
+              (sum: number, r: any) => sum + (r.deductionApplied || 0),
+              0
+            ) || 0;
+
+          const totalBonus =
+            breakdownData.bonusRecords?.reduce(
+              (sum: number, r: any) => sum + (r.amount || 0),
+              0
+            ) || 0;
+
+          if (
+            Math.abs(totalLateness - (teacher.latenessDeduction || 0)) > 0.01
+          ) {
+            console.warn(
+              `Lateness mismatch for ${teacher.name}: Detail=${totalLateness}, Main=${teacher.latenessDeduction}`
+            );
           }
-          
+
           if (Math.abs(totalAbsence - (teacher.absenceDeduction || 0)) > 0.01) {
-            console.warn(`Absence mismatch for ${teacher.name}: Detail=${totalAbsence}, Main=${teacher.absenceDeduction}`);
+            console.warn(
+              `Absence mismatch for ${teacher.name}: Detail=${totalAbsence}, Main=${teacher.absenceDeduction}`
+            );
           }
-          
+
           if (Math.abs(totalBonus - (teacher.bonuses || 0)) > 0.01) {
-            console.warn(`Bonus mismatch for ${teacher.name}: Detail=${totalBonus}, Main=${teacher.bonuses}`);
+            console.warn(
+              `Bonus mismatch for ${teacher.name}: Detail=${totalBonus}, Main=${teacher.bonuses}`
+            );
           }
         }
       } catch (err: any) {
-        console.error('Error in fetchBreakdown:', err);
+        console.error("Error in fetchBreakdown:", err);
         setBreakdownError(err.message || "Failed to fetch breakdown");
         setBreakdown({
           latenessRecords: [],
@@ -466,19 +526,19 @@ export default function TeacherPaymentsPage() {
         const paymentsRes = await fetch(
           `/api/admin/teacher-payments?startDate=${from.toISOString()}&endDate=${to.toISOString()}`
         );
-        
+
         if (!paymentsRes.ok) {
           throw new Error("Failed to fetch teacher payment data");
         }
-        
+
         const paymentData = await paymentsRes.json();
-        console.log('Payment data received:', paymentData);
-        
+        console.log("Payment data received:", paymentData);
+
         // Check if we have arrays or need to extract them
         let latenessRecords = [];
         let absenceRecords = [];
         let bonusRecords = [];
-        
+
         if (Array.isArray(paymentData)) {
           // If it's an array of teachers, create empty records for now
           latenessRecords = [];
@@ -489,11 +549,11 @@ export default function TeacherPaymentsPage() {
           absenceRecords = paymentData.absenceRecords || [];
           bonusRecords = paymentData.bonusRecords || [];
         }
-        
+
         // Get all teachers from the database
-        const teachersRes = await fetch('/api/admin/teachers');
+        const teachersRes = await fetch("/api/admin/teachers");
         let teachersData = [];
-        
+
         if (teachersRes.ok) {
           teachersData = await teachersRes.json();
         } else {
@@ -503,38 +563,45 @@ export default function TeacherPaymentsPage() {
           } else {
             // Create dummy teachers for testing
             teachersData = [
-              { ustazid: '1', ustazname: 'Teacher 1', baseSalary: 1000 },
-              { ustazid: '2', ustazname: 'Teacher 2', baseSalary: 1200 },
+              { ustazid: "1", ustazname: "Teacher 1", baseSalary: 1000 },
+              { ustazid: "2", ustazname: "Teacher 2", baseSalary: 1200 },
             ];
           }
         }
-        
-        console.log('Teachers data:', teachersData);
-        
+
+        console.log("Teachers data:", teachersData);
+
         // Process teachers data
         const processedTeachers = teachersData.map((teacher: any) => {
           const teacherId = teacher.ustazid || teacher.id;
-          const teacherName = teacher.ustazname || teacher.name || 'Unknown Teacher';
-          
+          const teacherName =
+            teacher.ustazname || teacher.name || "Unknown Teacher";
+
           // Calculate total deductions and bonuses for this teacher
           const teacherLateness = latenessRecords
             .filter((r: any) => r.teacherId === teacherId)
-            .reduce((sum: number, r: any) => sum + (r.deductionApplied || 0), 0);
-            
+            .reduce(
+              (sum: number, r: any) => sum + (r.deductionApplied || 0),
+              0
+            );
+
           const teacherAbsences = absenceRecords
             .filter((r: any) => r.teacherId === teacherId)
             .reduce((sum: number, r: any) => sum + (r.deduction || 0), 0);
-            
+
           const teacherBonuses = bonusRecords
             .filter((r: any) => r.teacherId === teacherId)
             .reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
-          
+
           // Get base salary
           const baseSalary = teacher.baseSalary || teacher.totalSalary || 0;
-          
+
           // Calculate total salary
-          const totalSalary = Math.max(0, baseSalary - teacherLateness - teacherAbsences + teacherBonuses);
-          
+          const totalSalary = Math.max(
+            0,
+            baseSalary - teacherLateness - teacherAbsences + teacherBonuses
+          );
+
           return {
             id: String(teacherId),
             name: teacherName,
@@ -543,15 +610,17 @@ export default function TeacherPaymentsPage() {
             absenceDeduction: teacherAbsences,
             bonuses: teacherBonuses,
             totalSalary,
-            status: "Unpaid"
+            status: "Unpaid",
           };
         });
-        
-        console.log('Processed teachers:', processedTeachers);
-        
+
+        console.log("Processed teachers:", processedTeachers);
+        console.log("Setting teachers state with:", processedTeachers.length, "teachers");
+
         // Update state
         setTeachers(processedTeachers);
-        
+        console.log("Teachers state updated");
+
         // Set initial status (all unpaid by default)
         const statusMap: Record<string, "Paid" | "Unpaid"> = {};
         for (const t of processedTeachers) {
@@ -561,7 +630,7 @@ export default function TeacherPaymentsPage() {
       } catch (e: any) {
         console.error("Error in fetchPayments:", e);
         setError(e.message || "Failed to fetch teacher payments");
-        
+
         // Set empty arrays to prevent map errors
         setTeachers([]);
         setSalaryStatus({});
@@ -628,7 +697,9 @@ export default function TeacherPaymentsPage() {
   }
 
   const filteredTeachers = teachers.filter((t) => {
-    const matchesSearch = (t.name || '').toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (t.name || "")
+      .toLowerCase()
+      .includes(search.toLowerCase());
     const matchesStatus =
       !statusFilter || (salaryStatus[t.id] || "Unpaid") === statusFilter;
 
@@ -722,9 +793,12 @@ export default function TeacherPaymentsPage() {
   };
 
   const processPayment = async (teacherId: string, teacher: TeacherPayment) => {
-    setPaymentProcessing(prev => new Set([...prev, teacherId]));
+    setPaymentProcessing((prev) => new Set([...prev, teacherId]));
     try {
-      const period = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
+      const period = `${selectedYear}-${String(selectedMonth).padStart(
+        2,
+        "0"
+      )}`;
       const res = await fetch("/api/admin/teacher-payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -736,19 +810,24 @@ export default function TeacherPaymentsPage() {
           latenessDeduction: teacher.latenessDeduction,
           absenceDeduction: teacher.absenceDeduction,
           bonuses: teacher.bonuses,
-          processPaymentNow: true
+          processPaymentNow: true,
         }),
       });
-      
+
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Payment failed");
-      
-      setSalaryStatus(prev => ({ ...prev, [teacherId]: "Paid" }));
-      setPaymentResults(prev => ({ ...prev, [teacherId]: result.paymentResult }));
-      
+
+      setSalaryStatus((prev) => ({ ...prev, [teacherId]: "Paid" }));
+      setPaymentResults((prev) => ({
+        ...prev,
+        [teacherId]: result.paymentResult,
+      }));
+
       toast({
         title: "Payment Successful",
-        description: `Payment processed for ${teacher.name}. Transaction ID: ${result.paymentResult?.transactionId || 'N/A'}`,
+        description: `Payment processed for ${teacher.name}. Transaction ID: ${
+          result.paymentResult?.transactionId || "N/A"
+        }`,
       });
     } catch (err: any) {
       toast({
@@ -757,7 +836,7 @@ export default function TeacherPaymentsPage() {
         variant: "destructive",
       });
     } finally {
-      setPaymentProcessing(prev => {
+      setPaymentProcessing((prev) => {
         const newSet = new Set(prev);
         newSet.delete(teacherId);
         return newSet;
@@ -770,13 +849,17 @@ export default function TeacherPaymentsPage() {
 
     setBulkLoading(true);
     try {
-      const period = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
+      const period = `${selectedYear}-${String(selectedMonth).padStart(
+        2,
+        "0"
+      )}`;
       const newStatus = bulkAction === "mark-paid" ? "Paid" : "Unpaid";
 
       if (newStatus === "Paid" && !canMarkPaid) {
         toast({
           title: "Error",
-          description: "Cannot mark as paid before the 28th of the current month or for future months.",
+          description:
+            "Cannot mark as paid before the 28th of the current month or for future months.",
           variant: "destructive",
         });
         return;
@@ -797,22 +880,26 @@ export default function TeacherPaymentsPage() {
             latenessDeduction: teacher.latenessDeduction,
             absenceDeduction: teacher.absenceDeduction,
             bonuses: teacher.bonuses,
-            processPaymentNow: processPayments && newStatus === "Paid"
+            processPaymentNow: processPayments && newStatus === "Paid",
           }),
         });
 
         const result = await res.json();
-        if (!res.ok) throw new Error(result.error || `Failed to update ${teacher.name}`);
-        
+        if (!res.ok)
+          throw new Error(result.error || `Failed to update ${teacher.name}`);
+
         if (result.paymentResult) {
-          setPaymentResults(prev => ({ ...prev, [teacherId]: result.paymentResult }));
+          setPaymentResults((prev) => ({
+            ...prev,
+            [teacherId]: result.paymentResult,
+          }));
         }
-        
+
         return { teacherId, result };
       });
 
       const results = await Promise.all(promises);
-      const successCount = results.filter(r => r).length;
+      const successCount = results.filter((r) => r).length;
 
       setSalaryStatus((prev) => {
         const updated = { ...prev };
@@ -825,10 +912,10 @@ export default function TeacherPaymentsPage() {
       setSelectedTeachers(new Set());
       setBulkAction("");
       setShowBulkConfirm(false);
-      
+
       toast({
         title: "Success",
-        description: processPayments 
+        description: processPayments
           ? `${successCount} teacher(s) marked as ${newStatus} and payments processed`
           : `${successCount} teacher(s) marked as ${newStatus}`,
       });
@@ -1071,8 +1158,8 @@ export default function TeacherPaymentsPage() {
                         â€¢ Teacher replacements get fair pro-rated payments
                       </li>
                       <li>
-                        â€¢ Working days ensure full monthly salary when all days
-                        taught
+                        â€¢ Working days ensure full monthly salary when all
+                        days taught
                       </li>
                       <li>
                         â€¢ Deduction adjustments are automatically integrated
@@ -2263,7 +2350,8 @@ export default function TeacherPaymentsPage() {
                                 <div className="flex items-center gap-2">
                                   <button
                                     className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                                      (salaryStatus[t.id] || "Unpaid") === "Paid"
+                                      (salaryStatus[t.id] || "Unpaid") ===
+                                      "Paid"
                                         ? "bg-green-100 text-green-800 hover:bg-green-200"
                                         : canMarkPaid
                                         ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
@@ -2271,25 +2359,46 @@ export default function TeacherPaymentsPage() {
                                     }`}
                                     onClick={async () => {
                                       if (!canMarkPaid) return;
-                                      const newStatus = (salaryStatus[t.id] || "Unpaid") === "Paid" ? "Unpaid" : "Paid";
+                                      const newStatus =
+                                        (salaryStatus[t.id] || "Unpaid") ===
+                                        "Paid"
+                                          ? "Unpaid"
+                                          : "Paid";
                                       try {
-                                        const period = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
-                                        const res = await fetch("/api/admin/teacher-payments", {
-                                          method: "POST",
-                                          headers: { "Content-Type": "application/json" },
-                                          body: JSON.stringify({
-                                            teacherId: t.id,
-                                            period,
-                                            status: newStatus,
-                                            totalSalary: t.totalSalary,
-                                            latenessDeduction: t.latenessDeduction,
-                                            absenceDeduction: t.absenceDeduction,
-                                            bonuses: t.bonuses,
-                                          }),
-                                        });
+                                        const period = `${selectedYear}-${String(
+                                          selectedMonth
+                                        ).padStart(2, "0")}`;
+                                        const res = await fetch(
+                                          "/api/admin/teacher-payments",
+                                          {
+                                            method: "POST",
+                                            headers: {
+                                              "Content-Type":
+                                                "application/json",
+                                            },
+                                            body: JSON.stringify({
+                                              teacherId: t.id,
+                                              period,
+                                              status: newStatus,
+                                              totalSalary: t.totalSalary,
+                                              latenessDeduction:
+                                                t.latenessDeduction,
+                                              absenceDeduction:
+                                                t.absenceDeduction,
+                                              bonuses: t.bonuses,
+                                            }),
+                                          }
+                                        );
                                         const result = await res.json();
-                                        if (!res.ok) throw new Error(result.error || "Failed to update salary status");
-                                        setSalaryStatus((prev) => ({ ...prev, [t.id]: newStatus }));
+                                        if (!res.ok)
+                                          throw new Error(
+                                            result.error ||
+                                              "Failed to update salary status"
+                                          );
+                                        setSalaryStatus((prev) => ({
+                                          ...prev,
+                                          [t.id]: newStatus,
+                                        }));
                                         toast({
                                           title: "Success",
                                           description: `Salary for ${t.name} marked as ${newStatus}`,
@@ -2297,17 +2406,27 @@ export default function TeacherPaymentsPage() {
                                       } catch (err: any) {
                                         toast({
                                           title: "Error",
-                                          description: err.message || "Failed to update salary status",
+                                          description:
+                                            err.message ||
+                                            "Failed to update salary status",
                                           variant: "destructive",
                                         });
                                       }
                                     }}
-                                    disabled={!canMarkPaid || paymentProcessing.has(t.id)}
-                                    title={!canMarkPaid ? "You can only mark as paid after the 28th of the current month or for past months." : undefined}
+                                    disabled={
+                                      !canMarkPaid ||
+                                      paymentProcessing.has(t.id)
+                                    }
+                                    title={
+                                      !canMarkPaid
+                                        ? "You can only mark as paid after the 28th of the current month or for past months."
+                                        : undefined
+                                    }
                                   >
                                     {paymentProcessing.has(t.id) ? (
                                       <FiLoader className="animate-spin h-4 w-4" />
-                                    ) : (salaryStatus[t.id] || "Unpaid") === "Paid" ? (
+                                    ) : (salaryStatus[t.id] || "Unpaid") ===
+                                      "Paid" ? (
                                       <FiCheckCircle className="text-green-600 h-4 w-4" />
                                     ) : canMarkPaid ? (
                                       <FiXCircle className="text-yellow-600 h-4 w-4" />
@@ -2316,26 +2435,31 @@ export default function TeacherPaymentsPage() {
                                     )}
                                     {salaryStatus[t.id] || "Unpaid"}
                                   </button>
-                                  
-                                  {canMarkPaid && (salaryStatus[t.id] || "Unpaid") === "Unpaid" && (
-                                    <button
-                                      onClick={() => processPayment(t.id, t)}
-                                      disabled={paymentProcessing.has(t.id)}
-                                      className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-all hover:scale-105 disabled:opacity-50"
-                                      title="Mark as paid and process payment"
-                                    >
-                                      {paymentProcessing.has(t.id) ? (
-                                        <FiLoader className="animate-spin h-3 w-3" />
-                                      ) : (
-                                        "ًں’³ Pay"
-                                      )}
-                                    </button>
-                                  )}
+
+                                  {canMarkPaid &&
+                                    (salaryStatus[t.id] || "Unpaid") ===
+                                      "Unpaid" && (
+                                      <button
+                                        onClick={() => processPayment(t.id, t)}
+                                        disabled={paymentProcessing.has(t.id)}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-all hover:scale-105 disabled:opacity-50"
+                                        title="Mark as paid and process payment"
+                                      >
+                                        {paymentProcessing.has(t.id) ? (
+                                          <FiLoader className="animate-spin h-3 w-3" />
+                                        ) : (
+                                          "ًں’³ Pay"
+                                        )}
+                                      </button>
+                                    )}
                                 </div>
-                                
+
                                 {paymentResults[t.id] && (
                                   <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded border">
-                                    TX: {(paymentResults[t.id] as any)?.transactionId?.slice(-8) || 'N/A'}
+                                    TX:{" "}
+                                    {(
+                                      paymentResults[t.id] as any
+                                    )?.transactionId?.slice(-8) || "N/A"}
                                   </div>
                                 )}
                               </div>
@@ -2412,19 +2536,22 @@ export default function TeacherPaymentsPage() {
                 Are you sure you want to mark {selectedTeachers.size} teacher(s)
                 as {bulkAction === "mark-paid" ? "Paid" : "Unpaid"}?
               </p>
-              
+
               {bulkAction === "mark-paid" && canMarkPaid && (
                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
                     <FiInfo className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-800">Payment Processing Options</span>
+                    <span className="text-sm font-medium text-blue-800">
+                      Payment Processing Options
+                    </span>
                   </div>
                   <p className="text-xs text-blue-700 mb-3">
-                    Choose whether to process actual payments or just mark as paid for manual processing.
+                    Choose whether to process actual payments or just mark as
+                    paid for manual processing.
                   </p>
                 </div>
               )}
-              
+
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowBulkConfirm(false)}
@@ -2432,7 +2559,7 @@ export default function TeacherPaymentsPage() {
                 >
                   Cancel
                 </button>
-                
+
                 {bulkAction === "mark-paid" && canMarkPaid ? (
                   <>
                     <button
@@ -2440,7 +2567,11 @@ export default function TeacherPaymentsPage() {
                       className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl transition-all font-semibold flex items-center gap-2"
                       disabled={bulkLoading}
                     >
-                      {bulkLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiCheck className="h-4 w-4" />}
+                      {bulkLoading ? (
+                        <FiLoader className="animate-spin h-4 w-4" />
+                      ) : (
+                        <FiCheck className="h-4 w-4" />
+                      )}
                       Mark Only
                     </button>
                     <button
@@ -2448,7 +2579,11 @@ export default function TeacherPaymentsPage() {
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-semibold flex items-center gap-2"
                       disabled={bulkLoading}
                     >
-                      {bulkLoading ? <FiLoader className="animate-spin h-4 w-4" /> : <FiDollarSign className="h-4 w-4" />}
+                      {bulkLoading ? (
+                        <FiLoader className="animate-spin h-4 w-4" />
+                      ) : (
+                        <FiDollarSign className="h-4 w-4" />
+                      )}
                       Mark & Pay
                     </button>
                   </>
@@ -2507,8 +2642,8 @@ export default function TeacherPaymentsPage() {
                         student's package (used with tier percentages)
                       </p>
                       <p>
-                        â€¢ <strong>Absence:</strong> Per-slot deduction varies by
-                        student's package
+                        â€¢ <strong>Absence:</strong> Per-slot deduction varies
+                        by student's package
                       </p>
                       <p>
                         â€¢ <strong>Fair System:</strong> Higher-fee packages =
@@ -2570,7 +2705,9 @@ export default function TeacherPaymentsPage() {
                   <div className="bg-gray-50 rounded-xl p-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <h4 className="font-medium text-gray-700 mb-2">Earnings</h4>
+                        <h4 className="font-medium text-gray-700 mb-2">
+                          Earnings
+                        </h4>
                         <div className="space-y-2">
                           <div className="flex justify-between">
                             <span className="text-gray-600">Base Salary:</span>
@@ -2587,7 +2724,9 @@ export default function TeacherPaymentsPage() {
                         </div>
                       </div>
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <h4 className="font-medium text-gray-700 mb-2">Deductions</h4>
+                        <h4 className="font-medium text-gray-700 mb-2">
+                          Deductions
+                        </h4>
                         <div className="space-y-2">
                           <div className="flex justify-between">
                             <span className="text-gray-600">Lateness:</span>
@@ -2629,91 +2768,133 @@ export default function TeacherPaymentsPage() {
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
                           <div className="flex items-center gap-1">
                             <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                            <span>{selectedTeacher.absenceDetails.attendedTimeSlots} attended</span>
+                            <span>
+                              {selectedTeacher.absenceDetails.attendedTimeSlots}{" "}
+                              attended
+                            </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <span className="w-3 h-3 rounded-full bg-red-500"></span>
-                            <span>{selectedTeacher.absenceDetails.missedTimeSlots} missed</span>
+                            <span>
+                              {selectedTeacher.absenceDetails.missedTimeSlots}{" "}
+                              missed
+                            </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-                            <span>{selectedTeacher.absenceDetails.timeSlotBreakdown.filter(t => t.status === 'waived').length} waived</span>
+                            <span>
+                              {
+                                selectedTeacher.absenceDetails.timeSlotBreakdown.filter(
+                                  (t) => t.status === "waived"
+                                ).length
+                              }{" "}
+                              waived
+                            </span>
                           </div>
                         </div>
                       </div>
-                      
 
                       <div className="divide-y divide-gray-100">
-                        {selectedTeacher.absenceDetails.timeSlotBreakdown.map((slot, idx) => (
-                          <div key={idx} className="p-4 hover:bg-gray-50">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <p className="font-medium">{slot.studentName}</p>
-                                <p className="text-sm text-gray-500">
-                                  {dayjs(slot.date).format('MMM D, YYYY')} â€¢ {slot.timeSlot}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                  slot.status === 'attended' ? 'bg-green-100 text-green-800' :
-                                  slot.status === 'missed' ? 'bg-red-100 text-red-800' :
-                                  'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                  {slot.status.charAt(0).toUpperCase() + slot.status.slice(1)}
-                                </span>
-                                {slot.status === 'missed' && (
-                                  <span className="text-sm font-medium">-{slot.deduction} ETB</span>
-                                )}
+                        {selectedTeacher.absenceDetails.timeSlotBreakdown.map(
+                          (slot, idx) => (
+                            <div key={idx} className="p-4 hover:bg-gray-50">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <p className="font-medium">
+                                    {slot.studentName}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    {dayjs(slot.date).format("MMM D, YYYY")} â€¢{" "}
+                                    {slot.timeSlot}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`px-2 py-1 text-xs rounded-full ${
+                                      slot.status === "attended"
+                                        ? "bg-green-100 text-green-800"
+                                        : slot.status === "missed"
+                                        ? "bg-red-100 text-red-800"
+                                        : "bg-yellow-100 text-yellow-800"
+                                    }`}
+                                  >
+                                    {slot.status.charAt(0).toUpperCase() +
+                                      slot.status.slice(1)}
+                                  </span>
+                                  {slot.status === "missed" && (
+                                    <span className="text-sm font-medium">
+                                      -{slot.deduction} ETB
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          )
+                        )}
                       </div>
                     </div>
                   )}
 
                   {/* Lateness Details */}
-                  {selectedTeacher.latenessDetails && selectedTeacher.latenessDetails.lateTimeSlots.length > 0 && (
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                      <div className="p-4 bg-gray-50 border-b border-gray-200">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          Lateness Details
-                        </h3>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                          <div>
-                            <span className="font-medium">{selectedTeacher.latenessDetails.lateOccurrences} </span>
-                            <span>occurrences</span>
-                          </div>
-                          <div>
-                            <span className="font-medium">{selectedTeacher.latenessDetails.totalLateMinutes} </span>
-                            <span>total minutes late</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-
-                      <div className="divide-y divide-gray-100">
-                        {selectedTeacher.latenessDetails.lateTimeSlots.map((slot, idx) => (
-                          <div key={idx} className="p-4 hover:bg-gray-50">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <p className="font-medium">{slot.studentName}</p>
-                                <p className="text-sm text-gray-500">
-                                  {dayjs(slot.date).format('MMM D, YYYY')} â€¢ {slot.timeSlot}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-sm text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
-                                  {slot.minutesLate} min late
-                                </span>
-                                <span className="text-sm font-medium text-red-600">-{slot.deduction} ETB</span>
-                              </div>
+                  {selectedTeacher.latenessDetails &&
+                    selectedTeacher.latenessDetails.lateTimeSlots.length >
+                      0 && (
+                      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="p-4 bg-gray-50 border-b border-gray-200">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Lateness Details
+                          </h3>
+                          <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                            <div>
+                              <span className="font-medium">
+                                {
+                                  selectedTeacher.latenessDetails
+                                    .lateOccurrences
+                                }{" "}
+                              </span>
+                              <span>occurrences</span>
+                            </div>
+                            <div>
+                              <span className="font-medium">
+                                {
+                                  selectedTeacher.latenessDetails
+                                    .totalLateMinutes
+                                }{" "}
+                              </span>
+                              <span>total minutes late</span>
                             </div>
                           </div>
-                        ))}
+                        </div>
+
+                        <div className="divide-y divide-gray-100">
+                          {selectedTeacher.latenessDetails.lateTimeSlots.map(
+                            (slot, idx) => (
+                              <div key={idx} className="p-4 hover:bg-gray-50">
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <p className="font-medium">
+                                      {slot.studentName}
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                      {dayjs(slot.date).format("MMM D, YYYY")}{" "}
+                                      â€¢ {slot.timeSlot}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-sm text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+                                      {slot.minutesLate} min late
+                                    </span>
+                                    <span className="text-sm font-medium text-red-600">
+                                      -{slot.deduction} ETB
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               </div>
 
@@ -2991,7 +3172,8 @@ export default function TeacherPaymentsPage() {
                                       </div>
                                     )}
                                   <div className="text-xs text-green-600 mt-1 font-medium">
-                                    âœ“ Deduction calculated using {r.studentName}
+                                    âœ“ Deduction calculated using{" "}
+                                    {r.studentName}
                                     's package-specific base rate
                                   </div>
                                   {r.scheduledTime && r.actualStartTime && (
@@ -3034,7 +3216,10 @@ export default function TeacherPaymentsPage() {
                             </span>
                             <div className="flex items-center gap-2 ml-4">
                               <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-medium">
-                                ًں“… {includeSundays ? 'Sundays Included' : 'Sundays Excluded'}
+                                ًں“…{" "}
+                                {includeSundays
+                                  ? "Sundays Included"
+                                  : "Sundays Excluded"}
                               </span>
                               <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-medium">
                                 ًں”— Zoom Link Based
@@ -3062,22 +3247,40 @@ export default function TeacherPaymentsPage() {
                             </div>
                           )}
                         </div>
-                        
+
                         {/* Absence Detection Info */}
                         <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 mb-4">
                           <div className="text-xs text-blue-800 font-medium mb-2 flex items-center gap-1">
                             â„¹ï¸ڈ How Absence Detection Works
                           </div>
                           <div className="text-xs text-blue-700 space-y-1">
-                            <div>â€¢ <strong>Per-Student Tracking:</strong> Each student checked individually for zoom links</div>
-                            <div>â€¢ <strong>Date Range:</strong> Only past dates processed (not today or future)</div>
-                            <div>â€¢ <strong>Sunday Policy:</strong> {includeSundays ? 'Sundays count as working days' : 'Sundays excluded from calculations'}</div>
-                            <div>â€¢ <strong>Package Rates:</strong> Different deduction amounts per student package</div>
-                            <div>â€¢ <strong>Admin Waivers:</strong> System incidents can waive deductions</div>
+                            <div>
+                              â€¢ <strong>Per-Student Tracking:</strong> Each
+                              student checked individually for zoom links
+                            </div>
+                            <div>
+                              â€¢ <strong>Date Range:</strong> Only past dates
+                              processed (not today or future)
+                            </div>
+                            <div>
+                              â€¢ <strong>Sunday Policy:</strong>{" "}
+                              {includeSundays
+                                ? "Sundays count as working days"
+                                : "Sundays excluded from calculations"}
+                            </div>
+                            <div>
+                              â€¢ <strong>Package Rates:</strong> Different
+                              deduction amounts per student package
+                            </div>
+                            <div>
+                              â€¢ <strong>Admin Waivers:</strong> System
+                              incidents can waive deductions
+                            </div>
                           </div>
                         </div>
                       </div>
-                      {!breakdown.absenceRecords || breakdown.absenceRecords.length === 0 ? (
+                      {!breakdown.absenceRecords ||
+                      breakdown.absenceRecords.length === 0 ? (
                         <div className="text-gray-500 mb-4">
                           No absence records.
                         </div>
@@ -3140,12 +3343,13 @@ export default function TeacherPaymentsPage() {
                                             weekday: "long",
                                           })}
                                         </span>
-                                        {new Date(r.classDate).getDay() === 0 && (
+                                        {new Date(r.classDate).getDay() ===
+                                          0 && (
                                           <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded font-medium">
                                             ًں“… Sunday
                                           </span>
                                         )}
-                                        {r.reviewNotes?.includes('WAIVED') && (
+                                        {r.reviewNotes?.includes("WAIVED") && (
                                           <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-medium">
                                             âœ… Waived
                                           </span>
@@ -3295,7 +3499,8 @@ export default function TeacherPaymentsPage() {
                                             <div className="bg-blue-50 rounded p-3 mb-3 border border-blue-200">
                                               <div className="flex items-center justify-between mb-3">
                                                 <div className="text-xs text-blue-800 font-medium flex items-center gap-1">
-                                                  ًں“ٹ Package-Specific Breakdown
+                                                  ًں“ٹ Package-Specific
+                                                  Breakdown
                                                 </div>
                                                 <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
                                                   {packageDetails.length}{" "}
@@ -3343,7 +3548,9 @@ export default function TeacherPaymentsPage() {
                                                         </div>
                                                         <div className="text-xs text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">
                                                           {slots} slot
-                                                          {slots > 1 ? "s" : ""}{" "}
+                                                          {slots > 1
+                                                            ? "s"
+                                                            : ""}{" "}
                                                           أ— {rate} ETB/slot ={" "}
                                                           {total} ETB
                                                         </div>
@@ -3508,13 +3715,15 @@ export default function TeacherPaymentsPage() {
                                       <div className="text-xs text-yellow-700 bg-white rounded p-2 border border-yellow-300">
                                         {r.reviewNotes}
                                       </div>
-                                      
+
                                       {/* Parse and display detailed absence info */}
                                       {(() => {
-                                        const notes = r.reviewNotes || '';
-                                        const absentMatch = notes.match(/Absent: ([^.]+)/);
-                                        const presentMatch = notes.match(/Present: ([^.]+)/);
-                                        
+                                        const notes = r.reviewNotes || "";
+                                        const absentMatch =
+                                          notes.match(/Absent: ([^.]+)/);
+                                        const presentMatch =
+                                          notes.match(/Present: ([^.]+)/);
+
                                         if (absentMatch || presentMatch) {
                                           return (
                                             <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -3534,7 +3743,7 @@ export default function TeacherPaymentsPage() {
                                                     âœ… Present Students:
                                                   </div>
                                                   <div className="text-xs text-green-700">
-                                                    {presentMatch[1] || 'None'}
+                                                    {presentMatch[1] || "None"}
                                                   </div>
                                                 </div>
                                               )}
@@ -3601,37 +3810,45 @@ export default function TeacherPaymentsPage() {
                           })}
                         </ul>
                       )}
-                      
+
                       {/* Absence Detection Summary */}
                       {breakdown.absenceRecords?.length > 0 && (
                         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200 mb-6">
                           <div className="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
                             ًں“ٹ Absence Detection Summary
                           </div>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                             <div className="bg-white rounded-lg p-3 border border-blue-200">
-                              <div className="text-xs text-blue-600 font-medium mb-1">Total Days Processed</div>
+                              <div className="text-xs text-blue-600 font-medium mb-1">
+                                Total Days Processed
+                              </div>
                               <div className="text-lg font-bold text-blue-900">
                                 {breakdown.absenceRecords.length}
                               </div>
-                              <div className="text-xs text-blue-600">Past dates only</div>
+                              <div className="text-xs text-blue-600">
+                                Past dates only
+                              </div>
                             </div>
-                            
+
                             <div className="bg-white rounded-lg p-3 border border-blue-200">
-                              <div className="text-xs text-blue-600 font-medium mb-1">Students Affected</div>
+                              <div className="text-xs text-blue-600 font-medium mb-1">
+                                Students Affected
+                              </div>
                               <div className="text-lg font-bold text-red-900">
                                 {(() => {
                                   const uniqueStudents = new Set();
                                   breakdown.absenceRecords.forEach((r: any) => {
                                     if (r.packageBreakdown) {
                                       try {
-                                        const packages = typeof r.packageBreakdown === 'string' 
-                                          ? JSON.parse(r.packageBreakdown) 
-                                          : r.packageBreakdown;
+                                        const packages =
+                                          typeof r.packageBreakdown === "string"
+                                            ? JSON.parse(r.packageBreakdown)
+                                            : r.packageBreakdown;
                                         if (Array.isArray(packages)) {
                                           packages.forEach((p: any) => {
-                                            if (p.studentName) uniqueStudents.add(p.studentName);
+                                            if (p.studentName)
+                                              uniqueStudents.add(p.studentName);
                                           });
                                         }
                                       } catch {}
@@ -3640,25 +3857,47 @@ export default function TeacherPaymentsPage() {
                                   return uniqueStudents.size;
                                 })()}
                               </div>
-                              <div className="text-xs text-red-600">Unique students</div>
+                              <div className="text-xs text-red-600">
+                                Unique students
+                              </div>
                             </div>
-                            
+
                             <div className="bg-white rounded-lg p-3 border border-blue-200">
-                              <div className="text-xs text-blue-600 font-medium mb-1">Detection Method</div>
+                              <div className="text-xs text-blue-600 font-medium mb-1">
+                                Detection Method
+                              </div>
                               <div className="text-sm font-bold text-green-900">
                                 Per-Student
                               </div>
-                              <div className="text-xs text-green-600">Zoom link tracking</div>
+                              <div className="text-xs text-green-600">
+                                Zoom link tracking
+                              </div>
                             </div>
                           </div>
-                          
+
                           <div className="bg-white rounded-lg p-3 border border-blue-200">
-                            <div className="text-xs text-blue-800 font-medium mb-2">System Configuration:</div>
+                            <div className="text-xs text-blue-800 font-medium mb-2">
+                              System Configuration:
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-700">
-                              <div>â€¢ <strong>Sunday Policy:</strong> {includeSundays ? 'Included in working days' : 'Excluded from working days'}</div>
-                              <div>â€¢ <strong>Detection:</strong> Per-student zoom link presence</div>
-                              <div>â€¢ <strong>Deductions:</strong> Package-based rates applied</div>
-                              <div>â€¢ <strong>Waivers:</strong> Admin can waive system incidents</div>
+                              <div>
+                                â€¢ <strong>Sunday Policy:</strong>{" "}
+                                {includeSundays
+                                  ? "Included in working days"
+                                  : "Excluded from working days"}
+                              </div>
+                              <div>
+                                â€¢ <strong>Detection:</strong> Per-student zoom
+                                link presence
+                              </div>
+                              <div>
+                                â€¢ <strong>Deductions:</strong> Package-based
+                                rates applied
+                              </div>
+                              <div>
+                                â€¢ <strong>Waivers:</strong> Admin can waive
+                                system incidents
+                              </div>
                             </div>
                           </div>
                         </div>
