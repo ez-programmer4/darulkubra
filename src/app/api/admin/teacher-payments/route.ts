@@ -500,8 +500,7 @@ export async function GET(req: NextRequest) {
       await Promise.all(
         teachers.map(async (t) => {
           // === STEP 1: GET TEACHER'S STUDENTS (Teacher Change Handling) ===
-          // Each teacher gets fresh calculation based on their assigned students
-          // When teacher changes, new teacher starts with clean slate
+          // Only get students currently assigned to this teacher
           const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
             where: {
               ustaz: t.ustazid, // Only students assigned to THIS teacher
@@ -519,6 +518,12 @@ export async function GET(req: NextRequest) {
               },
             },
           });
+
+          // Filter zoom links to prevent new teachers getting old teacher's work
+          const filteredStudents = currentStudents.map(student => ({
+            ...student,
+            zoom_links: student.zoom_links.filter(link => link.sent_time >= from)
+          }));
 
           // DEBUG: Log student data for debug teachers
           const isDebugTeacher =
@@ -541,7 +546,7 @@ export async function GET(req: NextRequest) {
           const dailyBreakdown = [];
           const dailyEarnings = new Map();
 
-          for (const student of currentStudents) {
+          for (const student of filteredStudents) {
             if (!student.package || !salaryMap[student.package]) continue;
 
             const monthlyPackageSalary = Math.round(
@@ -553,7 +558,7 @@ export async function GET(req: NextRequest) {
             const teachingDates = new Set();
             const dailyLinks = new Map();
 
-            // Group zoom links by date and keep only the earliest one per day
+            // Only count zoom links from when this teacher was assigned
             student.zoom_links.forEach((link) => {
               if (link.sent_time) {
                 const linkDate = new Date(link.sent_time);
@@ -869,7 +874,7 @@ export async function GET(req: NextRequest) {
             const dateStr = format(d, "yyyy-MM-dd");
 
             // Check if teacher sent zoom links on this day
-            const dayHasZoomLinks = currentStudents.some((student) =>
+            const dayHasZoomLinks = filteredStudents.some((student) =>
               student.zoom_links.some((link) => {
                 if (!link.sent_time) return false;
                 const linkDate = format(link.sent_time, "yyyy-MM-dd");
@@ -879,13 +884,13 @@ export async function GET(req: NextRequest) {
 
             // DEBUG ABSENCE DETECTION (using isDebugTeacher from above)
 
-            if (currentStudents.length > 0) {
+            if (filteredStudents.length > 0) {
               let dailyDeduction = 0;
               const affectedStudents = [];
               const presentStudents = [];
 
-              for (const student of currentStudents) {
-                // Get all zoom links for this student on this date
+              for (const student of filteredStudents) {
+                // Get zoom links for this student on this date
                 const allStudentLinks = student.zoom_links || [];
                 const studentZoomLinks = allStudentLinks.filter((link) => {
                   if (!link.sent_time) return false;
@@ -917,7 +922,7 @@ export async function GET(req: NextRequest) {
                 absenceDeduction += dailyDeduction;
                 absenceBreakdown.push({
                   date: dateStr,
-                  reason: `Per-student absence (${affectedStudents.length}/${currentStudents.length} students absent)`,
+                  reason: `Per-student absence (${affectedStudents.length}/${filteredStudents.length} students absent)`,
                   deduction: dailyDeduction,
                   timeSlots: affectedStudents.length,
                   uniqueTimeSlots: affectedStudents.map(
@@ -936,7 +941,7 @@ export async function GET(req: NextRequest) {
                   date: dateStr,
                   reason: "Waived full-day absence",
                   deduction: 0,
-                  timeSlots: currentStudents.length,
+                  timeSlots: filteredStudents.length,
                   uniqueTimeSlots: ["All Students Waived"],
                   permitted: false,
                   reviewNotes: "Full day absence waived by admin",
