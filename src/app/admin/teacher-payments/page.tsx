@@ -78,6 +78,8 @@ export default function TeacherPaymentsPage() {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [salaryStatus, setSalaryStatus] = useState<
@@ -226,11 +228,46 @@ export default function TeacherPaymentsPage() {
           statusMap[t.id] = t.status || "Unpaid";
         }
         setSalaryStatus(statusMap);
+        setLastUpdated(new Date());
       }
     } catch (error) {
       console.error("Failed to refresh teacher data:", error);
+    } finally {
+      setRefreshing(false);
     }
   }, [selectedMonth, selectedYear]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshTeacherData();
+      toast({
+        title: "Data Refreshed",
+        description: `Updated ${teachers.length} teacher records successfully`,
+      });
+    } catch (error) {
+      toast({
+        title: "Refresh Failed",
+        description: "Failed to refresh teacher data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    refreshTeacherData();
+  }, [refreshTeacherData]);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading && !refreshing) {
+        handleRefresh();
+      }
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [loading, refreshing]);
 
   const fetchBreakdown = useCallback(
     async (teacherId: string) => {
@@ -1411,9 +1448,28 @@ export default function TeacherPaymentsPage() {
                   <p className="text-gray-600">
                     Manage teacher salary calculations and payment status
                   </p>
+                  {lastUpdated && (
+                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                      Last updated: {lastUpdated.toLocaleTimeString()}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex gap-3">
+                <button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
+                  title={lastUpdated ? `Last updated: ${lastUpdated.toLocaleString()}` : 'Refresh teacher data'}
+                >
+                  {refreshing ? (
+                    <FiLoader className="animate-spin h-4 w-4" />
+                  ) : (
+                    <FiUser className="h-4 w-4" />
+                  )}
+                  {refreshing ? 'Refreshing...' : 'Refresh Data'}
+                </button>
                 <button
                   onClick={() => setShowAdvancedView(!showAdvancedView)}
                   className={`px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 ${
@@ -3621,7 +3677,7 @@ function PackageDeductionManager() {
           </div>
           <div className="text-xs text-purple-600 mt-1">
             Packages are automatically detected from active students with
-            configured salarie
+            configured salaries
           </div>
         </div>
       </div>
