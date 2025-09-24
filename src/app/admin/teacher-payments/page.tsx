@@ -620,6 +620,7 @@ export default function TeacherPaymentsPage() {
         // Update state
         setTeachers(processedTeachers);
         console.log("Teachers state updated");
+        console.log("Current loading state:", loading);
 
         // Set initial status (all unpaid by default)
         const statusMap: Record<string, "Paid" | "Unpaid"> = {};
@@ -627,6 +628,7 @@ export default function TeacherPaymentsPage() {
           statusMap[t.id] = "Unpaid";
         }
         setSalaryStatus(statusMap);
+        console.log("Status map set:", statusMap);
       } catch (e: any) {
         console.error("Error in fetchPayments:", e);
         setError(e.message || "Failed to fetch teacher payments");
@@ -635,7 +637,9 @@ export default function TeacherPaymentsPage() {
         setTeachers([]);
         setSalaryStatus({});
       } finally {
+        console.log("Setting loading to false");
         setLoading(false);
+        console.log("Loading set to false, teachers length:", teachers.length);
       }
     }
     fetchPayments();
@@ -2113,9 +2117,18 @@ export default function TeacherPaymentsPage() {
                 <p className="text-gray-600 text-xl">
                   No teachers match your current filters.
                 </p>
+                <div className="mt-4 text-sm text-gray-500">
+                  <p>Debug: Total teachers: {teachers.length}</p>
+                  <p>Filtered teachers: {filteredTeachers.length}</p>
+                  <p>Loading: {loading.toString()}</p>
+                  <p>Error: {error || 'none'}</p>
+                </div>
               </div>
             ) : (
               <>
+                <div className="mb-4 text-sm text-gray-500">
+                  Debug: Showing {filteredTeachers.length} of {teachers.length} teachers
+                </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm divide-y divide-gray-200">
                     <thead className="bg-gray-50">
