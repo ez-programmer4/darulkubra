@@ -613,23 +613,29 @@ export default function TeacherPaymentsPage() {
   }
 
   const filteredTeachers = teachers.filter((t) => {
+    console.log('Filtering teacher:', t);
+    
     const matchesSearch = (t.name || "")
       .toLowerCase()
       .includes(search.toLowerCase());
+    console.log('Search match:', matchesSearch, 'for', t.name);
+    
     const matchesStatus =
-      !statusFilter || (salaryStatus[t.id] || "Unpaid") === statusFilter;
+      !statusFilter || statusFilter === "" || (salaryStatus[t.id] || "Unpaid") === statusFilter;
+    console.log('Status match:', matchesStatus, 'filter:', statusFilter, 'teacher status:', salaryStatus[t.id]);
 
     // Salary range filter
     const matchesSalaryRange =
-      (!salaryRangeFilter.min ||
-        t.totalSalary >= Number(salaryRangeFilter.min)) &&
-      (!salaryRangeFilter.max ||
-        t.totalSalary <= Number(salaryRangeFilter.max));
+      (!salaryRangeFilter.min || salaryRangeFilter.min === "" ||
+        (t.totalSalary || 0) >= Number(salaryRangeFilter.min)) &&
+      (!salaryRangeFilter.max || salaryRangeFilter.max === "" ||
+        (t.totalSalary || 0) <= Number(salaryRangeFilter.max));
+    console.log('Salary range match:', matchesSalaryRange);
 
     // Deduction filter
-    const totalDeductions = t.latenessDeduction + t.absenceDeduction;
+    const totalDeductions = (t.latenessDeduction || 0) + (t.absenceDeduction || 0);
     const matchesDeduction =
-      !deductionFilter ||
+      !deductionFilter || deductionFilter === "" ||
       (deductionFilter === "high" && totalDeductions > 100) ||
       (deductionFilter === "medium" &&
         totalDeductions > 50 &&
@@ -638,26 +644,29 @@ export default function TeacherPaymentsPage() {
         totalDeductions > 0 &&
         totalDeductions <= 50) ||
       (deductionFilter === "none" && totalDeductions === 0);
+    console.log('Deduction match:', matchesDeduction);
 
     // Performance filter
     const matchesPerformance =
-      !performanceFilter ||
-      (performanceFilter === "top" && t.totalSalary > 2000) ||
+      !performanceFilter || performanceFilter === "" ||
+      (performanceFilter === "top" && (t.totalSalary || 0) > 2000) ||
       (performanceFilter === "good" &&
-        t.totalSalary > 1500 &&
-        t.totalSalary <= 2000) ||
+        (t.totalSalary || 0) > 1500 &&
+        (t.totalSalary || 0) <= 2000) ||
       (performanceFilter === "average" &&
-        t.totalSalary > 1000 &&
-        t.totalSalary <= 1500) ||
-      (performanceFilter === "low" && t.totalSalary <= 1000);
+        (t.totalSalary || 0) > 1000 &&
+        (t.totalSalary || 0) <= 1500) ||
+      (performanceFilter === "low" && (t.totalSalary || 0) <= 1000);
+    console.log('Performance match:', matchesPerformance);
 
-    return (
-      matchesSearch &&
+    const result = matchesSearch &&
       matchesStatus &&
       matchesSalaryRange &&
       matchesDeduction &&
-      matchesPerformance
-    );
+      matchesPerformance;
+    
+    console.log('Final result for', t.name, ':', result);
+    return result;
   });
 
   const canMarkPaid = (() => {
