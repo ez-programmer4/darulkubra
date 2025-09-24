@@ -142,7 +142,7 @@ export async function GET(req: NextRequest) {
           package: true,
           zoom_links: {
             where: {
-              sent_time: { gte: fromDate, lte: toDate }, // Only this period
+              sent_time: { gte: fromDate, lte: toDate },
             },
           },
           occupiedTimes: {
@@ -656,7 +656,7 @@ export async function GET(req: NextRequest) {
               percent: c.deductionPercent,
             }));
 
-            // Calculate lateness - only for this teacher's period
+            // Calculate lateness - only zoom links sent by THIS teacher
             const allStudents = await prisma.wpos_wpdatatable_23.findMany({
               where: { ustaz: t.ustazid },
               select: {
@@ -665,7 +665,7 @@ export async function GET(req: NextRequest) {
                 package: true,
                 zoom_links: {
                   where: {
-                    sent_time: { gte: from, lte: to }, // Only this period
+                    sent_time: { gte: from, lte: to },
                   },
                 },
                 occupiedTimes: { select: { time_slot: true } },
