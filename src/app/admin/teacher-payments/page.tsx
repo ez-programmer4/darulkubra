@@ -240,29 +240,57 @@ export default function TeacherPaymentsPage() {
       if (res.ok) {
         const data = await res.json();
         console.log("API Response:", data);
-        const validatedData = data.map((teacher: any) => {
-          const calculatedTotal =
-            teacher.baseSalary -
-            teacher.latenessDeduction -
-            teacher.absenceDeduction +
-            teacher.bonuses;
-          return {
-            ...teacher,
-            totalSalary: Math.round(calculatedTotal),
-          };
-        });
-        console.log("Setting teachers:", validatedData.length);
-        setTeachers(validatedData);
-
-        const statusMap: Record<string, "Paid" | "Unpaid"> = {};
-        for (const t of validatedData) {
-          statusMap[t.id] = t.status || "Unpaid";
+        
+        // Check if data is an array of teachers or an object with records
+        let teachersData = [];
+        if (Array.isArray(data)) {
+          teachersData = data;
+        } else {
+          // If it's an object with records, we need to get teachers from another endpoint
+          const teachersRes = await fetch('/api/admin/teachers');
+          if (teachersRes.ok) {
+            teachersData = await teachersRes.json();
+          }
         }
-        setSalaryStatus(statusMap);
+        
+        console.log("Teachers data:", teachersData);
+        
+        if (Array.isArray(teachersData)) {
+          const validatedData = teachersData.map((teacher: any) => {
+            const calculatedTotal =
+              (teacher.baseSalary || 0) -
+              (teacher.latenessDeduction || 0) -
+              (teacher.absenceDeduction || 0) +
+              (teacher.bonuses || 0);
+            return {
+              id: teacher.ustazid || teacher.id || 'unknown',
+              name: teacher.ustazname || teacher.name || 'Unknown Teacher',
+              baseSalary: teacher.baseSalary || 0,
+              latenessDeduction: teacher.latenessDeduction || 0,
+              absenceDeduction: teacher.absenceDeduction || 0,
+              bonuses: teacher.bonuses || 0,
+              numStudents: teacher.numStudents || 0,
+              teachingDays: teacher.teachingDays || 0,
+              totalSalary: Math.round(calculatedTotal),
+              status: teacher.status || 'Unpaid'
+            };
+          });
+          console.log("Setting teachers:", validatedData.length);
+          setTeachers(validatedData);
+
+          const statusMap: Record<string, "Paid" | "Unpaid"> = {};
+          for (const t of validatedData) {
+            statusMap[t.id] = t.status || "Unpaid";
+          }
+          setSalaryStatus(statusMap);
+        } else {
+          console.error('Teachers data is not an array:', teachersData);
+          setError('Invalid data format received');
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to refresh teacher data:", error);
-      setError("Failed to load teacher data");
+      setError(error.message || "Failed to load teacher data");
     } finally {
       setLoading(false);
     }
