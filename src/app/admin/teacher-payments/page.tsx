@@ -211,10 +211,11 @@ export default function TeacherPaymentsPage() {
       if (res.ok) {
         const data = await res.json();
         const validatedData = data.map((teacher: any) => {
+          // Base salary already reflects actual work (Zoom links sent)
+          // Absence deduction is informational only - not subtracted
           const calculatedTotal =
             teacher.baseSalary -
-            teacher.latenessDeduction -
-            teacher.absenceDeduction +
+            teacher.latenessDeduction +
             teacher.bonuses;
           return {
             ...teacher,
@@ -459,10 +460,11 @@ export default function TeacherPaymentsPage() {
 
         // Validate data consistency
         const validatedData = data.map((teacher: any) => {
+          // Base salary already reflects actual work (Zoom links sent)
+          // Absence deduction is informational only - not subtracted
           const calculatedTotal =
             teacher.baseSalary -
-            teacher.latenessDeduction -
-            teacher.absenceDeduction +
+            teacher.latenessDeduction +
             teacher.bonuses;
           if (Math.abs(calculatedTotal - teacher.totalSalary) > 0.01) {
             console.warn(
@@ -561,8 +563,8 @@ export default function TeacherPaymentsPage() {
       (!salaryRangeFilter.max ||
         t.totalSalary <= Number(salaryRangeFilter.max));
 
-    // Deduction filter
-    const totalDeductions = t.latenessDeduction + t.absenceDeduction;
+    // Deduction filter (only lateness affects salary)
+    const totalDeductions = t.latenessDeduction;
     const matchesDeduction =
       !deductionFilter ||
       (deductionFilter === "high" && totalDeductions > 100) ||
@@ -612,7 +614,7 @@ export default function TeacherPaymentsPage() {
       Object.values(salaryStatus).filter((s) => s === "Paid").length,
     totalBaseSalary: teachers.reduce((sum, t) => sum + t.baseSalary, 0),
     totalDeductions: teachers.reduce(
-      (sum, t) => sum + t.latenessDeduction + t.absenceDeduction,
+      (sum, t) => sum + t.latenessDeduction,
       0
     ),
     totalBonuses: teachers.reduce((sum, t) => sum + t.bonuses, 0),
@@ -1891,12 +1893,11 @@ export default function TeacherPaymentsPage() {
                 <div className="bg-white rounded-xl p-4 border border-purple-200">
                   <div className="text-2xl font-bold text-red-900">
                     {filteredTeachers.reduce(
-                      (sum, t) =>
-                        sum + t.latenessDeduction + t.absenceDeduction,
+                      (sum, t) => sum + t.latenessDeduction,
                       0
                     )}
                   </div>
-                  <div className="text-sm text-red-700">Total Deductions</div>
+                  <div className="text-sm text-red-700">Lateness Deductions</div>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-purple-200">
                   <div className="text-2xl font-bold text-blue-900">
@@ -2170,9 +2171,14 @@ export default function TeacherPaymentsPage() {
                             </td>
                             <td className="px-6 py-4 text-center">
                               {t.absenceDeduction > 0 ? (
-                                <span className="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs">
-                                  -{t.absenceDeduction} ETB
-                                </span>
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold text-xs">
+                                    {t.absenceDeduction} ETB
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    (Info only)
+                                  </span>
+                                </div>
                               ) : (
                                 <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-700 font-semibold text-xs">
                                   No absences
