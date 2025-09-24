@@ -133,14 +133,18 @@ export async function GET(req: NextRequest) {
         percent: c.deductionPercent,
       }));
       const maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
-      // Get all students for this teacher in the date range
+      // Get students for this teacher in the date range (handles teacher changes)
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: { ustaz: teacherId },
         select: {
           wdt_ID: true,
           name: true,
           package: true,
-          zoom_links: true,
+          zoom_links: {
+            where: {
+              sent_time: { gte: fromDate, lte: toDate }, // Only this period
+            },
+          },
           occupiedTimes: {
             select: {
               time_slot: true,
@@ -495,10 +499,12 @@ export async function GET(req: NextRequest) {
     const results = (
       await Promise.all(
         teachers.map(async (t) => {
-          // === STEP 1: GET TEACHER'S STUDENTS AND BASIC INFO ===
+          // === STEP 1: GET TEACHER'S STUDENTS (Teacher Change Handling) ===
+          // Each teacher gets fresh calculation based on their assigned students
+          // When teacher changes, new teacher starts with clean slate
           const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
             where: {
-              ustaz: t.ustazid,
+              ustaz: t.ustazid, // Only students assigned to THIS teacher
               status: { in: ["active", "Active", "Not yet", "not yet"] },
             },
             select: {
@@ -520,29 +526,6 @@ export async function GET(req: NextRequest) {
             t.ustazname?.includes("SEADA") ||
             false;
 
-          if (isDebugTeacher) {
-            console.log(`\n📊 STUDENT DATA FOR ${t.ustazname}:`);
-            console.log(
-              `  Date range: ${format(from, "yyyy-MM-dd")} to ${format(
-                to,
-                "yyyy-MM-dd"
-              )}`
-            );
-            console.log(`  Students found: ${currentStudents.length}`);
-
-            currentStudents.forEach((student, i) => {
-              console.log(
-                `  Student ${i + 1}: ${student.name} (${student.package})`
-              );
-              console.log(
-                `    Zoom links in range: ${student.zoom_links.length}`
-              );
-              student.zoom_links.forEach((link, j) => {
-                console.log(`      Link ${j + 1}: ${link.sent_time}`);
-              });
-            });
-          }
-
           const numStudents = currentStudents.length;
 
           // Skip teachers with no students
@@ -550,7 +533,9 @@ export async function GET(req: NextRequest) {
             return null;
           }
 
-          // === STEP 2: CALCULATE BASE SALARY (Zoom-link dependent) ===
+          // === STEP 2: FRESH SALARY CALCULATION (No Old Teacher Data) ===
+          // New teacher salary = only days they worked + their students
+          // Old teacher data preserved separately for payment
           let baseSalary = 0;
           let totalTeachingDays = 0;
           const dailyBreakdown = [];
@@ -671,14 +656,18 @@ export async function GET(req: NextRequest) {
               percent: c.deductionPercent,
             }));
 
-            // Calculate lateness for each day and student
+            // Calculate lateness - only for this teacher's period
             const allStudents = await prisma.wpos_wpdatatable_23.findMany({
               where: { ustaz: t.ustazid },
               select: {
                 wdt_ID: true,
                 name: true,
                 package: true,
-                zoom_links: true,
+                zoom_links: {
+                  where: {
+                    sent_time: { gte: from, lte: to }, // Only this period
+                  },
+                },
                 occupiedTimes: { select: { time_slot: true } },
               },
             });
@@ -890,17 +879,6 @@ export async function GET(req: NextRequest) {
 
             // DEBUG ABSENCE DETECTION (using isDebugTeacher from above)
 
-            if (isDebugTeacher) {
-              console.log(`\n🔍 DEBUGGING ${t.ustazname} - ${dateStr}:`);
-              console.log(`  Students: ${currentStudents.length}`);
-              console.log(`  Day has zoom links: ${dayHasZoomLinks}`);
-              console.log(`  Waived: ${waivedDates.has(dateStr)}`);
-              console.log(
-                `  Sunday (${d.getDay()}): ${d.getDay() === 0 ? "YES" : "NO"}`
-              );
-              console.log(`  Include Sundays: ${includeSundays}`);
-            }
-
             if (currentStudents.length > 0) {
               let dailyDeduction = 0;
               const affectedStudents = [];
@@ -917,24 +895,6 @@ export async function GET(req: NextRequest) {
 
                 const studentHasZoomLink = studentZoomLinks.length > 0;
 
-                if (isDebugTeacher) {
-                  console.log(
-                    `    Student: ${student.name} (${student.package})`
-                  );
-                  console.log(
-                    `      Total zoom links: ${allStudentLinks.length}`
-                  );
-                  console.log(
-                    `      Links on ${dateStr}: ${studentZoomLinks.length}`
-                  );
-                  if (studentZoomLinks.length > 0) {
-                    studentZoomLinks.forEach((link, i) => {
-                      console.log(`        Link ${i + 1}: ${link.sent_time}`);
-                    });
-                  }
-                  console.log(`      Has zoom link: ${studentHasZoomLink}`);
-                }
-
                 if (!studentHasZoomLink) {
                   // Student was absent
                   if (!waivedDates.has(dateStr)) {
@@ -947,29 +907,10 @@ export async function GET(req: NextRequest) {
                       package: studentPackage || "Unknown",
                       rate: packageRate,
                     });
-
-                    if (isDebugTeacher) {
-                      console.log(
-                        `      ❌ ABSENT - Deduction: ${packageRate} ETB`
-                      );
-                    }
-                  } else {
-                    if (isDebugTeacher) {
-                      console.log(`      ⚠️ ABSENT but WAIVED`);
-                    }
                   }
                 } else {
                   presentStudents.push(student.name);
-                  if (isDebugTeacher) {
-                    console.log(`      ✅ PRESENT`);
-                  }
                 }
-              }
-
-              if (isDebugTeacher) {
-                console.log(`  Daily deduction: ${dailyDeduction} ETB`);
-                console.log(`  Affected students: ${affectedStudents.length}`);
-                console.log(`  Present students: ${presentStudents.length}`);
               }
 
               if (affectedStudents.length > 0) {
@@ -1008,12 +949,6 @@ export async function GET(req: NextRequest) {
             (a) => a.deduction > 0
           ).length;
 
-          console.log(
-            `Teacher ${
-              t.ustazname || "Unknown"
-            }: Zoom-based absences=${actualDeductions}, Total=${absenceDeduction} ETB (PER-STUDENT, PAST DATES ONLY)`
-          );
-
           // === STEP 5: CALCULATE BONUSES ===
           const bonuses = await prisma.qualityassessment.aggregate({
             where: {
@@ -1033,44 +968,17 @@ export async function GET(req: NextRequest) {
           // Base salary already reflects actual work (Zoom links sent)
           // Absence deduction is informational only - not subtracted from salary
           const totalSalary = Math.round(
-            finalBaseSalary -
-              finalLatenessDeduction +
-              finalBonusAmount
+            finalBaseSalary - finalLatenessDeduction + finalBonusAmount
           );
-          
-          // Debug salary calculation for high deduction cases
-          if (finalLatenessDeduction > 1000 || finalAbsenceDeduction > 1000) {
-            console.log(`🔍 API SALARY CALCULATION for ${t.ustazname}:`);
-            console.log(`  Base Salary: ${finalBaseSalary} ETB`);
-            console.log(`  Lateness Deduction: -${finalLatenessDeduction} ETB`);
-            console.log(`  Absence Deduction: ${finalAbsenceDeduction} ETB (INFO ONLY - NOT SUBTRACTED)`);
-            console.log(`  Bonuses: +${finalBonusAmount} ETB`);
-            console.log(`  Final Calculation: ${finalBaseSalary} - ${finalLatenessDeduction} + ${finalBonusAmount} = ${totalSalary} ETB`);
-          }
 
           // Simple debug summary
-          if (isDebugTeacher && finalAbsenceDeduction > 0) {
-            console.log(
-              `\n🔍 ${t.ustazname}: ${currentStudents.length} students, ${actualDeductions} absence days, ${finalAbsenceDeduction} ETB total`
-            );
-          }
 
           // Debug log for fixed absence deduction
           const actualAbsenceCount = absenceBreakdown.filter(
             (a) => a.deduction > 0
           ).length;
           if (finalAbsenceDeduction > 0) {
-            console.log(
-              `✅ ${
-                t.ustazname || "Unknown"
-              }: DETAILED ABSENCE DEDUCTION = ${finalAbsenceDeduction} ETB (${actualAbsenceCount} absences, PER-STUDENT TRACKING)`
-            );
           } else {
-            console.log(
-              `✅ ${t.ustazname || "Unknown"}: NO ABSENCE DEDUCTIONS (${
-                absenceBreakdown.length
-              } records checked, PER-STUDENT TRACKING)`
-            );
           }
 
           // === STEP 7: GET PAYMENT STATUS ===

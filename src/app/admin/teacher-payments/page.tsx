@@ -214,22 +214,8 @@ export default function TeacherPaymentsPage() {
           // Base salary already reflects actual work (Zoom links sent)
           // Absence deduction is informational only - not subtracted
           const calculatedTotal =
-            teacher.baseSalary -
-            teacher.latenessDeduction +
-            teacher.bonuses;
-          
-          // Debug salary calculation
-          if (teacher.latenessDeduction > 1000 || teacher.absenceDeduction > 1000) {
-            console.log(`🔍 SALARY DEBUG for ${teacher.name}:`);
-            console.log(`  Base Salary: ${teacher.baseSalary} ETB`);
-            console.log(`  Lateness Deduction: -${teacher.latenessDeduction} ETB`);
-            console.log(`  Absence Deduction: ${teacher.absenceDeduction} ETB (INFO ONLY)`);
-            console.log(`  Bonuses: +${teacher.bonuses} ETB`);
-            console.log(`  Calculated Total: ${calculatedTotal} ETB`);
-            console.log(`  API Total: ${teacher.totalSalary} ETB`);
-            console.log(`  Match: ${Math.abs(calculatedTotal - teacher.totalSalary) < 0.01 ? '✅' : '❌'}`);
-          }
-          
+            teacher.baseSalary - teacher.latenessDeduction + teacher.bonuses;
+
           return {
             ...teacher,
             totalSalary: Math.round(calculatedTotal),
@@ -476,17 +462,8 @@ export default function TeacherPaymentsPage() {
           // Base salary already reflects actual work (Zoom links sent)
           // Absence deduction is informational only - not subtracted
           const calculatedTotal =
-            teacher.baseSalary -
-            teacher.latenessDeduction +
-            teacher.bonuses;
-          
-          if (Math.abs(calculatedTotal - teacher.totalSalary) > 0.01) {
-            console.warn(`🚨 SALARY MISMATCH for ${teacher.name}:`);
-            console.warn(`  Expected: ${calculatedTotal} ETB`);
-            console.warn(`  API Returned: ${teacher.totalSalary} ETB`);
-            console.warn(`  Base: ${teacher.baseSalary}, Lateness: -${teacher.latenessDeduction}, Bonuses: +${teacher.bonuses}`);
-          }
-          
+            teacher.baseSalary - teacher.latenessDeduction + teacher.bonuses;
+
           return {
             ...teacher,
             totalSalary: Math.round(calculatedTotal), // Ensure consistency
@@ -629,10 +606,7 @@ export default function TeacherPaymentsPage() {
       teachers.length -
       Object.values(salaryStatus).filter((s) => s === "Paid").length,
     totalBaseSalary: teachers.reduce((sum, t) => sum + t.baseSalary, 0),
-    totalDeductions: teachers.reduce(
-      (sum, t) => sum + t.latenessDeduction,
-      0
-    ),
+    totalDeductions: teachers.reduce((sum, t) => sum + t.latenessDeduction, 0),
     totalBonuses: teachers.reduce((sum, t) => sum + t.bonuses, 0),
     totalSalary: teachers.reduce((sum, t) => sum + t.totalSalary, 0),
   };
@@ -1479,14 +1453,18 @@ export default function TeacherPaymentsPage() {
                   onClick={handleRefresh}
                   disabled={refreshing}
                   className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2"
-                  title={lastUpdated ? `Last updated: ${lastUpdated.toLocaleString()}` : 'Refresh teacher data'}
+                  title={
+                    lastUpdated
+                      ? `Last updated: ${lastUpdated.toLocaleString()}`
+                      : "Refresh teacher data"
+                  }
                 >
                   {refreshing ? (
                     <FiLoader className="animate-spin h-4 w-4" />
                   ) : (
                     <FiUser className="h-4 w-4" />
                   )}
-                  {refreshing ? 'Refreshing...' : 'Refresh Data'}
+                  {refreshing ? "Refreshing..." : "Refresh Data"}
                 </button>
                 <button
                   onClick={() => setShowAdvancedView(!showAdvancedView)}
@@ -1913,7 +1891,9 @@ export default function TeacherPaymentsPage() {
                       0
                     )}
                   </div>
-                  <div className="text-sm text-red-700">Lateness Deductions</div>
+                  <div className="text-sm text-red-700">
+                    Lateness Deductions
+                  </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-purple-200">
                   <div className="text-2xl font-bold text-blue-900">
