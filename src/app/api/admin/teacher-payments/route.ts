@@ -94,16 +94,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    if (!teacherId) {
-      return NextResponse.json({
-        latenessRecords: [],
-        absenceRecords: [],
-        bonusRecords: [],
-      });
-    }
-
     const fromDate = new Date(startDate);
     const toDate = new Date(endDate);
+
+    // If no teacherId provided, return all teachers with salary calculations
+    if (!teacherId) {
+      return await getAllTeachersWithSalaries(fromDate, toDate);
+    }
 
     // Get package-specific deduction configurations
     const packageDeductions = await prisma.packageDeduction.findMany();
@@ -291,6 +288,95 @@ export async function GET(req: NextRequest) {
       bonusRecords: [],
       error: "Internal server error"
     });
+  }
+}
+
+// Function to get all teachers with salary calculations
+async function getAllTeachersWithSalaries(fromDate: Date, toDate: Date) {
+  try {
+    // Get all teachers
+    const teachers = await prisma.wpos_wpdatatable_24.findMany({
+      select: {
+        ustazid: true,
+        ustazname: true,
+      }
+    });
+
+    const results = [];
+
+    for (const teacher of teachers) {
+      // Calculate salary for each teacher
+      const teacherSalary = await calculateTeacherSalary(teacher.ustazid, fromDate, toDate);
+      
+      results.push({
+        id: teacher.ustazid,
+        name: teacher.ustazname,
+        baseSalary: teacherSalary.baseSalary,
+        latenessDeduction: teacherSalary.latenessDeduction,
+        absenceDeduction: teacherSalary.absenceDeduction,
+        bonuses: teacherSalary.bonuses,
+        totalSalary: teacherSalary.totalSalary,
+        numStudents: teacherSalary.numStudents,
+        teachingDays: teacherSalary.teachingDays,
+        status: 'Unpaid'
+      });
+    }
+
+    return NextResponse.json(results);
+  } catch (error) {
+    console.error('Error getting all teachers:', error);
+    return NextResponse.json({ error: 'Failed to fetch teachers' }, { status: 500 });
+  }
+}
+
+// Function to calculate salary for a specific teacher
+async function calculateTeacherSalary(teacherId: string, fromDate: Date, toDate: Date) {
+  try {
+    // Get teacher's students
+    const students = await prisma.wpos_wpdatatable_23.findMany({
+      where: {
+        ustaz: teacherId,
+        status: { in: ["active", "Active", "Not yet", "not yet"] }
+      },
+      include: {
+        zoom_links: {
+          where: {
+            sent_time: { gte: fromDate, lte: toDate }
+          }
+        }
+      }
+    });
+
+    // Calculate base salary (simplified - you may need to adjust this)
+    const baseSalary = students.length * 100; // Example: 100 ETB per student
+    
+    // Calculate deductions (simplified)
+    const latenessDeduction = 0; // You can implement lateness calculation here
+    const absenceDeduction = 0;  // You can implement absence calculation here
+    const bonuses = 0;           // You can implement bonus calculation here
+    
+    const totalSalary = baseSalary - latenessDeduction - absenceDeduction + bonuses;
+    
+    return {
+      baseSalary,
+      latenessDeduction,
+      absenceDeduction,
+      bonuses,
+      totalSalary,
+      numStudents: students.length,
+      teachingDays: 0 // You can calculate this based on zoom links
+    };
+  } catch (error) {
+    console.error('Error calculating teacher salary:', error);
+    return {
+      baseSalary: 0,
+      latenessDeduction: 0,
+      absenceDeduction: 0,
+      bonuses: 0,
+      totalSalary: 0,
+      numStudents: 0,
+      teachingDays: 0
+    };
   }
 }
 
