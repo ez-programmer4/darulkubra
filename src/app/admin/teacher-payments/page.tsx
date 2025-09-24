@@ -230,6 +230,8 @@ export default function TeacherPaymentsPage() {
   };
 
   const refreshTeacherData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     const { from, to } = getMonthRange(selectedYear, selectedMonth);
     try {
       const res = await fetch(
@@ -237,6 +239,7 @@ export default function TeacherPaymentsPage() {
       );
       if (res.ok) {
         const data = await res.json();
+        console.log("API Response:", data);
         const validatedData = data.map((teacher: any) => {
           const calculatedTotal =
             teacher.baseSalary -
@@ -248,6 +251,7 @@ export default function TeacherPaymentsPage() {
             totalSalary: Math.round(calculatedTotal),
           };
         });
+        console.log("Setting teachers:", validatedData.length);
         setTeachers(validatedData);
 
         const statusMap: Record<string, "Paid" | "Unpaid"> = {};
@@ -258,8 +262,15 @@ export default function TeacherPaymentsPage() {
       }
     } catch (error) {
       console.error("Failed to refresh teacher data:", error);
+      setError("Failed to load teacher data");
+    } finally {
+      setLoading(false);
     }
   }, [selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    refreshTeacherData();
+  }, [refreshTeacherData]);
 
   const fetchBreakdown = useCallback(
     async (teacherId: string) => {
@@ -516,134 +527,7 @@ export default function TeacherPaymentsPage() {
     }
   };
 
-  useEffect(() => {
-    async function fetchPayments() {
-      setLoading(true);
-      setError(null);
-      try {
-        // Get payment data for the selected month
-        const { from, to } = getMonthRange(selectedYear, selectedMonth);
-        const paymentsRes = await fetch(
-          `/api/admin/teacher-payments?startDate=${from.toISOString()}&endDate=${to.toISOString()}`
-        );
 
-        if (!paymentsRes.ok) {
-          throw new Error("Failed to fetch teacher payment data");
-        }
-
-        const paymentData = await paymentsRes.json();
-        console.log("Payment data received:", paymentData);
-
-        // Check if we have arrays or need to extract them
-        let latenessRecords = [];
-        let absenceRecords = [];
-        let bonusRecords = [];
-
-        if (Array.isArray(paymentData)) {
-          // If it's an array of teachers, create empty records for now
-          latenessRecords = [];
-          absenceRecords = [];
-          bonusRecords = [];
-        } else if (paymentData.latenessRecords) {
-          latenessRecords = paymentData.latenessRecords || [];
-          absenceRecords = paymentData.absenceRecords || [];
-          bonusRecords = paymentData.bonusRecords || [];
-        }
-
-        // Get all teachers from the database
-        const teachersRes = await fetch("/api/admin/teachers");
-        let teachersData = [];
-
-        if (teachersRes.ok) {
-          teachersData = await teachersRes.json();
-        } else {
-          // Fallback: create teachers from payment data if available
-          if (Array.isArray(paymentData)) {
-            teachersData = paymentData;
-          } else {
-            // Create dummy teachers for testing
-            teachersData = [
-              { ustazid: "1", ustazname: "Teacher 1", baseSalary: 1000 },
-              { ustazid: "2", ustazname: "Teacher 2", baseSalary: 1200 },
-            ];
-          }
-        }
-
-        console.log("Teachers data:", teachersData);
-
-        // Process teachers data
-        const processedTeachers = teachersData.map((teacher: any) => {
-          const teacherId = teacher.ustazid || teacher.id;
-          const teacherName =
-            teacher.ustazname || teacher.name || "Unknown Teacher";
-
-          // Calculate total deductions and bonuses for this teacher
-          const teacherLateness = latenessRecords
-            .filter((r: any) => r.teacherId === teacherId)
-            .reduce(
-              (sum: number, r: any) => sum + (r.deductionApplied || 0),
-              0
-            );
-
-          const teacherAbsences = absenceRecords
-            .filter((r: any) => r.teacherId === teacherId)
-            .reduce((sum: number, r: any) => sum + (r.deduction || 0), 0);
-
-          const teacherBonuses = bonusRecords
-            .filter((r: any) => r.teacherId === teacherId)
-            .reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
-
-          // Get base salary
-          const baseSalary = teacher.baseSalary || teacher.totalSalary || 0;
-
-          // Calculate total salary
-          const totalSalary = Math.max(
-            0,
-            baseSalary - teacherLateness - teacherAbsences + teacherBonuses
-          );
-
-          return {
-            id: String(teacherId),
-            name: teacherName,
-            baseSalary,
-            latenessDeduction: teacherLateness,
-            absenceDeduction: teacherAbsences,
-            bonuses: teacherBonuses,
-            totalSalary,
-            status: "Unpaid",
-          };
-        });
-
-        console.log("Processed teachers:", processedTeachers);
-        console.log("Setting teachers state with:", processedTeachers.length, "teachers");
-
-        // Update state
-        setTeachers(processedTeachers);
-        console.log("Teachers state updated");
-        console.log("Current loading state:", loading);
-
-        // Set initial status (all unpaid by default)
-        const statusMap: Record<string, "Paid" | "Unpaid"> = {};
-        for (const t of processedTeachers) {
-          statusMap[t.id] = "Unpaid";
-        }
-        setSalaryStatus(statusMap);
-        console.log("Status map set:", statusMap);
-      } catch (e: any) {
-        console.error("Error in fetchPayments:", e);
-        setError(e.message || "Failed to fetch teacher payments");
-
-        // Set empty arrays to prevent map errors
-        setTeachers([]);
-        setSalaryStatus({});
-      } finally {
-        console.log("Setting loading to false");
-        setLoading(false);
-        console.log("Loading set to false, teachers length:", teachers.length);
-      }
-    }
-    fetchPayments();
-  }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
     // ... (rest of the code remains the same)
