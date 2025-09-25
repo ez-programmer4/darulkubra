@@ -46,11 +46,6 @@ const navItems = [
   { href: "/admin/ustaz", label: "Teacher Ratings", icon: Star },
   { href: "/admin/quality", label: "Quality Review", icon: Award },
 
-  {
-    href: "/admin/absences",
-    label: "Absence Management",
-    icon: FileText,
-  },
   { href: "/admin/settings", label: "Settings", icon: Settings },
   {
     href: "/admin/deduction-adjustments",
