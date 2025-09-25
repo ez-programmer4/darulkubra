@@ -645,33 +645,29 @@ export async function PUT(request: NextRequest) {
 
       // Handle time slot changes
       if (shouldFreeTimeSlot && wasActiveStatus) {
-        // Close all active assignments for inactive statuses
-        await tx.wpos_ustaz_occupied_times.updateMany({
+        // Delete all active assignments for inactive statuses
+        await tx.wpos_ustaz_occupied_times.deleteMany({
           where: {
             student_id: parseInt(id),
             end_at: null,
           },
-          data: {
-            end_at: new Date(),
-          },
         });
       } else if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
-        // Close existing active assignment
+        // Delete existing active assignment to avoid overlaps with other system
         if (currentOccupiedTime) {
-          await tx.wpos_ustaz_occupied_times.update({
+          await tx.wpos_ustaz_occupied_times.delete({
             where: { id: currentOccupiedTime.id },
-            data: { end_at: new Date() },
           });
         }
 
-        // Create new assignment
+        // Create new assignment with current timestamp for occupied_at
         await tx.wpos_ustaz_occupied_times.create({
           data: {
             ustaz_id: ustaz,
             time_slot: toDbFormat(selectedTime),
             daypackage: selectedDayPackage,
             student_id: parseInt(id),
-            occupied_at: startdate ? new Date(startdate) : new Date(),
+            occupied_at: new Date(), // Use current timestamp, not startdate
             end_at: null,
           },
         });
@@ -690,7 +686,7 @@ export async function PUT(request: NextRequest) {
               time_slot: toDbFormat(selectedTime),
               daypackage: selectedDayPackage,
               student_id: parseInt(id),
-              occupied_at: startdate ? new Date(startdate) : new Date(),
+              occupied_at: new Date(), // Use current timestamp
               end_at: null,
             },
           });
@@ -705,12 +701,13 @@ export async function PUT(request: NextRequest) {
             adminId: session.id || null,
             targetId: parseInt(id),
             details: JSON.stringify({
-              oldTeacher: currentOccupiedTime?.ustaz_id,
+              deletedTeacher: currentOccupiedTime?.ustaz_id,
+              deletedTimeSlot: currentTimeSlot,
+              deletedDayPackage: currentOccupiedTime?.daypackage,
               newTeacher: ustaz,
-              oldTimeSlot: currentTimeSlot,
               newTimeSlot: selectedTime,
-              oldDayPackage: currentOccupiedTime?.daypackage,
               newDayPackage: selectedDayPackage,
+              occupied_at: new Date().toISOString(),
             }),
           },
         });
@@ -808,7 +805,7 @@ export async function GET(request: NextRequest) {
 
     if (!registration) {
       return NextResponse.json(
-        { message: "Registration not found" },
+        { message: "registrations not found" },
         { status: 404 }
       );
     }
