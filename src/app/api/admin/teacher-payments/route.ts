@@ -657,11 +657,29 @@ export async function GET(req: NextRequest) {
           return null;
         }
 
-        // Calculate base salary
+        // Calculate base salary per month
         let baseSalary = 0;
         const dailyBreakdown = [];
         const unmatchedZoomLinks = [];
+        const monthlyStudentSalaries = new Map<number, number>();
 
+        // Calculate monthly salary for each student
+        for (const assignment of allAssignments) {
+          const student = assignment.student;
+          if (!student?.package || !salaryMap[student.package]) continue;
+
+          const monthlyPackageSalary = Math.round(
+            salaryMap[student.package] || 0
+          );
+          
+          // Add monthly salary per student (not per day)
+          if (!monthlyStudentSalaries.has(student.wdt_ID)) {
+            monthlyStudentSalaries.set(student.wdt_ID, monthlyPackageSalary);
+            baseSalary += monthlyPackageSalary;
+          }
+        }
+
+        // Get zoom links for breakdown display
         for (const assignment of allAssignments) {
           const assignmentStart =
             assignment.occupied_at && assignment.occupied_at > from
@@ -689,11 +707,6 @@ export async function GET(req: NextRequest) {
             select: { sent_time: true, packageRate: true },
           });
 
-          const studentEarnings = zoomLinks.reduce((sum, link) => {
-            return sum + Number(link.packageRate || dailyRate);
-          }, 0);
-          baseSalary += studentEarnings;
-
           if (zoomLinks.length > 0) {
             dailyBreakdown.push({
               studentName: student.name || "Unknown",
@@ -701,7 +714,7 @@ export async function GET(req: NextRequest) {
               monthlyRate: monthlyPackageSalary,
               dailyRate: dailyRate,
               daysWorked: zoomLinks.length,
-              totalEarned: studentEarnings,
+              totalEarned: monthlyPackageSalary, // Monthly salary, not daily calculation
               source: assignment.id ? "Active Assignment" : "Audit Log",
             });
           }
@@ -746,17 +759,22 @@ export async function GET(req: NextRequest) {
                 salaryMap[student.package] || 0
               );
               const dailyRate = Math.round(monthlyPackageSalary / 26);
-              const studentEarnings = Number(link.packageRate || dailyRate);
-              baseSalary += studentEarnings;
-              dailyBreakdown.push({
-                studentName: student.name || "Unknown",
-                package: student.package || "Unknown",
-                monthlyRate: monthlyPackageSalary,
-                dailyRate: dailyRate,
-                daysWorked: 1,
-                totalEarned: studentEarnings,
-                source: "Unmatched Zoom Link",
-              });
+              
+              // Only add to base salary if not already counted
+              if (!monthlyStudentSalaries.has(link.studentid)) {
+                monthlyStudentSalaries.set(link.studentid, monthlyPackageSalary);
+                baseSalary += monthlyPackageSalary;
+                
+                dailyBreakdown.push({
+                  studentName: student.name || "Unknown",
+                  package: student.package || "Unknown",
+                  monthlyRate: monthlyPackageSalary,
+                  dailyRate: dailyRate,
+                  daysWorked: 1,
+                  totalEarned: monthlyPackageSalary, // Monthly salary
+                  source: "Unmatched Zoom Link",
+                });
+              }
             }
           }
         }
