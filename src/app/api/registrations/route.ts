@@ -414,7 +414,6 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { control } = body;
 
-    // Check if this is a US student first
     const existingRegistration =
       await prismaClient.wpos_wpdatatable_23.findUnique({
         where: { wdt_ID: parseInt(id) },
@@ -434,9 +433,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const isUsStudent = !!existingRegistration.userId;
-
-    // For controllers, check if they own the registration
     if (session.role === "controller") {
       if (
         existingRegistration.u_control !== session.code &&
@@ -467,7 +463,7 @@ export async function PUT(request: NextRequest) {
       reason,
     } = body;
 
-    // Validation - skip class fee and country for US students
+    // Validation
     if (!fullName || fullName.trim() === "") {
       return NextResponse.json(
         { message: "Full name is required" },
@@ -481,7 +477,7 @@ export async function PUT(request: NextRequest) {
       );
     }
     if (
-      !isUsStudent &&
+      !existingRegistration.userId &&
       regionPackage !== "0 Fee" &&
       !classfee &&
       classfee !== 0 &&
@@ -489,7 +485,7 @@ export async function PUT(request: NextRequest) {
       classfee !== undefined
     ) {
       return NextResponse.json(
-        { message: "Class Fee is required" },
+        { message: "Class Fee is required for non-US students" },
         { status: 400 }
       );
     }
@@ -512,7 +508,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Validate time format
     if (!validateTime(selectedTime)) {
       return NextResponse.json(
         { message: `Invalid time format: ${selectedTime}` },
@@ -528,9 +523,15 @@ export async function PUT(request: NextRequest) {
       await prismaClient.wpos_ustaz_occupied_times.findFirst({
         where: {
           student_id: parseInt(id),
-          end_at: null, // Only active assignment
+          end_at: null,
         },
-        select: { id: true, time_slot: true, ustaz_id: true, daypackage: true },
+        select: {
+          id: true,
+          time_slot: true,
+          ustaz_id: true,
+          daypackage: true,
+          occupied_at: true,
+        },
       });
 
     const currentTimeSlot = currentOccupiedTime
@@ -544,8 +545,38 @@ export async function PUT(request: NextRequest) {
     const hasAnyTimeTeacherChange =
       hasTimeChanged || hasTeacherChanged || hasDayPackageChanged;
 
+    // Prevent unnecessary updates
+    if (
+      hasAnyTimeTeacherChange &&
+      currentOccupiedTime &&
+      currentOccupiedTime.ustaz_id === ustaz &&
+      timesMatch(currentOccupiedTime.time_slot, selectedTime) &&
+      currentOccupiedTime.daypackage === selectedDayPackage
+    ) {
+      return NextResponse.json(
+        { message: "No changes to teacher, time slot, or day package" },
+        { status: 400 }
+      );
+    }
+
+    // Check student slot limits
+    const slotCount = await prismaClient.wpos_ustaz_occupied_times.count({
+      where: {
+        student_id: parseInt(id),
+        daypackage: selectedDayPackage,
+        end_at: null,
+      },
+    });
+    if (slotCount >= MAX_SLOTS_PER_STUDENT && hasAnyTimeTeacherChange) {
+      return NextResponse.json(
+        {
+          message: `Student exceeds maximum slots (${MAX_SLOTS_PER_STUDENT}) for ${selectedDayPackage}`,
+        },
+        { status: 400 }
+      );
+    }
+
     if (hasAnyTimeTeacherChange) {
-      // Check teacher availability for new assignment
       const availability = await checkTeacherAvailability(
         timeToMatch,
         selectedDayPackage,
@@ -561,7 +592,6 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Determine the u_control value for update
     let u_control = null;
     if (session.role === "controller") {
       u_control = session.code;
@@ -578,13 +608,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const updatedRegistration = await prismaClient.$transaction(async (tx) => {
-      // Get current status to check if changing to Leave
       const currentRecord = await tx.wpos_wpdatatable_23.findUnique({
         where: { wdt_ID: parseInt(id) },
         select: { status: true },
       });
 
-      // Handle special case for "Not yet" and other statuses
       let newStatus;
       if (status) {
         if (status.toLowerCase() === "not yet") {
@@ -597,13 +625,11 @@ export async function PUT(request: NextRequest) {
         newStatus = "Pending";
       }
 
-      // Set exitdate if status is changing to Leave
       const exitdate =
         newStatus === "Leave" && currentRecord?.status !== "Leave"
           ? new Date()
           : undefined;
 
-      // Check if status requires freeing up time slot
       const shouldFreeTimeSlot = ["leave", "completed", "not succeed"].includes(
         newStatus.toLowerCase()
       );
@@ -611,7 +637,6 @@ export async function PUT(request: NextRequest) {
         currentRecord?.status &&
         !["Leave", "Completed", "Not succeed"].includes(currentRecord.status);
 
-      // Update registration record
       const registration = await tx.wpos_wpdatatable_23.update({
         where: { wdt_ID: parseInt(id) },
         data: {
@@ -643,12 +668,12 @@ export async function PUT(request: NextRequest) {
         },
       });
 
-      // Handle teacher change salary implications
       if (hasTeacherChanged && !shouldFreeTimeSlot) {
         const currentDate = new Date();
-        const currentPeriod = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
-        
-        // Finalize old teacher's salary for current period
+        const currentPeriod = `${currentDate.getFullYear()}-${String(
+          currentDate.getMonth() + 1
+        ).padStart(2, "0")}`;
+
         if (currentOccupiedTime?.ustaz_id) {
           await tx.teachersalarypayment.upsert({
             where: {
@@ -657,9 +682,7 @@ export async function PUT(request: NextRequest) {
                 period: currentPeriod,
               },
             },
-            update: {
-              // Keep existing deductions and salary - don't reset
-            },
+            update: {},
             create: {
               teacherId: currentOccupiedTime.ustaz_id,
               period: currentPeriod,
@@ -671,8 +694,7 @@ export async function PUT(request: NextRequest) {
             },
           });
         }
-        
-        // Initialize new teacher's salary record (fresh start)
+
         await tx.teachersalarypayment.upsert({
           where: {
             teacherId_period: {
@@ -680,9 +702,7 @@ export async function PUT(request: NextRequest) {
               period: currentPeriod,
             },
           },
-          update: {
-            // Don't inherit old teacher's deductions
-          },
+          update: {},
           create: {
             teacherId: ustaz,
             period: currentPeriod,
@@ -695,9 +715,7 @@ export async function PUT(request: NextRequest) {
         });
       }
 
-      // Handle time slot changes
       if (shouldFreeTimeSlot && wasActiveStatus) {
-        // Delete all active assignments for inactive statuses
         await tx.wpos_ustaz_occupied_times.deleteMany({
           where: {
             student_id: parseInt(id),
@@ -705,28 +723,23 @@ export async function PUT(request: NextRequest) {
           },
         });
       } else if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
-        // Delete existing assignment to free up teacher's time slot
-        // Note: Teacher salary is calculated from zoom_links sent, not assignments
-        // So deleting assignment doesn't affect teacher's earned salary
         if (currentOccupiedTime) {
           await tx.wpos_ustaz_occupied_times.delete({
             where: { id: currentOccupiedTime.id },
           });
         }
 
-        // Create new assignment with current timestamp for occupied_at
         await tx.wpos_ustaz_occupied_times.create({
           data: {
             ustaz_id: ustaz,
             time_slot: toDbFormat(selectedTime),
             daypackage: selectedDayPackage,
             student_id: parseInt(id),
-            occupied_at: new Date(), // Use current timestamp, not startdate
+            occupied_at: new Date(),
             end_at: null,
           },
         });
       } else if (!shouldFreeTimeSlot && !hasAnyTimeTeacherChange) {
-        // Ensure time slot exists for reactivated student
         const activeStatuses = ["active", "not yet", "fresh"];
         if (
           activeStatuses.includes(newStatus.toLowerCase()) &&
@@ -740,29 +753,32 @@ export async function PUT(request: NextRequest) {
               time_slot: toDbFormat(selectedTime),
               daypackage: selectedDayPackage,
               student_id: parseInt(id),
-              occupied_at: new Date(), // Use current timestamp
+              occupied_at: new Date(),
               end_at: null,
             },
           });
         }
       }
 
-      // Log assignment changes for audit
       if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
         const auditDetails = {
-          oldTeacher: currentOccupiedTime?.ustaz_id || null,
+          deletedTeacher: currentOccupiedTime?.ustaz_id || null,
+          deletedTimeSlot: currentTimeSlot || null,
+          deletedDayPackage: currentOccupiedTime?.daypackage || null,
+          deletedOccupiedAt:
+            currentOccupiedTime?.occupied_at?.toISOString() || null,
           newTeacher: ustaz,
-          oldTime: currentTimeSlot || null,
-          newTime: selectedTime,
-          studentId: parseInt(id)
+          newTimeSlot: selectedTime,
+          newDayPackage: selectedDayPackage,
+          studentId: parseInt(id),
+          newOccupiedAt: new Date().toISOString(),
         };
-        
         const detailsString = JSON.stringify(auditDetails);
-        // Truncate if too long (assuming max 500 chars for safety)
-        const truncatedDetails = detailsString.length > 500 
-          ? detailsString.substring(0, 497) + "..."
-          : detailsString;
-          
+        const truncatedDetails =
+          detailsString.length > 500
+            ? detailsString.substring(0, 497) + "..."
+            : detailsString;
+
         await tx.auditlog.create({
           data: {
             actionType: "assignment_update",
@@ -785,6 +801,17 @@ export async function PUT(request: NextRequest) {
     );
   } catch (error) {
     console.error("Registration PUT error:", error);
+    await prismaClient.auditlog.create({
+      data: {
+        actionType: "assignment_update_error",
+        adminId: null,
+        targetId: null,
+        details: JSON.stringify({
+          error: error instanceof Error ? error.message : String(error),
+          studentId: null,
+        }),
+      },
+    });
     return NextResponse.json(
       {
         message: "Internal server error",

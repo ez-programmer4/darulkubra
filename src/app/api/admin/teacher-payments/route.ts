@@ -1,71 +1,100 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { RateLimiterMemory } from "rate-limiter-flexible";
+
+// Rate limiter for POST endpoint (10 requests per minute per IP)
+const rateLimiter = new RateLimiterMemory({
+  points: 10,
+  duration: 60,
+});
 
 // Helper function to check if a student is scheduled for a specific day
 async function checkIfStudentScheduledForDay(
   studentId: number,
-  dayOfWeek: number
+  dayOfWeek: number,
+  dayPackage: string
 ): Promise<boolean> {
-  // TODO: Implement day-specific scheduling when schema supports it
-  return true;
+  const dayMap: Record<string, number[]> = {
+    MWF: [1, 3, 5], // Monday, Wednesday, Friday
+    TTS: [2, 4, 6], // Tuesday, Thursday, Saturday
+    // Add other day packages as needed
+  };
+
+  const days = dayMap[dayPackage];
+  return days ? days.includes(dayOfWeek) : false;
 }
 
-// Payment integration function
+// Payment integration function with retry logic
 async function processPayment(
   teacherId: string,
   amount: number,
-  period: string
-) {
-  try {
-    const teacher = await prisma.wpos_wpdatatable_24.findUnique({
-      where: { ustazid: teacherId },
-      select: { ustazname: true, phone: true },
-    });
+  period: string,
+  retries = 3
+): Promise<{
+  success: boolean;
+  transactionId?: string;
+  status?: string;
+  error?: string;
+}> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const teacher = await prisma.wpos_wpdatatable_24.findUnique({
+        where: { ustazid: teacherId },
+        select: { ustazname: true, phone: true },
+      });
 
-    if (!teacher) throw new Error("Teacher not found");
+      if (!teacher) throw new Error("Teacher not found");
 
-    const paymentResponse = await fetch(process.env.PAYMENT_API_URL || "", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.PAYMENT_API_KEY}`,
-      },
-      body: JSON.stringify({
-        recipient: {
-          id: teacherId,
-          name: teacher.ustazname,
-          phone: teacher.phone,
-          email: teacher.phone
-            ? `${teacher.phone}@darulkubra.com`
-            : `teacher_${teacherId}@darulkubra.com`,
+      const paymentResponse = await fetch(process.env.PAYMENT_API_URL || "", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.PAYMENT_API_KEY}`,
         },
-        amount: amount,
-        currency: "ETB",
-        reference: `salary_${teacherId}_${period}`,
-        description: `Teacher salary payment for ${period}`,
-      }),
-    });
+        body: JSON.stringify({
+          recipient: {
+            id: teacherId,
+            name: teacher.ustazname,
+            phone: teacher.phone,
+            email: teacher.phone
+              ? `${teacher.phone}@darulkubra.com`
+              : `teacher_${teacherId}@darulkubra.com`,
+          },
+          amount: amount,
+          currency: "ETB",
+          reference: `salary_${teacherId}_${period}`,
+          description: `Teacher salary payment for ${period}`,
+        }),
+      });
 
-    const paymentResult = await paymentResponse.json();
+      const paymentResult = await paymentResponse.json();
 
-    if (!paymentResponse.ok) {
-      throw new Error(paymentResult.message || "Payment failed");
+      if (!paymentResponse.ok) {
+        throw new Error(paymentResult.message || "Payment failed");
+      }
+
+      return {
+        success: true,
+        transactionId: paymentResult.transactionId,
+        status: paymentResult.status,
+      };
+    } catch (error) {
+      if (attempt === retries) {
+        console.error(
+          `Payment processing failed after ${retries} attempts:`,
+          error
+        );
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Payment failed",
+        };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
     }
-
-    return {
-      success: true,
-      transactionId: paymentResult.transactionId,
-      status: paymentResult.status,
-    };
-  } catch (error) {
-    console.error("Payment processing error:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Payment failed",
-    };
   }
+  return { success: false, error: "Payment failed after retries" };
 }
 
 export async function GET(req: NextRequest) {
@@ -82,16 +111,34 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const from = new Date(startDate);
-    const to = new Date(endDate);
+    const from = parseISO(startDate);
+    const to = parseISO(endDate);
 
-    // Validate date range
+    // Validate date range and UTC
     if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) {
       return NextResponse.json(
-        { error: "Invalid date range" },
+        { error: "Invalid date range. Use UTC ISO format (YYYY-MM-DD)." },
         { status: 400 }
       );
     }
+
+    // Cache package deductions and lateness configs
+    const packageDeductions = await prisma.packageDeduction.findMany();
+    const packageDeductionMap: Record<
+      string,
+      { lateness: number; absence: number }
+    > = {};
+    packageDeductions.forEach((pkg) => {
+      packageDeductionMap[pkg.packageName] = {
+        lateness: Number(pkg.latenessBaseAmount),
+        absence: Number(pkg.absenceBaseAmount),
+      };
+    });
+    const defaultBaseDeductionAmount = 30;
+
+    const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
+      orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
+    });
 
     // Handle detailed view for a specific teacher
     if (url.pathname.endsWith("/details") || teacherId) {
@@ -102,28 +149,12 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      const packageDeductions = await prisma.packageDeduction.findMany();
-      const packageDeductionMap: Record<
-        string,
-        { lateness: number; absence: number }
-      > = {};
-      packageDeductions.forEach((pkg) => {
-        packageDeductionMap[pkg.packageName] = {
-          lateness: Number(pkg.latenessBaseAmount),
-          absence: Number(pkg.absenceBaseAmount),
-        };
-      });
-      const defaultBaseDeductionAmount = 30;
-
-      const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
-        orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
-      });
-
       if (latenessConfigs.length === 0) {
         return NextResponse.json({
           latenessRecords: [],
           absenceRecords: [],
           bonusRecords: [],
+          warnings: ["No lateness configurations found"],
         });
       }
 
@@ -137,7 +168,7 @@ export async function GET(req: NextRequest) {
       }));
       const maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
 
-      // Fetch assignments for the teacher
+      // Fetch active assignments
       const assignments = await prisma.wpos_ustaz_occupied_times.findMany({
         where: {
           ustaz_id: teacherId,
@@ -151,48 +182,151 @@ export async function GET(req: NextRequest) {
         },
       });
 
+      // Fetch historical assignments from auditlog
+      const auditLogs = await prisma.auditlog.findMany({
+        where: {
+          actionType: "assignment_update",
+          createdAt: { gte: from, lte: to },
+        },
+        select: {
+          targetId: true,
+          details: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      const historicalAssignments: {
+        student_id: number;
+        ustaz_id: string;
+        time_slot: string;
+        daypackage: string;
+        occupied_at: Date;
+        end_at: Date;
+        student?: { wdt_ID: number; name: string; package: string };
+        id?: number;
+      }[] = auditLogs
+        .map((log) => {
+          try {
+            const details = JSON.parse(log.details);
+            if (details.oldTeacher === teacherId && log.targetId) {
+              return {
+                student_id: log.targetId,
+                ustaz_id: String(details.oldTeacher || ""),
+                time_slot: String(details.oldTime || "09:00 AM"),
+                daypackage: String(details.newDayPackage || "MWF"),
+                occupied_at: new Date(details.occupied_at || log.createdAt),
+                end_at: log.createdAt,
+              };
+            }
+            return null;
+          } catch (e) {
+            console.warn(`Failed to parse audit log details:`, e);
+            return null;
+          }
+        })
+        .filter((a): a is NonNullable<typeof a> => a !== null);
+
+      // Fetch student details for historical assignments
+      const historicalStudentIds = [
+        ...new Set(historicalAssignments.map((a) => a.student_id)),
+      ];
+      const historicalStudents = await prisma.wpos_wpdatatable_23.findMany({
+        where: { wdt_ID: { in: historicalStudentIds } },
+        select: { wdt_ID: true, name: true, package: true },
+      });
+
+      historicalAssignments.forEach((assignment) => {
+        const student = historicalStudents.find(
+          (s) => s.wdt_ID === assignment.student_id
+        );
+        if (student && student.name && student.package) {
+          assignment.student = {
+            wdt_ID: student.wdt_ID,
+            name: student.name,
+            package: student.package,
+          };
+        }
+      });
+
+      // Combine active and historical assignments
+      const allAssignments = [
+        ...assignments,
+        ...historicalAssignments.filter((a) => a.student),
+      ];
+
+      if (allAssignments.length === 0) {
+        console.warn(
+          `No active or historical assignments for teacher ${teacherId} in range ${from} to ${to}`
+        );
+      }
+
       const latenessRecords = [];
-      for (const assignment of assignments) {
+      const unmatchedZoomLinks = [];
+
+      // Process all assignments
+      for (const assignment of allAssignments) {
         const student = assignment.student;
+        if (!student) {
+          console.warn(
+            `No student data for assignment with student_id ${assignment.student_id}`
+          );
+          continue;
+        }
         const timeSlot = assignment.time_slot;
-        if (!timeSlot) continue;
+        if (!timeSlot) {
+          console.warn(
+            `Missing time_slot for assignment with student_id ${assignment.student_id}`
+          );
+          continue;
+        }
 
         const zoomLinks = await prisma.wpos_zoom_links.findMany({
           where: {
             ustazid: teacherId,
             studentid: student.wdt_ID,
-            sent_time: { 
-              gte: assignment.occupied_at || from, 
-              lte: assignment.end_at || to 
+            sent_time: {
+              gte: assignment.occupied_at || from,
+              lte: assignment.end_at || to,
             },
           },
-          select: { sent_time: true },
+          select: { id: true, sent_time: true },
         });
 
-        const startDate = assignment.occupied_at && assignment.occupied_at > from ? assignment.occupied_at : from;
-        const endDate = assignment.end_at && assignment.end_at < to ? assignment.end_at : to;
-        
+        const startDate =
+          assignment.occupied_at && assignment.occupied_at > from
+            ? assignment.occupied_at
+            : from;
+        const endDate =
+          assignment.end_at && assignment.end_at < to ? assignment.end_at : to;
+
         for (
           let d = new Date(startDate);
           d <= endDate;
           d.setDate(d.getDate() + 1)
         ) {
           const dateStr = format(d, "yyyy-MM-dd");
-          const time24 = timeSlot.includes("AM") || timeSlot.includes("PM")
-            ? timeSlot.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i)
-              ? (() => {
-                  const [, hour, minute, period] = timeSlot.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i)!;
-                  let h = parseInt(hour);
-                  if (period.toUpperCase() === "PM" && h !== 12) h += 12;
-                  if (period.toUpperCase() === "AM" && h === 12) h = 0;
-                  return `${h.toString().padStart(2, "0")}:${minute}`;
-                })()
-              : "00:00"
-            : timeSlot.split(":").slice(0, 2).join(":");
+          const time24 =
+            timeSlot.includes("AM") || timeSlot.includes("PM")
+              ? timeSlot.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i)
+                ? (() => {
+                    const [, hour, minute, period] = timeSlot.match(
+                      /^(\d{1,2}):(\d{2})\s?(AM|PM)$/i
+                    )!;
+                    let h = parseInt(hour);
+                    if (period.toUpperCase() === "PM" && h !== 12) h += 12;
+                    if (period.toUpperCase() === "AM" && h === 12) h = 0;
+                    return `${h.toString().padStart(2, "0")}:${minute}`;
+                  })()
+                : "00:00"
+              : timeSlot.split(":").slice(0, 2).join(":");
           const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
 
           const sentTimes = zoomLinks
-            .filter((zl) => zl.sent_time && format(zl.sent_time, "yyyy-MM-dd") === dateStr)
+            .filter(
+              (zl) =>
+                zl.sent_time && format(zl.sent_time, "yyyy-MM-dd") === dateStr
+            )
             .sort((a, b) => a.sent_time!.getTime() - b.sent_time!.getTime());
 
           const actualStartTime = sentTimes[0]?.sent_time || null;
@@ -211,13 +345,19 @@ export async function GET(req: NextRequest) {
 
           if (latenessMinutes > excusedThreshold) {
             const baseDeductionAmount =
-              packageDeductionMap[student.package || ""]?.lateness || defaultBaseDeductionAmount;
+              packageDeductionMap[student.package || ""]?.lateness ||
+              defaultBaseDeductionAmount;
 
             let foundTier = false;
             for (const [i, tier] of tiers.entries()) {
-              if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {
+              if (
+                latenessMinutes >= tier.start &&
+                latenessMinutes <= tier.end
+              ) {
                 deductionApplied = baseDeductionAmount * (tier.percent / 100);
-                deductionTier = `Tier ${i + 1} (${tier.percent}%) - ${student.package || "Unknown"}`;
+                deductionTier = `Tier ${i + 1} (${tier.percent}%) - ${
+                  student.package || "Unknown"
+                }`;
                 foundTier = true;
                 break;
               }
@@ -227,8 +367,14 @@ export async function GET(req: NextRequest) {
               deductionTier = `> Max Tier - ${student.package || "Unknown"}`;
             }
 
-            const { isDeductionWaived } = await import("@/lib/deduction-waivers").catch(() => ({ isDeductionWaived: () => false }));
-            isWaived = await isDeductionWaived(teacherId, scheduledTime, "lateness");
+            const { isDeductionWaived } = await import(
+              "@/lib/deduction-waivers"
+            ).catch(() => ({ isDeductionWaived: () => false }));
+            isWaived = await isDeductionWaived(
+              teacherId,
+              scheduledTime,
+              "lateness"
+            );
             if (isWaived) {
               deductionApplied = 0;
               deductionTier = `${deductionTier} (WAIVED)`;
@@ -245,6 +391,37 @@ export async function GET(req: NextRequest) {
             deductionApplied,
             deductionTier,
             isWaived,
+            source: assignment.id ? "Active Assignment" : "Audit Log",
+          });
+        }
+      }
+
+      // Fetch unmatched Zoom links
+      const allZoomLinks = await prisma.wpos_zoom_links.findMany({
+        where: {
+          ustazid: teacherId,
+          sent_time: { gte: from, lte: to },
+        },
+        select: { id: true, sent_time: true, studentid: true },
+      });
+
+      for (const link of allZoomLinks) {
+        const isMatched = latenessRecords.some(
+          (record) =>
+            record.studentId === link.studentid &&
+            format(record.classDate, "yyyy-MM-dd") ===
+              (link.sent_time ? format(link.sent_time, "yyyy-MM-dd") : "")
+        );
+        if (!isMatched) {
+          const student = await prisma.wpos_wpdatatable_23.findUnique({
+            where: { wdt_ID: link.studentid },
+            select: { name: true },
+          });
+          unmatchedZoomLinks.push({
+            zoomLinkId: link.id,
+            sent_time: link.sent_time,
+            studentName: student?.name || "Unknown",
+            reason: "No matching assignment (active or historical)",
           });
         }
       }
@@ -269,27 +446,40 @@ export async function GET(req: NextRequest) {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       yesterday.setHours(23, 59, 59, 999);
-      const endProcessDate = new Date(Math.min(to.getTime(), yesterday.getTime()));
-      const workingDaysConfig = await prisma.setting.findUnique({
-        where: { key: "include_sundays_in_salary" },
-      });
-      const includeSundays = workingDaysConfig?.value === "true" || false;
+      const endProcessDate = new Date(
+        Math.min(to.getTime(), yesterday.getTime())
+      );
 
-      for (const assignment of assignments) {
+      for (const assignment of allAssignments) {
         const student = assignment.student;
-        const absenceStartDate = assignment.occupied_at && assignment.occupied_at > from ? assignment.occupied_at : from;
-        const absenceEndDate = assignment.end_at && assignment.end_at < endProcessDate ? assignment.end_at : endProcessDate;
-        
+        if (!student) continue;
+        const absenceStartDate =
+          assignment.occupied_at && assignment.occupied_at > from
+            ? assignment.occupied_at
+            : from;
+        const absenceEndDate =
+          assignment.end_at && assignment.end_at < endProcessDate
+            ? assignment.end_at
+            : endProcessDate;
+
         for (
           let d = new Date(absenceStartDate);
           d <= absenceEndDate;
           d.setDate(d.getDate() + 1)
         ) {
+          const workingDaysConfig = await prisma.setting.findUnique({
+            where: { key: "include_sundays_in_salary" },
+          });
+          const includeSundays = workingDaysConfig?.value === "true" || false;
           if (!includeSundays && d.getDay() === 0) continue;
           const dateStr = format(d, "yyyy-MM-dd");
           if (waivedDates.has(dateStr)) continue;
 
-          const studentScheduled = await checkIfStudentScheduledForDay(student.wdt_ID, d.getDay());
+          const studentScheduled = await checkIfStudentScheduledForDay(
+            student.wdt_ID,
+            d.getDay(),
+            assignment.daypackage
+          );
           if (!studentScheduled) continue;
 
           const hasZoomLink = await prisma.wpos_zoom_links.count({
@@ -304,26 +494,30 @@ export async function GET(req: NextRequest) {
           });
 
           if (!hasZoomLink) {
-            const packageRate = packageDeductionMap[student.package || ""]?.absence || 25;
+            const packageRate =
+              packageDeductionMap[student.package || ""]?.absence || 25;
             computedAbsences.push({
               id: 0,
               teacherId,
               classDate: new Date(d),
               timeSlots: [`${student.name} (${student.package})`],
-              packageBreakdown: [{
-                studentId: student.wdt_ID,
-                studentName: student.name,
-                package: student.package || "Unknown",
-                ratePerSlot: packageRate,
-                timeSlots: 1,
-                total: packageRate,
-              }],
+              packageBreakdown: [
+                {
+                  studentId: student.wdt_ID,
+                  studentName: student.name,
+                  package: student.package || "Unknown",
+                  ratePerSlot: packageRate,
+                  timeSlots: 1,
+                  total: packageRate,
+                },
+              ],
               uniqueTimeSlots: [`${student.name} (${student.package})`],
               permitted: false,
               permissionRequestId: null,
               deductionApplied: packageRate,
               reviewedByManager: true,
               reviewNotes: `Absence for ${student.name} (${student.package}): ${packageRate}ETB`,
+              source: assignment.id ? "Active Assignment" : "Audit Log",
             });
           }
         }
@@ -333,6 +527,8 @@ export async function GET(req: NextRequest) {
         latenessRecords,
         absenceRecords: computedAbsences,
         bonusRecords,
+        unmatchedZoomLinks:
+          unmatchedZoomLinks.length > 0 ? unmatchedZoomLinks : undefined,
       });
     }
 
@@ -354,7 +550,7 @@ export async function GET(req: NextRequest) {
 
     const results = await Promise.all(
       teachers.map(async (t) => {
-        // Fetch assignments
+        // Fetch active assignments
         const assignments = await prisma.wpos_ustaz_occupied_times.findMany({
           where: {
             ustaz_id: t.ustazid,
@@ -368,22 +564,104 @@ export async function GET(req: NextRequest) {
           },
         });
 
-        if (assignments.length === 0) return null;
+        // Fetch historical assignments from auditlog
+        const auditLogs = await prisma.auditlog.findMany({
+          where: {
+            actionType: "assignment_update",
+            createdAt: { gte: from, lte: to },
+          },
+          select: {
+            targetId: true,
+            details: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: "asc" },
+        });
 
-        // Calculate base salary from zoom links with package rates
+        const historicalAssignments: {
+          student_id: number;
+          ustaz_id: string;
+          time_slot: string;
+          daypackage: string;
+          occupied_at: Date;
+          end_at: Date;
+          student?: { wdt_ID: number; name: string; package: string };
+          id?: number;
+        }[] = auditLogs
+          .map((log) => {
+            try {
+              const details = JSON.parse(log.details);
+              if (details.oldTeacher === t.ustazid && log.targetId) {
+                return {
+                  student_id: log.targetId,
+                  ustaz_id: details.oldTeacher,
+                  time_slot: details.oldTime || "09:00 AM",
+                  daypackage: details.newDayPackage || "MWF",
+                  occupied_at: new Date(details.occupied_at || log.createdAt),
+                  end_at: log.createdAt,
+                };
+              }
+              return null;
+            } catch (e) {
+              return null;
+            }
+          })
+          .filter((a): a is NonNullable<typeof a> => a !== null);
+
+        const historicalStudentIds = [
+          ...new Set(historicalAssignments.map((a) => a.student_id)),
+        ];
+        const historicalStudents = await prisma.wpos_wpdatatable_23.findMany({
+          where: { wdt_ID: { in: historicalStudentIds } },
+          select: { wdt_ID: true, name: true, package: true },
+        });
+
+        historicalAssignments.forEach((assignment) => {
+          const student = historicalStudents.find(
+            (s) => s.wdt_ID === assignment.student_id
+          );
+          if (student && student.name && student.package) {
+            assignment.student = {
+              wdt_ID: student.wdt_ID,
+              name: student.name,
+              package: student.package,
+            };
+          }
+        });
+
+        const allAssignments = [
+          ...assignments,
+          ...historicalAssignments.filter((a) => a.student),
+        ];
+
+        if (allAssignments.length === 0) {
+          console.warn(
+            `No active or historical assignments for teacher ${t.ustazid} in range ${from} to ${to}`
+          );
+          return null;
+        }
+
+        // Calculate base salary
         let baseSalary = 0;
         const dailyBreakdown = [];
-        const dailyEarnings = new Map();
-        
-        for (const assignment of assignments) {
-          const assignmentStart = assignment.occupied_at && assignment.occupied_at > from ? assignment.occupied_at : from;
-          const assignmentEnd = assignment.end_at && assignment.end_at < to ? assignment.end_at : to;
+        const unmatchedZoomLinks = [];
+
+        for (const assignment of allAssignments) {
+          const assignmentStart =
+            assignment.occupied_at && assignment.occupied_at > from
+              ? assignment.occupied_at
+              : from;
+          const assignmentEnd =
+            assignment.end_at && assignment.end_at < to
+              ? assignment.end_at
+              : to;
           const student = assignment.student;
-          
           if (!student?.package || !salaryMap[student.package]) continue;
-          
-          const monthlyPackageSalary = Math.round(salaryMap[student.package] || 0);
-          const workingDays = 26; // Default working days per month
+
+          const monthlyPackageSalary = Math.round(
+            salaryMap[student.package] || 0
+          );
+          const workingDays = 26;
           const dailyRate = Math.round(monthlyPackageSalary / workingDays);
 
           const zoomLinks = await prisma.wpos_zoom_links.findMany({
@@ -395,7 +673,6 @@ export async function GET(req: NextRequest) {
             select: { sent_time: true, packageRate: true },
           });
 
-          // Use stored package rates from zoom links (handles mid-month changes)
           const studentEarnings = zoomLinks.reduce((sum, link) => {
             return sum + Number(link.packageRate || dailyRate);
           }, 0);
@@ -409,7 +686,62 @@ export async function GET(req: NextRequest) {
               dailyRate: dailyRate,
               daysWorked: zoomLinks.length,
               totalEarned: studentEarnings,
+              source: assignment.id ? "Active Assignment" : "Audit Log",
             });
+          }
+        }
+
+        // Check for unmatched Zoom links
+        const allZoomLinks = await prisma.wpos_zoom_links.findMany({
+          where: {
+            ustazid: t.ustazid,
+            sent_time: { gte: from, lte: to },
+          },
+          select: {
+            id: true,
+            sent_time: true,
+            studentid: true,
+            packageRate: true,
+          },
+        });
+
+        for (const link of allZoomLinks) {
+          const isMatched = dailyBreakdown.some(
+            (b) =>
+              b.studentName === "Unknown" &&
+              b.daysWorked > 0 &&
+              link.sent_time && format(link.sent_time, "yyyy-MM-dd") ===
+                format(from, "yyyy-MM-dd")
+          );
+          if (!isMatched) {
+            const student = await prisma.wpos_wpdatatable_23.findUnique({
+              where: { wdt_ID: link.studentid },
+              select: { name: true, package: true },
+            });
+            unmatchedZoomLinks.push({
+              zoomLinkId: link.id,
+              sent_time: link.sent_time,
+              studentName: student?.name || "Unknown",
+              reason: "No matching assignment (active or historical)",
+            });
+            // Include unmatched Zoom link in salary if valid
+            if (student?.package && salaryMap[student.package]) {
+              const monthlyPackageSalary = Math.round(
+                salaryMap[student.package] || 0
+              );
+              const dailyRate = Math.round(monthlyPackageSalary / 26);
+              const studentEarnings = Number(link.packageRate || dailyRate);
+              baseSalary += studentEarnings;
+              dailyBreakdown.push({
+                studentName: student.name || "Unknown",
+                package: student.package || "Unknown",
+                monthlyRate: monthlyPackageSalary,
+                dailyRate: dailyRate,
+                daysWorked: 1,
+                totalEarned: studentEarnings,
+                source: "Unmatched Zoom Link",
+              });
+            }
           }
         }
 
@@ -418,22 +750,6 @@ export async function GET(req: NextRequest) {
         // Calculate lateness deductions
         let latenessDeduction = 0;
         const latenessBreakdown = [];
-        const packageDeductions = await prisma.packageDeduction.findMany();
-        const packageDeductionMap: Record<
-          string,
-          { lateness: number; absence: number }
-        > = {};
-        packageDeductions.forEach((pkg) => {
-          packageDeductionMap[pkg.packageName] = {
-            lateness: Number(pkg.latenessBaseAmount),
-            absence: Number(pkg.absenceBaseAmount),
-          };
-        });
-        const defaultBaseDeductionAmount = 30;
-
-        const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
-          orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
-        });
 
         if (latenessConfigs.length > 0) {
           const excusedThreshold = Math.min(
@@ -444,7 +760,9 @@ export async function GET(req: NextRequest) {
             end: c.endMinute,
             percent: c.deductionPercent,
           }));
-          const maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
+          const maxTierEnd = Math.max(
+            ...latenessConfigs.map((c) => c.endMinute)
+          );
 
           const latenessWaivers = await prisma.deduction_waivers.findMany({
             where: {
@@ -454,17 +772,20 @@ export async function GET(req: NextRequest) {
             },
           });
           const waivedLatenessDates = new Set(
-            latenessWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
+            latenessWaivers.map(
+              (w) => w.deductionDate.toISOString().split("T")[0]
+            )
           );
 
-          // Only get students from ACTIVE assignments (not ended ones)
-          const activeAssignments = assignments.filter(a => !a.end_at || a.end_at > from);
-          const activeStudentIds = activeAssignments.map(a => a.student_id);
-          
+          const activeAssignments = allAssignments.filter(
+            (a) => !a.end_at || a.end_at > from
+          );
+          const activeStudentIds = activeAssignments.map((a) => a.student_id);
+
           const allStudents = await prisma.wpos_wpdatatable_23.findMany({
-            where: { 
+            where: {
               ustaz: t.ustazid,
-              wdt_ID: { in: activeStudentIds } // Only active students
+              wdt_ID: { in: activeStudentIds },
             },
             select: {
               wdt_ID: true,
@@ -473,9 +794,9 @@ export async function GET(req: NextRequest) {
               zoom_links: {
                 where: { sent_time: { gte: from, lte: to } },
               },
-              occupiedTimes: { 
-                where: { end_at: null }, // Only active assignments
-                select: { time_slot: true } 
+              occupiedTimes: {
+                where: { end_at: null },
+                select: { time_slot: true },
               },
             },
           });
@@ -516,17 +837,20 @@ export async function GET(req: NextRequest) {
             for (const link of studentLinks.values()) {
               if (!link.timeSlot) continue;
 
-              const time24 = link.timeSlot.includes("AM") || link.timeSlot.includes("PM")
-                ? link.timeSlot.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i)
-                  ? (() => {
-                      const [, hour, minute, period] = link.timeSlot.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i)!;
-                      let h = parseInt(hour);
-                      if (period.toUpperCase() === "PM" && h !== 12) h += 12;
-                      if (period.toUpperCase() === "AM" && h === 12) h = 0;
-                      return `${h.toString().padStart(2, "0")}:${minute}`;
-                    })()
-                  : "00:00"
-                : link.timeSlot.split(":").slice(0, 2).join(":");
+              const time24 =
+                link.timeSlot.includes("AM") || link.timeSlot.includes("PM")
+                  ? link.timeSlot.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i)
+                    ? (() => {
+                        const [, hour, minute, period] = link.timeSlot.match(
+                          /^(\d{1,2}):(\d{2})\s?(AM|PM)$/i
+                        )!;
+                        let h = parseInt(hour);
+                        if (period.toUpperCase() === "PM" && h !== 12) h += 12;
+                        if (period.toUpperCase() === "AM" && h === 12) h = 0;
+                        return `${h.toString().padStart(2, "0")}:${minute}`;
+                      })()
+                    : "00:00"
+                  : link.timeSlot.split(":").slice(0, 2).join(":");
 
               const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
               const latenessMinutes = Math.max(
@@ -539,14 +863,19 @@ export async function GET(req: NextRequest) {
               if (latenessMinutes > excusedThreshold) {
                 let deduction = 0;
                 let tier = "No Tier";
-                const student = allStudents.find((s) => s.wdt_ID === link.studentId);
+                const student = allStudents.find(
+                  (s) => s.wdt_ID === link.studentId
+                );
                 const studentPackage = student?.package || "";
                 const baseDeductionAmount =
-                  packageDeductionMap[studentPackage]?.lateness || defaultBaseDeductionAmount;
+                  packageDeductionMap[studentPackage]?.lateness ||
+                  defaultBaseDeductionAmount;
 
                 for (const [i, t] of tiers.entries()) {
                   if (latenessMinutes >= t.start && latenessMinutes <= t.end) {
-                    deduction = Math.round(baseDeductionAmount * (t.percent / 100));
+                    deduction = Math.round(
+                      baseDeductionAmount * (t.percent / 100)
+                    );
                     tier = `Tier ${i + 1} (${t.percent}%) - ${studentPackage}`;
                     break;
                   }
@@ -556,8 +885,14 @@ export async function GET(req: NextRequest) {
                   tier = `> Max Tier - ${studentPackage}`;
                 }
 
-                const { isDeductionWaived } = await import("@/lib/deduction-waivers").catch(() => ({ isDeductionWaived: () => false }));
-                const isWaived = await isDeductionWaived(t.ustazid, scheduledTime, "lateness");
+                const { isDeductionWaived } = await import(
+                  "@/lib/deduction-waivers"
+                ).catch(() => ({ isDeductionWaived: () => false }));
+                const isWaived = await isDeductionWaived(
+                  t.ustazid,
+                  scheduledTime,
+                  "lateness"
+                );
                 if (isWaived || waivedLatenessDates.has(dateStr)) {
                   deduction = 0;
                   tier = `${tier} (WAIVED)`;
@@ -597,13 +932,22 @@ export async function GET(req: NextRequest) {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         yesterday.setHours(23, 59, 59, 999);
-        const endProcessDate = new Date(Math.min(to.getTime(), yesterday.getTime()));
+        const endProcessDate = new Date(
+          Math.min(to.getTime(), yesterday.getTime())
+        );
 
-        for (const assignment of assignments) {
+        for (const assignment of allAssignments) {
           const student = assignment.student;
-          const absenceStartDate = assignment.occupied_at && assignment.occupied_at > from ? assignment.occupied_at : from;
-          const absenceEndDate = assignment.end_at && assignment.end_at < endProcessDate ? assignment.end_at : endProcessDate;
-          
+          if (!student) continue;
+          const absenceStartDate =
+            assignment.occupied_at && assignment.occupied_at > from
+              ? assignment.occupied_at
+              : from;
+          const absenceEndDate =
+            assignment.end_at && assignment.end_at < endProcessDate
+              ? assignment.end_at
+              : endProcessDate;
+
           for (
             let d = new Date(absenceStartDate);
             d <= absenceEndDate;
@@ -613,7 +957,11 @@ export async function GET(req: NextRequest) {
             const dateStr = format(d, "yyyy-MM-dd");
             if (waivedDates.has(dateStr)) continue;
 
-            const studentScheduled = await checkIfStudentScheduledForDay(student.wdt_ID, d.getDay());
+            const studentScheduled = await checkIfStudentScheduledForDay(
+              student.wdt_ID,
+              d.getDay(),
+              assignment.daypackage
+            );
             if (!studentScheduled) continue;
 
             const hasZoomLink = await prisma.wpos_zoom_links.count({
@@ -628,7 +976,8 @@ export async function GET(req: NextRequest) {
             });
 
             if (!hasZoomLink) {
-              const packageRate = packageDeductionMap[student.package || ""]?.absence || 25;
+              const packageRate =
+                packageDeductionMap[student.package || ""]?.absence || 25;
               absenceDeduction += packageRate;
               absenceBreakdown.push({
                 date: dateStr,
@@ -638,6 +987,7 @@ export async function GET(req: NextRequest) {
                 uniqueTimeSlots: [`${student.name} (${student.package})`],
                 permitted: false,
                 reviewNotes: `Absence for ${student.name} (${student.package}): ${packageRate}ETB`,
+                source: assignment.id ? "Active Assignment" : "Audit Log",
               });
             }
           }
@@ -659,16 +1009,18 @@ export async function GET(req: NextRequest) {
         const finalLatenessDeduction = Math.round(latenessDeduction);
         const finalAbsenceDeduction = Math.round(absenceDeduction);
         const finalBonusAmount = Math.round(bonusAmount);
-        // Base salary already reflects actual work (Zoom links sent)
-        // Absence deduction is informational only - not subtracted from salary
         const totalSalary = Math.round(
           finalBaseSalary - finalLatenessDeduction + finalBonusAmount
         );
-        
-        // Log teacher change handling
-        console.log(`💼 ${t.ustazname}: Salary calculated with teacher change protection`);
 
-        const period = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}`;
+        // Log teacher salary calculation
+        console.log(
+          `💼 ${t.ustazname}: Salary calculated with ${assignments.length} active assignments, ${historicalAssignments.length} historical assignments, ${unmatchedZoomLinks.length} unmatched Zoom links`
+        );
+
+        const period = `${from.getFullYear()}-${String(
+          from.getMonth() + 1
+        ).padStart(2, "0")}`;
         const payment = await prisma.teachersalarypayment.findUnique({
           where: { teacherId_period: { teacherId: t.ustazid, period } },
           select: { status: true },
@@ -682,13 +1034,14 @@ export async function GET(req: NextRequest) {
           absenceDeduction: finalAbsenceDeduction,
           bonuses: finalBonusAmount,
           totalSalary,
-          numStudents: assignments.length,
+          numStudents: allAssignments.length,
           teachingDays: dailyBreakdown.length,
           status: payment?.status || "Unpaid",
           breakdown: {
             dailyEarnings: dailyBreakdown.map((b, index) => ({
               date: `Day ${index + 1}`,
               amount: b.totalEarned,
+              source: b.source,
             })),
             studentBreakdown: dailyBreakdown,
             latenessBreakdown,
@@ -696,12 +1049,15 @@ export async function GET(req: NextRequest) {
             summary: {
               workingDaysInMonth: dailyBreakdown.length,
               actualTeachingDays: dailyBreakdown.length,
-              averageDailyEarning: dailyBreakdown.length > 0
-                ? Math.round(finalBaseSalary / dailyBreakdown.length)
-                : 0,
-              totalDeductions: finalLatenessDeduction, // Only lateness affects salary
+              averageDailyEarning:
+                dailyBreakdown.length > 0
+                  ? Math.round(finalBaseSalary / dailyBreakdown.length)
+                  : 0,
+              totalDeductions: finalLatenessDeduction,
               netSalary: totalSalary,
             },
+            unmatchedZoomLinks:
+              unmatchedZoomLinks.length > 0 ? unmatchedZoomLinks : undefined,
           },
         };
       })
@@ -719,6 +1075,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    await rateLimiter.consume(ip).catch(() => {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    });
+
     const body = await req.json();
     const {
       teacherId,
@@ -745,7 +1106,20 @@ export async function POST(req: NextRequest) {
     const adminId = session.id || undefined;
     if (!teacherId || !period || !status) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields: teacherId, period, status" },
+        { status: 400 }
+      );
+    }
+
+    if (processPaymentNow && status !== "Paid") {
+      return NextResponse.json(
+        { error: "Cannot process payment unless status is 'Paid'" },
+        { status: 400 }
+      );
+    }
+    if (processPaymentNow && totalSalary <= 0) {
+      return NextResponse.json(
+        { error: "Cannot process payment with non-positive totalSalary" },
         { status: 400 }
       );
     }
