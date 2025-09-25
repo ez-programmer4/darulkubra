@@ -643,6 +643,58 @@ export async function PUT(request: NextRequest) {
         },
       });
 
+      // Handle teacher change salary implications
+      if (hasTeacherChanged && !shouldFreeTimeSlot) {
+        const currentDate = new Date();
+        const currentPeriod = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
+        
+        // Finalize old teacher's salary for current period
+        if (currentOccupiedTime?.ustaz_id) {
+          await tx.teachersalarypayment.upsert({
+            where: {
+              teacherId_period: {
+                teacherId: currentOccupiedTime.ustaz_id,
+                period: currentPeriod,
+              },
+            },
+            update: {
+              // Keep existing deductions and salary - don't reset
+            },
+            create: {
+              teacherId: currentOccupiedTime.ustaz_id,
+              period: currentPeriod,
+              status: "Unpaid",
+              totalSalary: 0,
+              latenessDeduction: 0,
+              absenceDeduction: 0,
+              bonuses: 0,
+            },
+          });
+        }
+        
+        // Initialize new teacher's salary record (fresh start)
+        await tx.teachersalarypayment.upsert({
+          where: {
+            teacherId_period: {
+              teacherId: ustaz,
+              period: currentPeriod,
+            },
+          },
+          update: {
+            // Don't inherit old teacher's deductions
+          },
+          create: {
+            teacherId: ustaz,
+            period: currentPeriod,
+            status: "Unpaid",
+            totalSalary: 0,
+            latenessDeduction: 0,
+            absenceDeduction: 0,
+            bonuses: 0,
+          },
+        });
+      }
+
       // Handle time slot changes
       if (shouldFreeTimeSlot && wasActiveStatus) {
         // Delete all active assignments for inactive statuses

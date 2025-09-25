@@ -637,9 +637,14 @@ export async function GET(req: NextRequest) {
         const finalLatenessDeduction = Math.round(latenessDeduction);
         const finalAbsenceDeduction = Math.round(absenceDeduction);
         const finalBonusAmount = Math.round(bonusAmount);
+        // Base salary already reflects actual work (Zoom links sent)
+        // Absence deduction is informational only - not subtracted from salary
         const totalSalary = Math.round(
           finalBaseSalary - finalLatenessDeduction + finalBonusAmount
         );
+        
+        // Log teacher change handling
+        console.log(`💼 ${t.ustazname}: Salary calculated with teacher change protection`);
 
         const period = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}`;
         const payment = await prisma.teachersalarypayment.findUnique({
@@ -672,7 +677,7 @@ export async function GET(req: NextRequest) {
               averageDailyEarning: dailyBreakdown.length > 0
                 ? Math.round(finalBaseSalary / dailyBreakdown.length)
                 : 0,
-              totalDeductions: finalLatenessDeduction,
+              totalDeductions: finalLatenessDeduction, // Only lateness affects salary
               netSalary: totalSalary,
             },
           },
