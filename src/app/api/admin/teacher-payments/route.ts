@@ -2,13 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
 import { format, parseISO } from "date-fns";
-import { RateLimiterMemory } from "rate-limiter-flexible";
 
-// Rate limiter for POST endpoint (10 requests per minute per IP)
-const rateLimiter = new RateLimiterMemory({
-  points: 10,
-  duration: 60,
-});
+// Simple rate limiting using Map
+const requestCounts = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const windowMs = 60000; // 1 minute
+  const maxRequests = 10;
+  
+  const record = requestCounts.get(ip);
+  
+  if (!record || now > record.resetTime) {
+    requestCounts.set(ip, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  
+  if (record.count >= maxRequests) {
+    return false;
+  }
+  
+  record.count++;
+  return true;
+}
 
 // Helper function to check if a student is scheduled for a specific day
 async function checkIfStudentScheduledForDay(
@@ -1075,10 +1091,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get("x-forwarded-for") || "unknown";
-    await rateLimiter.consume(ip).catch(() => {
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    
+    if (!checkRateLimit(ip)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
-    });
+    }
 
     const body = await req.json();
     const {
