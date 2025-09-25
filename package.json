@@ -50,6 +50,7 @@
     "nextjs": "^0.0.3",
     "pg": "^8.16.0",
     "prompts": "^2.4.2",
+    "rate-limiter-flexible": "^7.4.0",
     "react": "^18.2.0",
     "react-day-picker": "^9.7.0",
     "react-dom": "^18.2.0",
