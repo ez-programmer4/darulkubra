@@ -40,6 +40,7 @@ export async function POST(
         chatId: true,
         name: true,
         phoneno: true,
+        package: true, // Need package for rate calculation
       },
     });
 
@@ -49,6 +50,48 @@ export async function POST(
 
     if (student.ustaz !== teacherId) {
       return NextResponse.json({ error: "Not your student" }, { status: 403 });
+    }
+
+    // Get package salary rate for this student
+    let packageRate = 0;
+    let packageId = student.package || "";
+    
+    if (student.package) {
+      const packageSalary = await prisma.packageSalary.findFirst({
+        where: { packageName: student.package },
+      });
+      
+      if (packageSalary) {
+        // Get Sunday inclusion setting
+        const workingDaysConfig = await prisma.setting.findUnique({
+          where: { key: "include_sundays_in_salary" },
+        });
+        const includeSundays = workingDaysConfig?.value === "true" || false;
+        
+        // Calculate working days based on Sunday setting
+        const daysInMonth = new Date(localTime.getFullYear(), localTime.getMonth() + 1, 0).getDate();
+        let workingDays = 0;
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(localTime.getFullYear(), localTime.getMonth(), day);
+          if (includeSundays || date.getDay() !== 0) {
+            workingDays++;
+          }
+        }
+        
+        packageRate = Math.round(Number(packageSalary.salaryPerStudent) / workingDays);
+        
+        console.log(`📊 Package Rate Calculation:`);
+        console.log(`  Student: ${student.name} (ID: ${studentId})`);
+        console.log(`  Package: ${student.package}`);
+        console.log(`  Monthly Salary: ${packageSalary.salaryPerStudent}`);
+        console.log(`  Working Days: ${workingDays}`);
+        console.log(`  Daily Rate: ${packageRate}`);
+        console.log(`  Include Sundays: ${includeSundays}`);
+      } else {
+        console.log(`⚠️ Package salary not found for: ${student.package}`);
+      }
+    } else {
+      console.log(`⚠️ Student has no package: ${student.name}`);
     }
 
     // Coerce/validate fields - adjust for local timezone (Ethiopia is UTC+3)
@@ -76,6 +119,10 @@ export async function POST(
     // Persist record
     let created;
     try {
+      console.log(`💾 Creating zoom link with package data:`);
+      console.log(`  packageId: ${packageId}`);
+      console.log(`  packageRate: ${packageRate}`);
+      
       created = await prisma.wpos_zoom_links.create({
         data: {
           studentid: studentId,
@@ -84,17 +131,43 @@ export async function POST(
           tracking_token: tokenToUse,
           sent_time: localTime,
           expiration_date: expiry ?? undefined,
+          packageId: packageId,
+          packageRate: packageRate,
         },
       });
+      
+      console.log(`✅ Zoom link created with ID: ${created.id}`);
+      
+      // Verify the data was stored correctly
+      const verification = await prisma.wpos_zoom_links.findUnique({
+        where: { id: created.id },
+        select: { id: true, packageId: true, packageRate: true, studentid: true },
+      });
+      console.log(`🔍 Verification query result:`, verification);
     } catch (createError: any) {
       console.error("Zoom link creation error:", createError);
 
       // Try raw SQL as fallback
       try {
+        console.log(`💾 Fallback: Creating zoom link via raw SQL`);
+        console.log(`  packageId: ${packageId}`);
+        console.log(`  packageRate: ${packageRate}`);
+        
         await prisma.$executeRaw`
-          INSERT INTO wpos_zoom_links (studentid, ustazid, link, tracking_token, sent_time, expiration_date, clicked_at, report, Click, Status)
-          VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${localTime}, ${expiry}, NULL, 0, 0, 'sent')
+          INSERT INTO wpos_zoom_links (studentid, ustazid, link, tracking_token, sent_time, expiration_date, packageId, packageRate, clicked_at, report, Click, Status)
+          VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${localTime}, ${expiry}, ${packageId}, ${packageRate}, NULL, 0, 0, 'sent')
         `;
+        
+        console.log(`✅ Raw SQL zoom link created`);
+        
+        // Verify the fallback data was stored correctly
+        if (created) {
+          const verification = await prisma.wpos_zoom_links.findUnique({
+            where: { id: created.id },
+            select: { id: true, packageId: true, packageRate: true, studentid: true },
+          });
+          console.log(`🔍 Fallback verification:`, verification);
+        }
 
         // Get the created record
         created = await prisma.wpos_zoom_links.findFirst({
@@ -233,6 +306,13 @@ Click the button below to join your online class session.
         student_name: student.name,
         student_chat_id: student.chatId,
         sent_time_formatted: timeString,
+        package: student.package,
+        daily_rate: packageRate,
+        debug_info: {
+          packageId_stored: packageId,
+          packageRate_stored: packageRate,
+          working_days_calculated: workingDays,
+        },
       },
       { status: 201 }
     );

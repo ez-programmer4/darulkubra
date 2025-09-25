@@ -8,11 +8,11 @@ export async function createAssignment(teacherId: string, studentId: number) {
   await prisma.wpos_ustaz_occupied_times.updateMany({
     where: {
       student_id: studentId,
-      end_at: null
+      end_at: null,
     },
     data: {
-      end_at: new Date()
-    }
+      end_at: new Date(),
+    },
   });
 
   // Create new assignment
@@ -23,8 +23,8 @@ export async function createAssignment(teacherId: string, studentId: number) {
       occupied_at: new Date(),
       end_at: null,
       time_slot: "09:00-10:00", // Default time slot
-      daypackage: "Monday" // Default day package
-    }
+      daypackage: "Monday", // Default day package
+    },
   });
 }
 
@@ -36,11 +36,11 @@ export async function endAssignment(teacherId: string, studentId: number) {
     where: {
       ustaz_id: teacherId,
       student_id: studentId,
-      end_at: null
+      end_at: null,
     },
     data: {
-      end_at: new Date()
-    }
+      end_at: new Date(),
+    },
   });
 }
 
@@ -51,16 +51,16 @@ export async function getActiveAssignments(teacherId: string) {
   return await prisma.wpos_ustaz_occupied_times.findMany({
     where: {
       ustaz_id: teacherId,
-      end_at: null
+      end_at: null,
     },
     include: {
       student: {
         select: {
           wdt_ID: true,
           name: true,
-          package: true
-        }
-      }
-    }
+          package: true,
+        },
+      },
+    },
   });
 }

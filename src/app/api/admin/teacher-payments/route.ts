@@ -370,33 +370,45 @@ export async function GET(req: NextRequest) {
 
         if (assignments.length === 0) return null;
 
-        // Calculate base salary from zoom links
+        // Calculate base salary from zoom links with package rates
         let baseSalary = 0;
         const dailyBreakdown = [];
+        const dailyEarnings = new Map();
+        
         for (const assignment of assignments) {
           const assignmentStart = assignment.occupied_at && assignment.occupied_at > from ? assignment.occupied_at : from;
           const assignmentEnd = assignment.end_at && assignment.end_at < to ? assignment.end_at : to;
+          const student = assignment.student;
+          
+          if (!student?.package || !salaryMap[student.package]) continue;
+          
+          const monthlyPackageSalary = Math.round(salaryMap[student.package] || 0);
+          const workingDays = 26; // Default working days per month
+          const dailyRate = Math.round(monthlyPackageSalary / workingDays);
 
           const zoomLinks = await prisma.wpos_zoom_links.findMany({
             where: {
               ustazid: t.ustazid,
               studentid: assignment.student_id,
               sent_time: { gte: assignmentStart, lte: assignmentEnd },
-              packageRate: { not: null },
             },
-            select: { sent_time: true, packageRate: true, packageId: true },
+            select: { sent_time: true, packageRate: true },
           });
 
-          const assignmentEarnings = zoomLinks.reduce((sum, link) => sum + Number(link.packageRate || 0), 0);
-          baseSalary += assignmentEarnings;
+          // Use stored package rates from zoom links (handles mid-month changes)
+          const studentEarnings = zoomLinks.reduce((sum, link) => {
+            return sum + Number(link.packageRate || dailyRate);
+          }, 0);
+          baseSalary += studentEarnings;
 
           if (zoomLinks.length > 0) {
             dailyBreakdown.push({
-              studentName: assignment.student?.name || "Unknown",
-              package: assignment.student?.package || "Unknown",
-              assignmentPeriod: `${assignmentStart.toISOString().split("T")[0]} to ${assignmentEnd.toISOString().split("T")[0]}`,
-              zoomLinksCount: zoomLinks.length,
-              totalEarned: assignmentEarnings,
+              studentName: student.name || "Unknown",
+              package: student.package || "Unknown",
+              monthlyRate: monthlyPackageSalary,
+              dailyRate: dailyRate,
+              daysWorked: zoomLinks.length,
+              totalEarned: studentEarnings,
             });
           }
         }
@@ -445,8 +457,15 @@ export async function GET(req: NextRequest) {
             latenessWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
           );
 
+          // Only get students from ACTIVE assignments (not ended ones)
+          const activeAssignments = assignments.filter(a => !a.end_at || a.end_at > from);
+          const activeStudentIds = activeAssignments.map(a => a.student_id);
+          
           const allStudents = await prisma.wpos_wpdatatable_23.findMany({
-            where: { ustaz: t.ustazid },
+            where: { 
+              ustaz: t.ustazid,
+              wdt_ID: { in: activeStudentIds } // Only active students
+            },
             select: {
               wdt_ID: true,
               name: true,
@@ -454,7 +473,10 @@ export async function GET(req: NextRequest) {
               zoom_links: {
                 where: { sent_time: { gte: from, lte: to } },
               },
-              occupiedTimes: { select: { time_slot: true } },
+              occupiedTimes: { 
+                where: { end_at: null }, // Only active assignments
+                select: { time_slot: true } 
+              },
             },
           });
 
