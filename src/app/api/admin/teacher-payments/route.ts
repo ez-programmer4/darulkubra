@@ -686,8 +686,8 @@ export async function GET(req: NextRequest) {
           teachingDays: dailyBreakdown.length,
           status: payment?.status || "Unpaid",
           breakdown: {
-            dailyEarnings: dailyBreakdown.map((b) => ({
-              date: b.assignmentPeriod.split(" to ")[0],
+            dailyEarnings: dailyBreakdown.map((b, index) => ({
+              date: `Day ${index + 1}`,
               amount: b.totalEarned,
             })),
             studentBreakdown: dailyBreakdown,
