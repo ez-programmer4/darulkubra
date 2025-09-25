@@ -695,20 +695,26 @@ export async function PUT(request: NextRequest) {
 
       // Log assignment changes for audit
       if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
+        const auditDetails = {
+          oldTeacher: currentOccupiedTime?.ustaz_id || null,
+          newTeacher: ustaz,
+          oldTime: currentTimeSlot || null,
+          newTime: selectedTime,
+          studentId: parseInt(id)
+        };
+        
+        const detailsString = JSON.stringify(auditDetails);
+        // Truncate if too long (assuming max 500 chars for safety)
+        const truncatedDetails = detailsString.length > 500 
+          ? detailsString.substring(0, 497) + "..."
+          : detailsString;
+          
         await tx.auditlog.create({
           data: {
             actionType: "assignment_update",
             adminId: session.id || null,
             targetId: parseInt(id),
-            details: JSON.stringify({
-              deletedTeacher: currentOccupiedTime?.ustaz_id,
-              deletedTimeSlot: currentTimeSlot,
-              deletedDayPackage: currentOccupiedTime?.daypackage,
-              newTeacher: ustaz,
-              newTimeSlot: selectedTime,
-              newDayPackage: selectedDayPackage,
-              occupied_at: new Date().toISOString(),
-            }),
+            details: truncatedDetails,
           },
         });
       }
