@@ -67,9 +67,12 @@ const checkTeacherAvailability = async (
     };
   }
 
-  // Check for conflicts with existing bookings
+  // Check for conflicts with active assignments
   const allBookings = await prismaClient.wpos_ustaz_occupied_times.findMany({
-    where: { time_slot: timeSlot },
+    where: { 
+      time_slot: timeSlot,
+      end_at: null // Only active assignments
+    },
     select: { ustaz_id: true, daypackage: true, student_id: true },
   });
 
@@ -211,7 +214,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if the selected time slot is available for the teacher (handle both formats)
+    // Check if the selected time slot is available for the teacher
     const isTimeSlotAvailable =
       await prismaClient.wpos_ustaz_occupied_times.findFirst({
         where: {
@@ -222,6 +225,7 @@ export async function POST(request: NextRequest) {
             { time_slot: timeToMatch },
           ],
           daypackage: selectedDayPackage,
+          end_at: null // Only active assignments
         },
       });
 
@@ -232,7 +236,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for conflicts with existing bookings (handle both formats)
+    // Check for conflicts with active assignments
     const existingBookings =
       await prismaClient.wpos_ustaz_occupied_times.findMany({
         where: {
@@ -242,6 +246,7 @@ export async function POST(request: NextRequest) {
             { time_slot: toDbFormat(selectedTime) },
             { time_slot: timeToMatch },
           ],
+          end_at: null // Only active assignments
         },
       });
 
@@ -345,20 +350,20 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create occupied time record with database format
+      // Create assignment record
       try {
         await tx.wpos_ustaz_occupied_times.create({
           data: {
             ustaz_id: ustaz,
-            time_slot: toDbFormat(selectedTime), // Store in HH:MM:SS format
+            time_slot: toDbFormat(selectedTime),
             daypackage: selectedDayPackage,
             student_id: registration.wdt_ID,
             occupied_at: new Date(),
+            end_at: null
           },
         });
       } catch (occupiedError) {
-        console.warn("Failed to create occupied time record:", occupiedError);
-        // Continue without occupied time record - registration still succeeds
+        console.warn("Failed to create assignment record:", occupiedError);
       }
 
       // No need to update user table since userId is now stored in registration
@@ -529,9 +534,12 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Get current time slot from occupied times
+    // Get current active assignment
     const currentOccupiedTime = await prismaClient.wpos_ustaz_occupied_times.findFirst({
-      where: { student_id: parseInt(id) },
+      where: { 
+        student_id: parseInt(id),
+        end_at: null // Only active assignment
+      },
       select: { time_slot: true, ustaz_id: true, daypackage: true },
     });
 

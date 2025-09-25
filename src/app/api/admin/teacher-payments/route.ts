@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
-import {
-  isTeacherAbsent,
-  getAbsenceDeductionConfig,
-} from "@/lib/absence-utils";
 import { format } from "date-fns";
 
 // Helper function to check if a student is scheduled for a specific day
-// For now, return true for all students (no day-specific filtering)
-// This can be enhanced later when the schema supports day-specific scheduling
 async function checkIfStudentScheduledForDay(
   studentId: number,
   dayOfWeek: number
 ): Promise<boolean> {
-  // TODO: Implement day-specific scheduling when schema is available
-  // For now, assume all students are scheduled for all days
+  // TODO: Implement day-specific scheduling when schema supports it
   return true;
 }
 
@@ -26,7 +19,6 @@ async function processPayment(
   period: string
 ) {
   try {
-    // Get teacher details for payment
     const teacher = await prisma.wpos_wpdatatable_24.findUnique({
       where: { ustazid: teacherId },
       select: { ustazname: true, phone: true },
@@ -34,7 +26,6 @@ async function processPayment(
 
     if (!teacher) throw new Error("Teacher not found");
 
-    // Call external payment API
     const paymentResponse = await fetch(process.env.PAYMENT_API_URL || "", {
       method: "POST",
       headers: {
@@ -80,23 +71,37 @@ async function processPayment(
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
-    // If details query, return detailed breakdown
-    if (
-      url.pathname.endsWith("/details") ||
-      url.searchParams.has("teacherId")
-    ) {
-      const teacherId = url.searchParams.get("teacherId");
-      const from = url.searchParams.get("from");
-      const to = url.searchParams.get("to");
-      if (!teacherId || !from || !to) {
+    const startDate = url.searchParams.get("startDate");
+    const endDate = url.searchParams.get("endDate");
+    const teacherId = url.searchParams.get("teacherId");
+
+    if (!startDate || !endDate) {
+      return NextResponse.json(
+        { error: "Missing startDate or endDate" },
+        { status: 400 }
+      );
+    }
+
+    const from = new Date(startDate);
+    const to = new Date(endDate);
+
+    // Validate date range
+    if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) {
+      return NextResponse.json(
+        { error: "Invalid date range" },
+        { status: 400 }
+      );
+    }
+
+    // Handle detailed view for a specific teacher
+    if (url.pathname.endsWith("/details") || teacherId) {
+      if (!teacherId) {
         return NextResponse.json(
-          { error: "Missing teacherId, from, or to" },
+          { error: "Missing teacherId for details" },
           { status: 400 }
         );
       }
-      const fromDate = new Date(from);
-      const toDate = new Date(to);
-      // Get package-specific deduction configurations
+
       const packageDeductions = await prisma.packageDeduction.findMany();
       const packageDeductionMap: Record<
         string,
@@ -110,12 +115,10 @@ export async function GET(req: NextRequest) {
       });
       const defaultBaseDeductionAmount = 30;
 
-      // Fetch lateness deduction config from DB - no fallback tiers
       const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
         orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
       });
 
-      // Only use database configuration, no predefined tiers
       if (latenessConfigs.length === 0) {
         return NextResponse.json({
           latenessRecords: [],
@@ -133,133 +136,105 @@ export async function GET(req: NextRequest) {
         percent: c.deductionPercent,
       }));
       const maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
-      // Get students for this teacher in the date range (handles teacher changes)
-      const students = await prisma.wpos_wpdatatable_23.findMany({
-        where: { ustaz: teacherId },
-        select: {
-          wdt_ID: true,
-          name: true,
-          package: true,
-          zoom_links: {
-            where: {
-              sent_time: { gte: fromDate, lte: toDate },
-            },
-          },
-          occupiedTimes: {
-            select: {
-              time_slot: true,
-            },
+
+      // Fetch assignments for the teacher
+      const assignments = await prisma.wpos_ustaz_occupied_times.findMany({
+        where: {
+          ustaz_id: teacherId,
+          occupied_at: { lte: to },
+          OR: [{ end_at: null }, { end_at: { gte: from } }],
+        },
+        include: {
+          student: {
+            select: { wdt_ID: true, name: true, package: true },
           },
         },
       });
-      // For each day in the range, calculate lateness for each student
+
       const latenessRecords = [];
-      for (
-        let d = new Date(fromDate);
-        d <= toDate;
-        d.setDate(d.getDate() + 1)
-      ) {
-        const dateStr = format(d, "yyyy-MM-dd");
-        for (const student of students) {
-          const timeSlot = student.occupiedTimes?.[0]?.time_slot;
-          if (!timeSlot) continue;
-          // Convert selectedTime (12h or 24h) to Date for the day
-          function to24Hour(time12h: string) {
-            if (!time12h) return "00:00";
+      for (const assignment of assignments) {
+        const student = assignment.student;
+        const timeSlot = assignment.time_slot;
+        if (!timeSlot) continue;
 
-            // Handle AM/PM format
-            if (time12h.includes("AM") || time12h.includes("PM")) {
-              const [time, modifier] = time12h.split(" ");
-              let [hours, minutes] = time.split(":");
-              if (hours === "12") hours = modifier === "AM" ? "00" : "12";
-              else if (modifier === "PM")
-                hours = String(parseInt(hours, 10) + 12);
-              return `${hours.padStart(2, "0")}:${minutes}`;
-            }
+        const zoomLinks = await prisma.wpos_zoom_links.findMany({
+          where: {
+            ustazid: teacherId,
+            studentid: student.wdt_ID,
+            sent_time: { 
+              gte: assignment.occupied_at || from, 
+              lte: assignment.end_at || to 
+            },
+          },
+          select: { sent_time: true },
+        });
 
-            // Handle existing 24-hour format (HH:MM:SS or HH:MM)
-            if (time12h.includes(":")) {
-              const parts = time12h.split(":");
-              const hours = parts[0].padStart(2, "0");
-              const minutes = (parts[1] || "00").padStart(2, "0");
-              return `${hours}:${minutes}`;
-            }
-
-            return "00:00"; // fallback
-          }
-          const time24 = to24Hour(timeSlot);
+        const startDate = assignment.occupied_at && assignment.occupied_at > from ? assignment.occupied_at : from;
+        const endDate = assignment.end_at && assignment.end_at < to ? assignment.end_at : to;
+        
+        for (
+          let d = new Date(startDate);
+          d <= endDate;
+          d.setDate(d.getDate() + 1)
+        ) {
+          const dateStr = format(d, "yyyy-MM-dd");
+          const time24 = timeSlot.includes("AM") || timeSlot.includes("PM")
+            ? timeSlot.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i)
+              ? (() => {
+                  const [, hour, minute, period] = timeSlot.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i)!;
+                  let h = parseInt(hour);
+                  if (period.toUpperCase() === "PM" && h !== 12) h += 12;
+                  if (period.toUpperCase() === "AM" && h === 12) h = 0;
+                  return `${h.toString().padStart(2, "0")}:${minute}`;
+                })()
+              : "00:00"
+            : timeSlot.split(":").slice(0, 2).join(":");
           const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
-          // Find the earliest sent_time for this student/date
-          const sentTimes = (student.zoom_links || [])
-            .filter(
-              (zl) =>
-                zl.sent_time &&
-                format(zl.sent_time as Date, "yyyy-MM-dd") === dateStr
-            )
-            .map((zl) => zl.sent_time)
-            .sort((a, b) => {
-              if (!a && !b) return 0;
-              if (!a) return 1;
-              if (!b) return -1;
-              return a.getTime() - b.getTime();
-            });
-          const actualStartTime = sentTimes.length > 0 ? sentTimes[0] : null;
+
+          const sentTimes = zoomLinks
+            .filter((zl) => zl.sent_time && format(zl.sent_time, "yyyy-MM-dd") === dateStr)
+            .sort((a, b) => a.sent_time!.getTime() - b.sent_time!.getTime());
+
+          const actualStartTime = sentTimes[0]?.sent_time || null;
           if (!actualStartTime) continue;
+
           const latenessMinutes = Math.max(
             0,
             Math.round(
               (actualStartTime.getTime() - scheduledTime.getTime()) / 60000
             )
           );
-          // Deduction logic with waiver check
+
           let deductionApplied = 0;
           let deductionTier = "Excused";
           let isWaived = false;
 
           if (latenessMinutes > excusedThreshold) {
-            // Get student's package for package-specific deduction
-            const studentPackage = student.package || "";
             const baseDeductionAmount =
-              packageDeductionMap[studentPackage]?.lateness ||
-              defaultBaseDeductionAmount;
+              packageDeductionMap[student.package || ""]?.lateness || defaultBaseDeductionAmount;
 
             let foundTier = false;
             for (const [i, tier] of tiers.entries()) {
-              if (
-                latenessMinutes >= tier.start &&
-                latenessMinutes <= tier.end
-              ) {
+              if (latenessMinutes >= tier.start && latenessMinutes <= tier.end) {
                 deductionApplied = baseDeductionAmount * (tier.percent / 100);
-                deductionTier = `Tier ${i + 1} (${
-                  tier.percent
-                }%) - ${studentPackage}`;
+                deductionTier = `Tier ${i + 1} (${tier.percent}%) - ${student.package || "Unknown"}`;
                 foundTier = true;
                 break;
               }
             }
             if (!foundTier && latenessMinutes > maxTierEnd) {
               deductionApplied = baseDeductionAmount;
-              deductionTier = `> Max Tier - ${studentPackage}`;
+              deductionTier = `> Max Tier - ${student.package || "Unknown"}`;
             }
 
-            // Check for waiver
-            try {
-              const { isDeductionWaived } = await import(
-                "@/lib/deduction-waivers"
-              );
-              isWaived = await isDeductionWaived(
-                teacherId as string,
-                scheduledTime,
-                "lateness"
-              );
-              if (isWaived) {
-                deductionApplied = 0;
-                deductionTier = `${deductionTier} (WAIVED)`;
-              }
-            } catch (error) {
-              console.error("Error checking waiver:", error);
+            const { isDeductionWaived } = await import("@/lib/deduction-waivers").catch(() => ({ isDeductionWaived: () => false }));
+            isWaived = await isDeductionWaived(teacherId, scheduledTime, "lateness");
+            if (isWaived) {
+              deductionApplied = 0;
+              deductionTier = `${deductionTier} (WAIVED)`;
             }
           }
+
           latenessRecords.push({
             studentId: student.wdt_ID,
             studentName: student.name,
@@ -269,367 +244,196 @@ export async function GET(req: NextRequest) {
             latenessMinutes,
             deductionApplied,
             deductionTier,
-            isWaived: isWaived || false,
+            isWaived,
           });
         }
       }
-      // Get bonus records
-      let bonusRecords: any[] = [];
-      if (typeof teacherId === "string") {
-        bonusRecords = await prisma.bonusrecord.findMany({
-          where: {
-            teacherId,
-            createdAt: { gte: fromDate, lte: toDate },
-          },
-          orderBy: { createdAt: "asc" },
-        });
-      }
-      // ZOOM-BASED ABSENCE CALCULATION
-      // Get package deduction rates
-      const detailPackageDeductions = await prisma.packageDeduction.findMany();
-      const detailPackageDeductionMap: Record<
-        string,
-        { lateness: number; absence: number }
-      > = {};
-      detailPackageDeductions.forEach((pkg) => {
-        detailPackageDeductionMap[pkg.packageName] = {
-          lateness: Number(pkg.latenessBaseAmount),
-          absence: Number(pkg.absenceBaseAmount),
-        };
+
+      const bonusRecords = await prisma.bonusrecord.findMany({
+        where: { teacherId, createdAt: { gte: from, lte: to } },
+        orderBy: { createdAt: "asc" },
       });
 
-      // Get Sunday configuration
+      const absenceWaivers = await prisma.deduction_waivers.findMany({
+        where: {
+          teacherId,
+          deductionType: "absence",
+          deductionDate: { gte: from, lte: to },
+        },
+      });
+      const waivedDates = new Set(
+        absenceWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
+      );
+
+      const computedAbsences = [];
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(23, 59, 59, 999);
+      const endProcessDate = new Date(Math.min(to.getTime(), yesterday.getTime()));
       const workingDaysConfig = await prisma.setting.findUnique({
         where: { key: "include_sundays_in_salary" },
       });
       const includeSundays = workingDaysConfig?.value === "true" || false;
 
-      // Get absence waivers
-      const absenceWaivers = await prisma.deduction_waivers.findMany({
-        where: {
-          teacherId: teacherId as string,
-          deductionType: "absence",
-          deductionDate: { gte: fromDate, lte: toDate },
-        },
-      });
+      for (const assignment of assignments) {
+        const student = assignment.student;
+        const absenceStartDate = assignment.occupied_at && assignment.occupied_at > from ? assignment.occupied_at : from;
+        const absenceEndDate = assignment.end_at && assignment.end_at < endProcessDate ? assignment.end_at : endProcessDate;
+        
+        for (
+          let d = new Date(absenceStartDate);
+          d <= absenceEndDate;
+          d.setDate(d.getDate() + 1)
+        ) {
+          if (!includeSundays && d.getDay() === 0) continue;
+          const dateStr = format(d, "yyyy-MM-dd");
+          if (waivedDates.has(dateStr)) continue;
 
-      const waivedDates = new Set(
-        absenceWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
-      );
+          const studentScheduled = await checkIfStudentScheduledForDay(student.wdt_ID, d.getDay());
+          if (!studentScheduled) continue;
 
-      const computedAbsences: any[] = [];
-
-      // Get teacher's current students for absence calculation
-      const teacherStudents = await prisma.wpos_wpdatatable_23.findMany({
-        where: {
-          ustaz: teacherId as string,
-          status: { in: ["active", "Active", "Not yet", "not yet"] },
-        },
-        select: {
-          wdt_ID: true,
-          name: true,
-          package: true,
-          zoom_links: {
+          const hasZoomLink = await prisma.wpos_zoom_links.count({
             where: {
-              sent_time: { gte: fromDate, lte: toDate },
+              ustazid: teacherId,
+              studentid: student.wdt_ID,
+              sent_time: {
+                gte: new Date(`${dateStr}T00:00:00.000Z`),
+                lte: new Date(`${dateStr}T23:59:59.999Z`),
+              },
             },
-            select: { sent_time: true },
-          },
-        },
-      });
-      for (
-        let d = new Date(fromDate);
-        d <= toDate;
-        d.setDate(d.getDate() + 1)
-      ) {
-        // Skip future dates - only process past dates
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        yesterday.setHours(23, 59, 59, 999);
-        if (d > yesterday) continue;
-
-        const dateKey = d.toISOString().split("T")[0];
-
-        // Skip Sundays based on configuration
-        if (!includeSundays && d.getDay() === 0) continue;
-
-        // Check if teacher sent any zoom links on this day (same logic as main table)
-        const dayHasZoomLinks = teacherStudents.some((student) =>
-          student.zoom_links.some((link) => {
-            if (!link.sent_time) return false;
-            const linkDate = format(link.sent_time, "yyyy-MM-dd");
-            return linkDate === dateKey;
-          })
-        );
-
-        // NEW: Check per-schedule absences instead of whole-day
-        let calculatedDeduction = 0;
-        const packageBreakdown = [];
-        const affectedTimeSlots = [];
-        const dayOfWeek = d.getDay();
-
-        for (const student of teacherStudents) {
-          // Check if student is scheduled for this day
-          const shouldDeductForThisDay = await checkIfStudentScheduledForDay(
-            student.wdt_ID,
-            dayOfWeek
-          );
-
-          if (!shouldDeductForThisDay) continue;
-
-          // Check if teacher sent zoom link specifically for this student
-          const studentHasZoomLink = student.zoom_links.some((link) => {
-            if (!link.sent_time) return false;
-            const linkDate = format(link.sent_time, "yyyy-MM-dd");
-            return linkDate === dateKey;
           });
 
-          // If no zoom link for this specific student, deduct for this student's schedule
-          if (!studentHasZoomLink) {
-            const studentPackage = student.package || "";
-            const packageRate =
-              detailPackageDeductionMap[studentPackage]?.absence || 25;
-            calculatedDeduction += packageRate;
-            affectedTimeSlots.push(`${student.name} (${studentPackage})`);
-
-            packageBreakdown.push({
-              studentId: student.wdt_ID,
-              studentName: student.name,
-              package: studentPackage || "Unknown",
-              ratePerSlot: packageRate,
-              timeSlots: 1,
-              total: packageRate,
+          if (!hasZoomLink) {
+            const packageRate = packageDeductionMap[student.package || ""]?.absence || 25;
+            computedAbsences.push({
+              id: 0,
+              teacherId,
+              classDate: new Date(d),
+              timeSlots: [`${student.name} (${student.package})`],
+              packageBreakdown: [{
+                studentId: student.wdt_ID,
+                studentName: student.name,
+                package: student.package || "Unknown",
+                ratePerSlot: packageRate,
+                timeSlots: 1,
+                total: packageRate,
+              }],
+              uniqueTimeSlots: [`${student.name} (${student.package})`],
+              permitted: false,
+              permissionRequestId: null,
+              deductionApplied: packageRate,
+              reviewedByManager: true,
+              reviewNotes: `Absence for ${student.name} (${student.package}): ${packageRate}ETB`,
             });
           }
         }
-
-        // Only create absence record if there are actual deductions
-        if (calculatedDeduction > 0) {
-          computedAbsences.push({
-            id: 0,
-            teacherId,
-            classDate: new Date(d),
-            timeSlots: affectedTimeSlots,
-            packageBreakdown: packageBreakdown,
-            uniqueTimeSlots: affectedTimeSlots,
-            permitted: false,
-            permissionRequestId: null,
-            deductionApplied: calculatedDeduction,
-            reviewedByManager: true,
-            reviewNotes: `Per-schedule absence - ${
-              packageBreakdown.length
-            } students affected: ${packageBreakdown
-              .map((p) => `${p.studentName}(${p.package}): ${p.total}ETB`)
-              .join(", ")}`,
-          });
-        }
       }
+
       return NextResponse.json({
         latenessRecords,
         absenceRecords: computedAbsences,
         bonusRecords,
       });
     }
-    const startDate = url.searchParams.get("startDate");
-    const endDate = url.searchParams.get("endDate");
-    if (!startDate || !endDate) {
-      return NextResponse.json(
-        { error: "Missing date range" },
-        { status: 400 }
-      );
-    }
-    const from = new Date(startDate);
-    const to = new Date(endDate);
 
-    // Get all teachers
+    // Main table view: Calculate salaries for all teachers
     const teachers = await prisma.wpos_wpdatatable_24.findMany({
-      select: {
-        ustazid: true,
-        ustazname: true,
-      },
+      select: { ustazid: true, ustazname: true },
     });
 
-    // Get package-based salary configuration from dedicated table
     const packageSalaries = await prisma.packageSalary.findMany();
-
     const salaryMap: Record<string, number> = {};
     packageSalaries.forEach((pkg) => {
       salaryMap[pkg.packageName] = Number(pkg.salaryPerStudent);
     });
 
-    // Get working days configuration (default: exclude Sundays)
     const workingDaysConfig = await prisma.setting.findUnique({
       where: { key: "include_sundays_in_salary" },
     });
     const includeSundays = workingDaysConfig?.value === "true" || false;
 
-    // Calculate working days in the selected month
-    const daysInMonth = new Date(
-      from.getFullYear(),
-      from.getMonth() + 1,
-      0
-    ).getDate();
-    let workingDays = 0;
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(from.getFullYear(), from.getMonth(), day);
-      // Include/exclude Sundays based on configuration
-      if (includeSundays || date.getDay() !== 0) {
-        workingDays++;
-      }
-    }
+    const results = await Promise.all(
+      teachers.map(async (t) => {
+        // Fetch assignments
+        const assignments = await prisma.wpos_ustaz_occupied_times.findMany({
+          where: {
+            ustaz_id: t.ustazid,
+            occupied_at: { lte: to },
+            OR: [{ end_at: null }, { end_at: { gte: from } }],
+          },
+          include: {
+            student: {
+              select: { wdt_ID: true, name: true, package: true },
+            },
+          },
+        });
 
-    // For each teacher, calculate deductions and bonuses
-    // Helper to get all periods in the date range
-    function getPeriodsInRange(from: Date, to: Date): string[] {
-      const periods = new Set<string>();
-      let d = new Date(from.getFullYear(), from.getMonth(), 1);
-      while (d <= to) {
-        periods.add(
-          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-        );
-        d.setMonth(d.getMonth() + 1);
-      }
-      return Array.from(periods) as string[];
-    }
-    const periodsInRange: string[] = getPeriodsInRange(from, to);
+        if (assignments.length === 0) return null;
 
-    // Fetch absence config once
-    const absenceConfig = await getAbsenceDeductionConfig();
+        // Calculate base salary from zoom links
+        let baseSalary = 0;
+        const dailyBreakdown = [];
+        for (const assignment of assignments) {
+          const assignmentStart = assignment.occupied_at && assignment.occupied_at > from ? assignment.occupied_at : from;
+          const assignmentEnd = assignment.end_at && assignment.end_at < to ? assignment.end_at : to;
 
-    const results = (
-      await Promise.all(
-        teachers.map(async (t) => {
-          // === STEP 1: GET TEACHER'S STUDENTS (Teacher Change Handling) ===
-          // Only get students currently assigned to this teacher
-          const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
+          const zoomLinks = await prisma.wpos_zoom_links.findMany({
             where: {
-              ustaz: t.ustazid, // Only students assigned to THIS teacher
-              status: { in: ["active", "Active", "Not yet", "not yet"] },
+              ustazid: t.ustazid,
+              studentid: assignment.student_id,
+              sent_time: { gte: assignmentStart, lte: assignmentEnd },
+              packageRate: { not: null },
             },
-            select: {
-              wdt_ID: true,
-              name: true,
-              package: true,
-              zoom_links: {
-                where: {
-                  sent_time: { gte: from, lte: to },
-                },
-                select: { sent_time: true },
-              },
-            },
+            select: { sent_time: true, packageRate: true, packageId: true },
           });
 
-          // Filter zoom links to prevent new teachers getting old teacher's work
-          const filteredStudents = currentStudents.map(student => ({
-            ...student,
-            zoom_links: student.zoom_links.filter(link => link.sent_time && link.sent_time >= from)
-          }));
+          const assignmentEarnings = zoomLinks.reduce((sum, link) => sum + Number(link.packageRate || 0), 0);
+          baseSalary += assignmentEarnings;
 
-          // DEBUG: Log student data for debug teachers
-          const isDebugTeacher =
-            t.ustazname?.includes("CHALTU") ||
-            t.ustazname?.includes("SEADA") ||
-            false;
-
-          const numStudents = currentStudents.length;
-
-          // Skip teachers with no students
-          if (numStudents === 0) {
-            return null;
+          if (zoomLinks.length > 0) {
+            dailyBreakdown.push({
+              studentName: assignment.student?.name || "Unknown",
+              package: assignment.student?.package || "Unknown",
+              assignmentPeriod: `${assignmentStart.toISOString().split("T")[0]} to ${assignmentEnd.toISOString().split("T")[0]}`,
+              zoomLinksCount: zoomLinks.length,
+              totalEarned: assignmentEarnings,
+            });
           }
+        }
 
-          // === STEP 2: FRESH SALARY CALCULATION (No Old Teacher Data) ===
-          // New teacher salary = only days they worked + their students
-          // Old teacher data preserved separately for payment
-          let baseSalary = 0;
-          let totalTeachingDays = 0;
-          const dailyBreakdown = [];
-          const dailyEarnings = new Map();
+        baseSalary = Math.round(baseSalary);
 
-          for (const student of filteredStudents) {
-            if (!student.package || !salaryMap[student.package]) continue;
+        // Calculate lateness deductions
+        let latenessDeduction = 0;
+        const latenessBreakdown = [];
+        const packageDeductions = await prisma.packageDeduction.findMany();
+        const packageDeductionMap: Record<
+          string,
+          { lateness: number; absence: number }
+        > = {};
+        packageDeductions.forEach((pkg) => {
+          packageDeductionMap[pkg.packageName] = {
+            lateness: Number(pkg.latenessBaseAmount),
+            absence: Number(pkg.absenceBaseAmount),
+          };
+        });
+        const defaultBaseDeductionAmount = 30;
 
-            const monthlyPackageSalary = Math.round(
-              salaryMap[student.package] || 0
-            );
-            const dailyRate = Math.round(monthlyPackageSalary / workingDays);
+        const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
+          orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
+        });
 
-            // Count actual teaching days for this student (zoom link days)
-            const teachingDates = new Set();
-            const dailyLinks = new Map();
-
-            // Only count zoom links from when this teacher was assigned
-            student.zoom_links.forEach((link) => {
-              if (link.sent_time) {
-                const linkDate = new Date(link.sent_time);
-                if (includeSundays || linkDate.getDay() !== 0) {
-                  const dateStr = link.sent_time.toISOString().split("T")[0];
-
-                  if (
-                    !dailyLinks.has(dateStr) ||
-                    link.sent_time < dailyLinks.get(dateStr)
-                  ) {
-                    dailyLinks.set(dateStr, link.sent_time);
-                  }
-                }
-              }
-            });
-
-            // Add unique teaching dates
-            dailyLinks.forEach((_, dateStr) => {
-              teachingDates.add(dateStr);
-            });
-
-            // Add to daily earnings
-            teachingDates.forEach((dateStr) => {
-              if (!dailyEarnings.has(dateStr)) {
-                dailyEarnings.set(dateStr, 0);
-              }
-              dailyEarnings.set(
-                dateStr,
-                dailyEarnings.get(dateStr) + dailyRate
-              );
-            });
-
-            // Add to breakdown for transparency
-            if (teachingDates.size > 0) {
-              dailyBreakdown.push({
-                studentName: student.name,
-                package: student.package,
-                monthlyRate: monthlyPackageSalary,
-                dailyRate: dailyRate,
-                daysWorked: teachingDates.size,
-                totalEarned: dailyRate * teachingDates.size,
-              });
-            }
-          }
-
-          // Calculate totals
-          baseSalary = Array.from(dailyEarnings.values()).reduce(
-            (sum, amount) => sum + amount,
-            0
+        if (latenessConfigs.length > 0) {
+          const excusedThreshold = Math.min(
+            ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
           );
-          totalTeachingDays = dailyEarnings.size;
-          baseSalary = Math.round(baseSalary);
+          const tiers = latenessConfigs.map((c) => ({
+            start: c.startMinute,
+            end: c.endMinute,
+            percent: c.deductionPercent,
+          }));
+          const maxTierEnd = Math.max(...latenessConfigs.map((c) => c.endMinute));
 
-          // === STEP 3: CALCULATE LATENESS DEDUCTIONS ===
-          let latenessDeduction = 0;
-          const latenessBreakdown = [];
-
-          // Get package-specific deduction configurations
-          const packageDeductions = await prisma.packageDeduction.findMany();
-          const packageDeductionMap: Record<
-            string,
-            { lateness: number; absence: number }
-          > = {};
-          packageDeductions.forEach((pkg) => {
-            packageDeductionMap[pkg.packageName] = {
-              lateness: Number(pkg.latenessBaseAmount),
-              absence: Number(pkg.absenceBaseAmount),
-            };
-          });
-
-          // Get lateness waiver records for this teacher and period
           const latenessWaivers = await prisma.deduction_waivers.findMany({
             where: {
               teacherId: t.ustazid,
@@ -637,411 +441,248 @@ export async function GET(req: NextRequest) {
               deductionDate: { gte: from, lte: to },
             },
           });
-
           const waivedLatenessDates = new Set(
-            latenessWaivers.map(
-              (w) => w.deductionDate.toISOString().split("T")[0]
-            )
-          );
-          const defaultBaseDeductionAmount = 30;
-
-          const latenessConfigs = await prisma.latenessdeductionconfig.findMany(
-            {
-              orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
-            }
+            latenessWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
           );
 
-          if (latenessConfigs.length > 0) {
-            const excusedThreshold = Math.min(
-              ...latenessConfigs.map((c) => c.excusedThreshold ?? 0)
-            );
-            const tiers = latenessConfigs.map((c) => ({
-              start: c.startMinute,
-              end: c.endMinute,
-              percent: c.deductionPercent,
-            }));
-
-            // Calculate lateness - only zoom links sent by THIS teacher
-            const allStudents = await prisma.wpos_wpdatatable_23.findMany({
-              where: { ustaz: t.ustazid },
-              select: {
-                wdt_ID: true,
-                name: true,
-                package: true,
-                zoom_links: {
-                  where: {
-                    sent_time: { gte: from, lte: to },
-                  },
-                },
-                occupiedTimes: { select: { time_slot: true } },
+          const allStudents = await prisma.wpos_wpdatatable_23.findMany({
+            where: { ustaz: t.ustazid },
+            select: {
+              wdt_ID: true,
+              name: true,
+              package: true,
+              zoom_links: {
+                where: { sent_time: { gte: from, lte: to } },
               },
+              occupiedTimes: { select: { time_slot: true } },
+            },
+          });
+
+          const dailyZoomLinks = new Map();
+          for (const student of allStudents) {
+            student.zoom_links.forEach((link) => {
+              if (link.sent_time) {
+                const dateStr = format(link.sent_time, "yyyy-MM-dd");
+                if (!dailyZoomLinks.has(dateStr)) {
+                  dailyZoomLinks.set(dateStr, []);
+                }
+                dailyZoomLinks.get(dateStr).push({
+                  ...link,
+                  studentId: student.wdt_ID,
+                  studentName: student.name,
+                  timeSlot: student.occupiedTimes?.[0]?.time_slot,
+                });
+              }
+            });
+          }
+
+          for (const [dateStr, links] of dailyZoomLinks.entries()) {
+            const date = new Date(dateStr);
+            if (date < from || date > to) continue;
+
+            const studentLinks = new Map<number, any>();
+            links.forEach((link: any) => {
+              const key = link.studentId;
+              if (
+                !studentLinks.has(key) ||
+                link.sent_time < studentLinks.get(key).sent_time
+              ) {
+                studentLinks.set(key, link);
+              }
             });
 
-            // Group zoom links by date to avoid duplicate deductions
-            const dailyZoomLinks = new Map();
+            for (const link of studentLinks.values()) {
+              if (!link.timeSlot) continue;
 
-            for (const student of allStudents) {
-              student.zoom_links.forEach((link) => {
-                if (link.sent_time) {
-                  const dateStr = format(link.sent_time, "yyyy-MM-dd");
-                  if (!dailyZoomLinks.has(dateStr)) {
-                    dailyZoomLinks.set(dateStr, []);
+              const time24 = link.timeSlot.includes("AM") || link.timeSlot.includes("PM")
+                ? link.timeSlot.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i)
+                  ? (() => {
+                      const [, hour, minute, period] = link.timeSlot.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i)!;
+                      let h = parseInt(hour);
+                      if (period.toUpperCase() === "PM" && h !== 12) h += 12;
+                      if (period.toUpperCase() === "AM" && h === 12) h = 0;
+                      return `${h.toString().padStart(2, "0")}:${minute}`;
+                    })()
+                  : "00:00"
+                : link.timeSlot.split(":").slice(0, 2).join(":");
+
+              const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
+              const latenessMinutes = Math.max(
+                0,
+                Math.round(
+                  (link.sent_time.getTime() - scheduledTime.getTime()) / 60000
+                )
+              );
+
+              if (latenessMinutes > excusedThreshold) {
+                let deduction = 0;
+                let tier = "No Tier";
+                const student = allStudents.find((s) => s.wdt_ID === link.studentId);
+                const studentPackage = student?.package || "";
+                const baseDeductionAmount =
+                  packageDeductionMap[studentPackage]?.lateness || defaultBaseDeductionAmount;
+
+                for (const [i, t] of tiers.entries()) {
+                  if (latenessMinutes >= t.start && latenessMinutes <= t.end) {
+                    deduction = Math.round(baseDeductionAmount * (t.percent / 100));
+                    tier = `Tier ${i + 1} (${t.percent}%) - ${studentPackage}`;
+                    break;
                   }
-                  dailyZoomLinks.get(dateStr).push({
-                    ...link,
-                    studentId: student.wdt_ID,
-                    studentName: student.name,
-                    timeSlot: student.occupiedTimes?.[0]?.time_slot,
+                }
+                if (latenessMinutes > maxTierEnd) {
+                  deduction = baseDeductionAmount;
+                  tier = `> Max Tier - ${studentPackage}`;
+                }
+
+                const { isDeductionWaived } = await import("@/lib/deduction-waivers").catch(() => ({ isDeductionWaived: () => false }));
+                const isWaived = await isDeductionWaived(t.ustazid, scheduledTime, "lateness");
+                if (isWaived || waivedLatenessDates.has(dateStr)) {
+                  deduction = 0;
+                  tier = `${tier} (WAIVED)`;
+                }
+
+                if (deduction > 0) {
+                  latenessDeduction += deduction;
+                  latenessBreakdown.push({
+                    date: dateStr,
+                    studentName: link.studentName,
+                    scheduledTime: link.timeSlot,
+                    actualTime: format(link.sent_time, "HH:mm"),
+                    latenessMinutes,
+                    tier,
+                    deduction,
                   });
                 }
-              });
-            }
-
-            // Calculate lateness for each day (only earliest link per day)
-            for (const [dateStr, links] of dailyZoomLinks.entries()) {
-              const date = new Date(dateStr);
-              if (date < from || date > to) continue;
-
-              // Group by student and take earliest link per student per day
-              const studentLinks = new Map<number, any>();
-              links.forEach((link: any) => {
-                const key = link.studentId;
-                if (
-                  !studentLinks.has(key) ||
-                  link.sent_time < studentLinks.get(key).sent_time
-                ) {
-                  studentLinks.set(key, link);
-                }
-              });
-
-              // Calculate lateness for each student's earliest link
-              for (const link of studentLinks.values()) {
-                if (!link.timeSlot) continue;
-
-                // Convert time to 24-hour format
-                function convertTo24Hour(timeStr: string): string {
-                  if (!timeStr) return "00:00";
-
-                  if (timeStr.includes("AM") || timeStr.includes("PM")) {
-                    const match = timeStr.match(
-                      /^(\d{1,2}):(\d{2})\s?(AM|PM)$/i
-                    );
-                    if (match) {
-                      let hour = parseInt(match[1]);
-                      const minute = match[2];
-                      const period = match[3].toUpperCase();
-
-                      if (period === "PM" && hour !== 12) hour += 12;
-                      if (period === "AM" && hour === 12) hour = 0;
-
-                      return `${hour.toString().padStart(2, "0")}:${minute}`;
-                    }
-                  }
-
-                  // Already 24-hour or other format
-                  return timeStr.includes(":")
-                    ? timeStr.split(":").slice(0, 2).join(":")
-                    : "00:00";
-                }
-
-                const time24 = convertTo24Hour(link.timeSlot);
-                const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
-
-                const latenessMinutes = Math.max(
-                  0,
-                  Math.round(
-                    (link.sent_time.getTime() - scheduledTime.getTime()) / 60000
-                  )
-                );
-
-                if (latenessMinutes > excusedThreshold) {
-                  let deduction = 0;
-                  let tier = "No Tier";
-
-                  // Get student's package for package-specific deduction
-                  const student = allStudents.find(
-                    (s) => s.wdt_ID === link.studentId
-                  );
-                  const studentPackage = student?.package || "";
-                  const baseDeductionAmount =
-                    packageDeductionMap[studentPackage]?.lateness ||
-                    defaultBaseDeductionAmount;
-
-                  // Find appropriate tier
-                  for (const [i, t] of tiers.entries()) {
-                    if (
-                      latenessMinutes >= t.start &&
-                      latenessMinutes <= t.end
-                    ) {
-                      deduction = Math.round(
-                        baseDeductionAmount * (t.percent / 100)
-                      );
-                      tier = `Tier ${i + 1} (${
-                        t.percent
-                      }%) - ${studentPackage}`;
-                      break;
-                    }
-                  }
-
-                  // Check for waiver
-                  try {
-                    const { isDeductionWaived } = await import(
-                      "@/lib/deduction-waivers"
-                    );
-                    const isWaived = await isDeductionWaived(
-                      t.ustazid,
-                      scheduledTime,
-                      "lateness"
-                    );
-                    if (isWaived) {
-                      deduction = 0;
-                      tier = `${tier} (WAIVED)`;
-                    }
-                  } catch (error) {
-                    // Continue without waiver check if module not available
-                  }
-
-                  if (deduction > 0) {
-                    // Check if this date is waived for lateness
-                    if (!waivedLatenessDates.has(dateStr)) {
-                      latenessDeduction += deduction;
-                      latenessBreakdown.push({
-                        date: dateStr,
-                        studentName: link.studentName,
-                        scheduledTime: link.timeSlot,
-                        actualTime: format(link.sent_time, "HH:mm"),
-                        latenessMinutes,
-                        tier,
-                        deduction,
-                      });
-                    } else {
-                      // Add waived lateness to breakdown with 0 deduction
-                      latenessBreakdown.push({
-                        date: dateStr,
-                        studentName: link.studentName,
-                        scheduledTime: link.timeSlot,
-                        actualTime: format(link.sent_time, "HH:mm"),
-                        latenessMinutes,
-                        tier: tier + " (WAIVED)",
-                        deduction: 0,
-                      });
-                    }
-                  }
-                }
               }
             }
           }
+        }
 
-          // === STEP 4: CALCULATE ABSENCE DEDUCTIONS (UNIFIED APPROACH) ===
-          let absenceDeduction = 0;
-          const absenceBreakdown = [];
+        // Calculate absence deductions
+        let absenceDeduction = 0;
+        const absenceBreakdown = [];
+        const absenceWaivers = await prisma.deduction_waivers.findMany({
+          where: {
+            teacherId: t.ustazid,
+            deductionType: "absence",
+            deductionDate: { gte: from, lte: to },
+          },
+        });
+        const waivedDates = new Set(
+          absenceWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
+        );
 
-          // ALWAYS check both database records AND compute missing absences
-          // This ensures consistency between table and detail views
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setHours(23, 59, 59, 999);
+        const endProcessDate = new Date(Math.min(to.getTime(), yesterday.getTime()));
 
-          // Get absence waiver records for this teacher and period
-          const absenceWaivers = await prisma.deduction_waivers.findMany({
-            where: {
-              teacherId: t.ustazid,
-              deductionType: "absence",
-              deductionDate: { gte: from, lte: to },
-            },
-          });
-
-          const waivedDates = new Set(
-            absenceWaivers.map(
-              (w) => w.deductionDate.toISOString().split("T")[0]
-            )
-          );
-
-          // Check for absences using only zoom links
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          yesterday.setHours(23, 59, 59, 999);
-
-          const endProcessDate = new Date(
-            Math.min(to.getTime(), yesterday.getTime())
-          );
-
+        for (const assignment of assignments) {
+          const student = assignment.student;
+          const absenceStartDate = assignment.occupied_at && assignment.occupied_at > from ? assignment.occupied_at : from;
+          const absenceEndDate = assignment.end_at && assignment.end_at < endProcessDate ? assignment.end_at : endProcessDate;
+          
           for (
-            let d = new Date(from);
-            d <= endProcessDate;
+            let d = new Date(absenceStartDate);
+            d <= absenceEndDate;
             d.setDate(d.getDate() + 1)
           ) {
-            // Skip Sundays based on configuration
             if (!includeSundays && d.getDay() === 0) continue;
-
             const dateStr = format(d, "yyyy-MM-dd");
+            if (waivedDates.has(dateStr)) continue;
 
-            // Check if teacher sent zoom links on this day
-            const dayHasZoomLinks = filteredStudents.some((student) =>
-              student.zoom_links.some((link) => {
-                if (!link.sent_time) return false;
-                const linkDate = format(link.sent_time, "yyyy-MM-dd");
-                return linkDate === dateStr;
-              })
-            );
+            const studentScheduled = await checkIfStudentScheduledForDay(student.wdt_ID, d.getDay());
+            if (!studentScheduled) continue;
 
-            // DEBUG ABSENCE DETECTION (using isDebugTeacher from above)
-
-            if (filteredStudents.length > 0) {
-              let dailyDeduction = 0;
-              const affectedStudents = [];
-              const presentStudents = [];
-
-              for (const student of filteredStudents) {
-                // Get zoom links for this student on this date
-                const allStudentLinks = student.zoom_links || [];
-                const studentZoomLinks = allStudentLinks.filter((link) => {
-                  if (!link.sent_time) return false;
-                  const linkDate = format(link.sent_time, "yyyy-MM-dd");
-                  return linkDate === dateStr;
-                });
-
-                const studentHasZoomLink = studentZoomLinks.length > 0;
-
-                if (!studentHasZoomLink) {
-                  // Student was absent
-                  if (!waivedDates.has(dateStr)) {
-                    const studentPackage = student.package || "";
-                    const packageRate =
-                      packageDeductionMap[studentPackage]?.absence || 25;
-                    dailyDeduction += packageRate;
-                    affectedStudents.push({
-                      name: student.name,
-                      package: studentPackage || "Unknown",
-                      rate: packageRate,
-                    });
-                  }
-                } else {
-                  presentStudents.push(student.name);
-                }
-              }
-
-              if (affectedStudents.length > 0) {
-                absenceDeduction += dailyDeduction;
-                absenceBreakdown.push({
-                  date: dateStr,
-                  reason: `Per-student absence (${affectedStudents.length}/${filteredStudents.length} students absent)`,
-                  deduction: dailyDeduction,
-                  timeSlots: affectedStudents.length,
-                  uniqueTimeSlots: affectedStudents.map(
-                    (s) => `${s.name} (${s.package})`
-                  ),
-                  permitted: false,
-                  reviewNotes: `Absent: ${affectedStudents
-                    .map((s) => `${s.name}: ${s.rate}ETB`)
-                    .join(", ")}. Present: ${
-                    presentStudents.join(", ") || "None"
-                  }`,
-                });
-              } else if (waivedDates.has(dateStr) && !dayHasZoomLinks) {
-                // All students absent but waived
-                absenceBreakdown.push({
-                  date: dateStr,
-                  reason: "Waived full-day absence",
-                  deduction: 0,
-                  timeSlots: filteredStudents.length,
-                  uniqueTimeSlots: ["All Students Waived"],
-                  permitted: false,
-                  reviewNotes: "Full day absence waived by admin",
-                });
-              }
-            }
-          }
-
-          const actualDeductions = absenceBreakdown.filter(
-            (a) => a.deduction > 0
-          ).length;
-
-          // === STEP 5: CALCULATE BONUSES ===
-          const bonuses = await prisma.qualityassessment.aggregate({
-            where: {
-              teacherId: t.ustazid,
-              weekStart: { gte: from, lte: to },
-              managerApproved: true,
-            },
-            _sum: { bonusAwarded: true },
-          });
-          const bonusAmount = Math.round(bonuses._sum?.bonusAwarded ?? 0);
-
-          // === STEP 6: CALCULATE FINAL TOTALS ===
-          const finalBaseSalary = Math.round(baseSalary);
-          const finalLatenessDeduction = Math.round(latenessDeduction);
-          const finalAbsenceDeduction = Math.round(absenceDeduction);
-          const finalBonusAmount = Math.round(bonusAmount);
-          // Base salary already reflects actual work (Zoom links sent)
-          // Absence deduction is informational only - not subtracted from salary
-          const totalSalary = Math.round(
-            finalBaseSalary - finalLatenessDeduction + finalBonusAmount
-          );
-
-          // Simple debug summary
-
-          // Debug log for fixed absence deduction
-          const actualAbsenceCount = absenceBreakdown.filter(
-            (a) => a.deduction > 0
-          ).length;
-          if (finalAbsenceDeduction > 0) {
-          } else {
-          }
-
-          // === STEP 7: GET PAYMENT STATUS ===
-          let status: "Paid" | "Unpaid" = "Unpaid";
-          if (periodsInRange.length > 0) {
-            const payment = await prisma.teachersalarypayment.findUnique({
+            const hasZoomLink = await prisma.wpos_zoom_links.count({
               where: {
-                teacherId_period: {
-                  teacherId: t.ustazid,
-                  period: periodsInRange[0],
+                ustazid: t.ustazid,
+                studentid: student.wdt_ID,
+                sent_time: {
+                  gte: new Date(`${dateStr}T00:00:00.000Z`),
+                  lte: new Date(`${dateStr}T23:59:59.999Z`),
                 },
               },
-              select: { status: true },
             });
-            if (payment?.status) {
-              status = payment.status as "Paid" | "Unpaid";
+
+            if (!hasZoomLink) {
+              const packageRate = packageDeductionMap[student.package || ""]?.absence || 25;
+              absenceDeduction += packageRate;
+              absenceBreakdown.push({
+                date: dateStr,
+                reason: `Absence for ${student.name} (${student.package})`,
+                deduction: packageRate,
+                timeSlots: [`${student.name} (${student.package})`],
+                uniqueTimeSlots: [`${student.name} (${student.package})`],
+                permitted: false,
+                reviewNotes: `Absence for ${student.name} (${student.package}): ${packageRate}ETB`,
+              });
             }
           }
+        }
 
-          return {
-            id: t.ustazid,
-            name: t.ustazname,
-            baseSalary: finalBaseSalary,
-            latenessDeduction: finalLatenessDeduction,
-            absenceDeduction: finalAbsenceDeduction,
-            bonuses: finalBonusAmount,
-            totalSalary,
-            numStudents,
-            teachingDays: totalTeachingDays,
-            status,
-            // Detailed breakdown for transparency
-            breakdown: {
-              dailyEarnings: Array.from(dailyEarnings.entries()).map(
-                ([date, amount]) => ({
-                  date,
-                  amount: Math.round(amount),
-                })
-              ),
-              studentBreakdown: dailyBreakdown,
-              latenessBreakdown,
-              absenceBreakdown,
-              summary: {
-                workingDaysInMonth: workingDays,
-                actualTeachingDays: totalTeachingDays,
-                averageDailyEarning:
-                  totalTeachingDays > 0
-                    ? Math.round(finalBaseSalary / totalTeachingDays)
-                    : 0,
-                totalDeductions: finalLatenessDeduction, // Only lateness affects salary
-                netSalary: totalSalary,
-              },
+        // Calculate bonuses
+        const bonuses = await prisma.qualityassessment.aggregate({
+          where: {
+            teacherId: t.ustazid,
+            weekStart: { gte: from, lte: to },
+            managerApproved: true,
+          },
+          _sum: { bonusAwarded: true },
+        });
+        const bonusAmount = Math.round(bonuses._sum?.bonusAwarded ?? 0);
+
+        // Final calculations
+        const finalBaseSalary = Math.round(baseSalary);
+        const finalLatenessDeduction = Math.round(latenessDeduction);
+        const finalAbsenceDeduction = Math.round(absenceDeduction);
+        const finalBonusAmount = Math.round(bonusAmount);
+        const totalSalary = Math.round(
+          finalBaseSalary - finalLatenessDeduction + finalBonusAmount
+        );
+
+        const period = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}`;
+        const payment = await prisma.teachersalarypayment.findUnique({
+          where: { teacherId_period: { teacherId: t.ustazid, period } },
+          select: { status: true },
+        });
+
+        return {
+          id: t.ustazid,
+          name: t.ustazname,
+          baseSalary: finalBaseSalary,
+          latenessDeduction: finalLatenessDeduction,
+          absenceDeduction: finalAbsenceDeduction,
+          bonuses: finalBonusAmount,
+          totalSalary,
+          numStudents: assignments.length,
+          teachingDays: dailyBreakdown.length,
+          status: payment?.status || "Unpaid",
+          breakdown: {
+            dailyEarnings: dailyBreakdown.map((b) => ({
+              date: b.assignmentPeriod.split(" to ")[0],
+              amount: b.totalEarned,
+            })),
+            studentBreakdown: dailyBreakdown,
+            latenessBreakdown,
+            absenceBreakdown,
+            summary: {
+              workingDaysInMonth: dailyBreakdown.length,
+              actualTeachingDays: dailyBreakdown.length,
+              averageDailyEarning: dailyBreakdown.length > 0
+                ? Math.round(finalBaseSalary / dailyBreakdown.length)
+                : 0,
+              totalDeductions: finalLatenessDeduction,
+              netSalary: totalSalary,
             },
-          };
-        })
-      )
-    ).filter(Boolean);
-    return NextResponse.json(results);
+          },
+        };
+      })
+    );
+
+    return NextResponse.json(results.filter(Boolean));
   } catch (error: any) {
+    console.error("Error fetching teacher payments:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -1062,7 +703,7 @@ export async function POST(req: NextRequest) {
       bonuses,
       processPaymentNow = false,
     } = body;
-    // Auth: Only admin or controller
+
     const session = await getToken({
       req,
       secret: process.env.NEXTAUTH_SECRET,
@@ -1073,6 +714,7 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
     const adminId = session.id || undefined;
     if (!teacherId || !period || !status) {
       return NextResponse.json(
@@ -1084,26 +726,20 @@ export async function POST(req: NextRequest) {
     let paymentResult = null;
     let transactionId = null;
 
-    // Process payment if requested and status is Paid
     if (processPaymentNow && status === "Paid" && totalSalary > 0) {
       paymentResult = await processPayment(teacherId, totalSalary, period);
-      if (paymentResult.success) {
-        transactionId = paymentResult.transactionId;
-      } else {
+      if (!paymentResult.success) {
         return NextResponse.json(
           { error: `Payment failed: ${paymentResult.error}` },
           { status: 400 }
         );
       }
+      transactionId = paymentResult.transactionId;
     }
 
-    // Upsert salary payment record
     const payment = await prisma.teachersalarypayment.upsert({
       where: {
-        teacherId_period: {
-          teacherId,
-          period,
-        },
+        teacherId_period: { teacherId, period },
       },
       update: {
         status,
@@ -1126,7 +762,7 @@ export async function POST(req: NextRequest) {
         bonuses,
       },
     });
-    // Log to AuditLog
+
     await prisma.auditlog.create({
       data: {
         actionType: "teacher_salary_status_update",
@@ -1141,17 +777,16 @@ export async function POST(req: NextRequest) {
         }),
       },
     });
+
     return NextResponse.json({
       success: true,
       payment,
       paymentResult: paymentResult?.success
-        ? {
-            transactionId,
-            status: paymentResult.status,
-          }
+        ? { transactionId, status: paymentResult.status }
         : null,
     });
   } catch (err) {
+    console.error("Error updating salary status:", err);
     return NextResponse.json(
       { error: "Failed to update salary status" },
       { status: 500 }

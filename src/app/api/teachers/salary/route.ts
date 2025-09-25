@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Fallback direct calculation
+// Enhanced salary calculation using assignment tracking
 async function calculateTeacherSalaryDirect(
   teacherId: string,
   fromDate: Date,
@@ -126,133 +126,74 @@ async function calculateTeacherSalaryDirect(
       return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
     }
 
-    // Get teacher's students
-    const students = await prisma.wpos_wpdatatable_23.findMany({
+    // Get teacher's assignments during the period
+    const assignments = await prisma.wpos_ustaz_occupied_times.findMany({
       where: {
-        ustaz: teacherId,
-        status: { in: ["active", "Active", "Not yet", "not yet"] },
+        ustaz_id: teacherId,
+        occupied_at: { lte: toDate },
+        OR: [
+          { end_at: null },
+          { end_at: { gte: fromDate } }
+        ]
       },
-      select: {
-        wdt_ID: true,
-        name: true,
-        package: true,
-        zoom_links: {
-          where: {
-            sent_time: { gte: fromDate, lte: toDate },
-          },
-          select: { sent_time: true },
-        },
-      },
-    });
-
-    // Get package salaries
-    const packageSalaries = await prisma.packageSalary.findMany();
-    const salaryMap: Record<string, number> = {};
-    packageSalaries.forEach((pkg) => {
-      salaryMap[pkg.packageName] = Number(pkg.salaryPerStudent);
-    });
-
-    // Get working days configuration
-    const workingDaysConfig = await prisma.setting.findUnique({
-      where: { key: "include_sundays_in_salary" },
-    });
-    const includeSundays = workingDaysConfig?.value === "true" || false;
-
-    // Calculate working days
-    const daysInMonth = new Date(
-      fromDate.getFullYear(),
-      fromDate.getMonth() + 1,
-      0
-    ).getDate();
-    let workingDays = 0;
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(fromDate.getFullYear(), fromDate.getMonth(), day);
-      if (includeSundays || date.getDay() !== 0) {
-        workingDays++;
-      }
-    }
-
-    // Calculate base salary
-    let baseSalary = 0;
-    const dailyEarnings = new Map();
-
-    for (const student of students) {
-      if (!student.package || !salaryMap[student.package]) continue;
-
-      const monthlyPackageSalary = Math.round(salaryMap[student.package] || 0);
-      const dailyRate = Math.round(monthlyPackageSalary / workingDays);
-
-      // Count teaching days
-      const teachingDates = new Set();
-      const dailyLinks = new Map();
-
-      student.zoom_links.forEach((link) => {
-        if (link.sent_time) {
-          const linkDate = new Date(link.sent_time);
-          if (includeSundays || linkDate.getDay() !== 0) {
-            const dateStr = link.sent_time.toISOString().split("T")[0];
-            if (
-              !dailyLinks.has(dateStr) ||
-              link.sent_time < dailyLinks.get(dateStr)
-            ) {
-              dailyLinks.set(dateStr, link.sent_time);
-            }
+      include: {
+        student: {
+          select: {
+            wdt_ID: true,
+            name: true,
+            package: true
           }
         }
-      });
+      }
+    });
 
-      dailyLinks.forEach((_, dateStr) => {
-        teachingDates.add(dateStr);
-        if (!dailyEarnings.has(dateStr)) {
-          dailyEarnings.set(dateStr, 0);
+    // Calculate base salary from zoom links with package rates
+    let baseSalary = 0;
+    
+    for (const assignment of assignments) {
+      // Get zoom links for this assignment period
+      const assignmentStart = assignment.occupied_at && assignment.occupied_at > fromDate ? assignment.occupied_at : fromDate;
+      const assignmentEnd = assignment.end_at && assignment.end_at < toDate ? assignment.end_at : toDate;
+      
+      const zoomLinks = await prisma.wpos_zoom_links.findMany({
+        where: {
+          ustazid: teacherId,
+          studentid: assignment.student_id,
+          sent_time: {
+            gte: assignmentStart,
+            lte: assignmentEnd
+          },
+          packageRate: { not: null }
+        },
+        select: {
+          packageRate: true
         }
-        dailyEarnings.set(dateStr, dailyEarnings.get(dateStr) + dailyRate);
       });
+      
+      // Sum package rates from zoom links
+      baseSalary += zoomLinks.reduce((sum, link) => sum + Number(link.packageRate || 0), 0);
     }
 
-    baseSalary = Array.from(dailyEarnings.values()).reduce(
-      (sum, amount) => sum + amount,
-      0
-    );
-
-    // Get deductions and bonuses
-    const [absenceRecords, bonusRecords] = await Promise.all([
-      prisma.absencerecord.findMany({
-        where: {
-          teacherId,
-          classDate: { gte: fromDate, lte: toDate },
-        },
-      }),
-      prisma.qualityassessment.aggregate({
-        where: {
-          teacherId,
-          weekStart: { gte: fromDate, lte: toDate },
-          managerApproved: true,
-        },
-        _sum: { bonusAwarded: true },
-      }),
-    ]);
-
-    const absenceDeduction = absenceRecords.reduce(
-      (sum, r) => sum + r.deductionApplied,
-      0
-    );
-    const bonuses = Math.round(bonusRecords._sum?.bonusAwarded ?? 0);
-
-    // Calculate lateness deduction (simplified)
-    let latenessDeduction = 0;
-    // This would need the full lateness calculation logic from admin API
-
-    // Get payment status
+    // Get payment record with deductions and bonuses
     const period = `${fromDate.getFullYear()}-${String(
       fromDate.getMonth() + 1
     ).padStart(2, "0")}`;
+    
     const payment = await prisma.teachersalarypayment.findUnique({
       where: {
         teacherId_period: { teacherId, period },
       },
-      select: { status: true },
+      select: {
+        status: true,
+        latenessDeduction: true,
+        absenceDeduction: true,
+        bonuses: true
+      },
     });
+    
+    const latenessDeduction = payment?.latenessDeduction || 0;
+    const absenceDeduction = payment?.absenceDeduction || 0;
+    const bonuses = payment?.bonuses || 0;
 
     const totalSalary = Math.round(
       baseSalary - latenessDeduction - absenceDeduction + bonuses
@@ -264,10 +205,9 @@ async function calculateTeacherSalaryDirect(
       baseSalary: Math.round(baseSalary),
       latenessDeduction: Math.round(latenessDeduction),
       absenceDeduction: Math.round(absenceDeduction),
-      bonuses,
+      bonuses: Math.round(bonuses),
       totalSalary,
-      numStudents: students.length,
-      teachingDays: dailyEarnings.size,
+      numStudents: assignments.length,
       status: (payment?.status as "Paid" | "Unpaid") || "Unpaid",
     };
 

@@ -117,11 +117,13 @@ model wpos_ustaz_occupied_times {
   daypackage  String              @db.VarChar(255)
   student_id  Int
   occupied_at DateTime?           @default(now()) @db.Timestamp(0)
+  end_at      DateTime?           @db.Timestamp(0)
   student     wpos_wpdatatable_23 @relation("fk_student_occupied_times", fields: [student_id], references: [wdt_ID])
   teacher     wpos_wpdatatable_24 @relation(fields: [ustaz_id], references: [ustazid])
 
   @@unique([ustaz_id, time_slot, daypackage])
   @@index([student_id], map: "idx_student")
+  @@index([occupied_at], map: "idx_occupied_times_occupied_at")
 }
 
 model wpos_wpdatatable_33 {
@@ -196,6 +198,8 @@ model wpos_zoom_links {
   sent_time           DateTime?            @db.DateTime(0)
   report              Int?                 @default(0)
   expiration_date     DateTime?            @db.DateTime(0)
+  packageId           String?              @db.VarChar(191)
+  packageRate         Decimal?             @db.Decimal(10,2)
   wpos_wpdatatable_23 wpos_wpdatatable_23  @relation(fields: [studentid], references: [wdt_ID])
   wpos_wpdatatable_24 wpos_wpdatatable_24? @relation(fields: [ustazid], references: [ustazid])
 
