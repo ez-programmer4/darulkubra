@@ -52,9 +52,14 @@ export async function POST(
       return NextResponse.json({ error: "Not your student" }, { status: 403 });
     }
 
+    // Coerce/validate fields - adjust for local timezone (Ethiopia is UTC+3)
+    const now = new Date();
+    const localTime = new Date(now.getTime() + 3 * 60 * 60 * 1000); // Add 3 hours for Ethiopia timezone
+
     // Get package salary rate for this student
     let packageRate = 0;
     let packageId = student.package || "";
+    let workingDays = 0; // Declare in outer scope
     
     if (student.package) {
       const packageSalary = await prisma.packageSalary.findFirst({
@@ -70,7 +75,6 @@ export async function POST(
         
         // Calculate working days based on Sunday setting
         const daysInMonth = new Date(localTime.getFullYear(), localTime.getMonth() + 1, 0).getDate();
-        let workingDays = 0;
         for (let day = 1; day <= daysInMonth; day++) {
           const date = new Date(localTime.getFullYear(), localTime.getMonth(), day);
           if (includeSundays || date.getDay() !== 0) {
@@ -93,10 +97,6 @@ export async function POST(
     } else {
       console.log(`⚠️ Student has no package: ${student.name}`);
     }
-
-    // Coerce/validate fields - adjust for local timezone (Ethiopia is UTC+3)
-    const now = new Date();
-    const localTime = new Date(now.getTime() + 3 * 60 * 60 * 1000); // Add 3 hours for Ethiopia timezone
     const expiry = expiration_date ? new Date(expiration_date) : null;
 
     // Format as 12-hour time string
