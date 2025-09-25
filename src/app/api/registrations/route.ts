@@ -69,9 +69,9 @@ const checkTeacherAvailability = async (
 
   // Check for conflicts with active assignments
   const allBookings = await prismaClient.wpos_ustaz_occupied_times.findMany({
-    where: { 
+    where: {
       time_slot: timeSlot,
-      end_at: null // Only active assignments
+      end_at: null, // Only active assignments
     },
     select: { ustaz_id: true, daypackage: true, student_id: true },
   });
@@ -225,7 +225,7 @@ export async function POST(request: NextRequest) {
             { time_slot: timeToMatch },
           ],
           daypackage: selectedDayPackage,
-          end_at: null // Only active assignments
+          end_at: null, // Only active assignments
         },
       });
 
@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
             { time_slot: toDbFormat(selectedTime) },
             { time_slot: timeToMatch },
           ],
-          end_at: null // Only active assignments
+          end_at: null, // Only active assignments
         },
       });
 
@@ -359,7 +359,7 @@ export async function POST(request: NextRequest) {
             daypackage: selectedDayPackage,
             student_id: registration.wdt_ID,
             occupied_at: new Date(),
-            end_at: null
+            end_at: null,
           },
         });
       } catch (occupiedError) {
@@ -418,7 +418,13 @@ export async function PUT(request: NextRequest) {
     const existingRegistration =
       await prismaClient.wpos_wpdatatable_23.findUnique({
         where: { wdt_ID: parseInt(id) },
-        select: { u_control: true, userId: true },
+        select: {
+          u_control: true,
+          userId: true,
+          ustaz: true,
+          daypackages: true,
+          rigistral: true,
+        },
       });
 
     if (!existingRegistration) {
@@ -432,7 +438,6 @@ export async function PUT(request: NextRequest) {
 
     // For controllers, check if they own the registration
     if (session.role === "controller") {
-      // Allow if controller owns the registration OR if they're not changing the control field
       if (
         existingRegistration.u_control !== session.code &&
         control !== session.code
@@ -475,7 +480,6 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-    // Only require class fee if not US student and package is not "0 Fee"
     if (
       !isUsStudent &&
       regionPackage !== "0 Fee" &&
@@ -518,37 +522,27 @@ export async function PUT(request: NextRequest) {
 
     const timeToMatch = to24Hour(selectedTime);
     const timeSlot = to12Hour(timeToMatch);
-    const existing = await prismaClient.wpos_wpdatatable_23.findUnique({
-      where: { wdt_ID: parseInt(id) },
-      select: {
-        ustaz: true,
-        daypackages: true,
-        rigistral: true,
-      },
-    });
-
-    if (!existing) {
-      return NextResponse.json(
-        { message: "Registration not found" },
-        { status: 404 }
-      );
-    }
 
     // Get current active assignment
-    const currentOccupiedTime = await prismaClient.wpos_ustaz_occupied_times.findFirst({
-      where: { 
-        student_id: parseInt(id),
-        end_at: null // Only active assignment
-      },
-      select: { time_slot: true, ustaz_id: true, daypackage: true },
-    });
+    const currentOccupiedTime =
+      await prismaClient.wpos_ustaz_occupied_times.findFirst({
+        where: {
+          student_id: parseInt(id),
+          end_at: null, // Only active assignment
+        },
+        select: { id: true, time_slot: true, ustaz_id: true, daypackage: true },
+      });
 
-    const currentTimeSlot = currentOccupiedTime ? fromDbFormat(currentOccupiedTime.time_slot, "12h") : null;
-    
+    const currentTimeSlot = currentOccupiedTime
+      ? fromDbFormat(currentOccupiedTime.time_slot, "12h")
+      : null;
+
     const hasTimeChanged = currentTimeSlot !== selectedTime;
-    const hasTeacherChanged = existing.ustaz !== ustaz;
-    const hasDayPackageChanged = existing.daypackages !== selectedDayPackage;
-    const hasAnyTimeTeacherChange = hasTimeChanged || hasTeacherChanged || hasDayPackageChanged;
+    const hasTeacherChanged = existingRegistration.ustaz !== ustaz;
+    const hasDayPackageChanged =
+      existingRegistration.daypackages !== selectedDayPackage;
+    const hasAnyTimeTeacherChange =
+      hasTimeChanged || hasTeacherChanged || hasDayPackageChanged;
 
     if (hasAnyTimeTeacherChange) {
       // Check teacher availability for new assignment
@@ -572,11 +566,9 @@ export async function PUT(request: NextRequest) {
     if (session.role === "controller") {
       u_control = session.code;
     } else if (control) {
-      // If control looks like a code (length >= 3, all uppercase, or matches a code in DB), use it directly
       if (/^[A-Z0-9]{3,}$/.test(control)) {
         u_control = control;
       } else {
-        // Look up the controller's code based on username as fallback
         const controller = await prismaClient.wpos_wpdatatable_28.findFirst({
           where: { username: control },
           select: { code: true },
@@ -619,15 +611,7 @@ export async function PUT(request: NextRequest) {
         currentRecord?.status &&
         !["Leave", "Completed", "Not succeed"].includes(currentRecord.status);
 
-      // Free up time slot if changing from active status to inactive status
-      if (shouldFreeTimeSlot && wasActiveStatus) {
-        await tx.wpos_ustaz_occupied_times.deleteMany({
-          where: {
-            student_id: parseInt(id),
-          },
-        });
-      }
-
+      // Update registration record
       const registration = await tx.wpos_wpdatatable_23.update({
         where: { wdt_ID: parseInt(id) },
         data: {
@@ -647,7 +631,7 @@ export async function PUT(request: NextRequest) {
           rigistral:
             session.role === "registral"
               ? session.username
-              : existing.rigistral,
+              : existingRegistration.rigistral,
           daypackages: selectedDayPackage,
           refer: refer || null,
           registrationdate: registrationdate
@@ -659,63 +643,87 @@ export async function PUT(request: NextRequest) {
         },
       });
 
-      // Handle time slot changes only if not freeing up due to status change
-      if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
-        // Remove old occupied time
-        await tx.wpos_ustaz_occupied_times.deleteMany({
+      // Handle time slot changes
+      if (shouldFreeTimeSlot && wasActiveStatus) {
+        // Close all active assignments for inactive statuses
+        await tx.wpos_ustaz_occupied_times.updateMany({
           where: {
             student_id: parseInt(id),
+            end_at: null,
+          },
+          data: {
+            end_at: new Date(),
           },
         });
-
-        // Create new occupied time with database format
-        try {
-          await tx.wpos_ustaz_occupied_times.create({
-            data: {
-              ustaz_id: ustaz,
-              time_slot: toDbFormat(selectedTime), // Store in HH:MM:SS format
-              daypackage: selectedDayPackage,
-              student_id: parseInt(id),
-              occupied_at: new Date(),
-            },
+      } else if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
+        // Close existing active assignment
+        if (currentOccupiedTime) {
+          await tx.wpos_ustaz_occupied_times.update({
+            where: { id: currentOccupiedTime.id },
+            data: { end_at: new Date() },
           });
-        } catch (occupiedError) {
-          console.warn("Failed to create occupied time record:", occupiedError);
-          // Continue without occupied time record - update still succeeds
         }
+
+        // Create new assignment
+        await tx.wpos_ustaz_occupied_times.create({
+          data: {
+            ustaz_id: ustaz,
+            time_slot: toDbFormat(selectedTime),
+            daypackage: selectedDayPackage,
+            student_id: parseInt(id),
+            occupied_at: startdate ? new Date(startdate) : new Date(),
+            end_at: null,
+          },
+        });
       } else if (!shouldFreeTimeSlot && !hasAnyTimeTeacherChange) {
-        // If status is changing back to active and time/teacher hasn't changed, ensure time slot exists
+        // Ensure time slot exists for reactivated student
         const activeStatuses = ["active", "not yet", "fresh"];
         if (
           activeStatuses.includes(newStatus.toLowerCase()) &&
           (!currentRecord?.status ||
-            !["Active", "Not yet", "Fresh"].includes(currentRecord.status))
+            !["Active", "Not yet", "Fresh"].includes(currentRecord.status)) &&
+          !currentOccupiedTime
         ) {
-          // Re-create time slot for reactivated student
-          try {
-            await tx.wpos_ustaz_occupied_times.create({
-              data: {
-                ustaz_id: ustaz,
-                time_slot: toDbFormat(selectedTime),
-                daypackage: selectedDayPackage,
-                student_id: parseInt(id),
-                occupied_at: new Date(),
-              },
-            });
-          } catch (occupiedError) {
-            console.warn(
-              "Failed to recreate occupied time record:",
-              occupiedError
-            );
-          }
+          await tx.wpos_ustaz_occupied_times.create({
+            data: {
+              ustaz_id: ustaz,
+              time_slot: toDbFormat(selectedTime),
+              daypackage: selectedDayPackage,
+              student_id: parseInt(id),
+              occupied_at: startdate ? new Date(startdate) : new Date(),
+              end_at: null,
+            },
+          });
         }
+      }
+
+      // Log assignment changes for audit
+      if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
+        await tx.auditlog.create({
+          data: {
+            actionType: "assignment_update",
+            adminId: session.id || null,
+            targetId: parseInt(id),
+            details: JSON.stringify({
+              oldTeacher: currentOccupiedTime?.ustaz_id,
+              newTeacher: ustaz,
+              oldTimeSlot: currentTimeSlot,
+              newTimeSlot: selectedTime,
+              oldDayPackage: currentOccupiedTime?.daypackage,
+              newDayPackage: selectedDayPackage,
+            }),
+          },
+        });
       }
 
       return registration;
     });
 
     return NextResponse.json(
-      { message: "Registration updated successfully" },
+      {
+        message: "Registration updated successfully",
+        id: updatedRegistration.wdt_ID,
+      },
       { status: 200 }
     );
   } catch (error) {
@@ -734,7 +742,6 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
-
 export async function GET(request: NextRequest) {
   const session = await getToken({
     req: request,
@@ -1034,7 +1041,7 @@ export async function DELETE(request: NextRequest) {
       });
 
       return NextResponse.json(
-        { message: "Registrations deleted successfully" },
+        { message: "Good ,Registrations deleted successfully" },
         { status: 200 }
       );
     }
