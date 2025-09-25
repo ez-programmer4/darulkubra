@@ -653,7 +653,9 @@ export async function PUT(request: NextRequest) {
           },
         });
       } else if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
-        // Delete existing active assignment to avoid overlaps with other system
+        // Delete existing assignment to free up teacher's time slot
+        // Note: Teacher salary is calculated from zoom_links sent, not assignments
+        // So deleting assignment doesn't affect teacher's earned salary
         if (currentOccupiedTime) {
           await tx.wpos_ustaz_occupied_times.delete({
             where: { id: currentOccupiedTime.id },
