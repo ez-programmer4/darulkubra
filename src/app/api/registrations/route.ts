@@ -222,70 +222,73 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if the selected time slot is available for the teacher
-    const isTimeSlotAvailable =
-      await prismaClient.wpos_ustaz_occupied_times.findFirst({
-        where: {
-          ustaz_id: ustaz,
-          OR: [
-            { time_slot: timeSlot },
-            { time_slot: toDbFormat(selectedTime) },
-            { time_slot: timeToMatch },
-          ],
-          daypackage: selectedDayPackage,
-          end_at: null, // Only active assignments
-        },
-      });
+    // Only check time slot availability if we have both teacher and time
+    if (ustaz && selectedTime && timeSlot) {
+      // Check if the selected time slot is available for the teacher
+      const isTimeSlotAvailable =
+        await prismaClient.wpos_ustaz_occupied_times.findFirst({
+          where: {
+            ustaz_id: ustaz,
+            OR: [
+              { time_slot: timeSlot },
+              { time_slot: toDbFormat(selectedTime) },
+              { time_slot: timeToMatch },
+            ],
+            daypackage: selectedDayPackage,
+            end_at: null, // Only active assignments
+          },
+        });
 
-    if (isTimeSlotAvailable) {
-      return NextResponse.json(
-        { error: "This time slot is already occupied by another student" },
-        { status: 400 }
-      );
-    }
-
-    // Check for conflicts with active assignments
-    const existingBookings =
-      await prismaClient.wpos_ustaz_occupied_times.findMany({
-        where: {
-          ustaz_id: ustaz,
-          OR: [
-            { time_slot: timeSlot },
-            { time_slot: toDbFormat(selectedTime) },
-            { time_slot: timeToMatch },
-          ],
-          end_at: null, // Only active assignments
-        },
-      });
-
-    // Check for day package conflicts
-    const hasConflict = existingBookings.some((booking) => {
-      const normalize = (pkg: string) => pkg.trim().toLowerCase();
-      const sel = selectedDayPackage.toLowerCase();
-      const booked = booking.daypackage.toLowerCase();
-
-      // If either the existing booking or the new booking is "All days", there's a conflict
-      if (booked === "all days" || sel === "all days") {
-        return true;
+      if (isTimeSlotAvailable) {
+        return NextResponse.json(
+          { error: "This time slot is already occupied by another student" },
+          { status: 400 }
+        );
       }
 
-      // Check for exact package matches
-      if (booked === sel) {
-        return true;
+      // Check for conflicts with active assignments
+      const existingBookings =
+        await prismaClient.wpos_ustaz_occupied_times.findMany({
+          where: {
+            ustaz_id: ustaz,
+            OR: [
+              { time_slot: timeSlot },
+              { time_slot: toDbFormat(selectedTime) },
+              { time_slot: timeToMatch },
+            ],
+            end_at: null, // Only active assignments
+          },
+        });
+
+      // Check for day package conflicts
+      const hasConflict = existingBookings.some((booking) => {
+        const normalize = (pkg: string) => pkg.trim().toLowerCase();
+        const sel = selectedDayPackage.toLowerCase();
+        const booked = booking.daypackage.toLowerCase();
+
+        // If either the existing booking or the new booking is "All days", there's a conflict
+        if (booked === "all days" || sel === "all days") {
+          return true;
+        }
+
+        // Check for exact package matches
+        if (booked === sel) {
+          return true;
+        }
+
+        // MWF and TTS are mutually exclusive, so no conflict between them
+        return false;
+      });
+
+      if (hasConflict) {
+        return NextResponse.json(
+          {
+            error:
+              "This time slot is already booked for a conflicting day package.",
+          },
+          { status: 400 }
+        );
       }
-
-      // MWF and TTS are mutually exclusive, so no conflict between them
-      return false;
-    });
-
-    if (hasConflict) {
-      return NextResponse.json(
-        {
-          error:
-            "This time slot is already booked for a conflicting day package.",
-        },
-        { status: 400 }
-      );
     }
 
     // Determine the u_control value
