@@ -860,7 +860,7 @@ export default function AssignedStudents() {
                             
                             // Save permission attendance directly
                             try {
-                              setSending((s) => ({ ...s, [s.id]: true }));
+                              setSending((prev) => ({ ...prev, [s.id]: true }));
                               const res = await fetch(`/api/teachers/students/${s.id}/attendance`, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
