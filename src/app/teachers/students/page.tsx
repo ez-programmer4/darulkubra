@@ -854,11 +854,41 @@ export default function AssignedStudents() {
                           Attendance
                         </Button>
                         <Button
-                          onClick={() => {
-                            // Mark student as on permission and open attendance modal
+                          onClick={async () => {
+                            // Mark student as on permission and save immediately
                             setPermissionStudents(prev => ({ ...prev, [s.id]: true }));
-                            updateAttend(s.id, { status: "permission" });
-                            setModal({ type: "attendance", studentId: s.id });
+                            
+                            // Save permission attendance directly
+                            try {
+                              setSending((s) => ({ ...s, [s.id]: true }));
+                              const res = await fetch(`/api/teachers/students/${s.id}/attendance`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  attendance_status: "Permission",
+                                }),
+                                credentials: "include",
+                              });
+                              
+                              if (!res.ok) {
+                                throw new Error("Failed to save permission");
+                              }
+                              
+                              const studentName = s.name || "Student";
+                              toast({
+                                title: "📅 Permission Granted!",
+                                description: `📝 ${studentName} permission granted successfully`,
+                                variant: "default",
+                              });
+                            } catch (error) {
+                              toast({
+                                title: "Error",
+                                description: "Failed to save permission status",
+                                variant: "destructive",
+                              });
+                            } finally {
+                              setSending((prev) => ({ ...prev, [s.id]: false }));
+                            }
                           }}
                           className={`py-3 rounded-lg font-medium text-sm ${
                             permissionStudents[s.id]
@@ -1025,7 +1055,7 @@ export default function AssignedStudents() {
                           Attendance Status *
                         </label>
                         <div className="grid grid-cols-2 gap-3">
-                          {(["present", "absent", "permission"] as const).map(
+                          {(["present", "absent"] as const).map(
                             (status) => {
                               const getStatusColor = (status: string) => {
                                 switch (status) {
@@ -1039,11 +1069,6 @@ export default function AssignedStudents() {
                                       status
                                       ? "bg-red-600 text-white border-red-600"
                                       : "border-red-300 text-red-700 hover:bg-red-50";
-                                  case "permission":
-                                    return attend[modal.studentId!]?.status ===
-                                      status
-                                      ? "bg-yellow-600 text-white border-yellow-600"
-                                      : "border-yellow-300 text-yellow-700 hover:bg-yellow-50";
                                   default:
                                     return "border-gray-300 text-gray-700 hover:bg-gray-50";
                                 }
@@ -1071,7 +1096,7 @@ export default function AssignedStudents() {
                         </div>
                       </div>
 
-                      {attend[modal.studentId!]?.status !== "permission" && (() => {
+                      {(() => {
                         const currentStudent = groups
                           .flatMap((g) => g.students)
                           .find((s) => s.id === modal.studentId);
