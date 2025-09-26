@@ -416,6 +416,18 @@ export default function AssignedStudents() {
         });
         return;
       }
+      
+      // Validate Zoom URL
+      const zoomUrlPattern = /^https:\/\/(.*\.)?zoom\.us\//i;
+      if (!zoomUrlPattern.test(form.link)) {
+        toast({
+          title: "Invalid Zoom Link",
+          description: "Please enter a valid Zoom meeting link (https://zoom.us/...)",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setSending((s) => ({ ...s, [studentId]: true }));
 
       const res = await fetch(`/api/teachers/students/${studentId}/zoom`, {
@@ -450,13 +462,17 @@ export default function AssignedStudents() {
         ? `Zoom link saved but notification failed: ${responseData.notification_error}`
         : "Zoom link sent successfully!";
 
+      const studentName = groups
+        .flatMap(g => g.students)
+        .find(s => s.id === studentId)?.name || "Student";
+      
       toast({
-        title: "🎉 Zoom Link Sent Successfully!",
+        title: "🎉 Zoom Link Sent!",
         description: responseData.notification_sent
-          ? "📱 Student notified via Telegram"
+          ? `📱 ${studentName} has been notified via Telegram`
           : responseData.notification_error
-          ? `⚠️ Link saved but notification failed: ${responseData.notification_error}`
-          : "✅ Zoom link has been sent to the student",
+          ? `⚠️ Link saved for ${studentName} but notification failed`
+          : `✅ Zoom link sent to ${studentName}`,
         variant: "default",
       });
 
@@ -518,9 +534,12 @@ export default function AssignedStudents() {
         setPermissionStudents(prev => ({ ...prev, [studentId]: true }));
       }
       
+      const statusEmoji = rec.status === "present" ? "✅" : rec.status === "permission" ? "📅" : "❌";
+      const statusText = rec.status === "permission" ? "permission granted" : `marked as ${rec.status}`;
+      
       toast({
-        title: "✅ Attendance Recorded!",
-        description: `📝 ${studentName}'s attendance has been successfully saved`,
+        title: `${statusEmoji} Attendance Saved!`,
+        description: `📝 ${studentName} ${statusText} successfully`,
         variant: "default",
       });
       setAttend((a) => ({ ...a, [studentId]: { status: "present" } }));
@@ -918,7 +937,7 @@ export default function AssignedStudents() {
                         </label>
                         <div className="flex gap-3">
                           <input
-                            placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+                            placeholder="https://zoom.us/j/1234567890"
                             value={forms[modal.studentId]?.link || ""}
                             onChange={(e) =>
                               updateForm(modal.studentId!, {
@@ -940,8 +959,7 @@ export default function AssignedStudents() {
                           </Button>
                         </div>
                         <p className="text-xs text-gray-500 mt-2">
-                          Enter your Zoom, Google Meet, or other meeting
-                          platform link
+                          Enter your Zoom meeting link only (must start with https://zoom.us/)
                         </p>
                       </div>
 
@@ -1053,7 +1071,7 @@ export default function AssignedStudents() {
                         </div>
                       </div>
 
-                      {(() => {
+                      {attend[modal.studentId!]?.status !== "permission" && (() => {
                         const currentStudent = groups
                           .flatMap((g) => g.students)
                           .find((s) => s.id === modal.studentId);
