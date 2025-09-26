@@ -155,6 +155,8 @@ export default function AssignedStudents() {
   const [permissionStudents, setPermissionStudents] = useState<Record<number, boolean>>({});
 
   const checkZoomStatus = useCallback(async () => {
+    if (groups.length === 0) return;
+    
     try {
       const res = await fetch("/api/teachers/students/zoom-status", {
         credentials: "include",
@@ -184,14 +186,14 @@ export default function AssignedStudents() {
     } catch (error) {
       console.error("Failed to check zoom status:", error);
     }
-  }, [groups]);
+  }, [groups.length]);
 
   // Check zoom status only once when groups are loaded
   useEffect(() => {
     if (groups.length > 0) {
       checkZoomStatus();
     }
-  }, [groups.length, checkZoomStatus]);
+  }, [groups.length]);
   const [query, setQuery] = useState("");
   const [pkgFilter, setPkgFilter] = useState("all");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -455,13 +457,6 @@ export default function AssignedStudents() {
 
       const responseData = await res.json();
 
-      // Show success message with notification details
-      const successMessage = responseData.notification_sent
-        ? "Zoom link sent successfully via Telegram!"
-        : responseData.notification_error
-        ? `Zoom link saved but notification failed: ${responseData.notification_error}`
-        : "Zoom link sent successfully!";
-
       const studentName = groups
         .flatMap(g => g.students)
         .find(s => s.id === studentId)?.name || "Student";
@@ -525,17 +520,14 @@ export default function AssignedStudents() {
         const errorText = await res.text();
         throw new Error(`Failed to save attendance: ${errorText}`);
       }
-      const studentName = groups
+      
+      const responseData = await res.json();
+      const studentName = responseData.student_name || groups
         .flatMap(g => g.students)
         .find(s => s.id === studentId)?.name || "Student";
       
-      // Update permission status
-      if (rec.status === "permission") {
-        setPermissionStudents(prev => ({ ...prev, [studentId]: true }));
-      }
-      
-      const statusEmoji = rec.status === "present" ? "✅" : rec.status === "permission" ? "📅" : "❌";
-      const statusText = rec.status === "permission" ? "permission granted" : `marked as ${rec.status}`;
+      const statusEmoji = rec.status === "present" ? "✅" : "❌";
+      const statusText = `marked as ${rec.status}`;
       
       toast({
         title: `${statusEmoji} Attendance Saved!`,

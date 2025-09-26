@@ -249,6 +249,7 @@ function RegistrationContent() {
               "Not yet",
               "Leave",
               "Completed",
+              "On Progress",
             ],
             packages: data.packages?.map((p: any) => p.name) || [
               "0 Fee",
@@ -266,7 +267,7 @@ function RegistrationContent() {
         } else {
           // Fallback to defaults
           setStudentConfigs({
-            statuses: ["Active", "Not yet", "Leave", "Completed"],
+            statuses: ["Active", "Not yet", "Leave", "Completed", "On Progress"],
             packages: ["0 Fee", "3 days", "5 days", "Europe"],
             subjects: ["Qaidah", "Nethor", "Hifz", "Kitab"],
           });
@@ -275,7 +276,7 @@ function RegistrationContent() {
         console.error("Failed to fetch student configurations:", error);
         // Fallback to defaults
         setStudentConfigs({
-          statuses: ["Active", "Not yet", "Leave", "Completed"],
+          statuses: ["Active", "Not yet", "Leave", "Completed", "On Progress"],
           packages: ["0 Fee", "3 days", "5 days", "Europe"],
           subjects: ["Qaidah", "Nethor", "Hifz", "Kitab"],
         });
@@ -633,9 +634,11 @@ function RegistrationContent() {
         }
       }
 
+      // Only require teacher if not skipped (status is not "On Progress")
       if (
         (!editId || editTimeTeacher) &&
-        (!selectedTeacher || selectedTeacher.trim() === "")
+        (!selectedTeacher || selectedTeacher.trim() === "") &&
+        data.status !== "On Progress"
       ) {
         throw new Error("Teacher is required");
       }
@@ -662,7 +665,9 @@ function RegistrationContent() {
         control: control, // Automatically set based on selected ustaz's controlId
         status: data.status || "pending",
         ustaz:
-          !editId || editTimeTeacher ? selectedTeacher : editingTeacherName,
+          !editId || editTimeTeacher 
+            ? (selectedTeacher || null) 
+            : editingTeacherName,
         package: data.package, // region
         subject: data.subject,
         country: data.country || null,
@@ -671,7 +676,7 @@ function RegistrationContent() {
         refer: data.refer || null,
         selectedTime:
           !editId || editTimeTeacher
-            ? selectedTime
+            ? (selectedTime || null)
             : editId
             ? selectedTime
             : undefined,
@@ -1490,7 +1495,7 @@ function RegistrationContent() {
                     <Button
                       onClick={() => checkAvailability()}
                       disabled={loadingAvailability}
-                      // variant="outline"
+                      variant="outline"
                       className="flex items-center gap-2"
                     >
                       <FiRefreshCw
@@ -1499,6 +1504,18 @@ function RegistrationContent() {
                         }`}
                       />
                       Refresh Availability
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setSelectedTime("");
+                        setSelectedTeacher("");
+                        setValue("status", "On Progress");
+                        setStep(3);
+                      }}
+                      variant="outline"
+                      className="bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                    >
+                      Skip Time Slot
                     </Button>
                     <Button
                       onClick={() => setStep(2)}
@@ -1615,7 +1632,18 @@ function RegistrationContent() {
                       </div>
                     )}
                   </div>
-                  <div className="flex justify-end pt-6">
+                  <div className="flex justify-between pt-6">
+                    <Button
+                      onClick={() => {
+                        setSelectedTeacher("");
+                        setValue("status", "On Progress");
+                        setStep(3);
+                      }}
+                      variant="outline"
+                      className="bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                    >
+                      Skip Teacher
+                    </Button>
                     <motion.button
                       type="button"
                       onClick={() => setStep(3)}

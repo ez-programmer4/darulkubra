@@ -170,11 +170,20 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!ustaz || ustaz.trim() === "") {
-      return NextResponse.json(
-        { message: "Teacher is required" },
-        { status: 400 }
-      );
+    // Only require teacher and time if status is not "On Progress"
+    if (status !== "On Progress") {
+      if (!ustaz || ustaz.trim() === "") {
+        return NextResponse.json(
+          { message: "Teacher is required" },
+          { status: 400 }
+        );
+      }
+      if (!selectedTime || selectedTime.trim() === "") {
+        return NextResponse.json(
+          { message: "Selected time is required" },
+          { status: 400 }
+        );
+      }
     }
     if (!selectedDayPackage || selectedDayPackage.trim() === "") {
       return NextResponse.json(
@@ -182,36 +191,35 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!selectedTime || selectedTime.trim() === "") {
-      return NextResponse.json(
-        { message: "Selected time is required" },
-        { status: 400 }
+
+    let timeToMatch, timeSlot;
+    
+    // Only validate time and check availability if not "On Progress"
+    if (status !== "On Progress" && selectedTime && ustaz) {
+      // Validate time format
+      if (!validateTime(selectedTime)) {
+        return NextResponse.json(
+          { message: `Invalid time format: ${selectedTime}` },
+          { status: 400 }
+        );
+      }
+
+      timeToMatch = to24Hour(selectedTime);
+      timeSlot = to12Hour(timeToMatch);
+
+      // Check teacher availability
+      const availability = await checkTeacherAvailability(
+        timeToMatch,
+        selectedDayPackage,
+        ustaz
       );
-    }
 
-    // Validate time format
-    if (!validateTime(selectedTime)) {
-      return NextResponse.json(
-        { message: `Invalid time format: ${selectedTime}` },
-        { status: 400 }
-      );
-    }
-
-    const timeToMatch = to24Hour(selectedTime);
-    const timeSlot = to12Hour(timeToMatch);
-
-    // Check teacher availability
-    const availability = await checkTeacherAvailability(
-      timeToMatch,
-      selectedDayPackage,
-      ustaz
-    );
-
-    if (!availability.isAvailable) {
-      return NextResponse.json(
-        { message: availability.message },
-        { status: 400 }
-      );
+      if (!availability.isAvailable) {
+        return NextResponse.json(
+          { message: availability.message },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if the selected time slot is available for the teacher
