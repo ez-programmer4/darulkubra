@@ -152,6 +152,7 @@ export default function AssignedStudents() {
     "ክፍል 38 ( final exam )",
   ];
   const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
+  const [permissionStudents, setPermissionStudents] = useState<Record<number, boolean>>({});
 
   const checkZoomStatus = useCallback(async () => {
     try {
@@ -512,6 +513,11 @@ export default function AssignedStudents() {
         .flatMap(g => g.students)
         .find(s => s.id === studentId)?.name || "Student";
       
+      // Update permission status
+      if (rec.status === "permission") {
+        setPermissionStudents(prev => ({ ...prev, [studentId]: true }));
+      }
+      
       toast({
         title: "✅ Attendance Recorded!",
         description: `📝 ${studentName}'s attendance has been successfully saved`,
@@ -747,9 +753,21 @@ export default function AssignedStudents() {
                             <div className="p-2 bg-gray-100 rounded-lg">
                               <FiUser className="h-4 w-4 text-gray-600" />
                             </div>
-                            <div>
-                              <div className="font-bold text-black text-base">
-                                {s.name || "Unnamed Student"}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <div className="font-bold text-black text-base">
+                                  {s.name || "Unnamed Student"}
+                                </div>
+                                {zoomSent[s.id] && (
+                                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                                    🔗 Zoom Sent
+                                  </span>
+                                )}
+                                {permissionStudents[s.id] && (
+                                  <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                                    📅 Permission
+                                  </span>
+                                )}
                               </div>
                               <div className="text-sm text-gray-500">
                                 ID: {s.id}
@@ -782,7 +800,7 @@ export default function AssignedStudents() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <Button
                           onClick={() =>
                             setModal({ type: "zoom", studentId: s.id })
@@ -794,26 +812,43 @@ export default function AssignedStudents() {
                         </Button>
                         <Button
                           onClick={() => {
-                            if (!zoomSent[s.id]) {
+                            // Allow attendance if zoom sent OR student is on permission
+                            if (!zoomSent[s.id] && !permissionStudents[s.id]) {
                               toast({
                                 title: "🔗 Zoom Link Required",
                                 description:
-                                  "📋 Please send the Zoom link first before marking attendance",
+                                  "📋 Please send the Zoom link first or mark as permission",
                                 variant: "destructive",
                               });
                               return;
                             }
                             setModal({ type: "attendance", studentId: s.id });
                           }}
-                          disabled={!zoomSent[s.id]}
+                          disabled={!zoomSent[s.id] && !permissionStudents[s.id]}
                           className={`py-3 rounded-lg font-medium text-sm ${
-                            zoomSent[s.id]
+                            zoomSent[s.id] || permissionStudents[s.id]
                               ? "bg-green-600 hover:bg-green-700 text-white"
                               : "bg-gray-300 text-gray-500 cursor-not-allowed"
                           }`}
                         >
                           <FiCheck className="h-4 w-4 mr-2" />
                           Attendance
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            // Mark student as on permission and open attendance modal
+                            setPermissionStudents(prev => ({ ...prev, [s.id]: true }));
+                            updateAttend(s.id, { status: "permission" });
+                            setModal({ type: "attendance", studentId: s.id });
+                          }}
+                          className={`py-3 rounded-lg font-medium text-sm ${
+                            permissionStudents[s.id]
+                              ? "bg-orange-600 hover:bg-orange-700 text-white"
+                              : "bg-yellow-600 hover:bg-yellow-700 text-white"
+                          }`}
+                        >
+                          <FiCalendar className="h-4 w-4 mr-2" />
+                          {permissionStudents[s.id] ? "On Permission" : "Permission"}
                         </Button>
                       </div>
                     </div>

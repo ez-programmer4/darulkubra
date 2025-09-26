@@ -24,11 +24,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // Verify ownership
     const student = await prisma.wpos_wpdatatable_23.findUnique({
       where: { wdt_ID: studentId },
-      select: { ustaz: true },
+      select: { ustaz: true, name: true },
     });
     if (!student || student.ustaz !== teacherId) {
       return NextResponse.json({ error: "Not your student" }, { status: 403 });
     }
+
+    // Log attendance for debugging
+    console.log(`📝 Recording attendance:`);
+    console.log(`  Student: ${student.name} (ID: ${studentId})`);
+    console.log(`  Status: ${attendance_status}`);
+    console.log(`  Teacher: ${teacherId}`);
 
     const created = await prisma.student_attendance_progress.create({
       data: {
@@ -42,7 +48,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       },
     });
 
-    return NextResponse.json({ id: created.id }, { status: 201 });
+    console.log(`✅ Attendance recorded with ID: ${created.id}`);
+
+    return NextResponse.json({ 
+      id: created.id,
+      student_name: student.name,
+      status: attendance_status
+    }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
