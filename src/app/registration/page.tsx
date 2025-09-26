@@ -145,6 +145,7 @@ function RegistrationContent() {
     defaultValues: {
       daypackages: "All days",
       package: "",
+      status: "On Progress",
     },
   });
 
@@ -1509,7 +1510,6 @@ function RegistrationContent() {
                       onClick={() => {
                         setSelectedTime("");
                         setSelectedTeacher("");
-                        setValue("status", "On Progress");
                         setStep(3);
                       }}
                       variant="outline"
@@ -1636,7 +1636,6 @@ function RegistrationContent() {
                     <Button
                       onClick={() => {
                         setSelectedTeacher("");
-                        setValue("status", "On Progress");
                         setStep(3);
                       }}
                       variant="outline"

@@ -53,6 +53,11 @@ const navItems = [
     icon: Calendar,
   },
   {
+    href: "/admin/on-progress",
+    label: "On Progress Student",
+    icon: Users,
+  },
+  {
     href: "/admin/student-config",
     label: "Student Configuration",
     icon: Settings,
