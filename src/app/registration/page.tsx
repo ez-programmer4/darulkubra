@@ -1920,8 +1920,44 @@ function RegistrationContent() {
                       )}
                     </div>
 
-                    {/* Hidden status field - always "On Progress" */}
-                    <input type="hidden" {...register("status")} value="On Progress" />
+                    {/* Status field - show when teacher and time selected OR when editing */}
+                    {(editId || (selectedTime && selectedTeacher)) ? (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-800 flex items-center">
+                          <FiUserCheck className="mr-2 text-teal-600" />
+                          Status *
+                        </label>
+                        <select
+                          {...register("status", {
+                            required: "Status is required",
+                          })}
+                          className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
+                            errors.status
+                              ? "border-red-500"
+                              : "border-gray-200 hover:border-teal-300"
+                          } ${loadingConfigs ? "bg-gray-50" : ""}`}
+                          disabled={loadingConfigs}
+                        >
+                          <option value="">
+                            {loadingConfigs
+                              ? "Loading statuses..."
+                              : "Select status"}
+                          </option>
+                          {studentConfigs.statuses.map((status, index) => (
+                            <option key={index} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.status && (
+                          <p className="mt-1 text-xs text-red-600 font-medium">
+                            {errors.status.message}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <input type="hidden" {...register("status")} value="On Progress" />
+                    )}
 
                     {watch("status") === "leave" && (
                       <div className="space-y-2">
