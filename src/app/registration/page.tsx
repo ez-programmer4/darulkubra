@@ -556,8 +556,8 @@ function RegistrationContent() {
             }
           }
 
-          // Check if this is a US student FIRST (has userId field)
-          const isEditingUsStudent = !!data.userId;
+          // Check if this is a US student FIRST (has userId field AND country is USA)
+          const isEditingUsStudent = !!data.userId && data.country === "USA";
           if (isEditingUsStudent) {
             setIsUsStudent(true);
             isUsStudentRef.current = true;
