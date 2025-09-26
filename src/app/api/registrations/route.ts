@@ -358,20 +358,22 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create assignment record
-      try {
-        await tx.wpos_ustaz_occupied_times.create({
-          data: {
-            ustaz_id: ustaz,
-            time_slot: toDbFormat(selectedTime),
-            daypackage: selectedDayPackage,
-            student_id: registration.wdt_ID,
-            occupied_at: new Date(),
-            end_at: null,
-          },
-        });
-      } catch (occupiedError) {
-        console.warn("Failed to create assignment record:", occupiedError);
+      // Create assignment record only if we have both teacher and time
+      if (ustaz && selectedTime) {
+        try {
+          await tx.wpos_ustaz_occupied_times.create({
+            data: {
+              ustaz_id: ustaz,
+              time_slot: toDbFormat(selectedTime),
+              daypackage: selectedDayPackage,
+              student_id: registration.wdt_ID,
+              occupied_at: new Date(),
+              end_at: null,
+            },
+          });
+        } catch (occupiedError) {
+          console.warn("Failed to create assignment record:", occupiedError);
+        }
       }
 
       // No need to update user table since userId is now stored in registration
