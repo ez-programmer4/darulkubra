@@ -660,7 +660,6 @@ export async function GET(req: NextRequest) {
         // Calculate base salary per month
         let baseSalary = 0;
         const dailyBreakdown = [];
-        const unmatchedZoomLinks = [];
         const monthlyStudentSalaries = new Map<number, number>();
 
         // Calculate base salary based on actual Zoom links sent
@@ -689,6 +688,8 @@ export async function GET(req: NextRequest) {
             baseSalary += dailyRate; // Add daily rate for each Zoom link sent
           }
         }
+
+        // No unmatched zoom links since all are included in salary
 
         // Create breakdown based on actual Zoom links sent
         const studentZoomCounts = new Map<number, { count: number; student: any }>();
@@ -999,7 +1000,7 @@ export async function GET(req: NextRequest) {
 
         // Log teacher salary calculation
         console.log(
-          `💼 ${t.ustazname}: Salary calculated with ${assignments.length} active assignments, ${historicalAssignments.length} historical assignments, ${unmatchedZoomLinks.length} unmatched Zoom links`
+          `💼 ${t.ustazname}: Salary calculated with ${assignments.length} active assignments, ${historicalAssignments.length} historical assignments, ${zoomLinks.length} zoom links`
         );
 
         const period = `${from.getFullYear()}-${String(
@@ -1040,8 +1041,7 @@ export async function GET(req: NextRequest) {
               totalDeductions: finalLatenessDeduction,
               netSalary: totalSalary,
             },
-            unmatchedZoomLinks:
-              unmatchedZoomLinks.length > 0 ? unmatchedZoomLinks : undefined,
+            // No unmatched zoom links since all are included in salary calculation
           },
         };
       })
