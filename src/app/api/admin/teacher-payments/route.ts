@@ -663,7 +663,14 @@ export async function GET(req: NextRequest) {
         const unmatchedZoomLinks = [];
         const monthlyStudentSalaries = new Map<number, number>();
 
-        // Calculate monthly salary for each student
+        // Calculate working days in the period
+        let workingDays = 0;
+        for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+          if (!includeSundays && d.getDay() === 0) continue;
+          workingDays++;
+        }
+
+        // Calculate prorated salary for each student based on working days
         for (const assignment of allAssignments) {
           const student = assignment.student;
           if (!student?.package || !salaryMap[student.package]) continue;
@@ -671,11 +678,15 @@ export async function GET(req: NextRequest) {
           const monthlyPackageSalary = Math.round(
             salaryMap[student.package] || 0
           );
+          
+          // Calculate daily rate and multiply by working days
+          const dailyRate = monthlyPackageSalary / 30; // Assuming 30 days per month
+          const proratedSalary = Math.round(dailyRate * workingDays);
 
-          // Add monthly salary per student (not per day)
+          // Add prorated salary per student
           if (!monthlyStudentSalaries.has(student.wdt_ID)) {
-            monthlyStudentSalaries.set(student.wdt_ID, monthlyPackageSalary);
-            baseSalary += monthlyPackageSalary;
+            monthlyStudentSalaries.set(student.wdt_ID, proratedSalary);
+            baseSalary += proratedSalary;
           }
         }
 
@@ -695,8 +706,8 @@ export async function GET(req: NextRequest) {
           const monthlyPackageSalary = Math.round(
             salaryMap[student.package] || 0
           );
-          const workingDays = 26;
-          const dailyRate = Math.round(monthlyPackageSalary / workingDays);
+          const dailyRate = Math.round(monthlyPackageSalary / 30);
+          const proratedSalary = Math.round(dailyRate * workingDays);
 
           const zoomLinks = await prisma.wpos_zoom_links.findMany({
             where: {
@@ -714,7 +725,7 @@ export async function GET(req: NextRequest) {
               monthlyRate: monthlyPackageSalary,
               dailyRate: dailyRate,
               daysWorked: zoomLinks.length,
-              totalEarned: monthlyPackageSalary, // Monthly salary, not daily calculation
+              totalEarned: proratedSalary, // Prorated salary based on working days
               source: assignment.id ? "Active Assignment" : "Audit Log",
             });
           }
@@ -759,23 +770,24 @@ export async function GET(req: NextRequest) {
               const monthlyPackageSalary = Math.round(
                 salaryMap[student.package] || 0
               );
-              const dailyRate = Math.round(monthlyPackageSalary / 26);
+              const dailyRate = Math.round(monthlyPackageSalary / 30);
+              const proratedSalary = Math.round(dailyRate * workingDays);
 
               // Only add to base salary if not already counted
               if (!monthlyStudentSalaries.has(link.studentid)) {
                 monthlyStudentSalaries.set(
                   link.studentid,
-                  monthlyPackageSalary
+                  proratedSalary
                 );
-                baseSalary += monthlyPackageSalary;
+                baseSalary += proratedSalary;
 
                 dailyBreakdown.push({
                   studentName: student.name || "Unknown",
                   package: student.package || "Unknown",
                   monthlyRate: monthlyPackageSalary,
                   dailyRate: dailyRate,
-                  daysWorked: 1,
-                  totalEarned: monthlyPackageSalary, // Monthly salary
+                  daysWorked: workingDays,
+                  totalEarned: proratedSalary, // Prorated salary
                   source: "Unmatched Zoom Link",
                 });
               }
