@@ -11,9 +11,9 @@ export async function GET(request: NextRequest) {
     }
 
     const [statuses, packages, subjects] = await Promise.all([
-      prisma.studentstatus.findMany({ select: { name: true } }),
-      prisma.studentpackage.findMany({ select: { name: true } }),
-      prisma.studentsubject.findMany({ select: { name: true } })
+      prisma.studentStatus.findMany({ select: { name: true } }),
+      prisma.studentPackage.findMany({ select: { name: true } }),
+      prisma.studentSubject.findMany({ select: { name: true } })
     ]);
 
     return NextResponse.json({

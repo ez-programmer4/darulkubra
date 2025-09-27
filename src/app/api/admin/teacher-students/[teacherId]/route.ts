@@ -8,7 +8,10 @@ export async function GET(
   { params }: { params: { teacherId: string } }
 ) {
   try {
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
     if (!token || token.role !== "registral") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -19,7 +22,9 @@ export async function GET(
     const { teacherId } = params;
 
     // Get month range
-    const from = dayjs(`${year}-${String(month).padStart(2, "0")}-01`).startOf("month").toDate();
+    const from = dayjs(`${year}-${String(month).padStart(2, "0")}-01`)
+      .startOf("month")
+      .toDate();
     const to = dayjs(from).endOf("month").toDate();
 
     // Get working days configuration
@@ -27,7 +32,7 @@ export async function GET(
       where: { key: "include_sundays_in_salary" },
     });
     const includeSundays = settings?.value === "true";
-    
+
     // Calculate working days
     const workingDays = calculateWorkingDays(from, to, includeSundays);
     const daysInMonth = dayjs(to).date();
@@ -58,7 +63,7 @@ export async function GET(
     // Get package salaries
     const packageSalaries = await prisma.packageSalary.findMany();
     const packageSalaryMap = packageSalaries.reduce((acc, ps) => {
-      acc[ps.packageName] = ps.salaryPerStudent;
+      acc[ps.packageName] = Number(ps.salaryPerStudent);
       return acc;
     }, {} as Record<string, number>);
 
@@ -95,7 +100,7 @@ export async function GET(
       totalStudents: students.length,
       packageBreakdown,
       zoomActivity,
-      students: students.map(s => ({
+      students: students.map((s) => ({
         id: s.wdt_ID,
         name: s.name,
         package: s.package,
@@ -106,7 +111,10 @@ export async function GET(
     });
   } catch (error) {
     console.error("Teacher students breakdown error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -115,42 +123,40 @@ function calculateWorkingDays(from: Date, to: Date, includeSundays: boolean) {
   let current = dayjs(from);
   const end = dayjs(to);
 
-  while (current.isBefore(end) || current.isSame(end, 'day')) {
+  while (current.isBefore(end) || current.isSame(end, "day")) {
     const dayOfWeek = current.day();
     if (includeSundays || dayOfWeek !== 0) {
       workingDays++;
     }
-    current = current.add(1, 'day');
+    current = current.add(1, "day");
   }
 
   return workingDays;
 }
 
 async function getZoomLinkActivity(teacherId: string, from: Date, to: Date) {
-  const zoomLinks = await prisma.zoomLink.findMany({
+  const zoomLinks = await prisma.wpos_zoom_links.findMany({
     where: {
-      teacherId,
-      createdAt: {
+      ustazid: teacherId,
+      sent_time: {
         gte: from,
         lte: to,
       },
     },
     select: {
-      createdAt: true,
-      studentId: true,
+      sent_time: true,
+      studentid: true,
     },
   });
 
   const uniqueDays = new Set(
-    zoomLinks.map(link => 
-      dayjs(link.createdAt).format('YYYY-MM-DD')
-    )
+    zoomLinks.map((link) => dayjs(link.sent_time).format("YYYY-MM-DD"))
   );
 
-  const dailyActivity = Array.from(uniqueDays).map(date => ({
+  const dailyActivity = Array.from(uniqueDays).map((date) => ({
     date,
-    linksCount: zoomLinks.filter(link => 
-      dayjs(link.createdAt).format('YYYY-MM-DD') === date
+    linksCount: zoomLinks.filter(
+      (link) => dayjs(link.sent_time).format("YYYY-MM-DD") === date
     ).length,
   }));
 
@@ -158,6 +164,7 @@ async function getZoomLinkActivity(teacherId: string, from: Date, to: Date) {
     totalDays: uniqueDays.size,
     totalLinks: zoomLinks.length,
     dailyActivity,
-    averageLinksPerDay: uniqueDays.size > 0 ? Math.round(zoomLinks.length / uniqueDays.size) : 0,
+    averageLinksPerDay:
+      uniqueDays.size > 0 ? Math.round(zoomLinks.length / uniqueDays.size) : 0,
   };
 }
