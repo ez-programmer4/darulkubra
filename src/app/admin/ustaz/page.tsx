@@ -323,7 +323,7 @@ export default function UstazRatingsPage() {
                   cy="50%"
                   outerRadius={100}
                   fill="#8884d8"
-                  label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
+                  label={({ name, percent }) => `${name} ${typeof percent === 'number' ? (percent * 100).toFixed(0) : 0}%`}
                 >
                   {pieChartData.map((entry, index) => (
                     <Cell
