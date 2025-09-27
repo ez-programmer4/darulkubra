@@ -675,70 +675,112 @@ export async function GET(req: NextRequest) {
           },
         });
 
-        // Calculate monthly salary based on students taught (not per zoom link)
-        const studentsWithZoomLinks = new Set<number>();
+        // Calculate base salary based on daily earnings from zoom links (reference implementation)
+        const dailyEarnings = new Map<string, number>();
         
-        // Track which students had zoom links sent (indicating they were taught)
-        for (const link of zoomLinks) {
-          studentsWithZoomLinks.add(link.studentid);
-        }
-        
-        // Calculate monthly salary for each student taught
-        for (const studentId of studentsWithZoomLinks) {
-          // Try to get package rate from most recent zoom link for this student
-          const studentZoomLinks = zoomLinks.filter(link => link.studentid === studentId);
-          const mostRecentLink = studentZoomLinks
-            .filter(link => link.packageRate)
-            .sort((a, b) => (b.sent_time?.getTime() || 0) - (a.sent_time?.getTime() || 0))[0];
-          
-          if (mostRecentLink?.packageRate) {
-            // Use monthly package rate from zoom link (packageRate * 30 to get monthly)
-            baseSalary += Number(mostRecentLink.packageRate) * 30;
-          } else {
-            // Fallback to current student package
-            const student = await prisma.wpos_wpdatatable_23.findUnique({
-              where: { wdt_ID: studentId },
-              select: { package: true },
-            });
-            
-            if (student?.package && salaryMap[student.package]) {
-              baseSalary += Math.round(salaryMap[student.package] || 0);
+        // Get current students with their zoom links
+        const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
+          where: { ustaz: t.ustazid, status: { in: ["active", "Active"] } },
+          select: { 
+            wdt_ID: true,
+            name: true,
+            package: true,
+            zoom_links: {
+              where: {
+                sent_time: { gte: from, lte: to }
+              },
+              select: { sent_time: true }
             }
-          }
+          },
+        });
+        
+        // Calculate working days in the period
+        let workingDays = 0;
+        for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+          if (!includeSundays && d.getDay() === 0) continue;
+          workingDays++;
         }
+        
+        // Calculate daily earnings for each student
+        for (const student of currentStudents) {
+          if (!student.package || !salaryMap[student.package]) continue;
+          
+          const monthlyPackageSalary = Math.round(salaryMap[student.package] || 0);
+          const dailyRate = Math.round(monthlyPackageSalary / workingDays);
+          
+          // Group zoom links by date (only one per day counts)
+          const teachingDates = new Set<string>();
+          const dailyLinks = new Map<string, Date>();
+          
+          student.zoom_links.forEach(link => {
+            if (link.sent_time) {
+              const linkDate = new Date(link.sent_time);
+              if (!includeSundays && linkDate.getDay() === 0) return;
+              
+              const dateStr = link.sent_time.toISOString().split('T')[0];
+              
+              if (!dailyLinks.has(dateStr) || link.sent_time < dailyLinks.get(dateStr)!) {
+                dailyLinks.set(dateStr, link.sent_time);
+              }
+            }
+          });
+          
+          // Add unique teaching dates
+          dailyLinks.forEach((_, dateStr) => {
+            teachingDates.add(dateStr);
+          });
+          
+          // Add to daily earnings
+          teachingDates.forEach(dateStr => {
+            if (!dailyEarnings.has(dateStr)) {
+              dailyEarnings.set(dateStr, 0);
+            }
+            dailyEarnings.set(dateStr, dailyEarnings.get(dateStr)! + dailyRate);
+          });
+        }
+        
+        // Calculate total base salary
+        baseSalary = Array.from(dailyEarnings.values()).reduce((sum, amount) => sum + amount, 0);
 
         // No unmatched zoom links since all are included in salary
 
-        // Create breakdown based on monthly salary per student
-        for (const studentId of studentsWithZoomLinks) {
-          const student = await prisma.wpos_wpdatatable_23.findUnique({
-            where: { wdt_ID: studentId },
-            select: { package: true, name: true },
+        // Create breakdown based on daily earnings per student (reference implementation)
+        for (const student of currentStudents) {
+          if (!student.package || !salaryMap[student.package]) continue;
+          
+          const monthlyPackageSalary = Math.round(salaryMap[student.package] || 0);
+          const dailyRate = Math.round(monthlyPackageSalary / workingDays);
+          
+          // Count actual teaching days for this student
+          const teachingDates = new Set<string>();
+          const dailyLinks = new Map<string, Date>();
+          
+          student.zoom_links.forEach(link => {
+            if (link.sent_time) {
+              const linkDate = new Date(link.sent_time);
+              if (!includeSundays && linkDate.getDay() === 0) return;
+              
+              const dateStr = link.sent_time.toISOString().split('T')[0];
+              
+              if (!dailyLinks.has(dateStr) || link.sent_time < dailyLinks.get(dateStr)!) {
+                dailyLinks.set(dateStr, link.sent_time);
+              }
+            }
           });
           
-          if (student) {
-            const studentZoomLinks = zoomLinks.filter(link => link.studentid === studentId);
-            const mostRecentLink = studentZoomLinks
-              .filter(link => link.packageRate)
-              .sort((a, b) => (b.sent_time?.getTime() || 0) - (a.sent_time?.getTime() || 0))[0];
-            
-            let monthlyRate = 0;
-            if (mostRecentLink?.packageRate) {
-              monthlyRate = Number(mostRecentLink.packageRate) * 30;
-            } else if (student.package && salaryMap[student.package]) {
-              monthlyRate = Math.round(salaryMap[student.package] || 0);
-            }
-            
-            const dailyRate = Math.round(monthlyRate / 30);
-            
+          dailyLinks.forEach((_, dateStr) => {
+            teachingDates.add(dateStr);
+          });
+          
+          if (teachingDates.size > 0) {
             dailyBreakdown.push({
               studentName: student.name || "Unknown",
               package: student.package || "Unknown",
-              monthlyRate: monthlyRate,
+              monthlyRate: monthlyPackageSalary,
               dailyRate: dailyRate,
-              daysWorked: studentZoomLinks.length,
-              totalEarned: monthlyRate, // Full monthly rate per student
-              source: "Monthly Student Salary",
+              daysWorked: teachingDates.size,
+              totalEarned: dailyRate * teachingDates.size,
+              source: "Daily Earnings",
             });
           }
         }
@@ -933,7 +975,10 @@ export async function GET(req: NextRequest) {
             ?.findMany({
               where: {
                 teacherId: t.ustazid,
-                requestedDate: { gte: format(from, "yyyy-MM-dd"), lte: format(to, "yyyy-MM-dd") },
+                requestedDate: {
+                  gte: format(from, "yyyy-MM-dd"),
+                  lte: format(to, "yyyy-MM-dd"),
+                },
                 status: "Approved",
               },
             })
