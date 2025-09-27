@@ -675,89 +675,72 @@ export async function GET(req: NextRequest) {
           },
         });
 
-        // Calculate salary based on Zoom links sent using packageRate from zoom links table
+        // Calculate monthly salary based on students taught (not per zoom link)
+        const studentsWithZoomLinks = new Set<number>();
+        
+        // Track which students had zoom links sent (indicating they were taught)
         for (const link of zoomLinks) {
-          if (link.packageRate) {
-            // Use packageRate from zoom link (reflects package at time of sending)
-            const dailyRate = Number(link.packageRate) / 30;
-            baseSalary += dailyRate;
+          studentsWithZoomLinks.add(link.studentid);
+        }
+        
+        // Calculate monthly salary for each student taught
+        for (const studentId of studentsWithZoomLinks) {
+          // Try to get package rate from most recent zoom link for this student
+          const studentZoomLinks = zoomLinks.filter(link => link.studentid === studentId);
+          const mostRecentLink = studentZoomLinks
+            .filter(link => link.packageRate)
+            .sort((a, b) => (b.sent_time?.getTime() || 0) - (a.sent_time?.getTime() || 0))[0];
+          
+          if (mostRecentLink?.packageRate) {
+            // Use monthly package rate from zoom link (packageRate * 30 to get monthly)
+            baseSalary += Number(mostRecentLink.packageRate) * 30;
           } else {
-            // Fallback to current student package if packageRate not available
+            // Fallback to current student package
             const student = await prisma.wpos_wpdatatable_23.findUnique({
-              where: { wdt_ID: link.studentid },
+              where: { wdt_ID: studentId },
               select: { package: true },
             });
-
+            
             if (student?.package && salaryMap[student.package]) {
-              const monthlyPackageSalary = Math.round(
-                salaryMap[student.package] || 0
-              );
-              const dailyRate = monthlyPackageSalary / 30;
-              baseSalary += dailyRate;
+              baseSalary += Math.round(salaryMap[student.package] || 0);
             }
           }
         }
 
         // No unmatched zoom links since all are included in salary
 
-        // Create breakdown based on actual Zoom links sent using packageRate
-        const studentZoomData = new Map<
-          number,
-          {
-            count: number;
-            totalEarned: number;
-            student: any;
-            packageRates: number[];
-          }
-        >();
-
-        for (const link of zoomLinks) {
+        // Create breakdown based on monthly salary per student
+        for (const studentId of studentsWithZoomLinks) {
           const student = await prisma.wpos_wpdatatable_23.findUnique({
-            where: { wdt_ID: link.studentid },
+            where: { wdt_ID: studentId },
             select: { package: true, name: true },
           });
-
+          
           if (student) {
-            const existing = studentZoomData.get(link.studentid);
-            const dailyEarning = link.packageRate
-              ? Number(link.packageRate) / 30
-              : 0;
-
-            if (existing) {
-              existing.count++;
-              existing.totalEarned += dailyEarning;
-              existing.packageRates.push(Number(link.packageRate || 0));
-            } else {
-              studentZoomData.set(link.studentid, {
-                count: 1,
-                totalEarned: dailyEarning,
-                student,
-                packageRates: [Number(link.packageRate || 0)],
-              });
+            const studentZoomLinks = zoomLinks.filter(link => link.studentid === studentId);
+            const mostRecentLink = studentZoomLinks
+              .filter(link => link.packageRate)
+              .sort((a, b) => (b.sent_time?.getTime() || 0) - (a.sent_time?.getTime() || 0))[0];
+            
+            let monthlyRate = 0;
+            if (mostRecentLink?.packageRate) {
+              monthlyRate = Number(mostRecentLink.packageRate) * 30;
+            } else if (student.package && salaryMap[student.package]) {
+              monthlyRate = Math.round(salaryMap[student.package] || 0);
             }
+            
+            const dailyRate = Math.round(monthlyRate / 30);
+            
+            dailyBreakdown.push({
+              studentName: student.name || "Unknown",
+              package: student.package || "Unknown",
+              monthlyRate: monthlyRate,
+              dailyRate: dailyRate,
+              daysWorked: studentZoomLinks.length,
+              totalEarned: monthlyRate, // Full monthly rate per student
+              source: "Monthly Student Salary",
+            });
           }
-        }
-
-        // Create breakdown entries
-        for (const [studentId, data] of studentZoomData.entries()) {
-          const avgPackageRate =
-            data.packageRates.length > 0
-              ? Math.round(
-                  data.packageRates.reduce((sum, rate) => sum + rate, 0) /
-                    data.packageRates.length
-                )
-              : 0;
-          const avgDailyRate = Math.round(avgPackageRate / 30);
-
-          dailyBreakdown.push({
-            studentName: data.student.name || "Unknown",
-            package: data.student.package || "Unknown",
-            monthlyRate: avgPackageRate,
-            dailyRate: avgDailyRate,
-            daysWorked: data.count,
-            totalEarned: Math.round(data.totalEarned),
-            source: "Zoom Links Sent",
-          });
         }
 
         // All Zoom links are now included in salary calculation above
@@ -1088,8 +1071,8 @@ export async function GET(req: NextRequest) {
                   )[0];
 
                 if (recentZoomLink?.packageRate) {
-                  // Use package rate from most recent zoom link
-                  deductionAmount = Number(recentZoomLink.packageRate) / 30; // Daily rate
+                  // packageRate is already the daily rate
+                  deductionAmount = Number(recentZoomLink.packageRate);
                 } else {
                   // Fallback to package deduction map
                   deductionAmount =
