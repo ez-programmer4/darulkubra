@@ -675,54 +675,87 @@ export async function GET(req: NextRequest) {
           },
         });
 
-        // Calculate salary based on Zoom links sent
+        // Calculate salary based on Zoom links sent using packageRate from zoom links table
         for (const link of zoomLinks) {
-          const student = await prisma.wpos_wpdatatable_23.findUnique({
-            where: { wdt_ID: link.studentid },
-            select: { package: true, name: true },
-          });
-          
-          if (student?.package && salaryMap[student.package]) {
-            const monthlyPackageSalary = Math.round(salaryMap[student.package] || 0);
-            const dailyRate = monthlyPackageSalary / 30;
-            baseSalary += dailyRate; // Add daily rate for each Zoom link sent
+          if (link.packageRate) {
+            // Use packageRate from zoom link (reflects package at time of sending)
+            const dailyRate = Number(link.packageRate) / 30;
+            baseSalary += dailyRate;
+          } else {
+            // Fallback to current student package if packageRate not available
+            const student = await prisma.wpos_wpdatatable_23.findUnique({
+              where: { wdt_ID: link.studentid },
+              select: { package: true },
+            });
+
+            if (student?.package && salaryMap[student.package]) {
+              const monthlyPackageSalary = Math.round(
+                salaryMap[student.package] || 0
+              );
+              const dailyRate = monthlyPackageSalary / 30;
+              baseSalary += dailyRate;
+            }
           }
         }
 
         // No unmatched zoom links since all are included in salary
 
-        // Create breakdown based on actual Zoom links sent
-        const studentZoomCounts = new Map<number, { count: number; student: any }>();
-        
+        // Create breakdown based on actual Zoom links sent using packageRate
+        const studentZoomData = new Map<
+          number,
+          {
+            count: number;
+            totalEarned: number;
+            student: any;
+            packageRates: number[];
+          }
+        >();
+
         for (const link of zoomLinks) {
           const student = await prisma.wpos_wpdatatable_23.findUnique({
             where: { wdt_ID: link.studentid },
             select: { package: true, name: true },
           });
-          
-          if (student?.package && salaryMap[student.package]) {
-            const existing = studentZoomCounts.get(link.studentid);
+
+          if (student) {
+            const existing = studentZoomData.get(link.studentid);
+            const dailyEarning = link.packageRate
+              ? Number(link.packageRate) / 30
+              : 0;
+
             if (existing) {
               existing.count++;
+              existing.totalEarned += dailyEarning;
+              existing.packageRates.push(Number(link.packageRate || 0));
             } else {
-              studentZoomCounts.set(link.studentid, { count: 1, student });
+              studentZoomData.set(link.studentid, {
+                count: 1,
+                totalEarned: dailyEarning,
+                student,
+                packageRates: [Number(link.packageRate || 0)],
+              });
             }
           }
         }
 
         // Create breakdown entries
-        for (const [studentId, data] of studentZoomCounts.entries()) {
-          const monthlyPackageSalary = Math.round(salaryMap[data.student.package] || 0);
-          const dailyRate = Math.round(monthlyPackageSalary / 30);
-          const totalEarned = Math.round(dailyRate * data.count);
+        for (const [studentId, data] of studentZoomData.entries()) {
+          const avgPackageRate =
+            data.packageRates.length > 0
+              ? Math.round(
+                  data.packageRates.reduce((sum, rate) => sum + rate, 0) /
+                    data.packageRates.length
+                )
+              : 0;
+          const avgDailyRate = Math.round(avgPackageRate / 30);
 
           dailyBreakdown.push({
             studentName: data.student.name || "Unknown",
             package: data.student.package || "Unknown",
-            monthlyRate: monthlyPackageSalary,
-            dailyRate: dailyRate,
+            monthlyRate: avgPackageRate,
+            dailyRate: avgDailyRate,
             daysWorked: data.count,
-            totalEarned: totalEarned,
+            totalEarned: Math.round(data.totalEarned),
             source: "Zoom Links Sent",
           });
         }
@@ -900,20 +933,40 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Calculate absence deductions
+        // Enhanced absence deduction calculation
         let absenceDeduction = 0;
         const absenceBreakdown = [];
-        const absenceWaivers = await prisma.deduction_waivers.findMany({
-          where: {
-            teacherId: t.ustazid,
-            deductionType: "absence",
-            deductionDate: { gte: from, lte: to },
-          },
-        });
+
+        // Get absence waivers and permission requests
+        const [absenceWaivers, permissionRequests] = await Promise.all([
+          prisma.deduction_waivers.findMany({
+            where: {
+              teacherId: t.ustazid,
+              deductionType: "absence",
+              deductionDate: { gte: from, lte: to },
+            },
+          }),
+          prisma.permissionrequest
+            ?.findMany({
+              where: {
+                teacherId: t.ustazid,
+                requestedDate: { gte: format(from, "yyyy-MM-dd"), lte: format(to, "yyyy-MM-dd") },
+                status: "Approved",
+              },
+            })
+            .catch(() => []) || [],
+        ]);
+
         const waivedDates = new Set(
           absenceWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
         );
+        const permittedDates = new Set(
+          permissionRequests.map((p: any) =>
+            format(p.requestedDate, "yyyy-MM-dd")
+          )
+        );
 
+        // Only process up to yesterday to avoid penalizing for future dates
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         yesterday.setHours(23, 59, 59, 999);
@@ -921,59 +974,150 @@ export async function GET(req: NextRequest) {
           Math.min(to.getTime(), yesterday.getTime())
         );
 
-        for (const assignment of allAssignments) {
-          const student = assignment.student;
+        // Group assignments by student for better tracking
+        const studentAssignments = new Map<number, any[]>();
+        allAssignments.forEach((assignment) => {
+          if (assignment.student) {
+            const existing =
+              studentAssignments.get(assignment.student.wdt_ID) || [];
+            existing.push(assignment);
+            studentAssignments.set(assignment.student.wdt_ID, existing);
+          }
+        });
+
+        // Process each student's assignments
+        for (const [studentId, assignments] of studentAssignments.entries()) {
+          const student = assignments[0].student;
           if (!student) continue;
-          const absenceStartDate =
-            assignment.occupied_at && assignment.occupied_at > from
-              ? assignment.occupied_at
-              : from;
-          const absenceEndDate =
-            assignment.end_at && assignment.end_at < endProcessDate
-              ? assignment.end_at
-              : endProcessDate;
 
-          for (
-            let d = new Date(absenceStartDate);
-            d <= absenceEndDate;
-            d.setDate(d.getDate() + 1)
-          ) {
-            if (!includeSundays && d.getDay() === 0) continue;
-            const dateStr = format(d, "yyyy-MM-dd");
-            if (waivedDates.has(dateStr)) continue;
+          // Get all zoom links for this student in the period
+          const studentZoomLinks = await prisma.wpos_zoom_links.findMany({
+            where: {
+              ustazid: t.ustazid,
+              studentid: studentId,
+              sent_time: { gte: from, lte: endProcessDate },
+            },
+            select: { sent_time: true, packageRate: true },
+          });
 
-            const studentScheduled = await checkIfStudentScheduledForDay(
-              student.wdt_ID,
-              d.getDay(),
-              assignment.daypackage
-            );
-            if (!studentScheduled) continue;
+          const zoomLinkDates = new Set(
+            studentZoomLinks
+              .map((link) =>
+                link.sent_time ? format(link.sent_time, "yyyy-MM-dd") : ""
+              )
+              .filter(Boolean)
+          );
 
-            const hasZoomLink = await prisma.wpos_zoom_links.count({
-              where: {
-                ustazid: t.ustazid,
-                studentid: student.wdt_ID,
-                sent_time: {
-                  gte: new Date(`${dateStr}T00:00:00.000Z`),
-                  lte: new Date(`${dateStr}T23:59:59.999Z`),
-                },
-              },
-            });
+          // Check each assignment period for absences
+          for (const assignment of assignments) {
+            const absenceStartDate =
+              assignment.occupied_at && assignment.occupied_at > from
+                ? assignment.occupied_at
+                : from;
+            const absenceEndDate =
+              assignment.end_at && assignment.end_at < endProcessDate
+                ? assignment.end_at
+                : endProcessDate;
 
-            if (!hasZoomLink) {
-              const packageRate =
-                packageDeductionMap[student.package || ""]?.absence || 25;
-              absenceDeduction += packageRate;
-              absenceBreakdown.push({
-                date: dateStr,
-                reason: `Absence for ${student.name} (${student.package})`,
-                deduction: packageRate,
-                timeSlots: [`${student.name} (${student.package})`],
-                uniqueTimeSlots: [`${student.name} (${student.package})`],
-                permitted: false,
-                reviewNotes: `Absence for ${student.name} (${student.package}): ${packageRate}ETB`,
-                source: assignment.id ? "Active Assignment" : "Audit Log",
-              });
+            for (
+              let d = new Date(absenceStartDate);
+              d <= absenceEndDate;
+              d.setDate(d.getDate() + 1)
+            ) {
+              if (!includeSundays && d.getDay() === 0) continue;
+              const dateStr = format(d, "yyyy-MM-dd");
+
+              // Skip if waived or permitted
+              if (waivedDates.has(dateStr) || permittedDates.has(dateStr))
+                continue;
+
+              // Check if student was scheduled for this day
+              const studentScheduled = await checkIfStudentScheduledForDay(
+                studentId,
+                d.getDay(),
+                assignment.daypackage
+              );
+              if (!studentScheduled) continue;
+
+              // Check if zoom link was sent
+              if (!zoomLinkDates.has(dateStr)) {
+                // Check student attendance status for this date
+                const attendanceRecord =
+                  await prisma.student_attendance_progress
+                    ?.findFirst({
+                      where: {
+                        student_id: studentId,
+                        date: {
+                          gte: new Date(`${dateStr}T00:00:00.000Z`),
+                          lte: new Date(`${dateStr}T23:59:59.999Z`),
+                        },
+                      },
+                      select: { attendance_status: true },
+                    })
+                    .catch(() => null);
+
+                // Skip deduction if attendance status is "Permission"
+                if (attendanceRecord?.attendance_status === "Permission") {
+                  absenceBreakdown.push({
+                    date: dateStr,
+                    studentId: studentId,
+                    studentName: student.name,
+                    studentPackage: student.package,
+                    reason: `Permission granted - No deduction`,
+                    deduction: 0,
+                    dayPackage: assignment.daypackage,
+                    timeSlots: [`${student.name} (${student.package})`],
+                    uniqueTimeSlots: [`${student.name} (${student.package})`],
+                    permitted: true,
+                    waived: false,
+                    reviewNotes: `Permission granted for ${student.name} on ${dateStr}: No deduction`,
+                    source: assignment.id ? "Active Assignment" : "Audit Log",
+                    packageRateUsed: null,
+                  });
+                  continue;
+                }
+
+                // Calculate deduction using package rate from zoom links or fallback
+                let deductionAmount = 0;
+                const recentZoomLink = studentZoomLinks
+                  .filter((link) => link.sent_time && link.sent_time <= d)
+                  .sort(
+                    (a, b) =>
+                      (b.sent_time?.getTime() || 0) -
+                      (a.sent_time?.getTime() || 0)
+                  )[0];
+
+                if (recentZoomLink?.packageRate) {
+                  // Use package rate from most recent zoom link
+                  deductionAmount = Number(recentZoomLink.packageRate) / 30; // Daily rate
+                } else {
+                  // Fallback to package deduction map
+                  deductionAmount =
+                    packageDeductionMap[student.package || ""]?.absence || 25;
+                }
+
+                absenceDeduction += deductionAmount;
+                absenceBreakdown.push({
+                  date: dateStr,
+                  studentId: studentId,
+                  studentName: student.name,
+                  studentPackage: student.package,
+                  reason: `Absence - No zoom link sent`,
+                  deduction: Math.round(deductionAmount),
+                  dayPackage: assignment.daypackage,
+                  timeSlots: [`${student.name} (${student.package})`],
+                  uniqueTimeSlots: [`${student.name} (${student.package})`],
+                  permitted: false,
+                  waived: false,
+                  reviewNotes: `Absence for ${
+                    student.name
+                  } on ${dateStr}: ${Math.round(deductionAmount)} ETB`,
+                  source: assignment.id ? "Active Assignment" : "Audit Log",
+                  packageRateUsed: recentZoomLink?.packageRate
+                    ? Number(recentZoomLink.packageRate)
+                    : null,
+                });
+              }
             }
           }
         }
