@@ -663,137 +663,71 @@ export async function GET(req: NextRequest) {
         const unmatchedZoomLinks = [];
         const monthlyStudentSalaries = new Map<number, number>();
 
-        // Calculate working days in the period
-        let workingDays = 0;
-        for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-          if (!includeSundays && d.getDay() === 0) continue;
-          workingDays++;
-        }
-
-        // Calculate prorated salary for each student based on working days
-        for (const assignment of allAssignments) {
-          const student = assignment.student;
-          if (!student?.package || !salaryMap[student.package]) continue;
-
-          const monthlyPackageSalary = Math.round(
-            salaryMap[student.package] || 0
-          );
-          
-          // Calculate daily rate and multiply by working days
-          const dailyRate = monthlyPackageSalary / 30; // Assuming 30 days per month
-          const proratedSalary = Math.round(dailyRate * workingDays);
-
-          // Add prorated salary per student
-          if (!monthlyStudentSalaries.has(student.wdt_ID)) {
-            monthlyStudentSalaries.set(student.wdt_ID, proratedSalary);
-            baseSalary += proratedSalary;
-          }
-        }
-
-        // Get zoom links for breakdown display
-        for (const assignment of allAssignments) {
-          const assignmentStart =
-            assignment.occupied_at && assignment.occupied_at > from
-              ? assignment.occupied_at
-              : from;
-          const assignmentEnd =
-            assignment.end_at && assignment.end_at < to
-              ? assignment.end_at
-              : to;
-          const student = assignment.student;
-          if (!student?.package || !salaryMap[student.package]) continue;
-
-          const monthlyPackageSalary = Math.round(
-            salaryMap[student.package] || 0
-          );
-          const dailyRate = Math.round(monthlyPackageSalary / 30);
-          const proratedSalary = Math.round(dailyRate * workingDays);
-
-          const zoomLinks = await prisma.wpos_zoom_links.findMany({
-            where: {
-              ustazid: t.ustazid,
-              studentid: assignment.student_id,
-              sent_time: { gte: assignmentStart, lte: assignmentEnd },
-            },
-            select: { sent_time: true, packageRate: true },
-          });
-
-          if (zoomLinks.length > 0) {
-            dailyBreakdown.push({
-              studentName: student.name || "Unknown",
-              package: student.package || "Unknown",
-              monthlyRate: monthlyPackageSalary,
-              dailyRate: dailyRate,
-              daysWorked: zoomLinks.length,
-              totalEarned: proratedSalary, // Prorated salary based on working days
-              source: assignment.id ? "Active Assignment" : "Audit Log",
-            });
-          }
-        }
-
-        // Check for unmatched Zoom links
-        const allZoomLinks = await prisma.wpos_zoom_links.findMany({
+        // Calculate base salary based on actual Zoom links sent
+        const zoomLinks = await prisma.wpos_zoom_links.findMany({
           where: {
             ustazid: t.ustazid,
             sent_time: { gte: from, lte: to },
           },
           select: {
-            id: true,
-            sent_time: true,
             studentid: true,
+            sent_time: true,
             packageRate: true,
           },
         });
 
-        for (const link of allZoomLinks) {
-          const isMatched = dailyBreakdown.some(
-            (b) =>
-              b.studentName === "Unknown" &&
-              b.daysWorked > 0 &&
-              link.sent_time &&
-              format(link.sent_time, "yyyy-MM-dd") ===
-                format(from, "yyyy-MM-dd")
-          );
-          if (!isMatched) {
-            const student = await prisma.wpos_wpdatatable_23.findUnique({
-              where: { wdt_ID: link.studentid },
-              select: { name: true, package: true },
-            });
-            unmatchedZoomLinks.push({
-              zoomLinkId: link.id,
-              sent_time: link.sent_time,
-              studentName: student?.name || "Unknown",
-              reason: "No matching assignment (active or historical)",
-            });
-            // Include unmatched Zoom link in salary if valid
-            if (student?.package && salaryMap[student.package]) {
-              const monthlyPackageSalary = Math.round(
-                salaryMap[student.package] || 0
-              );
-              const dailyRate = Math.round(monthlyPackageSalary / 30);
-              const proratedSalary = Math.round(dailyRate * workingDays);
+        // Calculate salary based on Zoom links sent
+        for (const link of zoomLinks) {
+          const student = await prisma.wpos_wpdatatable_23.findUnique({
+            where: { wdt_ID: link.studentid },
+            select: { package: true, name: true },
+          });
+          
+          if (student?.package && salaryMap[student.package]) {
+            const monthlyPackageSalary = Math.round(salaryMap[student.package] || 0);
+            const dailyRate = monthlyPackageSalary / 30;
+            baseSalary += dailyRate; // Add daily rate for each Zoom link sent
+          }
+        }
 
-              // Only add to base salary if not already counted
-              if (!monthlyStudentSalaries.has(link.studentid)) {
-                monthlyStudentSalaries.set(
-                  link.studentid,
-                  proratedSalary
-                );
-                baseSalary += proratedSalary;
-
-                dailyBreakdown.push({
-                  studentName: student.name || "Unknown",
-                  package: student.package || "Unknown",
-                  monthlyRate: monthlyPackageSalary,
-                  dailyRate: dailyRate,
-                  daysWorked: workingDays,
-                  totalEarned: proratedSalary, // Prorated salary
-                  source: "Unmatched Zoom Link",
-                });
-              }
+        // Create breakdown based on actual Zoom links sent
+        const studentZoomCounts = new Map<number, { count: number; student: any }>();
+        
+        for (const link of zoomLinks) {
+          const student = await prisma.wpos_wpdatatable_23.findUnique({
+            where: { wdt_ID: link.studentid },
+            select: { package: true, name: true },
+          });
+          
+          if (student?.package && salaryMap[student.package]) {
+            const existing = studentZoomCounts.get(link.studentid);
+            if (existing) {
+              existing.count++;
+            } else {
+              studentZoomCounts.set(link.studentid, { count: 1, student });
             }
           }
         }
+
+        // Create breakdown entries
+        for (const [studentId, data] of studentZoomCounts.entries()) {
+          const monthlyPackageSalary = Math.round(salaryMap[data.student.package] || 0);
+          const dailyRate = Math.round(monthlyPackageSalary / 30);
+          const totalEarned = Math.round(dailyRate * data.count);
+
+          dailyBreakdown.push({
+            studentName: data.student.name || "Unknown",
+            package: data.student.package || "Unknown",
+            monthlyRate: monthlyPackageSalary,
+            dailyRate: dailyRate,
+            daysWorked: data.count,
+            totalEarned: totalEarned,
+            source: "Zoom Links Sent",
+          });
+        }
+
+        // All Zoom links are now included in salary calculation above
+        // No need for separate unmatched links processing
 
         baseSalary = Math.round(baseSalary);
 
