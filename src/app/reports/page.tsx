@@ -1035,7 +1035,7 @@ Generated on: ${new Date().toLocaleString()}
                         cy="50%"
                         labelLine={false}
                         label={({ name, percent }) =>
-                          `${name} ${((percent || 0) * 100).toFixed(0)}%`
+                          `${name} ${typeof percent === 'number' ? (percent * 100).toFixed(0) : 0}%`
                         }
                         outerRadius={80}
                         fill="#8884d8"
