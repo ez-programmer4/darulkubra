@@ -1,324 +1,220 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    if (!token || token.role !== "admin") {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (!token || token.role !== "registral") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { startDate, endDate, teachersData } = await req.json();
+    const body = await request.json();
+    const { startDate, endDate, teachersData } = body;
+
+    const analytics = generateAnalyticsReport(teachersData, startDate, endDate);
     
-    const fromDate = new Date(startDate);
-    const toDate = new Date(endDate);
-    const monthYear = fromDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    
-    // Calculate comprehensive analytics
-    const totalTeachers = teachersData.length;
-    const totalBaseSalary = teachersData.reduce((sum: number, t: any) => sum + t.baseSalary, 0);
-    const totalLatenessDeduction = teachersData.reduce((sum: number, t: any) => sum + t.latenessDeduction, 0);
-    const totalAbsenceDeduction = teachersData.reduce((sum: number, t: any) => sum + t.absenceDeduction, 0);
-    const totalBonuses = teachersData.reduce((sum: number, t: any) => sum + t.bonuses, 0);
-    const totalSalary = teachersData.reduce((sum: number, t: any) => sum + t.totalSalary, 0);
-    const totalStudents = teachersData.reduce((sum: number, t: any) => sum + (t.numStudents || 0), 0);
-    
-    // Performance metrics
-    const avgSalaryPerTeacher = totalSalary / totalTeachers;
-    const avgStudentsPerTeacher = totalStudents / totalTeachers;
-    const deductionRate = ((totalLatenessDeduction + totalAbsenceDeduction) / totalBaseSalary) * 100;
-    const bonusRate = (totalBonuses / totalBaseSalary) * 100;
-    
-    // Top performers
-    const topEarners = [...teachersData].sort((a, b) => b.totalSalary - a.totalSalary).slice(0, 5);
-    const mostStudents = [...teachersData].sort((a, b) => (b.numStudents || 0) - (a.numStudents || 0)).slice(0, 5);
-    const highestDeductions = [...teachersData].sort((a, b) => (b.latenessDeduction + b.absenceDeduction) - (a.latenessDeduction + a.absenceDeduction)).slice(0, 5);
-    const topBonusEarners = [...teachersData].filter(t => t.bonuses > 0).sort((a, b) => b.bonuses - a.bonuses).slice(0, 5);
-
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Teacher Payment Analytics - ${monthYear}</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            line-height: 1.6; 
-            color: #333; 
-            background: #f8f9fa;
-        }
-        .container { 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            background: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-        }
-        .header { 
-            text-align: center; 
-            margin-bottom: 30px; 
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 10px;
-        }
-        .analytics-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
-            gap: 20px; 
-            margin-bottom: 30px; 
-        }
-        .metric-card { 
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
-            padding: 25px; 
-            border-radius: 15px; 
-            text-align: center;
-            border: 1px solid #dee2e6;
-            position: relative;
-            overflow: hidden;
-        }
-        .metric-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-        }
-        .metric-card h3 { 
-            color: #495057; 
-            font-size: 0.9em; 
-            text-transform: uppercase; 
-            margin-bottom: 15px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        .metric-card .value { 
-            font-size: 2.2em; 
-            font-weight: bold; 
-            color: #667eea;
-            margin-bottom: 10px;
-        }
-        .metric-card .subtitle {
-            font-size: 0.85em;
-            color: #6c757d;
-            font-weight: 500;
-        }
-        .section { 
-            margin-bottom: 40px;
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
-            border: 1px solid #e9ecef;
-        }
-        .section h2 { 
-            color: #495057; 
-            margin-bottom: 20px;
-            font-size: 1.5em;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-        }
-        .top-list { 
-            display: grid; 
-            gap: 15px; 
-        }
-        .top-item { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center;
-            padding: 15px 20px; 
-            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); 
-            border-radius: 10px;
-            border-left: 4px solid #667eea;
-            transition: all 0.3s ease;
-        }
-        .top-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.15);
-        }
-        .rank { 
-            background: #667eea; 
-            color: white; 
-            width: 30px; 
-            height: 30px; 
-            border-radius: 50%; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-weight: bold;
-            font-size: 0.9em;
-        }
-        .teacher-name { 
-            flex: 1; 
-            margin-left: 15px; 
-            font-weight: 600;
-            color: #495057;
-        }
-        .metric-value { 
-            font-weight: bold; 
-            color: #667eea;
-            font-size: 1.1em;
-        }
-        .insights {
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-            padding: 20px;
-            border-radius: 10px;
-            border-left: 4px solid #2196f3;
-        }
-        .insights h3 {
-            color: #1976d2;
-            margin-bottom: 15px;
-        }
-        .insights ul {
-            list-style: none;
-            padding: 0;
-        }
-        .insights li {
-            margin: 8px 0;
-            padding-left: 20px;
-            position: relative;
-        }
-        .insights li::before {
-            content: '💡';
-            position: absolute;
-            left: 0;
-        }
-        .print-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: 600;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-        @media print {
-            body { background: white; }
-            .container { box-shadow: none; }
-            .print-btn { display: none; }
-        }
-    </style>
-</head>
-<body>
-    <button class="print-btn" onclick="window.print()">🖨️ Print Analytics</button>
-    
-    <div class="container">
-        <div class="header">
-            <h1>📊 Teacher Payment Analytics</h1>
-            <p>${monthYear} • Comprehensive Performance Analysis</p>
-        </div>
-
-        <div class="analytics-grid">
-            <div class="metric-card">
-                <h3>👥 Total Teachers</h3>
-                <div class="value">${totalTeachers}</div>
-                <div class="subtitle">Active teaching staff</div>
-            </div>
-            <div class="metric-card">
-                <h3>🎓 Total Students</h3>
-                <div class="value">${totalStudents}</div>
-                <div class="subtitle">${avgStudentsPerTeacher.toFixed(1)} avg per teacher</div>
-            </div>
-            <div class="metric-card">
-                <h3>💰 Average Salary</h3>
-                <div class="value">${avgSalaryPerTeacher.toLocaleString()} ETB</div>
-                <div class="subtitle">Per teacher monthly</div>
-            </div>
-            <div class="metric-card">
-                <h3>📉 Deduction Rate</h3>
-                <div class="value">${deductionRate.toFixed(1)}%</div>
-                <div class="subtitle">Of base salary</div>
-            </div>
-            <div class="metric-card">
-                <h3>📈 Bonus Rate</h3>
-                <div class="value">${bonusRate.toFixed(1)}%</div>
-                <div class="subtitle">Of base salary</div>
-            </div>
-            <div class="metric-card">
-                <h3>💵 Net Payout</h3>
-                <div class="value">${totalSalary.toLocaleString()} ETB</div>
-                <div class="subtitle">Total for ${monthYear}</div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>🏆 Top Earners</h2>
-            <div class="top-list">
-                ${topEarners.map((teacher, index) => `
-                    <div class="top-item">
-                        <div class="rank">${index + 1}</div>
-                        <div class="teacher-name">${teacher.name}</div>
-                        <div class="metric-value">${teacher.totalSalary.toLocaleString()} ETB</div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>👥 Most Students</h2>
-            <div class="top-list">
-                ${mostStudents.map((teacher, index) => `
-                    <div class="top-item">
-                        <div class="rank">${index + 1}</div>
-                        <div class="teacher-name">${teacher.name}</div>
-                        <div class="metric-value">${teacher.numStudents || 0} students</div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-
-        ${topBonusEarners.length > 0 ? `
-        <div class="section">
-            <h2>🎖️ Top Bonus Earners</h2>
-            <div class="top-list">
-                ${topBonusEarners.map((teacher, index) => `
-                    <div class="top-item">
-                        <div class="rank">${index + 1}</div>
-                        <div class="teacher-name">${teacher.name}</div>
-                        <div class="metric-value">+${teacher.bonuses.toLocaleString()} ETB</div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-        ` : ''}
-
-        <div class="section">
-            <div class="insights">
-                <h3>📈 Key Insights</h3>
-                <ul>
-                    <li>Average teacher manages ${avgStudentsPerTeacher.toFixed(1)} students</li>
-                    <li>Deduction rate is ${deductionRate.toFixed(1)}% of base salary</li>
-                    <li>Bonus rate is ${bonusRate.toFixed(1)}% of base salary</li>
-                    <li>${topBonusEarners.length} teachers earned bonuses this month</li>
-                    <li>Total payout: ${totalSalary.toLocaleString()} ETB for ${totalTeachers} teachers</li>
-                </ul>
-            </div>
-        </div>
-
-        <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
-            <p><strong>DarulKubra Academy</strong> • Advanced Analytics Report</p>
-        </div>
-    </div>
-</body>
-</html>`;
-
-    return new Response(html, {
+    return new NextResponse(analytics, {
       headers: {
         'Content-Type': 'text/html',
       },
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: "Failed to generate analytics report" },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error("Analytics report error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+function generateAnalyticsReport(teachers: any[], startDate: string, endDate: string) {
+  const totalTeachers = teachers.length;
+  const totalSalary = teachers.reduce((sum, t) => sum + t.totalSalary, 0);
+  const averageSalary = totalTeachers > 0 ? totalSalary / totalTeachers : 0;
+  const totalDeductions = teachers.reduce((sum, t) => sum + t.latenessDeduction, 0);
+  const totalBonuses = teachers.reduce((sum, t) => sum + t.bonuses, 0);
+
+  // Performance tiers
+  const topPerformers = teachers.filter(t => t.totalSalary > 2000);
+  const goodPerformers = teachers.filter(t => t.totalSalary > 1500 && t.totalSalary <= 2000);
+  const averagePerformers = teachers.filter(t => t.totalSalary > 1000 && t.totalSalary <= 1500);
+  const lowPerformers = teachers.filter(t => t.totalSalary <= 1000);
+
+  // Deduction analysis
+  const highDeductions = teachers.filter(t => t.latenessDeduction > 100);
+  const mediumDeductions = teachers.filter(t => t.latenessDeduction > 50 && t.latenessDeduction <= 100);
+  const lowDeductions = teachers.filter(t => t.latenessDeduction > 0 && t.latenessDeduction <= 50);
+  const noDeductions = teachers.filter(t => t.latenessDeduction === 0);
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Teacher Payment Analytics Report</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .section { margin-bottom: 30px; }
+        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .metric-card { background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; }
+        .metric-value { font-size: 24px; font-weight: bold; color: #007bff; }
+        .metric-label { color: #666; font-size: 14px; }
+        .chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .performance-bar { height: 20px; background: #e9ecef; border-radius: 10px; margin: 5px 0; overflow: hidden; }
+        .performance-fill { height: 100%; transition: width 0.3s ease; }
+        .top { background: #28a745; }
+        .good { background: #17a2b8; }
+        .average { background: #ffc107; }
+        .low { background: #dc3545; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f9fa; font-weight: bold; }
+        .summary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>📊 Teacher Payment Analytics Report</h1>
+        <p>Period: ${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}</p>
+        <p>Generated on: ${new Date().toLocaleString()}</p>
+      </div>
+
+      <div class="section">
+        <h2>📈 Key Metrics</h2>
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-value">${totalTeachers}</div>
+            <div class="metric-label">Total Teachers</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${totalSalary.toLocaleString()} ETB</div>
+            <div class="metric-label">Total Salary</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${Math.round(averageSalary).toLocaleString()} ETB</div>
+            <div class="metric-label">Average Salary</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${totalDeductions.toLocaleString()} ETB</div>
+            <div class="metric-label">Total Deductions</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${totalBonuses.toLocaleString()} ETB</div>
+            <div class="metric-label">Total Bonuses</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>🎯 Performance Distribution</h2>
+        <div class="chart-container">
+          <div style="margin-bottom: 15px;">
+            <strong>Top Performers (>2000 ETB):</strong> ${topPerformers.length} teachers (${Math.round(topPerformers.length/totalTeachers*100)}%)
+            <div class="performance-bar">
+              <div class="performance-fill top" style="width: ${topPerformers.length/totalTeachers*100}%"></div>
+            </div>
+          </div>
+          <div style="margin-bottom: 15px;">
+            <strong>Good Performers (1501-2000 ETB):</strong> ${goodPerformers.length} teachers (${Math.round(goodPerformers.length/totalTeachers*100)}%)
+            <div class="performance-bar">
+              <div class="performance-fill good" style="width: ${goodPerformers.length/totalTeachers*100}%"></div>
+            </div>
+          </div>
+          <div style="margin-bottom: 15px;">
+            <strong>Average Performers (1001-1500 ETB):</strong> ${averagePerformers.length} teachers (${Math.round(averagePerformers.length/totalTeachers*100)}%)
+            <div class="performance-bar">
+              <div class="performance-fill average" style="width: ${averagePerformers.length/totalTeachers*100}%"></div>
+            </div>
+          </div>
+          <div style="margin-bottom: 15px;">
+            <strong>Below Average (≤1000 ETB):</strong> ${lowPerformers.length} teachers (${Math.round(lowPerformers.length/totalTeachers*100)}%)
+            <div class="performance-bar">
+              <div class="performance-fill low" style="width: ${lowPerformers.length/totalTeachers*100}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>⚠️ Deduction Analysis</h2>
+        <div class="summary-stats">
+          <div class="metric-card">
+            <div class="metric-value">${noDeductions.length}</div>
+            <div class="metric-label">No Deductions</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${lowDeductions.length}</div>
+            <div class="metric-label">Low (1-50 ETB)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${mediumDeductions.length}</div>
+            <div class="metric-label">Medium (51-100 ETB)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${highDeductions.length}</div>
+            <div class="metric-label">High (>100 ETB)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>🏆 Top 10 Performers</h2>
+        <div class="chart-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Teacher Name</th>
+                <th>Total Salary</th>
+                <th>Students</th>
+                <th>Deductions</th>
+                <th>Bonuses</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${teachers
+                .sort((a, b) => b.totalSalary - a.totalSalary)
+                .slice(0, 10)
+                .map((teacher, index) => `
+                  <tr>
+                    <td>${index + 1}</td>
+                    <td>${teacher.name}</td>
+                    <td>${teacher.totalSalary.toLocaleString()} ETB</td>
+                    <td>${teacher.numStudents || 0}</td>
+                    <td>${teacher.latenessDeduction.toLocaleString()} ETB</td>
+                    <td>${teacher.bonuses.toLocaleString()} ETB</td>
+                  </tr>
+                `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>📊 Statistical Summary</h2>
+        <div class="chart-container">
+          <div class="summary-stats">
+            <div class="metric-card">
+              <div class="metric-value">${Math.max(...teachers.map(t => t.totalSalary)).toLocaleString()} ETB</div>
+              <div class="metric-label">Highest Salary</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value">${Math.min(...teachers.map(t => t.totalSalary)).toLocaleString()} ETB</div>
+              <div class="metric-label">Lowest Salary</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value">${Math.round(totalDeductions/totalTeachers)} ETB</div>
+              <div class="metric-label">Avg Deduction</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value">${Math.round(totalBonuses/totalTeachers)} ETB</div>
+              <div class="metric-label">Avg Bonus</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 40px; color: #666; font-size: 12px;">
+        <p>© 2025 Darulkubra Quran Academy - Teacher Payment Analytics System</p>
+      </div>
+    </body>
+    </html>
+  `;
 }

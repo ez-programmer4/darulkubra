@@ -1943,11 +1943,25 @@ function RegistrationContent() {
                               ? "Loading statuses..."
                               : "Select status"}
                           </option>
-                          {studentConfigs.statuses.map((status, index) => (
-                            <option key={index} value={status}>
-                              {status}
-                            </option>
-                          ))}
+                          {(() => {
+                            // ONLY for controllers: if current status is Active, only show Leave and Completed
+                            if (session?.user?.role === "controller" && editId) {
+                              const currentStatus = watch("status");
+                              if (currentStatus === "Active") {
+                                return ["Leave", "Completed"].map((status, index) => (
+                                  <option key={index} value={status}>
+                                    {status}
+                                  </option>
+                                ));
+                              }
+                            }
+                            // For registrals, admins, and all other cases, show all statuses
+                            return studentConfigs.statuses.map((status, index) => (
+                              <option key={index} value={status}>
+                                {status}
+                              </option>
+                            ));
+                          })()}
                         </select>
                         {errors.status && (
                           <p className="mt-1 text-xs text-red-600 font-medium">

@@ -1,67 +1,65 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (!token || token.role !== "registral") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const packageDeductions = await prisma.packageDeduction.findMany({
-      orderBy: { packageName: "asc" },
+      orderBy: {
+        packageName: 'asc',
+      },
     });
 
     return NextResponse.json(packageDeductions);
   } catch (error) {
-    console.error("Error fetching package deductions:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    console.error("Package deductions fetch error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (!token || token.role !== "registral") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { packageName, latenessBaseAmount, absenceBaseAmount } =
-      await req.json();
+    const body = await request.json();
+    const { packageName, latenessBaseAmount, absenceBaseAmount } = body;
 
-    if (!packageName) {
-      return NextResponse.json(
-        { error: "Package name is required" },
-        { status: 400 }
-      );
+    if (!packageName || latenessBaseAmount === undefined || absenceBaseAmount === undefined) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const packageDeduction = await prisma.packageDeduction.upsert({
-      where: { packageName },
+      where: {
+        packageName,
+      },
       update: {
-        latenessBaseAmount: latenessBaseAmount || 30,
-        absenceBaseAmount: absenceBaseAmount || 25,
+        latenessBaseAmount: parseFloat(latenessBaseAmount),
+        absenceBaseAmount: parseFloat(absenceBaseAmount),
         updatedAt: new Date(),
       },
       create: {
         packageName,
-        latenessBaseAmount: latenessBaseAmount || 30,
-        absenceBaseAmount: absenceBaseAmount || 25,
+        latenessBaseAmount: parseFloat(latenessBaseAmount),
+        absenceBaseAmount: parseFloat(absenceBaseAmount),
+        createdAt: new Date(),
         updatedAt: new Date(),
       },
     });
 
-    return NextResponse.json(packageDeduction);
+    return NextResponse.json({
+      success: true,
+      packageDeduction,
+    });
   } catch (error) {
-    console.error("Error saving package deduction:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    console.error("Package deduction update error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -99,6 +99,11 @@ export default function Dashboard() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [filterUstaz, setFilterUstaz] = useState<string>("all");
   const [filterConnection, setFilterConnection] = useState<string>("all");
+  const [dynamicFilters, setDynamicFilters] = useState<{
+    statuses: string[];
+    packages: string[];
+    subjects: string[];
+  }>({ statuses: [], packages: [], subjects: [] });
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -114,6 +119,7 @@ export default function Dashboard() {
     }
     setAuthChecked(true);
     fetchRegistrations();
+    fetchFilterOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session, router]);
 
@@ -124,6 +130,18 @@ export default function Dashboard() {
       return () => clearTimeout(timer);
     }
   }, [notification]);
+
+  const fetchFilterOptions = async () => {
+    try {
+      const response = await fetch("/api/filter-options");
+      if (response.ok) {
+        const data = await response.json();
+        setDynamicFilters(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch filter options:", error);
+    }
+  };
 
   const fetchRegistrations = async () => {
     try {
@@ -1036,11 +1054,11 @@ export default function Dashboard() {
                       className="w-full p-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
                     >
                       <option value="all">All Statuses</option>
-                      <option value="active">Active</option>
-                      <option value="leave">Leave</option>
-                      <option value="remadan leave">Remadan Leave</option>
-                      <option value="Not yet">Not Yet</option>
-                      <option value="fresh">Fresh</option>
+                      {dynamicFilters.statuses.map((status, index) => (
+                        <option key={index} value={status}>
+                          {status}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -1074,7 +1092,7 @@ export default function Dashboard() {
                       className="w-full p-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
                     >
                       <option value="all">All Package Regions</option>
-                      {packages.map((pkg, index) => (
+                      {dynamicFilters.packages.map((pkg, index) => (
                         <option key={index} value={pkg}>
                           {pkg}
                         </option>
@@ -1094,7 +1112,7 @@ export default function Dashboard() {
                       className="w-full p-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
                     >
                       <option value="all">All Subjects</option>
-                      {subjects.map((subject, index) => (
+                      {dynamicFilters.subjects.map((subject, index) => (
                         <option key={index} value={subject}>
                           {subject}
                         </option>
@@ -1189,11 +1207,11 @@ export default function Dashboard() {
                     className="flex items-center px-3 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors appearance-none"
                   >
                     <option value="">Update Status</option>
-                    <option value="active">Active</option>
-                    <option value="leave">Leave</option>
-                    <option value="remadan leave">Remadan Leave</option>
-                    <option value="Not yet">Not Yet</option>
-                    <option value="fresh">Fresh</option>
+                    {dynamicFilters.statuses.map((status, index) => (
+                      <option key={index} value={status}>
+                        {status}
+                      </option>
+                    ))}
                   </select>
                   <FiChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-600 pointer-events-none" />
                 </div>

@@ -1,149 +1,163 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
+import { prisma } from "@/lib/prisma";
+import dayjs from "dayjs";
 
-export async function GET(req: NextRequest, { params }: { params: { teacherId: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { teacherId: string } }
+) {
   try {
-    const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    if (!session || (session.role !== "admin" && session.role !== "controller")) {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (!token || token.role !== "registral") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const month = parseInt(searchParams.get("month") || "1");
+    const year = parseInt(searchParams.get("year") || "2024");
     const { teacherId } = params;
-    const url = new URL(req.url);
-    const month = url.searchParams.get("month") || new Date().getMonth() + 1;
-    const year = url.searchParams.get("year") || new Date().getFullYear();
-    
-    // Calculate date range for the month
-    const startDate = new Date(Number(year), Number(month) - 1, 1);
-    const endDate = new Date(Number(year), Number(month), 0);
-    const daysInMonth = endDate.getDate();
-    
-    // Get working days configuration (default: exclude Sundays)
-    const workingDaysConfig = await prisma.setting.findUnique({
-      where: { key: "include_sundays_in_salary" }
+
+    // Get month range
+    const from = dayjs(`${year}-${String(month).padStart(2, "0")}-01`).startOf("month").toDate();
+    const to = dayjs(from).endOf("month").toDate();
+
+    // Get working days configuration
+    const settings = await prisma.setting.findFirst({
+      where: { key: "include_sundays_in_salary" },
     });
-    const includeSundays = workingDaysConfig?.value === "true" || false;
+    const includeSundays = settings?.value === "true";
     
     // Calculate working days
-    let workingDays = 0;
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(Number(year), Number(month) - 1, day);
-      if (includeSundays || date.getDay() !== 0) {
-        workingDays++;
-      }
-    }
+    const workingDays = calculateWorkingDays(from, to, includeSundays);
+    const daysInMonth = dayjs(to).date();
 
-    // Get students with their zoom links for the period
+    // Get teacher's students for the period
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         ustaz: teacherId,
-        status: { in: ["active", "Active"] }
+        startdate: {
+          lte: to,
+        },
+        OR: [
+          { status: "Active" },
+          { status: "Not yet" },
+          { status: "On Progress" },
+        ],
       },
       select: {
         wdt_ID: true,
         name: true,
         package: true,
-        zoom_links: {
-          where: {
-            sent_time: {
-              gte: startDate,
-              lte: endDate
-            }
-          },
-          select: {
-            sent_time: true
-          }
-        }
-      }
+        daypackages: true,
+        startdate: true,
+        status: true,
+      },
     });
 
     // Get package salaries
     const packageSalaries = await prisma.packageSalary.findMany();
-    const salaryMap: Record<string, number> = {};
-    packageSalaries.forEach(ps => {
-      salaryMap[ps.packageName] = Number(ps.salaryPerStudent);
-    });
+    const packageSalaryMap = packageSalaries.reduce((acc, ps) => {
+      acc[ps.packageName] = ps.salaryPerStudent;
+      return acc;
+    }, {} as Record<string, number>);
 
-    // Group students by package and calculate daily-based totals
-    const packageBreakdown: Record<string, any> = {};
-    let totalEarnedSalary = 0;
-    let totalPossibleSalary = 0;
-
-    students.forEach(student => {
-      const pkg = student.package || "No Package";
-      const packageSalary = salaryMap[pkg] || 0;
-      const dailySalary = packageSalary / workingDays;
-      
-      // Count unique working days where zoom link was sent
-      const sentDates = new Set();
-      student.zoom_links.forEach(link => {
-        if (link.sent_time) {
-          const linkDate = new Date(link.sent_time);
-          // Count based on configuration
-          if (includeSundays || linkDate.getDay() !== 0) {
-            const dateStr = link.sent_time.toISOString().split('T')[0];
-            sentDates.add(dateStr);
-          }
+    // Group students by package and calculate breakdown
+    const packageBreakdown = Object.entries(
+      students.reduce((acc, student) => {
+        const pkg = student.package || "0 Fee";
+        if (!acc[pkg]) {
+          acc[pkg] = {
+            packageName: pkg,
+            students: [],
+            count: 0,
+            salaryPerStudent: packageSalaryMap[pkg] || 0,
+            totalSalary: 0,
+          };
         }
-      });
-      
-      const teachingDays = sentDates.size;
-      const earnedSalary = dailySalary * teachingDays;
-      
-      if (!packageBreakdown[pkg]) {
-        packageBreakdown[pkg] = {
-          packageName: pkg,
-          students: [],
-          count: 0,
-          salaryPerStudent: packageSalary,
-          dailySalary: dailySalary,
-          totalSalary: 0,
-          totalTeachingDays: 0,
-          totalPossibleDays: 0
-        };
-      }
-      
-      packageBreakdown[pkg].students.push({
-        id: student.wdt_ID,
-        name: student.name,
-        teachingDays,
-        earnedSalary: earnedSalary.toFixed(2)
-      });
-      packageBreakdown[pkg].count++;
-      packageBreakdown[pkg].totalSalary += earnedSalary;
-      packageBreakdown[pkg].totalTeachingDays += teachingDays;
-      packageBreakdown[pkg].totalPossibleDays += daysInMonth;
-      
-      totalEarnedSalary += earnedSalary;
-      totalPossibleSalary += packageSalary;
-    });
+        acc[pkg].students.push(student);
+        acc[pkg].count++;
+        acc[pkg].totalSalary += packageSalaryMap[pkg] || 0;
+        return acc;
+      }, {} as Record<string, any>)
+    ).map(([_, data]) => data);
 
-    // Calculate attendance rate
-    const totalPossibleTeachingDays = students.length * workingDays;
-    const totalActualTeachingDays = Object.values(packageBreakdown).reduce(
-      (sum: number, pkg: any) => sum + pkg.totalTeachingDays, 0
-    );
-    const attendanceRate = totalPossibleTeachingDays > 0 
-      ? (totalActualTeachingDays / totalPossibleTeachingDays * 100).toFixed(2)
-      : "0";
+    // Get Zoom link activity for verification
+    const zoomActivity = await getZoomLinkActivity(teacherId, from, to);
 
     return NextResponse.json({
       teacherId,
-      month: Number(month),
-      year: Number(year),
+      month,
+      year,
       daysInMonth,
       workingDays,
+      includeSundays,
       totalStudents: students.length,
-      totalEarnedSalary: totalEarnedSalary.toFixed(2),
-      totalPossibleSalary: totalPossibleSalary.toFixed(2),
-      attendanceRate: `${attendanceRate}%`,
-      totalTeachingDays: totalActualTeachingDays,
-      totalPossibleDays: totalPossibleTeachingDays,
-      packageBreakdown: Object.values(packageBreakdown)
+      packageBreakdown,
+      zoomActivity,
+      students: students.map(s => ({
+        id: s.wdt_ID,
+        name: s.name,
+        package: s.package,
+        dayPackage: s.daypackages,
+        status: s.status,
+        startDate: s.startdate,
+      })),
     });
   } catch (error) {
-    console.error("Teacher students API error:", error);
-    return NextResponse.json({ error: "Failed to fetch teacher students" }, { status: 500 });
+    console.error("Teacher students breakdown error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+function calculateWorkingDays(from: Date, to: Date, includeSundays: boolean) {
+  let workingDays = 0;
+  let current = dayjs(from);
+  const end = dayjs(to);
+
+  while (current.isBefore(end) || current.isSame(end, 'day')) {
+    const dayOfWeek = current.day();
+    if (includeSundays || dayOfWeek !== 0) {
+      workingDays++;
+    }
+    current = current.add(1, 'day');
+  }
+
+  return workingDays;
+}
+
+async function getZoomLinkActivity(teacherId: string, from: Date, to: Date) {
+  const zoomLinks = await prisma.zoomLink.findMany({
+    where: {
+      teacherId,
+      createdAt: {
+        gte: from,
+        lte: to,
+      },
+    },
+    select: {
+      createdAt: true,
+      studentId: true,
+    },
+  });
+
+  const uniqueDays = new Set(
+    zoomLinks.map(link => 
+      dayjs(link.createdAt).format('YYYY-MM-DD')
+    )
+  );
+
+  const dailyActivity = Array.from(uniqueDays).map(date => ({
+    date,
+    linksCount: zoomLinks.filter(link => 
+      dayjs(link.createdAt).format('YYYY-MM-DD') === date
+    ).length,
+  }));
+
+  return {
+    totalDays: uniqueDays.size,
+    totalLinks: zoomLinks.length,
+    dailyActivity,
+    averageLinksPerDay: uniqueDays.size > 0 ? Math.round(zoomLinks.length / uniqueDays.size) : 0,
+  };
 }

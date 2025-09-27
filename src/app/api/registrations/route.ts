@@ -775,31 +775,29 @@ export async function PUT(request: NextRequest) {
 
       if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
         const auditDetails = {
-          deletedTeacher: currentOccupiedTime?.ustaz_id || null,
-          deletedTimeSlot: currentTimeSlot || null,
-          deletedDayPackage: currentOccupiedTime?.daypackage || null,
-          deletedOccupiedAt:
-            currentOccupiedTime?.occupied_at?.toISOString() || null,
+          student: parseInt(id),
+          oldTeacher: currentOccupiedTime?.ustaz_id || "none",
           newTeacher: ustaz,
-          newTimeSlot: selectedTime,
-          newDayPackage: selectedDayPackage,
-          studentId: parseInt(id),
-          newOccupiedAt: new Date().toISOString(),
+          oldTime: currentTimeSlot || "none",
+          newTime: selectedTime,
+          oldPackage: currentOccupiedTime?.daypackage || "none",
+          newPackage: selectedDayPackage,
         };
         const detailsString = JSON.stringify(auditDetails);
-        const truncatedDetails =
-          detailsString.length > 500
-            ? detailsString.substring(0, 497) + "..."
-            : detailsString;
+        const truncatedDetails = detailsString.length > 200 ? detailsString.substring(0, 197) + "..." : detailsString;
 
-        await tx.auditlog.create({
-          data: {
-            actionType: "assignment_update",
-            adminId: session.id || null,
-            targetId: parseInt(id),
-            details: truncatedDetails,
-          },
-        });
+        try {
+          await tx.auditlog.create({
+            data: {
+              actionType: "assignment_update",
+              adminId: null,
+              targetId: parseInt(id),
+              details: truncatedDetails,
+            },
+          });
+        } catch (auditError) {
+          console.warn("Audit log creation failed:", auditError);
+        }
       }
 
       return registration;
@@ -814,17 +812,25 @@ export async function PUT(request: NextRequest) {
     );
   } catch (error) {
     console.error("Registration PUT error:", error);
-    await prismaClient.auditlog.create({
-      data: {
-        actionType: "assignment_update_error",
-        adminId: null,
-        targetId: null,
-        details: JSON.stringify({
-          error: error instanceof Error ? error.message : String(error),
-          studentId: null,
-        }),
-      },
-    });
+    try {
+      const errorDetails = {
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      };
+      const errorString = JSON.stringify(errorDetails);
+      const truncatedError = errorString.length > 200 ? errorString.substring(0, 197) + "..." : errorString;
+      
+      await prismaClient.auditlog.create({
+        data: {
+          actionType: "assignment_update_error",
+          adminId: null,
+          targetId: null,
+          details: truncatedError,
+        },
+      });
+    } catch (auditError) {
+      console.warn("Error audit log creation failed:", auditError);
+    }
     return NextResponse.json(
       {
         message: "Internal server error",
