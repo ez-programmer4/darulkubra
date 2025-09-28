@@ -53,6 +53,11 @@ const navItems = [
     icon: Calendar,
   },
   {
+    href: "/admin/package-deductions",
+    label: "Package Deductions",
+    icon: Settings,
+  },
+  {
     href: "/admin/on-progress",
     label: "On Progress Student",
     icon: Users,

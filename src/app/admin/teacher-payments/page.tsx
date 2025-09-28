@@ -534,21 +534,21 @@ export default function TeacherPaymentsPage() {
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="space-y-4">
-        {/* Quick Actions */}
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50">
-            <CardTitle className="flex items-center gap-2 text-gray-800">
-              <FiSettings className="w-5 h-5 text-blue-600" />
+      {/* Enhanced Main Content */}
+      <div className="space-y-6">
+        {/* Enhanced Quick Actions */}
+        <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-blue-50/30">
+          <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <FiSettings className="w-6 h-6" />
               Quick Actions
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-blue-100">
               Common administrative tasks for teacher payments
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <CardContent className="p-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Button
                 variant="outline"
                 onClick={() =>
@@ -563,12 +563,16 @@ export default function TeacherPaymentsPage() {
                   loading ||
                   teachers.filter((t) => t.status === "Unpaid").length === 0
                 }
-                className="flex items-center gap-2 h-12 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-all duration-300"
+                className="flex items-center gap-3 h-16 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-all duration-300 group border-2 hover:shadow-lg"
               >
-                <FiCheckCircle className="w-5 h-5" />
+                <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+                  <FiCheckCircle className="w-6 h-6 text-green-600" />
+                </div>
                 <div className="text-left">
-                  <div className="font-medium">Mark All Unpaid as Paid</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="font-semibold text-lg">
+                    Mark All Unpaid as Paid
+                  </div>
+                  <div className="text-sm text-gray-600">
                     {teachers.filter((t) => t.status === "Unpaid").length}{" "}
                     teachers
                   </div>
@@ -587,12 +591,16 @@ export default function TeacherPaymentsPage() {
                   loading ||
                   teachers.filter((t) => t.status === "Paid").length === 0
                 }
-                className="flex items-center gap-2 h-12 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all duration-300"
+                className="flex items-center gap-3 h-16 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all duration-300 group border-2 hover:shadow-lg"
               >
-                <FiXCircle className="w-5 h-5" />
+                <div className="p-2 bg-red-100 rounded-lg group-hover:bg-red-200 transition-colors">
+                  <FiXCircle className="w-6 h-6 text-red-600" />
+                </div>
                 <div className="text-left">
-                  <div className="font-medium">Mark All Paid as Unpaid</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="font-semibold text-lg">
+                    Mark All Paid as Unpaid
+                  </div>
+                  <div className="text-sm text-gray-600">
                     {teachers.filter((t) => t.status === "Paid").length}{" "}
                     teachers
                   </div>
@@ -603,30 +611,44 @@ export default function TeacherPaymentsPage() {
                 variant="outline"
                 onClick={() => handleExport("csv")}
                 disabled={loading}
-                className="flex items-center gap-2 h-12 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-300"
+                className="flex items-center gap-3 h-16 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-300 group border-2 hover:shadow-lg"
               >
-                <FiDownload className="w-5 h-5" />
+                <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                  <FiDownload className="w-6 h-6 text-blue-600" />
+                </div>
                 <div className="text-left">
-                  <div className="font-medium">Export All Data</div>
-                  <div className="text-xs text-gray-500">CSV format</div>
+                  <div className="font-semibold text-lg">Export All Data</div>
+                  <div className="text-sm text-gray-600">CSV format</div>
                 </div>
               </Button>
 
               <Button
                 variant="outline"
                 onClick={() => setShowTeacherSalary(!showTeacherSalary)}
-                className={`flex items-center gap-2 h-12 transition-all duration-300 ${
+                className={`flex items-center gap-3 h-16 transition-all duration-300 group border-2 hover:shadow-lg ${
                   showTeacherSalary
                     ? "bg-blue-50 hover:bg-blue-100 text-blue-600 hover:border-blue-300"
                     : "bg-gray-50 hover:bg-gray-100 text-gray-600 hover:border-gray-300"
                 }`}
               >
-                <FiUsers className="w-5 h-5" />
+                <div
+                  className={`p-2 rounded-lg transition-colors ${
+                    showTeacherSalary
+                      ? "bg-blue-100 group-hover:bg-blue-200"
+                      : "bg-gray-100 group-hover:bg-gray-200"
+                  }`}
+                >
+                  <FiUsers
+                    className={`w-6 h-6 ${
+                      showTeacherSalary ? "text-blue-600" : "text-gray-600"
+                    }`}
+                  />
+                </div>
                 <div className="text-left">
-                  <div className="font-medium">
+                  <div className="font-semibold text-lg">
                     {showTeacherSalary ? "Hide" : "Show"} Teacher Salary
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-sm text-gray-600">
                     {showTeacherSalary
                       ? "Teachers can view salary"
                       : "Teachers cannot view salary"}
@@ -929,6 +951,37 @@ export default function TeacherPaymentsPage() {
                     />
                     <span className="text-sm text-gray-500">ETB</span>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Package Configuration</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FiSettings className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium text-blue-800">
+                      Package Deductions
+                    </span>
+                  </div>
+                  <p className="text-sm text-blue-700 mb-3">
+                    Configure base deduction amounts for lateness and absence by
+                    package type
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowSettings(false);
+                      window.open("/admin/package-deductions", "_blank");
+                    }}
+                    className="text-blue-600 border-blue-300 hover:bg-blue-100"
+                  >
+                    <FiSettings className="w-4 h-4 mr-2" />
+                    Configure Package Deductions
+                  </Button>
                 </div>
               </CardContent>
             </Card>
