@@ -150,16 +150,16 @@ export default function TeacherPaymentsPage() {
       try {
         const status = action === "mark_paid" ? "Paid" : "Unpaid";
         await bulkUpdatePaymentStatus(teacherIds || [], status);
-      toast({
-        title: "Success",
+        toast({
+          title: "Success",
           description: `Bulk action completed successfully`,
-      });
+        });
       } catch (error) {
-      toast({
-        title: "Error",
+        toast({
+          title: "Error",
           description: "Failed to perform bulk action",
-        variant: "destructive",
-      });
+          variant: "destructive",
+        });
       }
     },
     [bulkUpdatePaymentStatus]
@@ -170,16 +170,16 @@ export default function TeacherPaymentsPage() {
     async (format: "csv" | "excel") => {
       try {
         await exportData(format);
-                              toast({
-                                title: "Success",
+        toast({
+          title: "Success",
           description: `Data exported as ${format.toUpperCase()}`,
-                              });
-                          } catch (error) {
-                            toast({
-                              title: "Error",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
           description: "Failed to export data",
-                              variant: "destructive",
-                            });
+          variant: "destructive",
+        });
       }
     },
     [exportData]
@@ -189,14 +189,14 @@ export default function TeacherPaymentsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    <div>
+        <div>
           <h1 className="text-3xl font-bold text-gray-900">Teacher Payments</h1>
           <p className="text-gray-600 mt-1">
             Manage teacher salaries and payment status
-                      </p>
-                    </div>
+          </p>
+        </div>
 
-                        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             onClick={() => setShowStatistics(true)}
@@ -225,8 +225,8 @@ export default function TeacherPaymentsPage() {
             />
             Refresh
           </Button>
-                  </div>
-                </div>
+        </div>
+      </div>
 
       {/* Month/Year Selector */}
       <Card>
@@ -248,13 +248,13 @@ export default function TeacherPaymentsPage() {
               Previous
             </Button>
 
-                          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Select
                 value={selectedMonth.toString()}
                 onValueChange={(value) => setSelectedMonth(parseInt(value))}
               >
                 <SelectTrigger className="w-40">
-                  <SelectValue />
+                  <SelectValue placeholder="Select month" />
                 </SelectTrigger>
                 <SelectContent>
                   {months.map((month) => (
@@ -273,12 +273,12 @@ export default function TeacherPaymentsPage() {
                 onValueChange={(value) => setSelectedYear(parseInt(value))}
               >
                 <SelectTrigger className="w-24">
-                  <SelectValue />
+                  <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 5 }, (_, i) => {
                     const year = dayjs().year() - 2 + i;
-                                return (
+                    return (
                       <SelectItem key={year} value={year.toString()}>
                         {year}
                       </SelectItem>
@@ -286,7 +286,7 @@ export default function TeacherPaymentsPage() {
                   })}
                 </SelectContent>
               </Select>
-                                </div>
+            </div>
 
             <Button
               variant="outline"
@@ -306,7 +306,7 @@ export default function TeacherPaymentsPage() {
             >
               Current Month
             </Button>
-                </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -323,9 +323,9 @@ export default function TeacherPaymentsPage() {
                   <p className="text-2xl font-bold text-gray-900">
                     {statistics.totalTeachers}
                   </p>
-                  </div>
-                <FiUsers className="w-8 h-8 text-blue-600" />
                 </div>
+                <FiUsers className="w-8 h-8 text-blue-600" />
+              </div>
             </CardContent>
           </Card>
 
@@ -338,45 +338,45 @@ export default function TeacherPaymentsPage() {
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
                     {formatCurrency(statistics.totalSalary)}
-                      </p>
-                    </div>
+                  </p>
+                </div>
                 <FiDollarSign className="w-8 h-8 text-green-600" />
-                  </div>
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                                      <div>
+              <div className="flex items-center justify-between">
+                <div>
                   <p className="text-sm font-medium text-gray-600">Paid</p>
                   <p className="text-2xl font-bold text-green-600">
                     {statistics.paidTeachers}
                   </p>
-                                      </div>
+                </div>
                 <FiCheckCircle className="w-8 h-8 text-green-600" />
-                                      </div>
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
-                                  <div className="flex items-center justify-between">
-                                      <div>
+              <div className="flex items-center justify-between">
+                <div>
                   <p className="text-sm font-medium text-gray-600">Unpaid</p>
                   <p className="text-2xl font-bold text-yellow-600">
                     {statistics.unpaidTeachers}
                   </p>
-                                      </div>
+                </div>
                 <FiXCircle className="w-8 h-8 text-yellow-600" />
-                                      </div>
+              </div>
             </CardContent>
           </Card>
-                                      </div>
+        </div>
       )}
 
       {/* Main Content */}
-    <div className="space-y-4">
+      <div className="space-y-4">
         <SalaryTable
           data={teachers}
           loading={loading}
@@ -410,7 +410,7 @@ export default function TeacherPaymentsPage() {
                 <FiDownload className="w-4 h-4" />
                 Export Excel
               </Button>
-      </div>
+            </div>
 
             {lastUpdated && (
               <p className="text-sm text-gray-500">
@@ -419,7 +419,7 @@ export default function TeacherPaymentsPage() {
             )}
           </CardContent>
         </Card>
-        </div>
+      </div>
 
       {/* Error Display */}
       {error && (
@@ -429,7 +429,7 @@ export default function TeacherPaymentsPage() {
               <FiAlertTriangle className="w-5 h-5" />
               <span className="font-medium">Error:</span>
               <span>{error}</span>
-          </div>
+            </div>
           </CardContent>
         </Card>
       )}
