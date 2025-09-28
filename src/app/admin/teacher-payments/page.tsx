@@ -459,6 +459,70 @@ export default function TeacherPaymentsPage() {
 
       {/* Main Content */}
       <div className="space-y-4">
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FiSettings className="w-5 h-5" />
+              Quick Actions
+            </CardTitle>
+            <CardDescription>
+              Common administrative tasks for teacher payments
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Button
+                variant="outline"
+                onClick={() =>
+                  handleBulkAction(
+                    "mark_paid",
+                    teachers
+                      .filter((t) => t.status === "Unpaid")
+                      .map((t) => t.id)
+                  )
+                }
+                disabled={
+                  loading ||
+                  teachers.filter((t) => t.status === "Unpaid").length === 0
+                }
+                className="flex items-center gap-2"
+              >
+                <FiCheckCircle className="w-4 h-4" />
+                Mark All Unpaid as Paid
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() =>
+                  handleBulkAction(
+                    "mark_unpaid",
+                    teachers.filter((t) => t.status === "Paid").map((t) => t.id)
+                  )
+                }
+                disabled={
+                  loading ||
+                  teachers.filter((t) => t.status === "Paid").length === 0
+                }
+                className="flex items-center gap-2"
+              >
+                <FiXCircle className="w-4 h-4" />
+                Mark All Paid as Unpaid
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => handleExport("csv")}
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <FiDownload className="w-4 h-4" />
+                Export All Data
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <SalaryTable
           data={teachers}
           loading={loading}
