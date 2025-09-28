@@ -1,9 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import dayjs from "dayjs";
+import {
+  FiCalendar,
+  FiDollarSign,
+  FiAward,
+  FiAlertTriangle,
+  FiDownload,
+  FiCheckCircle,
+  FiXCircle,
+  FiRefreshCw,
+  FiTrendingUp,
+  FiTrendingDown,
+  FiUsers,
+  FiClock,
+  FiFileText,
+  FiInfo,
+} from "react-icons/fi";
+import { toast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -11,39 +36,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { PageLoading } from "@/components/ui/LoadingSpinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  FiArrowLeft,
-  FiDownload,
-  FiCalendar,
-  FiDollarSign,
-  FiTrendingUp,
-  FiTrendingDown,
-  FiCheckCircle,
-  FiAlertTriangle,
-  FiClock,
-  FiUser,
-  FiAward,
-  FiBarChart,
-  FiHome,
-  FiUsers,
-  FiClipboard,
-  FiTarget,
-  FiRefreshCw,
-  FiGift,
-  FiMinus,
-  FiMenu,
-  FiLogOut,
-  FiX,
-  FiEye,
-  FiPieChart,
-} from "react-icons/fi";
-import { signOut } from "next-auth/react";
-import { usePathname } from "next/navigation";
-import Link from "next/link";
-import { format } from "date-fns";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  formatCurrency,
+  formatCompactCurrency,
+} from "@/lib/teacher-payment-utils";
 
-type SalaryData = {
+interface TeacherSalaryData {
   id: string;
   name: string;
   baseSalary: number;
@@ -51,725 +58,1034 @@ type SalaryData = {
   absenceDeduction: number;
   bonuses: number;
   totalSalary: number;
+  status: "Paid" | "Unpaid";
   numStudents: number;
   teachingDays: number;
-  status: "Paid" | "Unpaid";
-};
+  breakdown: {
+    dailyEarnings: Array<{ date: string; amount: number }>;
+    studentBreakdown: Array<{
+      studentName: string;
+      package: string;
+      monthlyRate: number;
+      dailyRate: number;
+      daysWorked: number;
+      totalEarned: number;
+    }>;
+    latenessBreakdown: Array<{
+      date: string;
+      studentName: string;
+      scheduledTime: string;
+      actualTime: string;
+      latenessMinutes: number;
+      tier: string;
+      deduction: number;
+    }>;
+    absenceBreakdown: Array<{
+      date: string;
+      studentId: number;
+      studentName: string;
+      studentPackage: string;
+      reason: string;
+      deduction: number;
+      permitted: boolean;
+      waived: boolean;
+    }>;
+    summary: {
+      workingDaysInMonth: number;
+      actualTeachingDays: number;
+      averageDailyEarning: number;
+      totalDeductions: number;
+      netSalary: number;
+    };
+  };
+}
+
+interface PaymentDetails {
+  latenessRecords: any[];
+  absenceRecords: any[];
+  bonusRecords: any[];
+  qualityBonuses: any[];
+}
 
 export default function TeacherSalaryPage() {
-  const { user, isLoading: authLoading } = useAuth({
-    requiredRole: "teacher",
-    redirectTo: "/teachers/login",
-  });
-  const router = useRouter();
-  const pathname = usePathname();
-
-  const [salaryData, setSalaryData] = useState<SalaryData | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1);
+  const [selectedYear, setSelectedYear] = useState(dayjs().year());
+  const [salaryData, setSalaryData] = useState<TeacherSalaryData | null>(null);
+  const [details, setDetails] = useState<PaymentDetails | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    const result = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}`;
-    return result;
-  });
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [salaryVisible, setSalaryVisible] = useState(true);
-  const [checkingVisibility, setCheckingVisibility] = useState(true);
-  const [showBreakdown, setShowBreakdown] = useState(false);
-  const [breakdown, setBreakdown] = useState<{
-    latenessRecords: any[];
-    absenceRecords: any[];
-    bonusRecords: any[];
-  }>({ latenessRecords: [], absenceRecords: [], bonusRecords: [] });
-  const [breakdownLoading, setBreakdownLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
-  useEffect(() => {
-    if (user?.id) {
-      checkSalaryVisibility();
-    }
-  }, [user?.id]);
+  // Get date range for the selected month/year
+  const getDateRange = () => {
+    const startDate = dayjs(
+      `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`
+    )
+      .startOf("month")
+      .toISOString()
+      .split("T")[0];
+    const endDate = dayjs(
+      `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`
+    )
+      .endOf("month")
+      .toISOString()
+      .split("T")[0];
+    return { startDate, endDate };
+  };
 
-  useEffect(() => {
-    if (user?.id && salaryVisible) {
-      fetchSalaryData();
-    }
-  }, [user?.id, selectedMonth, salaryVisible]);
+  const { startDate, endDate } = getDateRange();
 
-  async function checkSalaryVisibility() {
-    try {
-      setCheckingVisibility(true);
-      const [year, month] = selectedMonth.split("-");
-      const selectedYear = parseInt(year);
-      const monthNumber = parseInt(month);
-      const from = new Date(selectedYear, monthNumber - 1, 1);
-      const to = new Date(selectedYear, monthNumber, 0);
-
-      const res = await fetch(
-        `/api/teachers/salary?from=${from.toISOString().split("T")[0]}&to=${
-          to.toISOString().split("T")[0]
-        }`
-      );
-
-      if (res.status === 403) {
-        setSalaryVisible(false);
-      } else if (res.ok) {
-        setSalaryVisible(true);
-        const data = await res.json();
-        setSalaryData(data);
-      } else {
-        setSalaryVisible(true);
-        setError("Failed to load salary information. Please try again.");
-      }
-    } catch (error) {
-      setSalaryVisible(true);
-      setError("Failed to load salary information. Please try again.");
-    } finally {
-      setCheckingVisibility(false);
-    }
-  }
-
-  async function fetchSalaryData() {
-    if (!salaryVisible) return;
+  const fetchSalaryData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
     try {
-      setLoading(true);
-      setError(null);
-
-      const [year, month] = selectedMonth.split("-");
-      const selectedYear = parseInt(year);
-      const monthNumber = parseInt(month);
-      const from = new Date(selectedYear, monthNumber - 1, 1);
-      const to = new Date(selectedYear, monthNumber, 0);
-
-      const res = await fetch(
-        `/api/teachers/salary?from=${from.toISOString().split("T")[0]}&to=${
-          to.toISOString().split("T")[0]
-        }`
+      const response = await fetch(
+        `/api/teacher/salary?startDate=${startDate}&endDate=${endDate}`
       );
 
-      if (res.status === 403) {
-        setSalaryVisible(false);
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch salary data");
       }
 
-      if (!res.ok) throw new Error("Failed to fetch salary data");
-      const data = await res.json();
-
+      const data = await response.json();
       setSalaryData(data);
-    } catch (error) {
-      setError("Failed to load salary information. Please try again.");
+      setLastUpdated(new Date());
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Unknown error occurred";
+      setError(errorMessage);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
-  }
+  }, [startDate, endDate]);
 
-  async function fetchBreakdown() {
-    if (!user?.id) return;
-
-    setBreakdownLoading(true);
-    try {
-      const [year, month] = selectedMonth.split("-");
-      const selectedYear = parseInt(year);
-      const monthNumber = parseInt(month);
-      const from = new Date(selectedYear, monthNumber - 1, 1);
-      const to = new Date(selectedYear, monthNumber, 0);
-
-      const res = await fetch(
-        `/api/teachers/salary?from=${from.toISOString().split("T")[0]}&to=${
-          to.toISOString().split("T")[0]
-        }&details=true`
-      );
-
-      if (!res.ok) throw new Error("Failed to fetch breakdown");
-      const data = await res.json();
-
-      if (data.breakdown) {
-        setBreakdown({
-          latenessRecords: data.breakdown.latenessRecords || [],
-          absenceRecords: data.breakdown.absenceRecords || [],
-          bonusRecords: data.breakdown.bonusRecords || [],
-        });
-      }
-
-      setShowBreakdown(true);
-    } catch (error) {
-      setError("Failed to load detailed breakdown.");
-    } finally {
-      setBreakdownLoading(false);
-    }
-  }
-
-  const downloadSalaryReport = () => {
+  const fetchDetails = useCallback(async () => {
     if (!salaryData) return;
 
-    const reportContent = `
-Teacher Salary Report
-Month: ${new Date(selectedMonth + "-01").toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    })}
-Teacher: ${user?.name} (ID: ${user?.id})
+    try {
+      const response = await fetch(
+        `/api/teacher/salary/details?startDate=${startDate}&endDate=${endDate}`
+      );
 
-SALARY BREAKDOWN:
-================
-Base Salary: ${salaryData.baseSalary} ETB
-Quality Bonuses: +${salaryData.bonuses} ETB
-Lateness Deductions: -${salaryData.latenessDeduction} ETB
-Absence Deductions: -${salaryData.absenceDeduction} ETB
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch details");
+      }
 
-FINAL SALARY: ${salaryData.totalSalary} ETB
-Status: ${salaryData.status}
+      const data = await response.json();
+      setDetails(data);
+    } catch (err) {
+      console.error("Error fetching details:", err);
+    }
+  }, [salaryData, startDate, endDate]);
 
-Additional Information:
-- Number of Students: ${salaryData.numStudents}
-- Payment Status: ${salaryData.status}
-- Generated on: ${new Date().toLocaleDateString()}
-    `;
+  useEffect(() => {
+    fetchSalaryData();
+  }, [fetchSalaryData]);
 
-    const blob = new Blob([reportContent], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Salary_Report_${selectedMonth}_${user?.name}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+  useEffect(() => {
+    if (salaryData) {
+      fetchDetails();
+    }
+  }, [fetchDetails, salaryData]);
+
+  const months = [
+    { value: 1, label: "January" },
+    { value: 2, label: "February" },
+    { value: 3, label: "March" },
+    { value: 4, label: "April" },
+    { value: 5, label: "May" },
+    { value: 6, label: "June" },
+    { value: 7, label: "July" },
+    { value: 8, label: "August" },
+    { value: 9, label: "September" },
+    { value: 10, label: "October" },
+    { value: 11, label: "November" },
+    { value: 12, label: "December" },
+  ];
+
+  const years = Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i);
+
+  const goToPreviousMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedMonth(12);
+      setSelectedYear(selectedYear - 1);
+    } else {
+      setSelectedMonth(selectedMonth - 1);
+    }
   };
 
-  if (authLoading || checkingVisibility) {
-    return <PageLoading />;
+  const goToNextMonth = () => {
+    if (selectedMonth === 12) {
+      setSelectedMonth(1);
+      setSelectedYear(selectedYear + 1);
+    } else {
+      setSelectedMonth(selectedMonth + 1);
+    }
+  };
+
+  const goToCurrentMonth = () => {
+    setSelectedMonth(dayjs().month() + 1);
+    setSelectedYear(dayjs().year());
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await fetch(
+        `/api/teacher/salary/export?startDate=${startDate}&endDate=${endDate}`,
+        {
+          method: "GET",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Export failed");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `salary-${selectedYear}-${String(selectedMonth).padStart(
+        2,
+        "0"
+      )}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "Salary report exported successfully",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to export salary report",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Card className="border-0 shadow-lg">
+          <CardContent className="p-8">
+            <div className="flex items-center justify-center">
+              <FiRefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+              <span className="ml-3 text-lg font-medium text-gray-700">
+                Loading salary data...
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
-  if (!user) {
+  if (error) {
     return (
-      <div className="p-8 text-center text-red-600 font-bold">
-        <FiAlertTriangle className="inline-block mr-2 h-6 w-6" />
-        User not found or not authorized. Please contact support.
+      <div className="space-y-6">
+        <Card className="border-0 shadow-lg bg-gradient-to-r from-red-50 to-red-100">
+          <CardContent className="p-8">
+            <div className="flex items-center gap-4 text-red-800">
+              <div className="p-3 bg-red-500 rounded-full">
+                <FiAlertTriangle className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">Error Loading Salary Data</h3>
+                <p className="text-red-700 mt-2">{error}</p>
+                <Button
+                  onClick={fetchSalaryData}
+                  className="mt-4 bg-red-600 hover:bg-red-700"
+                >
+                  <FiRefreshCw className="w-4 h-4 mr-2" />
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white pb-20 md:pb-0">
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-lg border p-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-blue-600 rounded-xl">
-              <FiDollarSign className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-black">
-                My Salary
-              </h1>
-              <p className="text-gray-600 text-sm">
-                View salary details
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">My Salary</h1>
+            <p className="text-blue-100 mt-1">
+              View your salary breakdown, deductions, bonuses, and payment
+              status
+            </p>
+            {lastUpdated && (
+              <p className="text-sm text-blue-200 mt-1">
+                Last updated: {lastUpdated.toLocaleString()}
               </p>
-            </div>
+            )}
           </div>
 
-          {/* Month Selector */}
-          <div className="flex gap-2 mb-4">
-            <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 flex-1">
-              <FiCalendar className="h-4 w-4 text-gray-600" />
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-transparent border-none focus:outline-none text-gray-700 font-medium text-sm w-full"
-              >
-                {Array.from({ length: 12 }, (_, i) => {
-                  const date = new Date();
-                  date.setMonth(date.getMonth() - i);
-                  const value = `${date.getFullYear()}-${String(
-                    date.getMonth() + 1
-                  ).padStart(2, "0")}`;
-                  const label = date.toLocaleDateString("en-US", {
-                    month: "long",
-                    year: "numeric",
-                  });
-                  return (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
+          <div className="flex items-center gap-2">
             <Button
-              onClick={downloadSalaryReport}
-              disabled={!salaryData}
-              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-4 py-2 rounded-lg font-medium"
+              onClick={handleExport}
+              className="flex items-center gap-2 bg-white hover:bg-gray-100 text-blue-600"
             >
-              <FiDownload className="h-4 w-4" />
+              <FiDownload className="w-4 h-4" />
+              Export PDF
+            </Button>
+
+            <Button
+              onClick={fetchSalaryData}
+              disabled={loading}
+              className="flex items-center gap-2 bg-white hover:bg-gray-100 text-blue-600"
+            >
+              <FiRefreshCw
+                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh
             </Button>
           </div>
         </div>
-        {!salaryVisible ? (
-          <div className="bg-white rounded-xl shadow-lg border p-6 text-center">
-            <div className="p-4 bg-yellow-50 rounded-full w-fit mx-auto mb-4">
-              <FiAlertTriangle className="h-8 w-8 text-yellow-500" />
-            </div>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">
-              Salary Access Restricted
-            </h2>
-            <p className="text-gray-600 mb-4 text-sm">
-              Access to salary information has been temporarily disabled.
-            </p>
-            <div className="bg-gray-50 rounded-lg p-3 mb-4">
-              <p className="text-xs text-gray-500">
-                Please contact your administrator for access.
-              </p>
-            </div>
-          </div>
-        ) : loading ? (
-          <div className="bg-white rounded-xl shadow-lg border p-6 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-blue-600 mx-auto mb-4"></div>
-            <h3 className="text-base font-bold text-black mb-2">
-              Loading Salary Data
-            </h3>
-            <p className="text-gray-600 text-sm">
-              Please wait...
-            </p>
-          </div>
-        ) : error ? (
-          <div className="bg-white rounded-xl shadow-lg border p-6 text-center">
-            <div className="p-3 bg-red-50 rounded-full w-fit mx-auto mb-4">
-              <FiAlertTriangle className="h-6 w-6 text-red-500" />
-            </div>
-            <h3 className="text-base font-bold text-black mb-3">
-              Error Loading Data
-            </h3>
-            <p className="text-gray-600 mb-4 text-sm">
-              {error}
-            </p>
-            <Button
-              onClick={fetchSalaryData}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 font-medium"
-            >
-              <FiRefreshCw className="h-4 w-4 mr-2" />
-              Try Again
-            </Button>
-          </div>
-        ) : salaryData ? (
-          <div className="space-y-4">
-            {/* Salary Summary Cards */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Base Salary */}
-              <div className="bg-white rounded-xl shadow-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1 mb-1">
-                      <FiDollarSign className="h-3 w-3 text-gray-600" />
-                      <p className="text-xs font-medium text-gray-600">
-                        Base Salary
-                      </p>
-                    </div>
-                    <p className="text-lg font-bold text-black">
-                      {salaryData.baseSalary} ETB
-                    </p>
-                  </div>
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <FiTarget className="h-4 w-4 text-black" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Bonuses */}
-              <div className="bg-white rounded-xl shadow-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1 mb-1">
-                      <FiGift className="h-3 w-3 text-gray-600" />
-                      <p className="text-xs font-medium text-gray-600">
-                        Bonuses
-                      </p>
-                    </div>
-                    <p className="text-lg font-bold text-green-600">
-                      +{salaryData.bonuses || 0} ETB
-                    </p>
-                  </div>
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <FiAward className="h-4 w-4 text-black" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Lateness Deduction */}
-              <div
-                className="bg-white rounded-xl shadow-lg border p-3 cursor-pointer"
-                onClick={fetchBreakdown}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1 mb-1">
-                      <FiClock className="h-3 w-3 text-gray-600" />
-                      <p className="text-xs font-medium text-gray-600">
-                        Lateness
-                      </p>
-                    </div>
-                    <p className="text-lg font-bold text-red-600">
-                      -{salaryData.latenessDeduction} ETB
-                    </p>
-                    <p className="text-xs text-blue-600 font-medium">
-                      Tap for details
-                    </p>
-                  </div>
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <FiMinus className="h-4 w-4 text-black" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Absence Deduction */}
-              <div
-                className="bg-white rounded-xl shadow-lg border p-3 cursor-pointer"
-                onClick={fetchBreakdown}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1 mb-1">
-                      <FiTrendingDown className="h-3 w-3 text-gray-600" />
-                      <p className="text-xs font-medium text-gray-600">
-                        Absence
-                      </p>
-                    </div>
-                    <p className="text-lg font-bold text-red-600">
-                      -{salaryData.absenceDeduction} ETB
-                    </p>
-                    <p className="text-xs text-blue-600 font-medium">
-                      Tap for details
-                    </p>
-                  </div>
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <FiAlertTriangle className="h-4 w-4 text-black" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Final Salary Card */}
-            <div className="bg-white rounded-xl shadow-lg border p-6">
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-3 mb-4">
-                  <div className="p-3 bg-blue-600 rounded-xl">
-                    <FiDollarSign className="h-6 w-6 text-white" />
-                  </div>
-                  <h2 className="text-xl font-bold text-black">
-                    Final Salary
-                  </h2>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-6 mb-4">
-                  <p className="text-3xl font-bold text-black mb-2">
-                    {salaryData.totalSalary} ETB
-                  </p>
-                  <div className="flex items-center justify-center gap-2 text-gray-700">
-                    <FiTrendingUp className="h-4 w-4" />
-                    <span className="text-sm font-medium">
-                      Monthly Salary
-                    </span>
-                  </div>
-                </div>
-                <div className="flex flex-col items-center gap-3">
-                  <span
-                    className={`px-4 py-2 rounded-lg text-sm font-bold ${
-                      salaryData.status === "Paid"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-yellow-100 text-yellow-700"
-                    }`}
-                  >
-                    {salaryData.status === "Paid" ? (
-                      <>
-                        <FiCheckCircle className="inline h-4 w-4 mr-1" />
-                        Paid
-                      </>
-                    ) : (
-                      <>
-                        <FiClock className="inline h-4 w-4 mr-1" />
-                        Pending
-                      </>
-                    )}
-                  </span>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <FiCalendar className="h-4 w-4" />
-                    <span className="font-medium text-sm">
-                      {new Date(selectedMonth + "-01").toLocaleDateString(
-                        "en-US",
-                        { month: "long", year: "numeric" }
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-lg border p-6 text-center">
-            <div className="text-4xl mb-4">💰</div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">
-              No Salary Data Available
-            </h3>
-            <p className="text-gray-600 mb-4 text-sm">
-              Salary information for{" "}
-              {new Date(selectedMonth + "-01").toLocaleDateString("en-US", {
-                month: "long",
-                year: "numeric",
-              })}{" "}
-              is not available yet.
-            </p>
-            <p className="text-xs text-gray-500">
-              Data is available after month ends.
-            </p>
-          </div>
-        )}
       </div>
 
-      {/* Mobile Breakdown Modal */}
-      {showBreakdown && (
-        <div className="fixed inset-0 z-50 bg-black/50">
-          <div className="fixed inset-x-4 top-4 bottom-4 bg-white rounded-2xl shadow-2xl overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-600 rounded-lg">
-                  <FiBarChart className="h-5 w-5 text-white" />
-                </div>
-                <h2 className="text-lg font-bold text-black">
-                  Salary Breakdown
-                </h2>
+      {/* Period Selector */}
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50">
+          <CardTitle className="flex items-center gap-2 text-gray-800">
+            <FiCalendar className="w-5 h-5" />
+            Select Period
+          </CardTitle>
+          <CardDescription>
+            Choose the month and year to view your salary information
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Month:
+                </label>
+                <Select
+                  value={selectedMonth.toString()}
+                  onValueChange={(value) => setSelectedMonth(parseInt(value))}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month) => (
+                      <SelectItem
+                        key={month.value}
+                        value={month.value.toString()}
+                      >
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <button
-                onClick={() => setShowBreakdown(false)}
-                className="p-2 text-gray-500 hover:text-gray-800 rounded-lg bg-gray-100"
-              >
-                <FiX size={20} />
-              </button>
+
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Year:
+                </label>
+                <Select
+                  value={selectedYear.toString()}
+                  onValueChange={(value) => setSelectedYear(parseInt(value))}
+                >
+                  <SelectTrigger className="w-24">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="p-4">
-              {breakdownLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-blue-600 mx-auto mb-4"></div>
-                  <p className="text-black font-medium">
-                    Loading breakdown...
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Lateness Records */}
-                  <div className="bg-red-50 rounded-xl p-4 border border-red-200">
-                    <div className="flex items-center gap-2 mb-3">
-                      <FiClock className="text-red-500 h-4 w-4" />
-                      <h3 className="text-base font-bold text-red-900">
-                        Lateness Records
-                      </h3>
-                      <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
-                        {breakdown.latenessRecords?.length || 0}
-                      </span>
-                    </div>
-                    {breakdown.latenessRecords?.length === 0 ? (
-                      <p className="text-red-600 text-center py-3 text-sm">
-                        No lateness records.
-                      </p>
-                    ) : (
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {breakdown.latenessRecords?.map(
-                          (record: any, index: number) => (
-                            <div
-                              key={index}
-                              className="bg-white rounded-lg p-3 border border-red-200"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex flex-col">
-                                  <div className="text-xs font-mono text-gray-600">
-                                    {new Date(
-                                      record.classDate
-                                    ).toLocaleDateString()}
-                                  </div>
-                                  <div className="text-xs text-gray-700">
-                                    {record.studentName}
-                                  </div>
-                                </div>
-                                <div className="flex flex-col items-end gap-1">
-                                  <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
-                                    {record.latenessMinutes} min
-                                  </span>
-                                  <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
-                                    -{record.deductionApplied} ETB
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    )}
-                    <div className="mt-3 pt-3 border-t border-red-200">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-red-900 text-sm">
-                          Total Deduction:
-                        </span>
-                        <span className="text-lg font-bold text-red-600">
-                          -
-                          {breakdown.latenessRecords?.reduce(
-                            (sum: number, r: any) =>
-                              sum + (r.deductionApplied || 0),
-                            0
-                          ) || 0}{" "}
-                          ETB
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Absence Records */}
-                  <div className="bg-yellow-50 rounded-2xl p-6 border border-yellow-200">
-                    <div className="flex items-center gap-2 mb-4">
-                      <FiAlertTriangle className="text-yellow-500 h-5 w-5" />
-                      <h3 className="text-lg font-bold text-yellow-900">
-                        Absence Records
-                      </h3>
-                      <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-sm font-semibold">
-                        {breakdown.absenceRecords?.length || 0} days
-                      </span>
-                    </div>
-                    {breakdown.absenceRecords?.length === 0 ? (
-                      <p className="text-yellow-600 text-center py-4">
-                        No absence records for this period.
-                      </p>
-                    ) : (
-                      <div className="space-y-3 max-h-60 overflow-y-auto">
-                        {breakdown.absenceRecords?.map(
-                          (record: any, index: number) => (
-                            <div
-                              key={index}
-                              className="bg-white rounded-xl p-4 border border-yellow-200 shadow-sm"
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex items-center gap-3">
-                                  <div className="text-sm font-mono text-gray-600">
-                                    {new Date(
-                                      record.classDate
-                                    ).toLocaleDateString()}
-                                  </div>
-                                  <span
-                                    className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                      record.permitted
-                                        ? "bg-green-100 text-green-700"
-                                        : "bg-red-100 text-red-700"
-                                    }`}
-                                  >
-                                    {record.permitted
-                                      ? "Permitted"
-                                      : "Unpermitted"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-semibold">
-                                    -{record.deductionApplied} ETB
-                                  </span>
-                                  {record.reviewNotes && (
-                                    <span className="text-xs text-gray-500">
-                                      ({record.reviewNotes})
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    )}
-                    <div className="mt-4 pt-4 border-t border-yellow-200">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-yellow-900">
-                          Total Absence Deduction:
-                        </span>
-                        <span className="text-xl font-bold text-yellow-600">
-                          -
-                          {breakdown.absenceRecords?.reduce(
-                            (sum: number, r: any) =>
-                              sum + (r.deductionApplied || 0),
-                            0
-                          ) || 0}{" "}
-                          ETB
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bonus Records */}
-                  <div className="bg-green-50 rounded-2xl p-6 border border-green-200">
-                    <div className="flex items-center gap-2 mb-4">
-                      <FiAward className="text-green-500 h-5 w-5" />
-                      <h3 className="text-lg font-bold text-green-900">
-                        Bonus Records
-                      </h3>
-                      <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-sm font-semibold">
-                        {breakdown.bonusRecords?.length || 0} bonuses
-                      </span>
-                    </div>
-                    {breakdown.bonusRecords?.length === 0 ? (
-                      <p className="text-green-600 text-center py-4">
-                        No bonus records for this period.
-                      </p>
-                    ) : (
-                      <div className="space-y-3 max-h-60 overflow-y-auto">
-                        {breakdown.bonusRecords?.map(
-                          (record: any, index: number) => (
-                            <div
-                              key={index}
-                              className="bg-white rounded-xl p-4 border border-green-200 shadow-sm"
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex items-center gap-3">
-                                  <div className="text-sm font-mono text-gray-600">
-                                    {new Date(
-                                      record.createdAt
-                                    ).toLocaleDateString()}
-                                  </div>
-                                  <div className="text-sm text-gray-700">
-                                    {record.reason}
-                                  </div>
-                                </div>
-                                <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
-                                  +{record.amount} ETB
-                                </span>
-                              </div>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    )}
-                    <div className="mt-4 pt-4 border-t border-green-200">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-green-900">
-                          Total Bonuses:
-                        </span>
-                        <span className="text-xl font-bold text-green-600">
-                          +
-                          {breakdown.bonusRecords?.reduce(
-                            (sum: number, r: any) => sum + (r.amount || 0),
-                            0
-                          ) || 0}{" "}
-                          ETB
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <button
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium"
-                  onClick={() => setShowBreakdown(false)}
-                >
-                  Close Details
-                </button>
-              </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPreviousMonth}
+                className="flex items-center gap-1"
+              >
+                <FiTrendingDown className="w-4 h-4" />
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToCurrentMonth}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Current Month
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToNextMonth}
+                className="flex items-center gap-1"
+              >
+                Next
+                <FiTrendingUp className="w-4 h-4" />
+              </Button>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Debug Information */}
+      {salaryData && (
+        <Card className="border-0 shadow-lg bg-gradient-to-r from-yellow-50 to-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-800">
+              <FiInfo className="w-5 h-5" />
+              Debug Information
+            </CardTitle>
+            <CardDescription>Raw salary data for verification</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <span className="font-medium text-gray-700">
+                    Teacher Name:
+                  </span>
+                  <p className="text-gray-600">{salaryData.name || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">
+                    Base Salary:
+                  </span>
+                  <p className="text-gray-600">
+                    {formatCurrency(salaryData.baseSalary || 0)}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">
+                    Total Salary:
+                  </span>
+                  <p className="text-gray-600">
+                    {formatCurrency(salaryData.totalSalary || 0)}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">Status:</span>
+                  <p className="text-gray-600">{salaryData.status || "N/A"}</p>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-white rounded border">
+                <div className="text-xs text-gray-500 mb-2">
+                  Raw Data Sample:
+                </div>
+                <pre className="text-xs text-gray-700 overflow-auto">
+                  {JSON.stringify(salaryData, null, 2)}
+                </pre>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Salary Data */}
+      {salaryData && (
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Base Salary
+                    </p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {formatCurrency(salaryData.baseSalary)}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-green-100 rounded-full">
+                    <FiDollarSign className="w-6 h-6 text-green-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Total Deductions
+                    </p>
+                    <p className="text-2xl font-bold text-red-600">
+                      -
+                      {formatCurrency(
+                        salaryData.latenessDeduction +
+                          salaryData.absenceDeduction
+                      )}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-red-100 rounded-full">
+                    <FiTrendingDown className="w-6 h-6 text-red-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Bonuses</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      +{formatCurrency(salaryData.bonuses)}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-blue-100 rounded-full">
+                    <FiAward className="w-6 h-6 text-blue-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Net Salary
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {formatCurrency(salaryData.totalSalary)}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-gray-100 rounded-full">
+                    <FiCheckCircle className="w-6 h-6 text-gray-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Detailed Tabs */}
+          <Tabs defaultValue="breakdown" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+              <TabsTrigger value="students">Students</TabsTrigger>
+              <TabsTrigger value="deductions">Deductions</TabsTrigger>
+              <TabsTrigger value="attendance">Attendance</TabsTrigger>
+              <TabsTrigger value="history">History</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="breakdown" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FiDollarSign className="w-5 h-5" />
+                    Salary Breakdown
+                  </CardTitle>
+                  <CardDescription>
+                    Detailed breakdown of your salary components
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-green-50 rounded-lg">
+                        <div className="text-sm text-green-600">
+                          Base Salary
+                        </div>
+                        <div className="text-xl font-bold text-green-700">
+                          {formatCurrency(salaryData.baseSalary)}
+                        </div>
+                      </div>
+                      <div className="p-4 bg-red-50 rounded-lg">
+                        <div className="text-sm text-red-600">
+                          Total Deductions
+                        </div>
+                        <div className="text-xl font-bold text-red-700">
+                          -
+                          {formatCurrency(
+                            salaryData.latenessDeduction +
+                              salaryData.absenceDeduction
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-blue-50 rounded-lg">
+                        <div className="text-sm text-blue-600">Bonuses</div>
+                        <div className="text-xl font-bold text-blue-700">
+                          +{formatCurrency(salaryData.bonuses)}
+                        </div>
+                      </div>
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <div className="text-sm text-gray-600">Net Salary</div>
+                        <div className="text-xl font-bold text-gray-700">
+                          {formatCurrency(salaryData.totalSalary)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="students" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FiUsers className="w-5 h-5" />
+                    Student Breakdown
+                  </CardTitle>
+                  <CardDescription>
+                    Earnings breakdown by student
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {salaryData.breakdown.studentBreakdown.length > 0 ? (
+                    <div className="space-y-3">
+                      {salaryData.breakdown.studentBreakdown.map(
+                        (student, index) => (
+                          <div
+                            key={index}
+                            className="p-4 bg-gray-50 rounded-lg border"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium text-gray-900">
+                                  {student.studentName}
+                                </h4>
+                                <p className="text-sm text-gray-600">
+                                  {student.package} • {student.daysWorked} days
+                                  worked
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold text-gray-900">
+                                  {formatCurrency(student.totalEarned)}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {formatCurrency(student.dailyRate)}/day
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FiUsers className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-500">No student data available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="deductions" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-red-600">
+                      <FiClock className="w-5 h-5" />
+                      Lateness Deductions
+                    </CardTitle>
+                    <CardDescription>
+                      Deductions for late class starts
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {salaryData.breakdown.latenessBreakdown.length > 0 ? (
+                      <div className="space-y-3">
+                        {salaryData.breakdown.latenessBreakdown.map(
+                          (record, index) => (
+                            <div
+                              key={index}
+                              className="p-3 bg-red-50 rounded-lg border border-red-200"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-gray-900">
+                                  {record.studentName}
+                                </div>
+                                <div className="text-red-600 font-semibold">
+                                  -{formatCurrency(record.deduction)}
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-600 mt-1">
+                                {new Date(record.date).toLocaleDateString()}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Scheduled: {record.scheduledTime} | Actual:{" "}
+                                {record.actualTime} | Late:{" "}
+                                {record.latenessMinutes} min ({record.tier})
+                              </div>
+                            </div>
+                          )
+                        )}
+                        <div className="mt-4 p-3 bg-red-100 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-red-800">
+                              Total Lateness Deduction:
+                            </span>
+                            <span className="font-bold text-red-800">
+                              -{formatCurrency(salaryData.latenessDeduction)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <FiCheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                        <p className="text-gray-500">No lateness deductions</p>
+                        <p className="text-sm text-gray-400">
+                          Great job being on time!
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-600">
+                      <FiAlertTriangle className="w-5 h-5" />
+                      Absence Deductions
+                    </CardTitle>
+                    <CardDescription>
+                      Deductions for missed classes
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {salaryData.breakdown.absenceBreakdown.length > 0 ? (
+                      <div className="space-y-3">
+                        {salaryData.breakdown.absenceBreakdown.map(
+                          (record, index) => (
+                            <div
+                              key={index}
+                              className="p-3 bg-orange-50 rounded-lg border border-orange-200"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-gray-900">
+                                  {record.studentName}
+                                </div>
+                                <div className="text-orange-600 font-semibold">
+                                  -{formatCurrency(record.deduction)}
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-600 mt-1">
+                                {new Date(record.date).toLocaleDateString()}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {record.studentPackage} • {record.reason}
+                              </div>
+                            </div>
+                          )
+                        )}
+                        <div className="mt-4 p-3 bg-orange-100 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-orange-800">
+                              Total Absence Deduction:
+                            </span>
+                            <span className="font-bold text-orange-800">
+                              -{formatCurrency(salaryData.absenceDeduction)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <FiCheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                        <p className="text-gray-500">No absence deductions</p>
+                        <p className="text-sm text-gray-400">
+                          Perfect attendance!
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="attendance" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FiCalendar className="w-5 h-5" />
+                    Attendance Summary
+                  </CardTitle>
+                  <CardDescription>
+                    Your teaching performance and attendance metrics
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center p-4 bg-blue-50 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {salaryData.numStudents}
+                        </div>
+                        <div className="text-sm text-blue-700">
+                          Active Students
+                        </div>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">
+                          {salaryData.breakdown.summary.workingDaysInMonth}
+                        </div>
+                        <div className="text-sm text-green-700">
+                          Working Days
+                        </div>
+                      </div>
+                      <div className="text-center p-4 bg-purple-50 rounded-lg">
+                        <div className="text-2xl font-bold text-purple-600">
+                          {salaryData.breakdown.summary.actualTeachingDays}
+                        </div>
+                        <div className="text-sm text-purple-700">
+                          Teaching Days
+                        </div>
+                      </div>
+                      <div className="text-center p-4 bg-orange-50 rounded-lg">
+                        <div className="text-2xl font-bold text-orange-600">
+                          {formatCurrency(
+                            salaryData.breakdown.summary.averageDailyEarning
+                          )}
+                        </div>
+                        <div className="text-sm text-orange-700">
+                          Avg Daily Earning
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">
+                          Attendance Rate
+                        </span>
+                        <span className="text-sm font-medium text-gray-700">
+                          {Math.round(
+                            (salaryData.breakdown.summary.actualTeachingDays /
+                              salaryData.breakdown.summary.workingDaysInMonth) *
+                              100
+                          )}
+                          %
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${
+                              (salaryData.breakdown.summary.actualTeachingDays /
+                                salaryData.breakdown.summary
+                                  .workingDaysInMonth) *
+                              100
+                            }%`,
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FiAward className="w-5 h-5" />
+                      Bonuses Earned
+                    </CardTitle>
+                    <CardDescription>
+                      Quality assessment bonuses
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {details?.qualityBonuses &&
+                    details.qualityBonuses.length > 0 ? (
+                      <div className="space-y-3">
+                        {details.qualityBonuses.map(
+                          (bonus: any, index: number) => (
+                            <div
+                              key={index}
+                              className="p-3 bg-green-50 rounded-lg border border-green-200"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium text-gray-900">
+                                    Week of{" "}
+                                    {new Date(
+                                      bonus.weekStart
+                                    ).toLocaleDateString()}
+                                  </div>
+                                  <div className="text-sm text-gray-600">
+                                    {bonus.supervisorFeedback ||
+                                      "Quality assessment bonus"}
+                                  </div>
+                                </div>
+                                <div className="text-green-600 font-semibold">
+                                  +{formatCurrency(bonus.bonusAwarded)}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <FiAward className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-500">
+                          No bonuses earned this period
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FiCheckCircle className="w-5 h-5" />
+                      Payment Status
+                    </CardTitle>
+                    <CardDescription>
+                      Current payment information
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">
+                          Status:
+                        </span>
+                        <Badge
+                          variant={
+                            salaryData.status === "Paid"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className={
+                            salaryData.status === "Paid"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }
+                        >
+                          {salaryData.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">
+                          Net Salary:
+                        </span>
+                        <span className="font-semibold text-gray-900">
+                          {formatCurrency(salaryData.totalSalary)}
+                        </span>
+                      </div>
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <div className="text-sm text-gray-600 mb-2">
+                          Calculation:
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span>Base Salary:</span>
+                            <span>
+                              +{formatCurrency(salaryData.baseSalary)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-red-600">
+                            <span>Lateness Deduction:</span>
+                            <span>
+                              -{formatCurrency(salaryData.latenessDeduction)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-red-600">
+                            <span>Absence Deduction:</span>
+                            <span>
+                              -{formatCurrency(salaryData.absenceDeduction)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-blue-600">
+                            <span>Bonuses:</span>
+                            <span>+{formatCurrency(salaryData.bonuses)}</span>
+                          </div>
+                          <hr className="my-2" />
+                          <div className="flex justify-between font-semibold">
+                            <span>Net Salary:</span>
+                            <span>
+                              {formatCurrency(salaryData.totalSalary)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FiFileText className="w-5 h-5" />
+                    Performance Summary
+                  </CardTitle>
+                  <CardDescription>
+                    Overall performance metrics for this period
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <div className="text-lg font-bold text-blue-600">
+                        {salaryData.numStudents}
+                      </div>
+                      <div className="text-sm text-blue-700">
+                        Students Taught
+                      </div>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <div className="text-lg font-bold text-green-600">
+                        {salaryData.breakdown.summary.actualTeachingDays}
+                      </div>
+                      <div className="text-sm text-green-700">Days Taught</div>
+                    </div>
+                    <div className="text-center p-4 bg-purple-50 rounded-lg">
+                      <div className="text-lg font-bold text-purple-600">
+                        {formatCurrency(
+                          salaryData.breakdown.summary.averageDailyEarning
+                        )}
+                      </div>
+                      <div className="text-sm text-purple-700">
+                        Daily Average
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       )}
     </div>
