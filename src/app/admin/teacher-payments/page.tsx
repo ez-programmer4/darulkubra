@@ -37,7 +37,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -620,6 +627,65 @@ export default function TeacherPaymentsPage() {
           </Card>
         )}
 
+        {/* Debug Information */}
+        {!loading && teachers.length > 0 && (
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-yellow-50 to-orange-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-800">
+                <FiInfo className="w-5 h-5" />
+                Debug Information
+              </CardTitle>
+              <CardDescription>
+                Raw salary data for verification
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <span className="font-medium text-gray-700">
+                      Sample Teacher:
+                    </span>
+                    <p className="text-gray-600">
+                      {teachers[0]?.name || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">
+                      Base Salary:
+                    </span>
+                    <p className="text-gray-600">
+                      {formatCurrency(teachers[0]?.baseSalary || 0)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">
+                      Total Salary:
+                    </span>
+                    <p className="text-gray-600">
+                      {formatCurrency(teachers[0]?.totalSalary || 0)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Status:</span>
+                    <p className="text-gray-600">
+                      {teachers[0]?.status || "N/A"}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-white rounded border">
+                  <div className="text-xs text-gray-500 mb-2">
+                    Raw Data Sample:
+                  </div>
+                  <pre className="text-xs text-gray-700 overflow-auto">
+                    {JSON.stringify(teachers[0], null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Salary Table */}
         {!loading && (
           <SalaryTable
@@ -720,6 +786,294 @@ export default function TeacherPaymentsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Settings Modal */}
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FiSettings className="w-5 h-5" />
+              Payment Settings
+            </DialogTitle>
+            <DialogDescription>
+              Configure payment calculation settings and preferences
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Calculation Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Include Sundays
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Include Sunday classes in salary calculations
+                    </p>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      defaultChecked={false}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Auto-refresh Interval
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      How often to refresh data automatically
+                    </p>
+                  </div>
+                  <Select defaultValue="30">
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="15">15 seconds</SelectItem>
+                      <SelectItem value="30">30 seconds</SelectItem>
+                      <SelectItem value="60">1 minute</SelectItem>
+                      <SelectItem value="300">5 minutes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Deduction Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Default Lateness Rate
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Base deduction rate for lateness
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      defaultValue="30"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                    />
+                    <span className="text-sm text-gray-500">ETB</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Default Absence Rate
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Base deduction rate for absences
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      defaultValue="25"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                    />
+                    <span className="text-sm text-gray-500">ETB</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowSettings(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setShowSettings(false)}>
+                Save Settings
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Analytics Modal */}
+      <Dialog open={showStatistics} onOpenChange={setShowStatistics}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FiBarChart className="w-5 h-5" />
+              Payment Analytics
+            </DialogTitle>
+            <DialogDescription>
+              Detailed analytics and insights for teacher payments
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {statistics && (
+              <>
+                {/* Payment Status Distribution */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      Payment Status Distribution
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-4 bg-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">
+                          {statistics.paidTeachers}
+                        </div>
+                        <div className="text-sm text-green-700">
+                          Paid Teachers
+                        </div>
+                        <div className="text-xs text-green-600">
+                          {Math.round(
+                            (statistics.paidTeachers /
+                              statistics.totalTeachers) *
+                              100
+                          )}
+                          %
+                        </div>
+                      </div>
+                      <div className="text-center p-4 bg-amber-50 rounded-lg">
+                        <div className="text-2xl font-bold text-amber-600">
+                          {statistics.unpaidTeachers}
+                        </div>
+                        <div className="text-sm text-amber-700">
+                          Unpaid Teachers
+                        </div>
+                        <div className="text-xs text-amber-600">
+                          {Math.round(
+                            (statistics.unpaidTeachers /
+                              statistics.totalTeachers) *
+                              100
+                          )}
+                          %
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Financial Summary */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Financial Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                        <div className="text-lg font-bold text-blue-600">
+                          {formatCurrency(statistics.totalSalary)}
+                        </div>
+                        <div className="text-xs text-blue-700">
+                          Total Salary
+                        </div>
+                      </div>
+                      <div className="text-center p-3 bg-red-50 rounded-lg">
+                        <div className="text-lg font-bold text-red-600">
+                          -{formatCurrency(statistics.totalDeductions)}
+                        </div>
+                        <div className="text-xs text-red-700">
+                          Total Deductions
+                        </div>
+                      </div>
+                      <div className="text-center p-3 bg-purple-50 rounded-lg">
+                        <div className="text-lg font-bold text-purple-600">
+                          +{formatCurrency(statistics.totalBonuses)}
+                        </div>
+                        <div className="text-xs text-purple-700">
+                          Total Bonuses
+                        </div>
+                      </div>
+                      <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <div className="text-lg font-bold text-gray-600">
+                          {formatCurrency(statistics.averageSalary)}
+                        </div>
+                        <div className="text-xs text-gray-700">
+                          Average Salary
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Performance Metrics */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      Performance Metrics
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          Payment Completion Rate
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-32 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-green-500 h-2 rounded-full"
+                              style={{
+                                width: `${
+                                  (statistics.paidTeachers /
+                                    statistics.totalTeachers) *
+                                  100
+                                }%`,
+                              }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium">
+                            {Math.round(
+                              (statistics.paidTeachers /
+                                statistics.totalTeachers) *
+                                100
+                            )}
+                            %
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          Deduction Rate
+                        </span>
+                        <span className="text-sm font-medium">
+                          {Math.round(
+                            (statistics.totalDeductions /
+                              statistics.totalSalary) *
+                              100
+                          )}
+                          %
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          Bonus Rate
+                        </span>
+                        <span className="text-sm font-medium">
+                          {Math.round(
+                            (statistics.totalBonuses / statistics.totalSalary) *
+                              100
+                          )}
+                          %
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
   FiUsers,
   FiClock,
   FiFileText,
+  FiInfo,
 } from "react-icons/fi";
 import { toast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -407,6 +408,59 @@ export default function TeacherSalaryPage() {
               <FiAlertTriangle className="w-5 h-5" />
               <span className="font-medium">Error:</span>
               <span>{error}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Debug Information */}
+      {salaryData && (
+        <Card className="border-0 shadow-lg bg-gradient-to-r from-yellow-50 to-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-800">
+              <FiInfo className="w-5 h-5" />
+              Debug Information
+            </CardTitle>
+            <CardDescription>Raw salary data for verification</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <span className="font-medium text-gray-700">
+                    Teacher Name:
+                  </span>
+                  <p className="text-gray-600">{salaryData.name || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">
+                    Base Salary:
+                  </span>
+                  <p className="text-gray-600">
+                    {formatCurrency(salaryData.baseSalary || 0)}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">
+                    Total Salary:
+                  </span>
+                  <p className="text-gray-600">
+                    {formatCurrency(salaryData.totalSalary || 0)}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">Status:</span>
+                  <p className="text-gray-600">{salaryData.status || "N/A"}</p>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-white rounded border">
+                <div className="text-xs text-gray-500 mb-2">
+                  Raw Data Sample:
+                </div>
+                <pre className="text-xs text-gray-700 overflow-auto">
+                  {JSON.stringify(salaryData, null, 2)}
+                </pre>
+              </div>
             </div>
           </CardContent>
         </Card>
