@@ -335,7 +335,7 @@ export default function TeacherSalaryPage() {
                 onValueChange={(value) => setSelectedMonth(parseInt(value))}
               >
                 <SelectTrigger className="w-40">
-                  <SelectValue />
+                  <SelectValue placeholder="Select month" />
                 </SelectTrigger>
                 <SelectContent>
                   {months.map((month) => (
@@ -351,7 +351,7 @@ export default function TeacherSalaryPage() {
                 onValueChange={(value) => setSelectedYear(parseInt(value))}
               >
                 <SelectTrigger className="w-24">
-                  <SelectValue />
+                  <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 5 }, (_, i) => {
@@ -759,4 +759,3 @@ export default function TeacherSalaryPage() {
     </div>
   );
 }
-

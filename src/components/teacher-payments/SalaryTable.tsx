@@ -109,7 +109,7 @@ export default function SalaryTable({
   onBulkAction,
 }: SalaryTableProps) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [salaryRangeFilter, setSalaryRangeFilter] = useState({
     min: "",
     max: "",
@@ -133,7 +133,11 @@ export default function SalaryTable({
       }
 
       // Status filter
-      if (statusFilter && teacher.status !== statusFilter) {
+      if (
+        statusFilter &&
+        statusFilter !== "all" &&
+        teacher.status !== statusFilter
+      ) {
         return false;
       }
 
@@ -257,7 +261,7 @@ export default function SalaryTable({
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Status</SelectItem>
+              <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="Paid">Paid</SelectItem>
               <SelectItem value="Unpaid">Unpaid</SelectItem>
             </SelectContent>
