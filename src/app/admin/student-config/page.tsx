@@ -256,20 +256,20 @@ export default function StudentConfigPage() {
     };
 
     return (
-      <form onSubmit={handleSubmit} className="flex gap-3">
+      <form onSubmit={handleSubmit} className="flex gap-2">
         <input
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder={`Add new ${type}...`}
-          className="flex-1 px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-base font-medium shadow-sm hover:shadow-md"
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 text-sm"
         />
         <button
           type="submit"
           disabled={loading || !inputValue.trim()}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
         >
-          <FiPlus className="h-5 w-5" />
+          <FiPlus className="h-4 w-4" />
           Add
         </button>
       </form>
@@ -289,45 +289,49 @@ export default function StudentConfigPage() {
     type: "status" | "package" | "subject" | "daypackage";
     color: string;
   }) => (
-    <div className="bg-white rounded-2xl shadow-xl border-0 p-8 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
+    <div className="bg-white rounded-2xl shadow-xl border-0 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
+      {/* Header */}
       <div
-        className="flex items-center justify-between gap-4 mb-8 cursor-pointer group"
+        className="flex items-center justify-between gap-4 p-6 cursor-pointer group bg-gradient-to-r from-gray-50 to-white"
         onClick={() => toggleSection(type)}
       >
         <div className="flex items-center gap-4">
           <div
-            className={`p-4 ${color} rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-300`}
+            className={`p-3 ${color} rounded-xl shadow-md group-hover:scale-110 transition-transform duration-300`}
           >
-            <Icon className="h-8 w-8 text-white" />
+            <Icon className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{title}</h3>
-            <p className="text-gray-600 text-base font-medium">
+            <h3 className="text-xl font-bold text-gray-900 mb-1">{title}</h3>
+            <p className="text-gray-600 text-sm font-medium">
               {items.length} items configured
             </p>
           </div>
         </div>
-        <button className="text-gray-500 hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-all duration-300">
+        <button className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 transition-all duration-300">
           {expandedSections[type] ? (
-            <FiChevronUp className="h-6 w-6" />
+            <FiChevronUp className="h-5 w-5" />
           ) : (
-            <FiChevronDown className="h-6 w-6" />
+            <FiChevronDown className="h-5 w-5" />
           )}
         </button>
       </div>
 
+      {/* Content Area */}
       {expandedSections[type] && (
-        <>
-          <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl p-6 mb-6 border-0 shadow-lg">
+        <div className="p-6 bg-gray-50/50">
+          {/* Add Item Section */}
+          <div className="bg-white rounded-xl p-4 mb-4 border border-gray-200 shadow-sm">
             <AddItemInput type={type} />
-            <p className="text-sm text-gray-600 mt-3 font-medium">
+            <p className="text-xs text-gray-500 mt-2 text-center">
               💡 Press Enter or click Add to create • Use Escape to cancel edit
             </p>
           </div>
 
-          <div className="mb-6">
+          {/* Search Section */}
+          <div className="mb-4">
             <div className="relative">
-              <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 h-5 w-5" />
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
                 placeholder={`Search ${type}...`}
@@ -335,26 +339,27 @@ export default function StudentConfigPage() {
                 onChange={(e) => {
                   setSearchTerm({ ...searchTerm, [type]: e.target.value });
                 }}
-                className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-base font-medium shadow-sm hover:shadow-md"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 text-sm"
               />
             </div>
           </div>
 
-          <div className="space-y-3 max-h-80 overflow-y-auto">
+          {/* Items List */}
+          <div className="space-y-2 max-h-64 overflow-y-auto bg-white rounded-lg border border-gray-200 p-2">
             {filteredItems(items, type).map((item: any) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between p-4 bg-gradient-to-r from-white to-gray-50 border-2 border-gray-100 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:border-blue-200 transition-all duration-300 shadow-sm hover:shadow-md"
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-all duration-300 border border-transparent hover:border-blue-200"
               >
                 {editingId === item.id ? (
-                  <div className="flex items-center gap-3 flex-1">
+                  <div className="flex items-center gap-2 flex-1">
                     <input
                       type="text"
                       value={editValue}
                       onChange={(e) => {
                         setEditValue(e.target.value);
                       }}
-                      className="flex-1 px-4 py-3 border-2 border-blue-300 rounded-xl text-base font-medium focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300"
+                      className="flex-1 px-3 py-2 border border-blue-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
@@ -370,51 +375,53 @@ export default function StudentConfigPage() {
                     <button
                       onClick={saveEdit}
                       disabled={loading}
-                      className="text-green-600 hover:text-green-700 p-3 rounded-xl transition-all duration-300 disabled:opacity-50 hover:bg-green-50 hover:shadow-md"
+                      className="text-green-600 hover:text-green-700 p-2 rounded-lg transition-all duration-300 disabled:opacity-50 hover:bg-green-50"
                     >
-                      <FiSave className="h-5 w-5" />
+                      <FiSave className="h-4 w-4" />
                     </button>
                     <button
                       onClick={cancelEdit}
                       disabled={loading}
-                      className="text-gray-500 hover:text-gray-700 p-3 rounded-xl transition-all duration-300 disabled:opacity-50 hover:bg-gray-100 hover:shadow-md"
+                      className="text-gray-500 hover:text-gray-700 p-2 rounded-lg transition-all duration-300 disabled:opacity-50 hover:bg-gray-100"
                     >
-                      <FiX className="h-5 w-5" />
+                      <FiX className="h-4 w-4" />
                     </button>
                   </div>
                 ) : (
                   <>
-                    <span className="font-semibold text-gray-900 text-base flex-1">
+                    <span className="font-medium text-gray-900 text-sm flex-1">
                       {item.name}
                     </span>
                     <button
                       onClick={() => startEdit(item.id, item.name, type)}
                       disabled={loading}
-                      className="text-blue-600 hover:text-blue-800 p-3 rounded-xl transition-all duration-300 disabled:opacity-50 hover:bg-blue-100 hover:shadow-md"
+                      className="text-blue-600 hover:text-blue-800 p-2 rounded-lg transition-all duration-300 disabled:opacity-50 hover:bg-blue-100"
                     >
-                      <FiEdit3 className="h-5 w-5" />
+                      <FiEdit3 className="h-4 w-4" />
                     </button>
                   </>
                 )}
               </div>
             ))}
             {filteredItems(items, type).length === 0 && items.length > 0 ? (
-              <div className="text-center py-8 text-gray-600 text-base font-medium bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+              <div className="text-center py-6 text-gray-500 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-300">
                 🔍 No {type} found matching your search
               </div>
             ) : (
               items.length === 0 && (
-                <div className="text-center py-12 text-gray-600 text-base font-medium bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border-2 border-dashed border-gray-300">
-                  <div className="text-4xl mb-3">📝</div>
-                  <div>No {title.toLowerCase()} configured yet</div>
-                  <div className="text-sm text-gray-500 mt-2">
+                <div className="text-center py-8 text-gray-500 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                  <div className="text-2xl mb-2">📝</div>
+                  <div className="font-medium">
+                    No {title.toLowerCase()} configured yet
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
                     Add your first item above
                   </div>
                 </div>
               )
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -508,8 +515,10 @@ export default function StudentConfigPage() {
           })}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className={activeTab !== "status" ? "hidden md:block" : ""}>
+        {/* Configuration Grid */}
+        <div className="space-y-8">
+          {/* Desktop Grid Layout */}
+          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <ConfigSection
               key="status-section"
               title="Student Statuses"
@@ -518,9 +527,6 @@ export default function StudentConfigPage() {
               type="status"
               color="bg-green-500"
             />
-          </div>
-
-          <div className={activeTab !== "package" ? "hidden md:block" : ""}>
             <ConfigSection
               key="package-section"
               title="Student Packages"
@@ -529,9 +535,6 @@ export default function StudentConfigPage() {
               type="package"
               color="bg-purple-500"
             />
-          </div>
-
-          <div className={activeTab !== "daypackage" ? "hidden md:block" : ""}>
             <ConfigSection
               key="daypackage-section"
               title="Day Packages"
@@ -540,9 +543,6 @@ export default function StudentConfigPage() {
               type="daypackage"
               color="bg-orange-500"
             />
-          </div>
-
-          <div className={activeTab !== "subject" ? "hidden md:block" : ""}>
             <ConfigSection
               key="subject-section"
               title="Student Subjects"
@@ -552,53 +552,88 @@ export default function StudentConfigPage() {
               color="bg-indigo-500"
             />
           </div>
+
+          {/* Mobile Single Column Layout */}
+          <div className="md:hidden space-y-6">
+            {activeTab === "status" && (
+              <ConfigSection
+                key="status-section-mobile"
+                title="Student Statuses"
+                icon={FiUsers}
+                items={statuses}
+                type="status"
+                color="bg-green-500"
+              />
+            )}
+            {activeTab === "package" && (
+              <ConfigSection
+                key="package-section-mobile"
+                title="Student Packages"
+                icon={FiPackage}
+                items={packages}
+                type="package"
+                color="bg-purple-500"
+              />
+            )}
+            {activeTab === "daypackage" && (
+              <ConfigSection
+                key="daypackage-section-mobile"
+                title="Day Packages"
+                icon={FiCalendar}
+                items={daypackages}
+                type="daypackage"
+                color="bg-orange-500"
+              />
+            )}
+            {activeTab === "subject" && (
+              <ConfigSection
+                key="subject-section-mobile"
+                title="Student Subjects"
+                icon={FiBook}
+                items={subjects}
+                type="subject"
+                color="bg-indigo-500"
+              />
+            )}
+          </div>
         </div>
 
-        <div className="mt-12 bg-gradient-to-r from-blue-50 to-indigo-50 border-0 rounded-2xl p-8 shadow-xl">
-          <h4 className="font-bold text-blue-800 mb-6 flex items-center gap-3 text-xl">
-            <div className="p-2 bg-blue-100 rounded-xl">
-              <FiInfo className="h-6 w-6 text-blue-600" />
+        {/* Info Section */}
+        <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+          <h4 className="font-semibold text-blue-800 mb-4 flex items-center gap-2 text-lg">
+            <div className="p-1.5 bg-blue-100 rounded-lg">
+              <FiInfo className="h-4 w-4 text-blue-600" />
             </div>
             Important Notes
           </h4>
-          <ul className="text-blue-700 text-base space-y-4">
-            <li className="flex items-start gap-3">
-              <div className="p-1 bg-blue-200 rounded-full mt-1">
-                <span className="text-blue-600 text-sm font-bold">✓</span>
-              </div>
+          <ul className="text-blue-700 text-sm space-y-2">
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 text-xs font-bold mt-0.5">✓</span>
               <span className="font-medium">
                 Changes will be reflected in student registration forms
                 immediately
               </span>
             </li>
-            <li className="flex items-start gap-3">
-              <div className="p-1 bg-blue-200 rounded-full mt-1">
-                <span className="text-blue-600 text-sm font-bold">✓</span>
-              </div>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 text-xs font-bold mt-0.5">✓</span>
               <span className="font-medium">
                 Existing students will keep their current values
               </span>
             </li>
-            <li className="flex items-start gap-3">
-              <div className="p-1 bg-blue-200 rounded-full mt-1">
-                <span className="text-blue-600 text-sm font-bold">✓</span>
-              </div>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 text-xs font-bold mt-0.5">✓</span>
               <span className="font-medium">
                 Deleting items may affect existing student records
               </span>
             </li>
-            <li className="flex items-start gap-3">
-              <div className="p-1 bg-blue-200 rounded-full mt-1">
-                <span className="text-blue-600 text-sm font-bold">✓</span>
-              </div>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 text-xs font-bold mt-0.5">✓</span>
               <span className="font-medium">
                 These configurations are used across the entire system
               </span>
             </li>
-            <li className="flex items-start gap-3">
-              <div className="p-1 bg-blue-200 rounded-full mt-1">
-                <span className="text-blue-600 text-sm font-bold">✓</span>
-              </div>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 text-xs font-bold mt-0.5">✓</span>
               <span className="font-medium">
                 Click on section headers to expand/collapse
               </span>
