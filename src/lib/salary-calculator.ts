@@ -575,6 +575,19 @@ export class SalaryCalculator {
       orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
     });
 
+    // Get lateness deduction waivers for the period
+    const latenessWaivers = await prisma.deduction_waivers.findMany({
+      where: {
+        teacherId,
+        deductionType: "lateness",
+        deductionDate: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      select: { deductionDate: true, reason: true },
+    });
+
     if (latenessConfigs.length === 0) {
       return { totalDeduction: 0, breakdown: [] };
     }
@@ -622,6 +635,13 @@ export class SalaryCalculator {
 
       // Skip if within excused threshold
       if (latenessMinutes <= excusedThreshold) continue;
+
+      // Check if there's a lateness waiver for this date
+      const hasLatenessWaiver = latenessWaivers.some(
+        (waiver) => waiver.deductionDate.toISOString().split("T")[0] === dateStr
+      );
+
+      if (hasLatenessWaiver) continue; // Skip deduction if waiver exists
 
       // Find appropriate tier
       const tier = latenessConfigs.find(
@@ -713,6 +733,19 @@ export class SalaryCalculator {
       select: { requestedDate: true, reasonDetails: true },
     });
 
+    // Get deduction waivers for the period
+    const deductionWaivers = await prisma.deduction_waivers.findMany({
+      where: {
+        teacherId,
+        deductionType: "absence",
+        deductionDate: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      select: { deductionDate: true, reason: true },
+    });
+
     let totalDeduction = 0;
     const breakdown: any[] = [];
 
@@ -770,6 +803,13 @@ export class SalaryCalculator {
       );
 
       if (hasPermission) continue; // Skip deduction if permission is approved
+
+      // Check if there's a deduction waiver for this date
+      const hasWaiver = deductionWaivers.some(
+        (waiver) => waiver.deductionDate.toISOString().split("T")[0] === dateStr
+      );
+
+      if (hasWaiver) continue; // Skip deduction if waiver exists
 
       // Check if teacher sent zoom links for this date
       const dayZoomLinks = new Set<string>();

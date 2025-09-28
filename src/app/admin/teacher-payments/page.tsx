@@ -82,6 +82,8 @@ export default function TeacherPaymentsPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showStatistics, setShowStatistics] = useState(false);
+  const [includeSundays, setIncludeSundays] = useState(false);
+  const [showTeacherSalary, setShowTeacherSalary] = useState(true);
 
   // Get date range for the selected month/year
   const getDateRange = () => {
@@ -546,7 +548,7 @@ export default function TeacherPaymentsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Button
                 variant="outline"
                 onClick={() =>
@@ -607,6 +609,28 @@ export default function TeacherPaymentsPage() {
                 <div className="text-left">
                   <div className="font-medium">Export All Data</div>
                   <div className="text-xs text-gray-500">CSV format</div>
+                </div>
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => setShowTeacherSalary(!showTeacherSalary)}
+                className={`flex items-center gap-2 h-12 transition-all duration-300 ${
+                  showTeacherSalary
+                    ? "bg-blue-50 hover:bg-blue-100 text-blue-600 hover:border-blue-300"
+                    : "bg-gray-50 hover:bg-gray-100 text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                <FiUsers className="w-5 h-5" />
+                <div className="text-left">
+                  <div className="font-medium">
+                    {showTeacherSalary ? "Hide" : "Show"} Teacher Salary
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {showTeacherSalary
+                      ? "Teachers can view salary"
+                      : "Teachers cannot view salary"}
+                  </div>
                 </div>
               </Button>
             </div>
@@ -817,7 +841,26 @@ export default function TeacherPaymentsPage() {
                   <div className="flex items-center">
                     <input
                       type="checkbox"
-                      defaultChecked={false}
+                      checked={includeSundays}
+                      onChange={(e) => setIncludeSundays(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Show Teacher Salary
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Allow teachers to view their own salary information
+                    </p>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={showTeacherSalary}
+                      onChange={(e) => setShowTeacherSalary(e.target.checked)}
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
                   </div>
