@@ -10,7 +10,8 @@ const formatAttendanceStatus = (status: string | null | undefined): string => {
   const validStatuses = ["Present", "Absent", "Permission", "Not Taken"];
   if (!status) return "Not Taken";
   const normalizedStatus =
-    status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+    status?.charAt(0)?.toUpperCase() + status?.slice(1).toLowerCase() ||
+    "Not Taken";
   return validStatuses.includes(normalizedStatus)
     ? normalizedStatus
     : "Not Taken";
@@ -496,12 +497,14 @@ export async function POST(req: NextRequest) {
 
       const formattedStatus = formatAttendanceStatus(attendance_status);
       // Try to find existing record first
-      const existingRecord = await prisma.student_attendance_progress.findFirst({
-        where: {
-          student_id,
-          date: startOfDay(parsedDate),
-        },
-      });
+      const existingRecord = await prisma.student_attendance_progress.findFirst(
+        {
+          where: {
+            student_id,
+            date: startOfDay(parsedDate),
+          },
+        }
+      );
 
       if (existingRecord) {
         // Update existing record

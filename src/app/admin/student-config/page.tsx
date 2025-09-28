@@ -37,9 +37,9 @@ export default function StudentConfigPage() {
     subject: "",
     daypackage: "",
   });
-  const [activeTab, setActiveTab] = useState<"status" | "package" | "subject" | "daypackage">(
-    "status"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "status" | "package" | "subject" | "daypackage"
+  >("status");
   const [expandedSections, setExpandedSections] = useState({
     status: true,
     package: true,
@@ -134,7 +134,7 @@ export default function StudentConfigPage() {
         toast({
           title: "Success",
           description: `${
-            type.charAt(0).toUpperCase() + type.slice(1)
+            type?.charAt(0)?.toUpperCase() + type?.slice(1) || "Item"
           } added successfully`,
         });
         // Clear the specific input
@@ -160,8 +160,6 @@ export default function StudentConfigPage() {
       setLoading(false);
     }
   };
-
-
 
   const startEdit = (id: string, name: string, type: string) => {
     setEditingId(id);
@@ -202,7 +200,7 @@ export default function StudentConfigPage() {
         toast({
           title: "Success",
           description: `${
-            editType.charAt(0).toUpperCase() + editType.slice(1)
+            editType?.charAt(0)?.toUpperCase() + editType?.slice(1) || "Item"
           } updated successfully`,
         });
         cancelEdit();
@@ -242,9 +240,13 @@ export default function StudentConfigPage() {
     );
   };
 
-  const AddItemInput = ({ type }: { type: "status" | "package" | "subject" | "daypackage" }) => {
+  const AddItemInput = ({
+    type,
+  }: {
+    type: "status" | "package" | "subject" | "daypackage";
+  }) => {
     const [inputValue, setInputValue] = useState("");
-    
+
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if (inputValue.trim()) {
@@ -252,7 +254,7 @@ export default function StudentConfigPage() {
         setInputValue("");
       }
     };
-    
+
     return (
       <form onSubmit={handleSubmit} className="flex gap-2 mb-2">
         <input
@@ -463,7 +465,9 @@ export default function StudentConfigPage() {
               <button
                 key={tab.id}
                 onClick={() =>
-                  setActiveTab(tab.id as "status" | "package" | "subject" | "daypackage")
+                  setActiveTab(
+                    tab.id as "status" | "package" | "subject" | "daypackage"
+                  )
                 }
                 className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all flex-1 ${
                   activeTab === tab.id

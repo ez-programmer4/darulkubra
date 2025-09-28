@@ -152,11 +152,13 @@ export default function AssignedStudents() {
     "ክፍል 38 ( final exam )",
   ];
   const [zoomSent, setZoomSent] = useState<Record<number, boolean>>({});
-  const [permissionStudents, setPermissionStudents] = useState<Record<number, boolean>>({});
+  const [permissionStudents, setPermissionStudents] = useState<
+    Record<number, boolean>
+  >({});
 
   const checkZoomStatus = useCallback(async () => {
     if (groups.length === 0) return;
-    
+
     try {
       const res = await fetch("/api/teachers/students/zoom-status", {
         credentials: "include",
@@ -219,8 +221,6 @@ export default function AssignedStudents() {
     refresh();
     loadSurahs();
   }, []);
-
-
 
   async function loadSurahs() {
     setSurahs([
@@ -418,18 +418,19 @@ export default function AssignedStudents() {
         });
         return;
       }
-      
+
       // Validate Zoom URL
       const zoomUrlPattern = /^https:\/\/(.*\.)?zoom\.us\//i;
       if (!zoomUrlPattern.test(form.link)) {
         toast({
           title: "Invalid Zoom Link",
-          description: "Please enter a valid Zoom meeting link (https://zoom.us/...)",
+          description:
+            "Please enter a valid Zoom meeting link (https://zoom.us/...)",
           variant: "destructive",
         });
         return;
       }
-      
+
       setSending((s) => ({ ...s, [studentId]: true }));
 
       const res = await fetch(`/api/teachers/students/${studentId}/zoom`, {
@@ -457,10 +458,10 @@ export default function AssignedStudents() {
 
       const responseData = await res.json();
 
-      const studentName = groups
-        .flatMap(g => g.students)
-        .find(s => s.id === studentId)?.name || "Student";
-      
+      const studentName =
+        groups.flatMap((g) => g.students).find((s) => s.id === studentId)
+          ?.name || "Student";
+
       toast({
         title: "🎉 Zoom Link Sent!",
         description: responseData.notification_sent
@@ -508,7 +509,8 @@ export default function AssignedStudents() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             attendance_status:
-              rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
+              rec.status?.charAt(0)?.toUpperCase() + rec.status?.slice(1) ||
+              "Unknown",
             surah: rec.surah || undefined,
             lesson: rec.lesson || undefined,
             notes: rec.notes || undefined,
@@ -520,15 +522,17 @@ export default function AssignedStudents() {
         const errorText = await res.text();
         throw new Error(`Failed to save attendance: ${errorText}`);
       }
-      
+
       const responseData = await res.json();
-      const studentName = responseData.student_name || groups
-        .flatMap(g => g.students)
-        .find(s => s.id === studentId)?.name || "Student";
-      
+      const studentName =
+        responseData.student_name ||
+        groups.flatMap((g) => g.students).find((s) => s.id === studentId)
+          ?.name ||
+        "Student";
+
       const statusEmoji = rec.status === "present" ? "✅" : "❌";
       const statusText = `marked as ${rec.status}`;
-      
+
       toast({
         title: `${statusEmoji} Attendance Saved!`,
         description: `📝 ${studentName} ${statusText} successfully`,
@@ -618,9 +622,7 @@ export default function AssignedStudents() {
               <FiUsers className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-black">
-                My Students
-              </h1>
+              <h1 className="text-lg font-bold text-black">My Students</h1>
               <p className="text-gray-600 text-sm">
                 Manage classes and attendance
               </p>
@@ -735,7 +737,8 @@ export default function AssignedStudents() {
                       {g.group || "Unknown Package"}
                     </div>
                     <div className="text-gray-600 text-sm">
-                      {g.students.length} student{g.students.length !== 1 ? "s" : ""}
+                      {g.students.length} student
+                      {g.students.length !== 1 ? "s" : ""}
                     </div>
                   </div>
                 </div>
@@ -801,7 +804,9 @@ export default function AssignedStudents() {
                                   ? s.occupied
                                       .map(
                                         (o) =>
-                                          `${convertTo12Hour(o.time_slot)} (${o.daypackage})`
+                                          `${convertTo12Hour(o.time_slot)} (${
+                                            o.daypackage
+                                          })`
                                       )
                                       .join(", ")
                                   : "No schedule"}
@@ -835,7 +840,9 @@ export default function AssignedStudents() {
                             }
                             setModal({ type: "attendance", studentId: s.id });
                           }}
-                          disabled={!zoomSent[s.id] && !permissionStudents[s.id]}
+                          disabled={
+                            !zoomSent[s.id] && !permissionStudents[s.id]
+                          }
                           className={`py-3 rounded-lg font-medium text-sm ${
                             zoomSent[s.id] || permissionStudents[s.id]
                               ? "bg-green-600 hover:bg-green-700 text-white"
@@ -848,24 +855,32 @@ export default function AssignedStudents() {
                         <Button
                           onClick={async () => {
                             // Mark student as on permission and save immediately
-                            setPermissionStudents(prev => ({ ...prev, [s.id]: true }));
-                            
+                            setPermissionStudents((prev) => ({
+                              ...prev,
+                              [s.id]: true,
+                            }));
+
                             // Save permission attendance directly
                             try {
                               setSending((prev) => ({ ...prev, [s.id]: true }));
-                              const res = await fetch(`/api/teachers/students/${s.id}/attendance`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  attendance_status: "Permission",
-                                }),
-                                credentials: "include",
-                              });
-                              
+                              const res = await fetch(
+                                `/api/teachers/students/${s.id}/attendance`,
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    attendance_status: "Permission",
+                                  }),
+                                  credentials: "include",
+                                }
+                              );
+
                               if (!res.ok) {
                                 throw new Error("Failed to save permission");
                               }
-                              
+
                               const studentName = s.name || "Student";
                               toast({
                                 title: "📅 Permission Granted!",
@@ -879,7 +894,10 @@ export default function AssignedStudents() {
                                 variant: "destructive",
                               });
                             } finally {
-                              setSending((prev) => ({ ...prev, [s.id]: false }));
+                              setSending((prev) => ({
+                                ...prev,
+                                [s.id]: false,
+                              }));
                             }
                           }}
                           className={`py-3 rounded-lg font-medium text-sm ${
@@ -889,7 +907,9 @@ export default function AssignedStudents() {
                           }`}
                         >
                           <FiCalendar className="h-4 w-4 mr-2" />
-                          {permissionStudents[s.id] ? "On Permission" : "Permission"}
+                          {permissionStudents[s.id]
+                            ? "On Permission"
+                            : "Permission"}
                         </Button>
                       </div>
                     </div>
@@ -899,8 +919,6 @@ export default function AssignedStudents() {
             </div>
           ))}
         </div>
-
-
 
         {/* Slide Panel Modal */}
         {modal.type && modal.studentId !== null && (
@@ -981,7 +999,8 @@ export default function AssignedStudents() {
                           </Button>
                         </div>
                         <p className="text-xs text-gray-500 mt-2">
-                          Enter your Zoom meeting link only (must start with https://zoom.us/)
+                          Enter your Zoom meeting link only (must start with
+                          https://zoom.us/)
                         </p>
                       </div>
 
@@ -1047,44 +1066,42 @@ export default function AssignedStudents() {
                           Attendance Status *
                         </label>
                         <div className="grid grid-cols-2 gap-3">
-                          {(["present", "absent"] as const).map(
-                            (status) => {
-                              const getStatusColor = (status: string) => {
-                                switch (status) {
-                                  case "present":
-                                    return attend[modal.studentId!]?.status ===
-                                      status
-                                      ? "bg-green-600 text-white border-green-600"
-                                      : "border-green-300 text-green-700 hover:bg-green-50";
-                                  case "absent":
-                                    return attend[modal.studentId!]?.status ===
-                                      status
-                                      ? "bg-red-600 text-white border-red-600"
-                                      : "border-red-300 text-red-700 hover:bg-red-50";
-                                  default:
-                                    return "border-gray-300 text-gray-700 hover:bg-gray-50";
-                                }
-                              };
-
-                              return (
-                                <button
-                                  key={status}
-                                  onClick={() =>
-                                    updateAttend(modal.studentId!, { status })
-                                  }
-                                  className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${getStatusColor(
+                          {(["present", "absent"] as const).map((status) => {
+                            const getStatusColor = (status: string) => {
+                              switch (status) {
+                                case "present":
+                                  return attend[modal.studentId!]?.status ===
                                     status
-                                  )}`}
-                                  aria-pressed={
-                                    attend[modal.studentId!]?.status === status
-                                  }
-                                >
-                                  {status.charAt(0).toUpperCase() +
-                                    status.slice(1)}
-                                </button>
-                              );
-                            }
-                          )}
+                                    ? "bg-green-600 text-white border-green-600"
+                                    : "border-green-300 text-green-700 hover:bg-green-50";
+                                case "absent":
+                                  return attend[modal.studentId!]?.status ===
+                                    status
+                                    ? "bg-red-600 text-white border-red-600"
+                                    : "border-red-300 text-red-700 hover:bg-red-50";
+                                default:
+                                  return "border-gray-300 text-gray-700 hover:bg-gray-50";
+                              }
+                            };
+
+                            return (
+                              <button
+                                key={status}
+                                onClick={() =>
+                                  updateAttend(modal.studentId!, { status })
+                                }
+                                className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all ${getStatusColor(
+                                  status
+                                )}`}
+                                aria-pressed={
+                                  attend[modal.studentId!]?.status === status
+                                }
+                              >
+                                {status?.charAt(0)?.toUpperCase() +
+                                  status?.slice(1) || "Unknown"}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
 
@@ -1191,8 +1208,6 @@ export default function AssignedStudents() {
           </>
         )}
       </div>
-
-
     </div>
   );
 }

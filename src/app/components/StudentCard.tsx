@@ -106,7 +106,7 @@ export default function StudentCard({
           <div className="flex items-center min-w-[520px] sm:min-w-0 justify-between">
             <div className="flex items-center space-x-4">
               <div className="h-12 w-12 bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0 shadow-sm">
-                {student.name.charAt(0).toUpperCase()}
+                {student.name?.charAt(0)?.toUpperCase() || "?"}
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -325,26 +325,39 @@ export default function StudentCard({
                   <p className="text-xs text-gray-500">Time Slot</p>
                   <p className="text-sm font-medium text-gray-900">
                     {(() => {
-                      const time = student.selectedTime || (student as any).timeSlot || (student as any).time || (student as any).classTime;
-                      if (!time || time.toString().trim() === "" || time === "null" || time === "undefined") return "Not set";
+                      const time =
+                        student.selectedTime ||
+                        (student as any).timeSlot ||
+                        (student as any).time ||
+                        (student as any).classTime;
+                      if (
+                        !time ||
+                        time.toString().trim() === "" ||
+                        time === "null" ||
+                        time === "undefined"
+                      )
+                        return "Not set";
                       const timeStr = time.toString().trim();
-                      
+
                       // Already in 12-hour format
-                      if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
-                      
+                      if (timeStr.includes("AM") || timeStr.includes("PM"))
+                        return timeStr;
+
                       // Handle 24-hour format (e.g., "6:00:00" or "14:30")
                       if (timeStr.includes(":")) {
                         const parts = timeStr.split(":");
                         const hour = parseInt(parts[0]);
                         const minute = parseInt(parts[1]) || 0;
-                        
+
                         if (!isNaN(hour) && hour >= 0 && hour <= 23) {
                           const period = hour >= 12 ? "PM" : "AM";
                           const adjustedHour = hour % 12 || 12;
-                          return `${adjustedHour}:${minute.toString().padStart(2, "0")} ${period}`;
+                          return `${adjustedHour}:${minute
+                            .toString()
+                            .padStart(2, "0")} ${period}`;
                         }
                       }
-                      
+
                       return timeStr;
                     })()}
                   </p>

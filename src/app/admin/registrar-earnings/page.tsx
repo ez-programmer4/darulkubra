@@ -293,7 +293,7 @@ export default function RegistrarEarningsPage() {
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
                           <span className="text-white font-bold text-sm">
-                            {item.registral.charAt(0).toUpperCase()}
+                            {item.registral?.charAt(0)?.toUpperCase() || "?"}
                           </span>
                         </div>
                         <div className="ml-4">

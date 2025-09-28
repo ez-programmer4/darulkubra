@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
     }
 
     let timeToMatch, timeSlot;
-    
+
     // Only validate time and check availability if not "On Progress"
     if (status !== "On Progress" && selectedTime && ustaz) {
       // Validate time format
@@ -343,7 +343,8 @@ export async function POST(request: NextRequest) {
           status: status
             ? status.toLowerCase() === "not yet"
               ? "Not yet"
-              : status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+              : status?.charAt(0)?.toUpperCase() +
+                  status?.slice(1).toLowerCase() || "Not yet"
             : "Not yet",
           ustaz,
           package: regionPackage || null,
@@ -632,7 +633,8 @@ export async function PUT(request: NextRequest) {
           newStatus = "Not yet";
         } else {
           newStatus =
-            status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+            status?.charAt(0)?.toUpperCase() + status?.slice(1).toLowerCase() ||
+            "Pending";
         }
       } else {
         newStatus = "Pending";
@@ -784,7 +786,10 @@ export async function PUT(request: NextRequest) {
           newPackage: selectedDayPackage,
         };
         const detailsString = JSON.stringify(auditDetails);
-        const truncatedDetails = detailsString.length > 200 ? detailsString.substring(0, 197) + "..." : detailsString;
+        const truncatedDetails =
+          detailsString.length > 200
+            ? detailsString.substring(0, 197) + "..."
+            : detailsString;
 
         try {
           await tx.auditlog.create({
@@ -818,8 +823,11 @@ export async function PUT(request: NextRequest) {
         timestamp: new Date().toISOString(),
       };
       const errorString = JSON.stringify(errorDetails);
-      const truncatedError = errorString.length > 200 ? errorString.substring(0, 197) + "..." : errorString;
-      
+      const truncatedError =
+        errorString.length > 200
+          ? errorString.substring(0, 197) + "..."
+          : errorString;
+
       await prismaClient.auditlog.create({
         data: {
           actionType: "assignment_update_error",
@@ -1272,7 +1280,8 @@ export async function PATCH(request: NextRequest) {
         newStatus = "Not yet";
       } else {
         newStatus =
-          status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+          status?.charAt(0)?.toUpperCase() + status?.slice(1).toLowerCase() ||
+          "Pending";
       }
 
       // Check if status requires freeing up time slots

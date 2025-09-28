@@ -274,7 +274,7 @@ const RoleBadge = ({ role }: { role: UserRole }) => {
     <span
       className={`px-3 py-1 text-sm font-semibold rounded-full ${roleStyles[role]}`}
     >
-      {role.charAt(0).toUpperCase() + role.slice(1)}
+      {role?.charAt(0)?.toUpperCase() + role?.slice(1) || "Unknown"}
     </span>
   );
 };

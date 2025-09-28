@@ -83,12 +83,12 @@ export default function Controller() {
           "Content-Type": "application/json",
         },
       });
-      
+
       if (!studentsRes.ok) {
         const errorData = await studentsRes.json();
         throw new Error(errorData.error || "Failed to fetch students");
       }
-      
+
       const studentsData = await studentsRes.json();
       const processedStudents = studentsData.map((student: any) => ({
         id: student.id ?? 0,
@@ -132,12 +132,12 @@ export default function Controller() {
           "Content-Type": "application/json",
         },
       });
-      
+
       if (!depositsRes.ok) {
         const errorData = await depositsRes.json();
         throw new Error(errorData.error || "Failed to fetch deposits");
       }
-      
+
       const depositsData = await depositsRes.json();
       setDeposits(depositsData.deposits || []);
       setShowDeposits(true);
@@ -308,8 +308,12 @@ export default function Controller() {
                     <FiUsers className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-blue-600">Total Students</p>
-                    <p className="text-2xl font-bold text-blue-900">{totalStudents}</p>
+                    <p className="text-sm font-medium text-blue-600">
+                      Total Students
+                    </p>
+                    <p className="text-2xl font-bold text-blue-900">
+                      {totalStudents}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -319,8 +323,12 @@ export default function Controller() {
                     <FiCheckCircle className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-green-600">Active Students</p>
-                    <p className="text-2xl font-bold text-green-900">{activeStudents}</p>
+                    <p className="text-sm font-medium text-green-600">
+                      Active Students
+                    </p>
+                    <p className="text-2xl font-bold text-green-900">
+                      {activeStudents}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -330,8 +338,12 @@ export default function Controller() {
                     <FiClock className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-yellow-600">Pending Students</p>
-                    <p className="text-2xl font-bold text-yellow-900">{notYetStudents}</p>
+                    <p className="text-sm font-medium text-yellow-600">
+                      Pending Students
+                    </p>
+                    <p className="text-2xl font-bold text-yellow-900">
+                      {notYetStudents}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -348,8 +360,12 @@ export default function Controller() {
                       <FiDollarSign className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-white">Current Month Deposits</h2>
-                      <p className="text-blue-100">View-only deposit tracking</p>
+                      <h2 className="text-2xl font-bold text-white">
+                        Current Month Deposits
+                      </h2>
+                      <p className="text-blue-100">
+                        View-only deposit tracking
+                      </p>
                     </div>
                   </div>
                   <button
@@ -367,36 +383,58 @@ export default function Controller() {
                     <div className="p-8 bg-gray-100 rounded-full w-fit mx-auto mb-8">
                       <FiDollarSign className="h-16 w-16 text-gray-500" />
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-4">No Deposits Found</h3>
-                    <p className="text-gray-600">No deposits found for the current month.</p>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                      No Deposits Found
+                    </h3>
+                    <p className="text-gray-600">
+                      No deposits found for the current month.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {deposits.map((deposit) => (
-                      <div key={deposit.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div
+                        key={deposit.id}
+                        className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                      >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                               <FiUser className="h-5 w-5 text-blue-600" />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-900">{deposit.studentname}</h4>
-                              <p className="text-sm text-gray-500">{deposit.transactionid}</p>
+                              <h4 className="font-semibold text-gray-900">
+                                {deposit.studentname}
+                              </h4>
+                              <p className="text-sm text-gray-500">
+                                {deposit.transactionid}
+                              </p>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center gap-4">
                             <div className="text-right">
-                              <p className="text-lg font-bold text-gray-900">${deposit.paidamount}</p>
-                              <p className="text-sm text-gray-500">{new Date(deposit.paymentdate).toLocaleDateString()}</p>
+                              <p className="text-lg font-bold text-gray-900">
+                                ${deposit.paidamount}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(
+                                  deposit.paymentdate
+                                ).toLocaleDateString()}
+                              </p>
                             </div>
-                            
-                            <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                              deposit.status === 'approved' ? 'bg-green-100 text-green-800' :
-                              deposit.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {deposit.status.charAt(0).toUpperCase() + deposit.status.slice(1)}
+
+                            <span
+                              className={`px-3 py-1 text-sm font-medium rounded-full ${
+                                deposit.status === "approved"
+                                  ? "bg-green-100 text-green-800"
+                                  : deposit.status === "pending"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {deposit.status?.charAt(0)?.toUpperCase() +
+                                deposit.status?.slice(1) || "Unknown"}
                             </span>
                           </div>
                         </div>
@@ -416,8 +454,12 @@ export default function Controller() {
                   <FiUsers className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-black">Student Management</h2>
-                  <p className="text-gray-600">View and manage your assigned students</p>
+                  <h2 className="text-2xl font-bold text-black">
+                    Student Management
+                  </h2>
+                  <p className="text-gray-600">
+                    View and manage your assigned students
+                  </p>
                 </div>
               </div>
             </div>

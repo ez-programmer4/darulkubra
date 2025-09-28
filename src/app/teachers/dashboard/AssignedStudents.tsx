@@ -505,7 +505,8 @@ export default function AssignedStudents() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             attendance_status:
-              rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
+              rec.status?.charAt(0)?.toUpperCase() + rec.status?.slice(1) ||
+              "Unknown",
             surah: rec.surah || undefined,
             lesson: rec.lesson || undefined,
             notes: rec.notes || undefined,
@@ -1196,8 +1197,8 @@ export default function AssignedStudents() {
                                     attend[modal.studentId!]?.status === status
                                   }
                                 >
-                                  {status.charAt(0).toUpperCase() +
-                                    status.slice(1)}
+                                  {status?.charAt(0)?.toUpperCase() +
+                                    status?.slice(1) || "Unknown"}
                                 </button>
                               );
                             }

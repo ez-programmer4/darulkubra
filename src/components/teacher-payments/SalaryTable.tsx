@@ -127,7 +127,7 @@ export default function SalaryTable({
       // Search filter
       if (
         search &&
-        !teacher.name.toLowerCase().includes(search.toLowerCase())
+        !teacher.name?.toLowerCase().includes(search.toLowerCase())
       ) {
         return false;
       }
@@ -498,12 +498,12 @@ export default function SalaryTable({
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
                           <span className="text-sm font-medium text-indigo-700">
-                            {teacher.name.charAt(0).toUpperCase()}
+                            {teacher.name?.charAt(0)?.toUpperCase() || "?"}
                           </span>
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">
-                            {teacher.name}
+                            {teacher.name || "Unknown Teacher"}
                           </div>
                           <div className="text-sm text-gray-500 flex items-center gap-2">
                             <FiUsers className="w-3 h-3" />

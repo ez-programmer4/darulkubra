@@ -288,23 +288,31 @@ export default function PaymentManagement({
   // Generate available months (from student start date to 12 months in future)
   useEffect(() => {
     if (!student?.startdate) return;
-    
+
     const months = [];
     const startDate = new Date(student.startdate);
     const currentDate = new Date();
-    
+
     // Start from student's start month
-    const startMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-    
+    const startMonth = new Date(
+      startDate.getFullYear(),
+      startDate.getMonth(),
+      1
+    );
+
     // Go 12 months into the future from current date
-    const endMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 12, 1);
-    
+    const endMonth = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() + 12,
+      1
+    );
+
     let monthDate = new Date(startMonth);
     while (monthDate <= endMonth) {
       months.push(format(monthDate, "yyyy-MM"));
       monthDate.setMonth(monthDate.getMonth() + 1);
     }
-    
+
     setAvailableMonths(months);
   }, [student?.startdate]);
 
@@ -530,11 +538,11 @@ export default function PaymentManagement({
       const currentMonth = `${currentDate.getFullYear()}-${String(
         currentDate.getMonth() + 1
       ).padStart(2, "0")}`;
-      
+
       // Find all unpaid months (including past months)
       const unpaidMonths = getUnpaidMonthsBefore(currentMonth);
       const currentMonthStatus = getMonthPaymentStatus(currentMonth);
-      
+
       // If there are unpaid past months, select them
       if (unpaidMonths.length > 0) {
         setNewMonthlyPayment({
@@ -546,7 +554,10 @@ export default function PaymentManagement({
           }, 0),
           paymentType: "full",
         });
-      } else if (!currentMonthStatus.isPaid && currentMonthStatus.expectedAmount > 0) {
+      } else if (
+        !currentMonthStatus.isPaid &&
+        currentMonthStatus.expectedAmount > 0
+      ) {
         // If no unpaid past months, select current month if not paid
         setNewMonthlyPayment({
           months: [currentMonth],
@@ -1683,8 +1694,8 @@ export default function PaymentManagement({
                               : "bg-red-100 text-red-800"
                           }`}
                         >
-                          {deposit.status.charAt(0).toUpperCase() +
-                            deposit.status.slice(1)}
+                          {deposit.status?.charAt(0)?.toUpperCase() +
+                            deposit.status?.slice(1) || "Unknown"}
                         </span>
                       </div>
                     </div>
@@ -1799,9 +1810,10 @@ export default function PaymentManagement({
                                   : payment.payment_type === "prizepartial"
                                   ? "Prize Partial"
                                   : payment.payment_type
-                                      .charAt(0)
-                                      .toUpperCase() +
-                                    payment.payment_type.slice(1)}
+                                      ?.charAt(0)
+                                      ?.toUpperCase() +
+                                      payment.payment_type?.slice(1) ||
+                                    "Unknown"}
                               </span>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1891,8 +1903,8 @@ export default function PaymentManagement({
                                 : "bg-red-100 text-red-800"
                             }`}
                           >
-                            {selectedDeposit.status.charAt(0).toUpperCase() +
-                              selectedDeposit.status.slice(1)}
+                            {selectedDeposit.status?.charAt(0)?.toUpperCase() +
+                              selectedDeposit.status?.slice(1) || "Unknown"}
                           </span>
                         </div>
                       </div>
@@ -2470,8 +2482,13 @@ export default function PaymentManagement({
                             onClick={() => {
                               const unpaidMonths = availableMonths.filter(
                                 (month) => {
-                                  const monthStatus = getMonthPaymentStatus(month);
-                                  return monthStatus.shortfall > 0 && !isMonthFullyCoveredByPrizes(month) && !isMonthPaid(month);
+                                  const monthStatus =
+                                    getMonthPaymentStatus(month);
+                                  return (
+                                    monthStatus.shortfall > 0 &&
+                                    !isMonthFullyCoveredByPrizes(month) &&
+                                    !isMonthPaid(month)
+                                  );
                                 }
                               );
                               setNewMonthlyPayment((prev: any) => ({
@@ -2487,11 +2504,20 @@ export default function PaymentManagement({
                             className="text-xs px-2 py-1 rounded-lg border border-yellow-300 text-yellow-700 hover:bg-yellow-50"
                             onClick={() => {
                               const currentDate = new Date();
-                              const currentMonth = format(currentDate, "yyyy-MM");
+                              const currentMonth = format(
+                                currentDate,
+                                "yyyy-MM"
+                              );
                               const overdueMonths = availableMonths.filter(
                                 (month) => {
-                                  const monthStatus = getMonthPaymentStatus(month);
-                                  return month < currentMonth && monthStatus.shortfall > 0 && !isMonthFullyCoveredByPrizes(month) && !isMonthPaid(month);
+                                  const monthStatus =
+                                    getMonthPaymentStatus(month);
+                                  return (
+                                    month < currentMonth &&
+                                    monthStatus.shortfall > 0 &&
+                                    !isMonthFullyCoveredByPrizes(month) &&
+                                    !isMonthPaid(month)
+                                  );
                                 }
                               );
                               setNewMonthlyPayment((prev: any) => ({
@@ -2520,11 +2546,19 @@ export default function PaymentManagement({
                             onClick={() => {
                               if (!student) return;
                               const currentDate = new Date();
-                              const currentMonth = format(currentDate, "yyyy-MM");
+                              const currentMonth = format(
+                                currentDate,
+                                "yyyy-MM"
+                              );
                               // Get next 3 unpaid months starting from current month
                               const eligible = availableMonths.filter((m) => {
                                 const monthStatus = getMonthPaymentStatus(m);
-                                return m >= currentMonth && monthStatus.shortfall > 0 && !isMonthPaid(m) && !isMonthFullyCoveredByPrizes(m);
+                                return (
+                                  m >= currentMonth &&
+                                  monthStatus.shortfall > 0 &&
+                                  !isMonthPaid(m) &&
+                                  !isMonthFullyCoveredByPrizes(m)
+                                );
                               });
                               const next3 = eligible.slice(0, 3);
                               setNewMonthlyPayment((prev: any) => ({
@@ -2604,13 +2638,17 @@ export default function PaymentManagement({
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <span className={`text-sm font-medium ${
-                                  isPastMonth && monthStatus.shortfall > 0 && !isDisabled
-                                    ? "text-red-700"
-                                    : isCurrentMonth && !isDisabled
-                                    ? "text-blue-700"
-                                    : ""
-                                }`}>
+                                <span
+                                  className={`text-sm font-medium ${
+                                    isPastMonth &&
+                                    monthStatus.shortfall > 0 &&
+                                    !isDisabled
+                                      ? "text-red-700"
+                                      : isCurrentMonth && !isDisabled
+                                      ? "text-blue-700"
+                                      : ""
+                                  }`}
+                                >
                                   {monthName}
                                 </span>
                                 {isSelected && !isDisabled && (
@@ -2620,11 +2658,13 @@ export default function PaymentManagement({
                                 )}
                               </div>
                               <div className="mt-1 flex items-center gap-1 flex-wrap">
-                                {isPastMonth && monthStatus.shortfall > 0 && !isDisabled && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">
-                                    Overdue
-                                  </span>
-                                )}
+                                {isPastMonth &&
+                                  monthStatus.shortfall > 0 &&
+                                  !isDisabled && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">
+                                      Overdue
+                                    </span>
+                                  )}
                                 {isCurrentMonth && !isDisabled && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">
                                     Current
@@ -2645,11 +2685,13 @@ export default function PaymentManagement({
                                     Prize
                                   </span>
                                 )}
-                                {monthStatus.shortfall > 0 && !paid && !prize && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 border border-yellow-200">
-                                    ${monthStatus.shortfall.toFixed(0)}
-                                  </span>
-                                )}
+                                {monthStatus.shortfall > 0 &&
+                                  !paid &&
+                                  !prize && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 border border-yellow-200">
+                                      ${monthStatus.shortfall.toFixed(0)}
+                                    </span>
+                                  )}
                               </div>
                             </button>
                           );
@@ -2694,10 +2736,15 @@ export default function PaymentManagement({
                         <div className="p-5">
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-gray-700">Total Payment Amount</span>
+                              <span className="text-sm font-medium text-gray-700">
+                                Total Payment Amount
+                              </span>
                               {newMonthlyPayment.calculatedAmount > 0 && (
                                 <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                                  {newMonthlyPayment.months?.length || 0} month{(newMonthlyPayment.months?.length || 0) !== 1 ? 's' : ''}
+                                  {newMonthlyPayment.months?.length || 0} month
+                                  {(newMonthlyPayment.months?.length || 0) !== 1
+                                    ? "s"
+                                    : ""}
                                 </span>
                               )}
                               {newMonthlyPayment.months?.length === 0 && (
@@ -2706,79 +2753,118 @@ export default function PaymentManagement({
                                 </span>
                               )}
                             </div>
-                            <div className={`text-2xl font-bold tabular-nums ${
-                              newMonthlyPayment.calculatedAmount > 0 ? 'text-green-700' : 'text-gray-400'
-                            }`}>
-                              ${newMonthlyPayment.calculatedAmount?.toFixed(2) || "0.00"}
+                            <div
+                              className={`text-2xl font-bold tabular-nums ${
+                                newMonthlyPayment.calculatedAmount > 0
+                                  ? "text-green-700"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              $
+                              {newMonthlyPayment.calculatedAmount?.toFixed(2) ||
+                                "0.00"}
                             </div>
                           </div>
-                          
+
                           <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="text-center p-3 bg-white rounded-xl border border-gray-100">
-                              <div className="text-xs text-gray-500 mb-1">Selected Months</div>
-                              <div className="text-lg font-semibold text-gray-900">{newMonthlyPayment.months?.length || 0}</div>
+                              <div className="text-xs text-gray-500 mb-1">
+                                Selected Months
+                              </div>
+                              <div className="text-lg font-semibold text-gray-900">
+                                {newMonthlyPayment.months?.length || 0}
+                              </div>
                             </div>
                             <div className="text-center p-3 bg-white rounded-xl border border-gray-100">
-                              <div className="text-xs text-gray-500 mb-1">Monthly Fee</div>
-                              <div className="text-lg font-semibold text-gray-900">${student?.classfee?.toFixed(2) || "0.00"}</div>
+                              <div className="text-xs text-gray-500 mb-1">
+                                Monthly Fee
+                              </div>
+                              <div className="text-lg font-semibold text-gray-900">
+                                ${student?.classfee?.toFixed(2) || "0.00"}
+                              </div>
                             </div>
                           </div>
-                          
+
                           {newMonthlyPayment.months?.length === 0 && (
                             <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl mb-4 text-center">
                               <div className="flex items-center justify-center gap-2 mb-2">
-                                <FiCalendar className="text-blue-600" size={16} />
-                                <span className="text-sm font-medium text-blue-700">Select Months to Pay</span>
+                                <FiCalendar
+                                  className="text-blue-600"
+                                  size={16}
+                                />
+                                <span className="text-sm font-medium text-blue-700">
+                                  Select Months to Pay
+                                </span>
                               </div>
                               <p className="text-xs text-blue-600">
-                                Choose one or more months from the grid above to calculate payment amount
+                                Choose one or more months from the grid above to
+                                calculate payment amount
                               </p>
                             </div>
                           )}
                         </div>
                       </div>
-                      
-                      {newMonthlyPayment.months && newMonthlyPayment.months.length > 0 && (
-                        <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200">
-                          <h5 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                            <FiClock className="text-gray-500" size={14} />
-                            Monthly Breakdown
-                          </h5>
-                          <div className="space-y-2 max-h-32 overflow-y-auto">
-                            {newMonthlyPayment.months.map((month) => {
-                              const monthStatus = getMonthPaymentStatus(month);
-                              const expectedAmount = monthStatus.expectedAmount;
-                              const paidAmount = monthStatus.totalPaid;
-                              const shortfall = monthStatus.shortfall;
-                              const hasPrize = monthStatus.hasPartialPrize || monthStatus.isFree;
-                              
-                              return (
-                                <div key={month} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-gray-700">{formatPaymentMonth(month)}</span>
-                                    {hasPrize && (
-                                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">Prize</span>
-                                    )}
-                                    {monthStatus.isPaid && (
-                                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Paid</span>
-                                    )}
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-semibold text-gray-900 tabular-nums">
-                                      ${shortfall > 0 ? shortfall.toFixed(2) : '0.00'}
+
+                      {newMonthlyPayment.months &&
+                        newMonthlyPayment.months.length > 0 && (
+                          <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200">
+                            <h5 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                              <FiClock className="text-gray-500" size={14} />
+                              Monthly Breakdown
+                            </h5>
+                            <div className="space-y-2 max-h-32 overflow-y-auto">
+                              {newMonthlyPayment.months.map((month) => {
+                                const monthStatus =
+                                  getMonthPaymentStatus(month);
+                                const expectedAmount =
+                                  monthStatus.expectedAmount;
+                                const paidAmount = monthStatus.totalPaid;
+                                const shortfall = monthStatus.shortfall;
+                                const hasPrize =
+                                  monthStatus.hasPartialPrize ||
+                                  monthStatus.isFree;
+
+                                return (
+                                  <div
+                                    key={month}
+                                    className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium text-gray-700">
+                                        {formatPaymentMonth(month)}
+                                      </span>
+                                      {hasPrize && (
+                                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                          Prize
+                                        </span>
+                                      )}
+                                      {monthStatus.isPaid && (
+                                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                                          Paid
+                                        </span>
+                                      )}
                                     </div>
-                                    {(paidAmount > 0 || expectedAmount !== shortfall) && (
-                                      <div className="text-xs text-gray-500">
-                                        ${paidAmount.toFixed(2)} / ${expectedAmount.toFixed(2)}
+                                    <div className="text-right">
+                                      <div className="font-semibold text-gray-900 tabular-nums">
+                                        $
+                                        {shortfall > 0
+                                          ? shortfall.toFixed(2)
+                                          : "0.00"}
                                       </div>
-                                    )}
+                                      {(paidAmount > 0 ||
+                                        expectedAmount !== shortfall) && (
+                                        <div className="text-xs text-gray-500">
+                                          ${paidAmount.toFixed(2)} / $
+                                          {expectedAmount.toFixed(2)}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
                   </div>
 
@@ -2825,29 +2911,49 @@ export default function PaymentManagement({
                         </div>
                         <div className="flex justify-between items-center gap-2 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Available Balance</span>
+                            <span className="text-sm text-gray-600">
+                              Available Balance
+                            </span>
                             <div className="group relative">
-                              <FiInfo className="text-gray-400 cursor-help" size={14} />
+                              <FiInfo
+                                className="text-gray-400 cursor-help"
+                                size={14}
+                              />
                               <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                Deposits minus regular payments (excludes prizes)
+                                Deposits minus regular payments (excludes
+                                prizes)
                               </div>
                             </div>
                           </div>
-                          <span className={`font-medium truncate max-w-[60%] text-right tabular-nums ${
-                            calculateRemainingBalance() >= 0 ? 'text-green-600' : 'text-red-600'
-                          }`}>
+                          <span
+                            className={`font-medium truncate max-w-[60%] text-right tabular-nums ${
+                              calculateRemainingBalance() >= 0
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
                             ${calculateRemainingBalance().toFixed(2)}
                           </span>
                         </div>
 
-                        {calculateRemainingBalance() < newMonthlyPayment.calculatedAmount && (
+                        {calculateRemainingBalance() <
+                          newMonthlyPayment.calculatedAmount && (
                           <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
                             <div className="flex items-center gap-2 mb-2">
-                              <FiAlertCircle className="text-red-500" size={16} />
-                              <span className="text-sm font-medium text-red-700">Insufficient Balance</span>
+                              <FiAlertCircle
+                                className="text-red-500"
+                                size={16}
+                              />
+                              <span className="text-sm font-medium text-red-700">
+                                Insufficient Balance
+                              </span>
                             </div>
                             <p className="text-xs text-red-600">
-                              Payment amount (${newMonthlyPayment.calculatedAmount.toFixed(2)}) exceeds available balance (${calculateRemainingBalance().toFixed(2)}). Please add a deposit first.
+                              Payment amount ($
+                              {newMonthlyPayment.calculatedAmount.toFixed(2)})
+                              exceeds available balance ($
+                              {calculateRemainingBalance().toFixed(2)}). Please
+                              add a deposit first.
                             </p>
                             <button
                               onClick={() => {
@@ -2866,12 +2972,20 @@ export default function PaymentManagement({
                             <span className="text-sm font-semibold text-blue-700">
                               Balance After Payment
                             </span>
-                            <span className={`font-bold text-lg truncate max-w-[60%] text-right tabular-nums ${
-                              calculateRemainingBalance() - newMonthlyPayment.calculatedAmount >= 0 
-                                ? 'text-green-600' 
-                                : 'text-red-600'
-                            }`}>
-                              ${(calculateRemainingBalance() - newMonthlyPayment.calculatedAmount).toFixed(2)}
+                            <span
+                              className={`font-bold text-lg truncate max-w-[60%] text-right tabular-nums ${
+                                calculateRemainingBalance() -
+                                  newMonthlyPayment.calculatedAmount >=
+                                0
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              $
+                              {(
+                                calculateRemainingBalance() -
+                                newMonthlyPayment.calculatedAmount
+                              ).toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -2895,7 +3009,9 @@ export default function PaymentManagement({
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="mt-1">•</span>
-                          <span>You can pay past, current, and future months</span>
+                          <span>
+                            You can pay past, current, and future months
+                          </span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="mt-1">•</span>

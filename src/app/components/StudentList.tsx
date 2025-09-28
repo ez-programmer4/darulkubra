@@ -416,7 +416,10 @@ export default function StudentList({
         })
       ),
     ];
-    return ["all", ...uniqueUstazes.filter(name => name && name !== "Unknown Teacher")];
+    return [
+      "all",
+      ...uniqueUstazes.filter((name) => name && name !== "Unknown Teacher"),
+    ];
   }, [students]);
 
   const packages = useMemo(() => {
@@ -470,7 +473,8 @@ export default function StudentList({
           (studentStatus === "active" || studentStatus === "not yet"));
       const matchesSubject =
         subjectFilter === "all" || student.subject === subjectFilter;
-      const currentTeacherName = student.teacher?.ustazname || "Unknown Teacher";
+      const currentTeacherName =
+        student.teacher?.ustazname || "Unknown Teacher";
 
       const matchesUstaz =
         ustazFilter === "all" || currentTeacherName === ustazFilter;
@@ -540,9 +544,11 @@ export default function StudentList({
     paymentStatusFilter,
   ]);
 
-  const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(filteredStudents.length / itemsPerPage);
+  const totalPages =
+    itemsPerPage === -1 ? 1 : Math.ceil(filteredStudents.length / itemsPerPage);
   const startIndex = itemsPerPage === -1 ? 0 : (currentPage - 1) * itemsPerPage;
-  const endIndex = itemsPerPage === -1 ? filteredStudents.length : startIndex + itemsPerPage;
+  const endIndex =
+    itemsPerPage === -1 ? filteredStudents.length : startIndex + itemsPerPage;
   const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
 
   const debouncedSearch = useMemo(
@@ -648,7 +654,8 @@ export default function StudentList({
                       ? "All Statuses"
                       : status === "active-Not yet"
                       ? "Active & Not Yet"
-                      : status.charAt(0).toUpperCase() + status.slice(1)}
+                      : status?.charAt(0)?.toUpperCase() + status?.slice(1) ||
+                        "Unknown"}
                   </option>
                 ))}
               </select>
@@ -781,7 +788,8 @@ export default function StudentList({
             {filteredStudents.length !== students.length && (
               <div className="bg-blue-50 px-4 py-2 rounded-xl">
                 <span className="text-blue-700 font-semibold text-sm">
-                  {filteredStudents.length} filtered from {students.length} total
+                  {filteredStudents.length} filtered from {students.length}{" "}
+                  total
                 </span>
               </div>
             )}

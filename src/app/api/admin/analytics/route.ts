@@ -96,7 +96,9 @@ export async function GET(req: NextRequest) {
     });
 
     const paymentStatusBreakdown = paymentStatusData.map((item) => ({
-      name: item.status.charAt(0).toUpperCase() + item.status.slice(1),
+      name:
+        item.status?.charAt(0)?.toUpperCase() + item.status?.slice(1) ||
+        "Unknown",
       value: item._count.id,
     }));
 

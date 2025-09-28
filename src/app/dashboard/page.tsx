@@ -649,7 +649,7 @@ export default function Dashboard() {
         (reg, idx) => `
       <div class="student-card">
         <div class="student-header">
-          <div class="avatar">${reg.name.charAt(0).toUpperCase()}</div>
+          <div class="avatar">${reg.name?.charAt(0)?.toUpperCase() || "?"}</div>
           <div>
             <h2>${reg.name}</h2>
             <div class="student-status ${reg.status
@@ -1365,7 +1365,7 @@ export default function Dashboard() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0 h-10 w-10 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center font-medium">
-                                {reg.name.charAt(0).toUpperCase()}
+                                {reg.name?.charAt(0)?.toUpperCase() || "?"}
                               </div>
                               <div className="ml-4">
                                 <div className="text-sm font-medium text-gray-900">
