@@ -119,7 +119,8 @@ export async function GET(req: NextRequest) {
       select: {
         weekStart: true,
         bonusAwarded: true,
-        reviewNotes: true,
+        supervisorFeedback: true,
+        overrideNotes: true,
       },
       orderBy: { weekStart: "desc" },
     });
