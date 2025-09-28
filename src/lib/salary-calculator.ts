@@ -19,7 +19,9 @@ export interface SalaryCalculationConfig {
 }
 
 export interface TeacherSalaryData {
+  id: string;
   teacherId: string;
+  name: string;
   teacherName: string;
   baseSalary: number;
   latenessDeduction: number;
@@ -146,7 +148,9 @@ export class SalaryCalculator {
       });
 
       const result: TeacherSalaryData = {
+        id: teacherId,
         teacherId,
+        name: teacher.ustazname || "Unknown Teacher",
         teacherName: teacher.ustazname || "Unknown Teacher",
         baseSalary: Math.round(baseSalaryData.totalSalary),
         latenessDeduction: Math.round(latenessData.totalDeduction),
@@ -290,6 +294,36 @@ export class SalaryCalculator {
       where: { ustazid: teacherId },
       select: { ustazid: true, ustazname: true },
     });
+  }
+
+  private async getStudentForClassDate(teacherId: string, classDate: Date) {
+    // This is a simplified implementation - in reality you'd need to match
+    // the specific student based on the class schedule and time
+    const students = await prisma.wpos_wpdatatable_23.findMany({
+      where: {
+        ustaz: teacherId,
+        status: { in: ["active", "Active"] },
+      },
+      select: {
+        wdt_ID: true,
+        name: true,
+        package: true,
+      },
+      take: 1, // For now, just get the first active student
+    });
+
+    return students[0] || null;
+  }
+
+  private async getPackageSalary(packageName: string | null): Promise<number> {
+    if (!packageName) return 0;
+
+    const packageSalary = await prisma.packageSalary.findFirst({
+      where: { packageName },
+      select: { salaryPerStudent: true },
+    });
+
+    return Number(packageSalary?.salaryPerStudent || 0);
   }
 
   private async getTeacherAssignments(
@@ -500,11 +534,70 @@ export class SalaryCalculator {
     fromDate: Date,
     toDate: Date
   ) {
-    // Implementation for lateness deduction calculation
-    // This would contain the complex logic from the original API
+    // Get lateness records for the period
+    const latenessRecords = await prisma.latenessrecord.findMany({
+      where: {
+        teacherId,
+        classDate: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      include: {
+        wpos_wpdatatable_24: {
+          select: { ustazname: true },
+        },
+      },
+    });
+
+    // Get lateness deduction config
+    const deductionConfig = await prisma.latenessdeductionconfig.findMany({
+      where: {
+        OR: [{ teacherId }, { isGlobal: true }],
+      },
+      orderBy: { tier: "asc" },
+    });
+
+    let totalDeduction = 0;
+    const breakdown: any[] = [];
+
+    for (const record of latenessRecords) {
+      // Find the appropriate deduction tier
+      const tier = deductionConfig.find(
+        (config) =>
+          record.latenessMinutes >= config.startMinute &&
+          record.latenessMinutes <= config.endMinute
+      );
+
+      if (tier) {
+        // Calculate deduction based on student's package
+        const student = await this.getStudentForClassDate(
+          teacherId,
+          record.classDate
+        );
+        if (student) {
+          const packageSalary = await this.getPackageSalary(student.package);
+          const dailyRate = (packageSalary || 0) / 30; // Assuming monthly rate
+          const deduction = dailyRate * ((tier.deductionPercent || 0) / 100);
+
+          totalDeduction += deduction;
+
+          breakdown.push({
+            date: record.classDate.toISOString().split("T")[0],
+            studentName: student.name || "Unknown Student",
+            scheduledTime: record.scheduledTime.toISOString(),
+            actualTime: record.actualStartTime.toISOString(),
+            latenessMinutes: record.latenessMinutes,
+            tier: `Tier ${tier.tier}`,
+            deduction: Math.round(deduction),
+          });
+        }
+      }
+    }
+
     return {
-      totalDeduction: 0,
-      breakdown: [],
+      totalDeduction: Math.round(totalDeduction),
+      breakdown,
     };
   }
 
@@ -514,11 +607,47 @@ export class SalaryCalculator {
     fromDate: Date,
     toDate: Date
   ) {
-    // Implementation for absence deduction calculation
-    // This would contain the complex logic from the original API
+    // Get absence records for the period
+    const absenceRecords = await prisma.absencerecord.findMany({
+      where: {
+        teacherId,
+        classDate: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+    });
+
+    let totalDeduction = 0;
+    const breakdown: any[] = [];
+
+    for (const record of absenceRecords) {
+      // Only apply deduction if not permitted or if deduction is explicitly applied
+      if (!record.permitted || record.deductionApplied > 0) {
+        totalDeduction += record.deductionApplied;
+
+        // Get student info for this absence
+        const student = await this.getStudentForClassDate(
+          teacherId,
+          record.classDate
+        );
+
+        breakdown.push({
+          date: record.classDate.toISOString().split("T")[0],
+          studentId: student?.wdt_ID || 0,
+          studentName: student?.name || "Unknown Student",
+          studentPackage: student?.package || "Unknown Package",
+          reason: record.reviewNotes || "No reason provided",
+          deduction: Math.round(record.deductionApplied),
+          permitted: record.permitted,
+          waived: record.deductionApplied === 0,
+        });
+      }
+    }
+
     return {
-      totalDeduction: 0,
-      breakdown: [],
+      totalDeduction: Math.round(totalDeduction),
+      breakdown,
     };
   }
 
@@ -527,7 +656,8 @@ export class SalaryCalculator {
     fromDate: Date,
     toDate: Date
   ) {
-    const bonuses = await prisma.qualityassessment.aggregate({
+    // Get quality assessment bonuses
+    const qualityBonuses = await prisma.qualityassessment.aggregate({
       where: {
         teacherId,
         weekStart: { gte: fromDate, lte: toDate },
@@ -535,7 +665,25 @@ export class SalaryCalculator {
       },
       _sum: { bonusAwarded: true },
     });
-    return Math.round(bonuses._sum?.bonusAwarded ?? 0);
+
+    // Get bonus records
+    const bonusRecords = await prisma.bonusrecord.findMany({
+      where: {
+        teacherId,
+        createdAt: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+    });
+
+    const totalQualityBonus = qualityBonuses._sum.bonusAwarded || 0;
+    const totalRecordBonus = bonusRecords.reduce(
+      (sum, record) => sum + (record.amount || 0),
+      0
+    );
+
+    return Math.round(totalQualityBonus + totalRecordBonus);
   }
 
   private async calculateDetailedLatenessRecords(

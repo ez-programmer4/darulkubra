@@ -15,6 +15,8 @@ import {
   FiFilter,
   FiDownload,
   FiRefreshCw,
+  FiX,
+  FiEye,
 } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/teacher-payment-utils";
 
 interface TeacherSalaryData {
   id: string;
@@ -110,6 +113,8 @@ export default function SalaryTable({
 }: SalaryTableProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedTeacher, setSelectedTeacher] =
+    useState<TeacherSalaryData | null>(null);
   const [salaryRangeFilter, setSalaryRangeFilter] = useState({
     min: "",
     max: "",
@@ -552,8 +557,10 @@ export default function SalaryTable({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => onTeacherSelect(teacher)}
+                        onClick={() => setSelectedTeacher(teacher)}
+                        className="flex items-center gap-2"
                       >
+                        <FiEye className="w-4 h-4" />
                         View Details
                       </Button>
                     </td>
@@ -591,6 +598,295 @@ export default function SalaryTable({
               <div className="text-gray-600">Unpaid</div>
               <div className="font-medium text-yellow-600">
                 {filteredData.filter((t) => t.status === "Unpaid").length}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail View Modal */}
+      {selectedTeacher && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Salary Details - {selectedTeacher.name}
+                </h2>
+                <button
+                  onClick={() => setSelectedTeacher(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="text-sm text-blue-600 font-medium">
+                    Base Salary
+                  </div>
+                  <div className="text-2xl font-bold text-blue-900">
+                    {formatCurrency(selectedTeacher.baseSalary)}
+                  </div>
+                </div>
+                <div className="bg-red-50 p-4 rounded-lg">
+                  <div className="text-sm text-red-600 font-medium">
+                    Lateness Deduction
+                  </div>
+                  <div className="text-2xl font-bold text-red-900">
+                    -{formatCurrency(selectedTeacher.latenessDeduction)}
+                  </div>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <div className="text-sm text-orange-600 font-medium">
+                    Absence Deduction
+                  </div>
+                  <div className="text-2xl font-bold text-orange-900">
+                    -{formatCurrency(selectedTeacher.absenceDeduction)}
+                  </div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="text-sm text-green-600 font-medium">
+                    Bonuses
+                  </div>
+                  <div className="text-2xl font-bold text-green-900">
+                    +{formatCurrency(selectedTeacher.bonuses)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Breakdown Sections */}
+              <div className="space-y-6">
+                {/* Student Breakdown */}
+                {selectedTeacher.breakdown?.studentBreakdown && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                      Student Breakdown
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full bg-white border border-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Student
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Package
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Monthly Rate
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Days Worked
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Total Earned
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {selectedTeacher.breakdown.studentBreakdown.map(
+                            (student, index) => (
+                              <tr key={index}>
+                                <td className="px-4 py-2 text-sm text-gray-900">
+                                  {student.studentName}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {student.package}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {formatCurrency(student.monthlyRate)}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {student.daysWorked}
+                                </td>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                                  {formatCurrency(student.totalEarned)}
+                                </td>
+                              </tr>
+                            )
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Lateness Breakdown */}
+                {selectedTeacher.breakdown?.latenessBreakdown &&
+                  selectedTeacher.breakdown.latenessBreakdown.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                        Lateness Deductions
+                      </h3>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full bg-white border border-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Date
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Student
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Lateness
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Tier
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Deduction
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {selectedTeacher.breakdown.latenessBreakdown.map(
+                              (record, index) => (
+                                <tr key={index}>
+                                  <td className="px-4 py-2 text-sm text-gray-900">
+                                    {new Date(record.date).toLocaleDateString()}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm text-gray-600">
+                                    {record.studentName}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm text-gray-600">
+                                    {record.latenessMinutes} min
+                                  </td>
+                                  <td className="px-4 py-2 text-sm text-gray-600">
+                                    {record.tier}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm font-medium text-red-600">
+                                    -{formatCurrency(record.deduction)}
+                                  </td>
+                                </tr>
+                              )
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Absence Breakdown */}
+                {selectedTeacher.breakdown?.absenceBreakdown &&
+                  selectedTeacher.breakdown.absenceBreakdown.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                        Absence Deductions
+                      </h3>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full bg-white border border-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Date
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Student
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Package
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Reason
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Status
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Deduction
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {selectedTeacher.breakdown.absenceBreakdown.map(
+                              (record, index) => (
+                                <tr key={index}>
+                                  <td className="px-4 py-2 text-sm text-gray-900">
+                                    {new Date(record.date).toLocaleDateString()}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm text-gray-600">
+                                    {record.studentName}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm text-gray-600">
+                                    {record.studentPackage}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm text-gray-600">
+                                    {record.reason}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm">
+                                    <span
+                                      className={`px-2 py-1 rounded-full text-xs ${
+                                        record.permitted
+                                          ? "bg-green-100 text-green-800"
+                                          : "bg-red-100 text-red-800"
+                                      }`}
+                                    >
+                                      {record.permitted
+                                        ? "Permitted"
+                                        : "Not Permitted"}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2 text-sm font-medium text-red-600">
+                                    -{formatCurrency(record.deduction)}
+                                  </td>
+                                </tr>
+                              )
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Summary */}
+                {selectedTeacher.breakdown?.summary && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                      Summary
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <div className="text-sm text-gray-600">
+                          Working Days
+                        </div>
+                        <div className="font-semibold text-gray-900">
+                          {selectedTeacher.breakdown.summary.workingDaysInMonth}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-600">
+                          Teaching Days
+                        </div>
+                        <div className="font-semibold text-gray-900">
+                          {selectedTeacher.breakdown.summary.actualTeachingDays}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-600">
+                          Avg Daily Earning
+                        </div>
+                        <div className="font-semibold text-gray-900">
+                          {formatCurrency(
+                            selectedTeacher.breakdown.summary
+                              .averageDailyEarning
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-600">Net Salary</div>
+                        <div className="font-semibold text-gray-900">
+                          {formatCurrency(
+                            selectedTeacher.breakdown.summary.netSalary
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

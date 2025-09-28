@@ -192,8 +192,13 @@ export default function TeacherPaymentsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Teacher Payments</h1>
           <p className="text-gray-600 mt-1">
-            Manage teacher salaries and payment status
+            Manage teacher salaries, deductions, bonuses, and payment status
           </p>
+          {lastUpdated && (
+            <p className="text-sm text-gray-500 mt-1">
+              Last updated: {lastUpdated.toLocaleString()}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -313,7 +318,7 @@ export default function TeacherPaymentsPage() {
       {/* Statistics Cards */}
       {statistics && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
+          <Card className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -323,13 +328,16 @@ export default function TeacherPaymentsPage() {
                   <p className="text-2xl font-bold text-gray-900">
                     {statistics.totalTeachers}
                   </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Active teachers this month
+                  </p>
                 </div>
                 <FiUsers className="w-8 h-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -339,13 +347,16 @@ export default function TeacherPaymentsPage() {
                   <p className="text-2xl font-bold text-gray-900">
                     {formatCurrency(statistics.totalSalary)}
                   </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Before deductions & bonuses
+                  </p>
                 </div>
                 <FiDollarSign className="w-8 h-8 text-green-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -353,13 +364,19 @@ export default function TeacherPaymentsPage() {
                   <p className="text-2xl font-bold text-green-600">
                     {statistics.paidTeachers}
                   </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {Math.round(
+                      (statistics.paidTeachers / statistics.totalTeachers) * 100
+                    )}
+                    % completion rate
+                  </p>
                 </div>
                 <FiCheckCircle className="w-8 h-8 text-green-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -367,8 +384,73 @@ export default function TeacherPaymentsPage() {
                   <p className="text-2xl font-bold text-yellow-600">
                     {statistics.unpaidTeachers}
                   </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Pending payment processing
+                  </p>
                 </div>
                 <FiXCircle className="w-8 h-8 text-yellow-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Additional Statistics */}
+      {statistics && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Deductions
+                  </p>
+                  <p className="text-2xl font-bold text-red-600">
+                    -{formatCurrency(statistics.totalDeductions)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Lateness & absence penalties
+                  </p>
+                </div>
+                <FiAlertTriangle className="w-8 h-8 text-red-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Bonuses
+                  </p>
+                  <p className="text-2xl font-bold text-green-600">
+                    +{formatCurrency(statistics.totalBonuses)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Quality & performance rewards
+                  </p>
+                </div>
+                <FiAward className="w-8 h-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Average Salary
+                  </p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {formatCurrency(statistics.averageSalary)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Per teacher this month
+                  </p>
+                </div>
+                <FiBarChart className="w-8 h-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
