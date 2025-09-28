@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
 
-    if (!session || session.role !== "teacher") {
+    if (!session || !session.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -38,20 +38,22 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get teacher ID from session
-    const teacherId = session.id;
-    if (!teacherId) {
+    // Get teacher's salary data
+    const calculator = await createSalaryCalculator();
+    const salaryData = await calculator.calculateTeacherSalary(
+      session.id,
+      from,
+      to
+    );
+
+    if (!salaryData) {
       return NextResponse.json(
-        { error: "Teacher ID not found in session" },
-        { status: 400 }
+        { error: "No salary data found for this period" },
+        { status: 404 }
       );
     }
 
-    // Calculate salary using our enhanced calculator
-    const calculator = await createSalaryCalculator();
-    const salary = await calculator.calculateTeacherSalary(teacherId, from, to);
-
-    return NextResponse.json(salary);
+    return NextResponse.json(salaryData);
   } catch (error: any) {
     console.error("Error in teacher salary API:", error);
     return NextResponse.json(
@@ -64,4 +66,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

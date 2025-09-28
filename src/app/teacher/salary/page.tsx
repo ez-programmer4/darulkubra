@@ -554,6 +554,7 @@ export default function TeacherSalaryPage() {
               <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
               <TabsTrigger value="students">Students</TabsTrigger>
               <TabsTrigger value="deductions">Deductions</TabsTrigger>
+              <TabsTrigger value="attendance">Attendance</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
@@ -658,91 +659,458 @@ export default function TeacherSalaryPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-red-600">
+                    <CardTitle className="flex items-center gap-2 text-red-600">
+                      <FiClock className="w-5 h-5" />
                       Lateness Deductions
                     </CardTitle>
+                    <CardDescription>
+                      Deductions for late class starts
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {salaryData.breakdown.latenessBreakdown.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {salaryData.breakdown.latenessBreakdown.map(
                           (record, index) => (
                             <div
                               key={index}
-                              className="p-2 bg-red-50 rounded text-sm"
+                              className="p-3 bg-red-50 rounded-lg border border-red-200"
                             >
-                              <div className="font-medium">
-                                {record.studentName}
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-gray-900">
+                                  {record.studentName}
+                                </div>
+                                <div className="text-red-600 font-semibold">
+                                  -{formatCurrency(record.deduction)}
+                                </div>
                               </div>
-                              <div className="text-red-600">
-                                -{formatCurrency(record.deduction)}
+                              <div className="text-sm text-gray-600 mt-1">
+                                {new Date(record.date).toLocaleDateString()}
                               </div>
-                              <div className="text-xs text-gray-500">
-                                {record.date} - {record.latenessMinutes} min
-                                late
+                              <div className="text-xs text-gray-500 mt-1">
+                                Scheduled: {record.scheduledTime} | Actual:{" "}
+                                {record.actualTime} | Late:{" "}
+                                {record.latenessMinutes} min ({record.tier})
                               </div>
                             </div>
                           )
                         )}
+                        <div className="mt-4 p-3 bg-red-100 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-red-800">
+                              Total Lateness Deduction:
+                            </span>
+                            <span className="font-bold text-red-800">
+                              -{formatCurrency(salaryData.latenessDeduction)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     ) : (
-                      <p className="text-gray-500 text-center py-4">
-                        No lateness deductions
-                      </p>
+                      <div className="text-center py-8">
+                        <FiCheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                        <p className="text-gray-500">No lateness deductions</p>
+                        <p className="text-sm text-gray-400">
+                          Great job being on time!
+                        </p>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-red-600">
+                    <CardTitle className="flex items-center gap-2 text-red-600">
+                      <FiAlertTriangle className="w-5 h-5" />
                       Absence Deductions
                     </CardTitle>
+                    <CardDescription>
+                      Deductions for missed classes
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {salaryData.breakdown.absenceBreakdown.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {salaryData.breakdown.absenceBreakdown.map(
                           (record, index) => (
                             <div
                               key={index}
-                              className="p-2 bg-red-50 rounded text-sm"
+                              className="p-3 bg-red-50 rounded-lg border border-red-200"
                             >
-                              <div className="font-medium">
-                                {record.studentName}
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-gray-900">
+                                  {record.studentName}
+                                </div>
+                                <div className="text-red-600 font-semibold">
+                                  -{formatCurrency(record.deduction)}
+                                </div>
                               </div>
-                              <div className="text-red-600">
-                                -{formatCurrency(record.deduction)}
+                              <div className="text-sm text-gray-600 mt-1">
+                                {new Date(record.date).toLocaleDateString()}
                               </div>
-                              <div className="text-xs text-gray-500">
-                                {record.date} - {record.reason}
+                              <div className="text-xs text-gray-500 mt-1">
+                                Package: {record.studentPackage} | Reason:{" "}
+                                {record.reason}
+                              </div>
+                              <div className="mt-2">
+                                <Badge
+                                  variant={
+                                    record.permitted ? "default" : "destructive"
+                                  }
+                                  className="text-xs"
+                                >
+                                  {record.permitted
+                                    ? "Permitted"
+                                    : "Not Permitted"}
+                                </Badge>
                               </div>
                             </div>
                           )
                         )}
+                        <div className="mt-4 p-3 bg-red-100 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-red-800">
+                              Total Absence Deduction:
+                            </span>
+                            <span className="font-bold text-red-800">
+                              -{formatCurrency(salaryData.absenceDeduction)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     ) : (
-                      <p className="text-gray-500 text-center py-4">
-                        No absence deductions
-                      </p>
+                      <div className="text-center py-8">
+                        <FiCheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                        <p className="text-gray-500">No absence deductions</p>
+                        <p className="text-sm text-gray-400">
+                          Perfect attendance!
+                        </p>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
               </div>
             </TabsContent>
 
+            <TabsContent value="attendance" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-blue-600">
+                      <FiUsers className="w-5 h-5" />
+                      Student Attendance
+                    </CardTitle>
+                    <CardDescription>
+                      Attendance records for your students
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {salaryData.breakdown.studentBreakdown.map(
+                        (student, index) => (
+                          <div
+                            key={index}
+                            className="p-3 bg-blue-50 rounded-lg border border-blue-200"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-gray-900">
+                                  {student.studentName}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  {student.package} Package
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium text-blue-600">
+                                  {student.daysWorked} days
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {formatCurrency(student.totalEarned)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">
+                              Daily Rate: {formatCurrency(student.dailyRate)}
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-green-600">
+                      <FiCheckCircle className="w-5 h-5" />
+                      Teaching Summary
+                    </CardTitle>
+                    <CardDescription>
+                      Your teaching performance metrics
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center p-3 bg-green-50 rounded-lg">
+                          <div className="text-2xl font-bold text-green-600">
+                            {salaryData.teachingDays}
+                          </div>
+                          <div className="text-sm text-green-800">
+                            Teaching Days
+                          </div>
+                        </div>
+                        <div className="text-center p-3 bg-blue-50 rounded-lg">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {salaryData.numStudents}
+                          </div>
+                          <div className="text-sm text-blue-800">
+                            Active Students
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">
+                            Working Days in Month:
+                          </span>
+                          <span className="font-medium">
+                            {salaryData.breakdown.summary.workingDaysInMonth}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">
+                            Actual Teaching Days:
+                          </span>
+                          <span className="font-medium">
+                            {salaryData.breakdown.summary.actualTeachingDays}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">
+                            Average Daily Earning:
+                          </span>
+                          <span className="font-medium">
+                            {formatCurrency(
+                              salaryData.breakdown.summary.averageDailyEarning
+                            )}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                        <div className="text-sm text-gray-600 mb-1">
+                          Attendance Rate
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-green-500 h-2 rounded-full"
+                            style={{
+                              width: `${
+                                (salaryData.breakdown.summary
+                                  .actualTeachingDays /
+                                  salaryData.breakdown.summary
+                                    .workingDaysInMonth) *
+                                100
+                              }%`,
+                            }}
+                          ></div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {Math.round(
+                            (salaryData.breakdown.summary.actualTeachingDays /
+                              salaryData.breakdown.summary.workingDaysInMonth) *
+                              100
+                          )}
+                          % attendance rate
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
             <TabsContent value="history" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-green-600">
+                      <FiAward className="w-5 h-5" />
+                      Bonuses Earned
+                    </CardTitle>
+                    <CardDescription>
+                      Quality assessments and bonus records
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {salaryData.bonuses > 0 ? (
+                      <div className="space-y-3">
+                        <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                Quality Assessment Bonus
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                Manager approved performance bonus
+                              </div>
+                            </div>
+                            <div className="text-green-600 font-semibold">
+                              +{formatCurrency(salaryData.bonuses)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-4 p-3 bg-green-100 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-green-800">
+                              Total Bonuses:
+                            </span>
+                            <span className="font-bold text-green-800">
+                              +{formatCurrency(salaryData.bonuses)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <FiAward className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-500">No bonuses earned</p>
+                        <p className="text-sm text-gray-400">
+                          Keep up the great work!
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-blue-600">
+                      <FiFileText className="w-5 h-5" />
+                      Payment Status
+                    </CardTitle>
+                    <CardDescription>
+                      Current payment status and history
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            Payment Status
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            For {dayjs(startDate).format("MMMM YYYY")}
+                          </div>
+                        </div>
+                        <Badge
+                          variant={
+                            salaryData.status === "Paid"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className="text-sm"
+                        >
+                          {salaryData.status === "Paid" ? (
+                            <>
+                              <FiCheckCircle className="w-3 h-3 mr-1" />
+                              Paid
+                            </>
+                          ) : (
+                            <>
+                              <FiXCircle className="w-3 h-3 mr-1" />
+                              Unpaid
+                            </>
+                          )}
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Base Salary:</span>
+                          <span className="font-medium">
+                            {formatCurrency(salaryData.baseSalary)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">
+                            Total Deductions:
+                          </span>
+                          <span className="font-medium text-red-600">
+                            -
+                            {formatCurrency(
+                              salaryData.latenessDeduction +
+                                salaryData.absenceDeduction
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Bonuses:</span>
+                          <span className="font-medium text-green-600">
+                            +{formatCurrency(salaryData.bonuses)}
+                          </span>
+                        </div>
+                        <hr className="my-2" />
+                        <div className="flex items-center justify-between font-semibold">
+                          <span className="text-gray-900">Net Salary:</span>
+                          <span className="text-lg">
+                            {formatCurrency(salaryData.totalSalary)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Performance Summary */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Payment History</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <FiTrendingUp className="w-5 h-5" />
+                    Performance Summary
+                  </CardTitle>
                   <CardDescription>
-                    Your payment history for this period
+                    Your teaching performance for this period
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-500 text-center py-4">
-                    Payment history will be displayed here
-                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {salaryData.numStudents}
+                      </div>
+                      <div className="text-sm text-blue-800">Students</div>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">
+                        {salaryData.teachingDays}
+                      </div>
+                      <div className="text-sm text-green-800">
+                        Teaching Days
+                      </div>
+                    </div>
+                    <div className="text-center p-3 bg-purple-50 rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {salaryData.breakdown.summary.workingDaysInMonth}
+                      </div>
+                      <div className="text-sm text-purple-800">
+                        Working Days
+                      </div>
+                    </div>
+                    <div className="text-center p-3 bg-orange-50 rounded-lg">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {formatCompactCurrency(
+                          salaryData.breakdown.summary.averageDailyEarning
+                        )}
+                      </div>
+                      <div className="text-sm text-orange-800">Avg Daily</div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
