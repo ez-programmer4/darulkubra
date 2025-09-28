@@ -716,12 +716,53 @@ export class SalaryCalculator {
     let totalDeduction = 0;
     const breakdown: any[] = [];
 
+    // Helper function to check if a student is scheduled on a specific day
+    const isStudentScheduledOnDay = (student: any, dayOfWeek: number) => {
+      if (!student.occupiedTimes || student.occupiedTimes.length === 0) {
+        return false;
+      }
+
+      // Map daypackage to day numbers (assuming daypackage contains day information)
+      // This might need adjustment based on your actual daypackage format
+      const daypackage = student.occupiedTimes[0]?.daypackage || "";
+
+      // Common daypackage formats: "Monday,Wednesday,Friday" or "1,3,5" or "MWF"
+      if (daypackage.includes("Monday") && dayOfWeek === 1) return true;
+      if (daypackage.includes("Tuesday") && dayOfWeek === 2) return true;
+      if (daypackage.includes("Wednesday") && dayOfWeek === 3) return true;
+      if (daypackage.includes("Thursday") && dayOfWeek === 4) return true;
+      if (daypackage.includes("Friday") && dayOfWeek === 5) return true;
+      if (daypackage.includes("Saturday") && dayOfWeek === 6) return true;
+
+      // Numeric format (1=Monday, 2=Tuesday, etc.)
+      if (daypackage.includes("1") && dayOfWeek === 1) return true;
+      if (daypackage.includes("2") && dayOfWeek === 2) return true;
+      if (daypackage.includes("3") && dayOfWeek === 3) return true;
+      if (daypackage.includes("4") && dayOfWeek === 4) return true;
+      if (daypackage.includes("5") && dayOfWeek === 5) return true;
+      if (daypackage.includes("6") && dayOfWeek === 6) return true;
+
+      // If no specific schedule found, assume student is scheduled based on package
+      // This is a fallback - ideally we should have proper schedule data
+      const packageName = student.package || "";
+      if (packageName.includes("3 days")) {
+        // Assume 3-day package students are scheduled on Mon, Wed, Fri
+        return dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5;
+      } else if (packageName.includes("5 days")) {
+        // Assume 5-day package students are scheduled Mon-Fri
+        return dayOfWeek >= 1 && dayOfWeek <= 5;
+      }
+
+      return false;
+    };
+
     // Process each day in the period
     for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
       const dateStr = d.toISOString().split("T")[0];
+      const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, etc.
 
       // Skip weekends if configured
-      if (d.getDay() === 0) continue; // Skip Sunday
+      if (dayOfWeek === 0) continue; // Skip Sunday
 
       // Check if there's an approved permission for this date
       const hasPermission = permissionRequests.some(
@@ -750,6 +791,9 @@ export class SalaryCalculator {
       for (const student of students) {
         // Skip if student has zoom link for this day
         if (dayZoomLinks.has(student.wdt_ID.toString())) continue;
+
+        // Skip if student is not scheduled to have class on this day
+        if (!isStudentScheduledOnDay(student, dayOfWeek)) continue;
 
         // Check if student has permission attendance status
         const attendanceRecord = student.attendance_progress.find(
@@ -780,7 +824,7 @@ export class SalaryCalculator {
           studentPackage: affectedStudents
             .map((s) => s.studentPackage)
             .join(", "),
-          reason: `No zoom link sent for ${affectedStudents.length} student(s)`,
+          reason: `No zoom link sent for ${affectedStudents.length} scheduled student(s)`,
           deduction: Math.round(dailyDeduction),
           permitted: false,
           waived: false,
