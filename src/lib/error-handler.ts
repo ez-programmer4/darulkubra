@@ -128,7 +128,7 @@ export function handleError(error: unknown): NextResponse {
       {
         error: "Validation Error",
         message: "Invalid input data",
-        details: error.errors.map((err) => ({
+        details: error.issues.map((err) => ({
           field: err.path.join("."),
           message: err.message,
         })),

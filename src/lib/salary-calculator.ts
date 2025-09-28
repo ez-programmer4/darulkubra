@@ -147,7 +147,7 @@ export class SalaryCalculator {
 
       const result: TeacherSalaryData = {
         teacherId,
-        teacherName: teacher.ustazname,
+        teacherName: teacher.ustazname || "Unknown Teacher",
         baseSalary: Math.round(baseSalaryData.totalSalary),
         latenessDeduction: Math.round(latenessData.totalDeduction),
         absenceDeduction: Math.round(absenceData.totalDeduction),
@@ -158,7 +158,7 @@ export class SalaryCalculator {
             absenceData.totalDeduction +
             bonuses
         ),
-        status: payment?.status || "Unpaid",
+        status: (payment?.status as "Paid" | "Unpaid") || "Unpaid",
         numStudents: students.length,
         teachingDays: baseSalaryData.teachingDays,
         breakdown: {
@@ -361,7 +361,7 @@ export class SalaryCalculator {
         (s) => s.wdt_ID === assignment.student_id
       );
       if (student && student.name && student.package) {
-        assignment.student = {
+        (assignment as any).student = {
           wdt_ID: student.wdt_ID,
           name: student.name,
           package: student.package,
@@ -371,7 +371,7 @@ export class SalaryCalculator {
 
     return [
       ...activeAssignments,
-      ...historicalAssignments.filter((a) => a.student),
+      ...historicalAssignments.filter((a) => (a as any).student),
     ];
   }
 
@@ -622,4 +622,3 @@ export async function createSalaryCalculator(): Promise<SalaryCalculator> {
 
   return new SalaryCalculator(config);
 }
-

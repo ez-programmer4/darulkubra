@@ -7,531 +7,349 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-// ============================================================================
-// CORE USER MODELS
-// ============================================================================
+model wpos_teams {
+    id   Int    @id @default(autoincrement()) @db.UnsignedInt
+    name String @db.VarChar(255)
 
-model Teacher {
-    id           String    @id @default(cuid())
-    ustazid      String    @unique @db.VarChar(255)
-    name         String?   @db.VarChar(120)
-    phone        String?   @db.VarChar(32)
-    schedule     String?   @db.VarChar(255)
-    password     String    @db.VarChar(255)
-    controllerId String?   @db.VarChar(255)
-    createdAt    DateTime? @default(now()) @db.Timestamp(0)
-
-    // Relations
-    students       Student[]             @relation("TeacherStudents")
-    controller     Controller?           @relation("TeacherController", fields: [controllerId], references: [code])
-    occupiedTimes  TeacherOccupiedTime[]
-    zoomLinks      ZoomLink[]
-    coursePackages CoursePackage[]
-    teacherRatings TeacherRating[]
-
-    // Salary & Payment Relations
-    absenceRecords     AbsenceRecord[]
-    attendanceLogs     AttendanceSubmissionLog[]
-    bonusRecords       BonusRecord[]
-    latenessConfigs    LatenessDeductionConfig[]
-    latenessRecords    LatenessRecord[]
-    permissionRequests PermissionRequest[]
-    qualityAssessments QualityAssessment[]
-    salaryPayments     TeacherSalaryPayment[]
-
-    @@index([ustazid])
-    @@index([controllerId])
-    @@map("wpos_wpdatatable_24")
+    @@map("wpos_teams")
 }
 
-model Student {
-    id                 Int       @id @default(autoincrement())
-    name               String?   @db.VarChar(255)
-    phone              String?   @db.VarChar(32)
-    classFee           Float?    @db.Float
-    startDate          DateTime? @db.DateTime(0)
-    status             String?   @db.VarChar(255)
-    teacherId          String?   @db.VarChar(255)
-    package            String?   @db.VarChar(255)
-    subject            String?   @db.VarChar(255)
-    country            String?   @db.VarChar(255)
-    registrationNumber String?   @db.VarChar(255)
-    dayPackages        String?   @db.VarChar(255)
-    referrer           String?   @db.VarChar(255)
-    registrationDate   DateTime? @default(now()) @db.DateTime(0)
-    isTrained          Boolean?  @default(false)
-    chatId             String?   @map("chat_id") @db.VarChar(64)
-    progress           String?   @db.VarChar(64)
-    controllerId       String?   @db.VarChar(255)
-    exitDate           DateTime? @db.DateTime(0)
-    isKid              Boolean?  @default(false)
-    reason             String?   @db.VarChar(255)
-    userId             String?   @unique
+model wpos_wpdatatable_24 {
+    ustazid                 String                      @id @db.VarChar(255)
+    ustazname               String?                     @db.VarChar(120)
+    phone                   String?                     @db.VarChar(32)
+    schedule                String?                     @db.VarChar(255)
+    password                String                      @db.VarChar(255)
+    control                 String?                     @db.VarChar(255)
+    created_at              DateTime?                   @default(now()) @db.Timestamp(0)
+    absencerecord           absencerecord[]
+    attendancesubmissionlog attendancesubmissionlog[]
+    bonusrecord             bonusrecord[]
+    latenessdeductionconfig latenessdeductionconfig[]
+    latenessrecord          latenessrecord[]
+    permissionrequest       permissionrequest[]
+    qualityassessment       qualityassessment[]
+    teachersalarypayment    teachersalarypayment[]
+    occupied_times          wpos_ustaz_occupied_times[]
+    students                wpos_wpdatatable_23[]       @relation("fk_student_ustaz")
+    controller              wpos_wpdatatable_28?        @relation(fields: [control], references: [code])
+    zoom_links              wpos_zoom_links[]
+    coursePackage           coursePackage[]
+    teacherRating           teacherRating[]
 
-    // Relations
-    teacher    Teacher?    @relation("TeacherStudents", fields: [teacherId], references: [ustazid])
-    controller Controller? @relation("StudentController", fields: [controllerId], references: [code])
-    user       User?       @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-    // Course Relations
-    coursePackages      CoursePackage[] @relation("StudentPackageHistory")
-    activeCoursePackage CoursePackage?  @relation("StudentActivePackage", fields: [youtubeSubject], references: [id])
-    youtubeSubject      String?
-
-    // Progress & Assessment Relations
-    monthsTable        MonthTable[]
-    payments           Payment[]
-    attendanceProgress StudentAttendanceProgress[]
-    testAppointments   TestAppointment[]
-    testResults        TestResult[]
-    occupiedTimes      TeacherOccupiedTime[]       @relation("StudentOccupiedTimes")
-    zoomLinks          ZoomLink[]
-    studentProgress    StudentProgress[]
-    finalExamResults   FinalExamResult[]
-    tarbiaAttendance   TarbiaAttendance[]
-    studentQuizzes     StudentQuiz[]
-
-    @@index([teacherId])
-    @@index([controllerId])
-    @@map("wpos_wpdatatable_23")
+    @@index([ustazid], map: "idx_ustazid")
+    @@index([control], map: "wpos_wpdatatable_24_control_fkey")
 }
 
-model Controller {
-    id       Int     @id @default(autoincrement())
-    name     String? @unique @db.VarChar(255)
-    username String? @unique @db.VarChar(255)
-    password String  @db.VarChar(255)
-    code     String? @unique @db.VarChar(255)
+model wpos_wpdatatable_23 {
+    wdt_ID         Int             @id @default(autoincrement())
+    name           String?         @db.VarChar(255)
+    phoneno        String?         @db.VarChar(32)
+    classfee       Float?          @db.Float
+    startdate      DateTime?       @db.DateTime(0)
+    status         String?         @db.VarChar(255)
+    ustaz          String?         @db.VarChar(255)
+    package        String?         @db.VarChar(255)
+    subject        String?         @db.VarChar(255)
+    country        String?         @db.VarChar(255)
+    rigistral      String?         @db.VarChar(255)
+    packages       coursePackage[] @relation("PackageHistory")
+    activePackage  coursePackage?  @relation("ActivePackage", fields: [youtubeSubject], references: [id])
+    youtubeSubject String?
 
-    // Relations
-    teachers Teacher[] @relation("TeacherController")
-    students Student[] @relation("StudentController")
+    daypackages         String?                       @db.VarChar(255)
+    refer               String?                       @db.VarChar(255)
+    registrationdate    DateTime?                     @default(now()) @db.DateTime(0)
+    isTrained           Boolean?                      @default(false)
+    chatId              String?                       @map("chat_id") @db.VarChar(64)
+    progress            String?                       @db.VarChar(64)
+    u_control           String?                       @db.VarChar(255)
+    exitdate            DateTime?                     @db.DateTime(0)
+    isKid               Boolean?                      @default(false)
+    reason              String?                       @db.VarChar(255)
+    months_table        months_table[]
+    payment             payment[]
+    attendance_progress student_attendance_progress[]
+    testappointment     testappointment[]
+    testresult          testresult[]
+    occupiedTimes       wpos_ustaz_occupied_times[]   @relation("fk_student_occupied_times")
+    controller          wpos_wpdatatable_28?          @relation("StudentToController", fields: [u_control], references: [code])
+    teacher             wpos_wpdatatable_24?          @relation("fk_student_ustaz", fields: [ustaz], references: [ustazid])
+    zoom_links          wpos_zoom_links[]
+    studentProgress     studentProgress[]
+    finalExamResult     finalExamResult[]
+    tarbiaAttendance    tarbiaAttendance[]
+    studentQuiz         studentQuiz[]
+    user                user?                         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+    userId              String?                       @unique
 
-    // Management Relations
-    absenceRecords            AbsenceRecord[]
-    attendanceLogs            AttendanceSubmissionLog[]
-    auditLogs                 AuditLog[]
-    bonusRecords              BonusRecord[]
-    controllerEarningsConfigs ControllerEarningsConfig[]
-    deductionBonusConfigs     DeductionBonusConfig[]
-    latenessConfigs           LatenessDeductionConfig[]
-    latenessRecords           LatenessRecord[]
-    permissionRequests        PermissionRequest[]
-    qualityAssessments        QualityAssessment[]
-    qualityDescriptions       QualityDescription[]
-    salaryPayments            TeacherSalaryPayment[]
-
-    @@map("wpos_wpdatatable_28")
+    @@index([ustaz], map: "idx_ustaz")
+    @@index([u_control], map: "wpos_wpdatatable_23_u_control_fkey")
 }
 
-model Admin {
-    id        String   @id @default(cuid())
-    name      String   @unique @db.VarChar(120)
-    username  String?  @unique @db.VarChar(120)
-    passcode  String   @db.VarChar(120)
-    phone     String?  @db.VarChar(32)
-    role      String?  @default("admin") @db.VarChar(20)
-    chatId    String   @unique
-    createdAt DateTime @default(now())
+model wpos_wpdatatable_28 {
+    wdt_ID                   Int                        @id @default(autoincrement())
+    name                     String?                    @unique @db.VarChar(255)
+    username                 String?                    @unique @db.VarChar(255)
+    password                 String                     @db.VarChar(255)
+    code                     String?                    @unique @db.VarChar(255)
+    absencerecord            absencerecord[]
+    attendancesubmissionlog  attendancesubmissionlog[]
+    auditlog                 auditlog[]
+    bonusrecord              bonusrecord[]
+    controllerearningsconfig controllerearningsconfig[]
+    deductionbonusconfig     deductionbonusconfig[]
+    latenessdeductionconfig  latenessdeductionconfig[]
+    latenessrecord           latenessrecord[]
 
-    // Relations
-    absenceRecords            AbsenceRecord[]
-    attendanceLogs            AttendanceSubmissionLog[]
-    auditLogs                 AuditLog[]
-    bonusRecords              BonusRecord[]
-    controllerEarningsConfigs ControllerEarningsConfig[]
-    deductionBonusConfigs     DeductionBonusConfig[]
-    latenessConfigs           LatenessDeductionConfig[]
-    latenessRecords           LatenessRecord[]
-    permissionRequests        PermissionRequest[]
-    qualityAssessments        QualityAssessment[]
-    qualityDescriptions       QualityDescription[]
-    salaryPayments            TeacherSalaryPayment[]
-
-    @@map("admin")
+    permissionrequest    permissionrequest[]
+    qualityassessment    qualityassessment[]
+    qualitydescription   qualitydescription[]
+    teachersalarypayment teachersalarypayment[]
+    students             wpos_wpdatatable_23[]  @relation("StudentToController")
+    ustazs               wpos_wpdatatable_24[]
 }
 
-model User {
-    id          String @id @default(cuid())
-    role        Role
-    firstName   String @default("")
-    lastName    String @default("")
-    phoneNumber String @default("")
-    email       String @unique @map("username")
-    password    String
+model wpos_ustaz_occupied_times {
+    id          Int                 @id @default(autoincrement())
+    ustaz_id    String              @db.VarChar(255)
+    time_slot   String              @db.VarChar(255)
+    daypackage  String              @db.VarChar(255)
+    student_id  Int
+    occupied_at DateTime?           @default(now()) @db.Timestamp(0)
+    end_at      DateTime?           @db.Timestamp(0)
+    student     wpos_wpdatatable_23 @relation("fk_student_occupied_times", fields: [student_id], references: [wdt_ID])
+    teacher     wpos_wpdatatable_24 @relation(fields: [ustaz_id], references: [ustazid])
 
-    // Relations
-    student Student?
-
-    @@map("user")
+    @@unique([ustaz_id, time_slot, daypackage])
+    @@index([student_id], map: "idx_student")
+    @@index([occupied_at], map: "idx_occupied_times_occupied_at")
 }
 
-// ============================================================================
-// COURSE & LEARNING MODELS
-// ============================================================================
-
-model CoursePackage {
-    id                  String   @id @default(uuid())
-    name                String   @db.Text
-    description         String?  @db.Text
-    examDurationMinutes Int?
-    isPublished         Boolean  @default(false)
-    teacherId           String?
-    createdAt           DateTime @default(now())
-    updatedAt           DateTime @updatedAt
-
-    // Relations
-    teacher          Teacher?           @relation(fields: [teacherId], references: [ustazid])
-    courses          Course[]
-    questions        Question[]
-    finalExamResults FinalExamResult[]
-    students         Student[]          @relation("StudentPackageHistory")
-    activeStudents   Student[]          @relation("StudentActivePackage")
-    subjectPackages  SubjectPackage[]
-    tarbiaAttendance TarbiaAttendance[]
-
-    @@map("course_packages")
+model wpos_wpdatatable_33 {
+    wdt_ID   Int     @id @default(autoincrement())
+    name     String? @unique @db.VarChar(120)
+    username String? @unique @db.VarChar(120)
+    password String? @db.VarChar(120)
 }
 
-model SubjectPackage {
-    id          String   @id @default(uuid())
-    kidPackage  Boolean? @default(false)
-    packageType String?
-    subject     String?
-    packageId   String
-    createdAt   DateTime @default(now())
-
-    // Relations
-    package CoursePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
-
-    @@map("subject_packages")
+model admin {
+    id                       String                     @id @default(cuid())
+    name                     String                     @unique @db.VarChar(120)
+    username                 String?                    @unique @db.VarChar(120)
+    passcode                 String                     @db.VarChar(120)
+    phoneno                  String?                    @db.VarChar(32)
+    role                     String?                    @default("admin") @db.VarChar(20)
+    chat_id                  String                     @unique
+    createdAt                DateTime                   @default(now())
+    absencerecord            absencerecord[]
+    attendancesubmissionlog  attendancesubmissionlog[]
+    auditlog                 auditlog[]
+    bonusrecord              bonusrecord[]
+    controllerearningsconfig controllerearningsconfig[]
+    deductionbonusconfig     deductionbonusconfig[]
+    latenessdeductionconfig  latenessdeductionconfig[]
+    latenessrecord           latenessrecord[]
+    permissionrequest        permissionrequest[]
+    qualityassessment        qualityassessment[]
+    qualitydescription       qualitydescription[]
+    teachersalarypayment     teachersalarypayment[]
 }
 
-model Course {
-    id          String   @id @default(uuid())
-    title       String   @db.Text
-    description String?  @db.Text
-    imageUrl    String?  @db.Text
-    isPublished Boolean  @default(false)
-    order       Int
-    timeLimit   Int?
-    timeUnit    String?
-    packageId   String
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+model months_table {
+    id                  Int                 @id @default(autoincrement())
+    studentid           Int
+    month               String?             @db.Char(7)
+    paid_amount         Int
+    payment_status      String              @db.VarChar(50)
+    end_date            DateTime?           @db.DateTime(0)
+    payment_type        String?             @default("full") @db.VarChar(20)
+    start_date          DateTime?           @db.DateTime(0)
+    free_month_reason   String?             @db.VarChar(100)
+    is_free_month       Boolean?            @default(false)
+    wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentid], references: [wdt_ID], map: "month_studentid_fkey")
 
-    // Relations
-    package  CoursePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
-    chapters Chapter[]
-
-    @@index([packageId])
-    @@map("courses")
+    @@index([studentid])
 }
 
-model Chapter {
-    id          String   @id @default(uuid())
-    title       String
-    description String?  @db.Text
-    videoUrl    String?  @db.Text
-    position    Int
-    isPublished Boolean  @default(false)
-    courseId    String
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+model student_attendance_progress {
+    id                  Int                 @id @default(autoincrement())
+    student_id          Int
+    date                DateTime            @default(now()) @db.DateTime(0)
+    attendance_status   String              @db.VarChar(255)
+    surah               String?             @db.VarChar(255)
+    pages_read          Int?
+    level               String?             @db.VarChar(255)
+    lesson              String?             @db.VarChar(255)
+    notes               String?             @db.Text
+    wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [student_id], references: [wdt_ID])
 
-    // Relations
-    course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-    questions       Question[]
-    studentProgress StudentProgress[]
-
-    @@index([courseId])
-    @@map("chapters")
+    @@index([student_id], map: "idx_student_attendance_progress")
+    @@index([date], map: "idx_date")
 }
 
-model Question {
-    id        String   @id @default(cuid())
-    question  String   @db.Text
-    chapterId String?
-    packageId String?
-    createdAt DateTime @default(now())
+model wpos_zoom_links {
+    id                  Int                  @id @default(autoincrement())
+    studentid           Int
+    ustazid             String?              @db.VarChar(255)
+    link                String               @db.VarChar(255)
+    tracking_token      String               @db.VarChar(32)
+    clicked_at          DateTime?            @db.DateTime(0)
+    sent_time           DateTime?            @db.DateTime(0)
+    report              Int?                 @default(0)
+    expiration_date     DateTime?            @db.DateTime(0)
+    packageId           String?              @db.VarChar(191)
+    packageRate         Decimal?             @db.Decimal(10, 2)
+    wpos_wpdatatable_23 wpos_wpdatatable_23  @relation(fields: [studentid], references: [wdt_ID])
+    wpos_wpdatatable_24 wpos_wpdatatable_24? @relation(fields: [ustazid], references: [ustazid])
 
-    // Relations
-    chapter         Chapter?         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-    package         CoursePackage?   @relation(fields: [packageId], references: [id], onDelete: Cascade)
-    questionOptions QuestionOption[]
-    questionAnswers QuestionAnswer[]
-    studentQuizzes  StudentQuiz[]
-
-    @@index([chapterId])
-    @@map("questions")
+    @@index([studentid], map: "idx_studentid")
+    @@index([ustazid], map: "idx_ustazid")
+    @@index([sent_time], map: "idx_sent_time")
 }
 
-model QuestionOption {
-    id         String   @id @default(cuid())
-    option     String
-    questionId String
-    createdAt  DateTime @default(now())
-
-    // Relations
-    question           Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
-    questionAnswers    QuestionAnswer[]
-    studentQuizAnswers StudentQuizAnswer[]
-
-    @@index([questionId])
-    @@map("question_options")
+model test {
+    id              String            @id @default(uuid())
+    name            String            @unique
+    passingResult   Int
+    lastSubject     String            @default("")
+    testappointment testappointment[]
+    testquestion    testquestion[]
 }
 
-model QuestionAnswer {
-    id         String @id @default(cuid())
-    questionId String
-    answerId   String
+model absencerecord {
+    id                        Int                  @id @default(autoincrement())
+    teacherId                 String
+    classDate                 DateTime
+    timeSlots                 String? // JSON string of affected time slots
+    permitted                 Boolean
+    permissionRequestId       Int?
+    deductionApplied          Float
+    reviewedByManager         Boolean
+    reviewNotes               String?
+    createdAt                 DateTime             @default(now())
+    adminId                   String?
+    wpos_wpdatatable_28Wdt_ID Int?
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "AbsenceRecord_admin_fkey")
+    permissionrequest         permissionrequest?   @relation(fields: [permissionRequestId], references: [id], map: "AbsenceRecord_permissionRequestId_fkey")
+    wpos_wpdatatable_24       wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid], map: "AbsenceRecord_teacherId_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "AbsenceRecord_wpos_wpdatatable_28Wdt_ID_fkey")
 
-    // Relations
-    question Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
-    answer   QuestionOption @relation(fields: [answerId], references: [id], onDelete: Cascade)
-
-    @@index([questionId])
-    @@index([answerId])
-    @@map("question_answers")
+    @@index([adminId], map: "AbsenceRecord_admin_fkey")
+    @@index([permissionRequestId], map: "AbsenceRecord_permissionRequestId_fkey")
+    @@index([teacherId], map: "AbsenceRecord_teacherId_fkey")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "AbsenceRecord_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("AbsenceRecord")
 }
 
-// ============================================================================
-// STUDENT PROGRESS & ASSESSMENT MODELS
-// ============================================================================
+model attendancesubmissionlog {
+    id                        Int                  @id @default(autoincrement())
+    teacherId                 String
+    classDate                 DateTime
+    submittedAt               DateTime
+    isLate                    Boolean
+    deductionApplied          Float
+    createdAt                 DateTime             @default(now())
+    adminId                   String?
+    wpos_wpdatatable_28Wdt_ID Int?
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "AttendanceSubmissionLog_admin_fkey")
+    wpos_wpdatatable_24       wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid], map: "AttendanceSubmissionLog_teacherId_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "AttendanceSubmissionLog_wpos_wpdatatable_28Wdt_ID_fkey")
 
-model StudentProgress {
-    id          String    @id @default(cuid())
-    studentId   Int
-    chapterId   String
-    isStarted   Boolean   @default(true)
-    isCompleted Boolean   @default(false)
-    completedAt DateTime?
-    createdAt   DateTime  @default(now())
-    updatedAt   DateTime  @updatedAt
-
-    // Relations
-    student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-    chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-
-    @@unique([studentId, chapterId])
-    @@index([chapterId])
-    @@index([studentId])
-    @@map("student_progress")
+    @@index([adminId], map: "AttendanceSubmissionLog_admin_fkey")
+    @@index([teacherId], map: "AttendanceSubmissionLog_teacherId_fkey")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "AttendanceSubmissionLog_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("AttendanceSubmissionLog")
 }
 
-model StudentQuiz {
-    id          String   @id @default(cuid())
-    studentId   Int
-    questionId  String
-    isFinalExam Boolean  @default(false)
-    takenAt     DateTime @default(now())
+model auditlog {
+    id                        Int                  @id @default(autoincrement())
+    actionType                String
+    adminId                   String?
+    targetId                  Int?
+    details                   String
+    createdAt                 DateTime             @default(now())
+    wpos_wpdatatable_28Wdt_ID Int?
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "AuditLog_admin_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "AuditLog_wpos_wpdatatable_28Wdt_ID_fkey")
 
-    // Relations
-    student            Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
-    question           Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
-    studentQuizAnswers StudentQuizAnswer[]
-
-    @@unique([studentId, questionId])
-    @@index([questionId])
-    @@index([studentId])
-    @@map("student_quizzes")
+    @@index([adminId], map: "AuditLog_admin_fkey")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "AuditLog_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("AuditLog")
 }
 
-model StudentQuizAnswer {
-    id               String @id @default(cuid())
-    studentQuizId    String
-    selectedOptionId String
+model bonusrecord {
+    id                        Int                  @id @default(autoincrement())
+    teacherId                 String
+    period                    String
+    amount                    Float
+    reason                    String
+    createdAt                 DateTime             @default(now())
+    adminId                   String?
+    wpos_wpdatatable_28Wdt_ID Int?
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "BonusRecord_admin_fkey")
+    wpos_wpdatatable_24       wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid], map: "BonusRecord_teacherId_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "BonusRecord_wpos_wpdatatable_28Wdt_ID_fkey")
 
-    // Relations
-    studentQuiz    StudentQuiz    @relation(fields: [studentQuizId], references: [id], onDelete: Cascade)
-    selectedOption QuestionOption @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
-
-    @@unique([studentQuizId, selectedOptionId])
-    @@index([selectedOptionId])
-    @@index([studentQuizId])
-    @@map("student_quiz_answers")
+    @@index([adminId], map: "BonusRecord_admin_fkey")
+    @@index([teacherId], map: "BonusRecord_teacherId_fkey")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "BonusRecord_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("BonusRecord")
 }
 
-model FinalExamResult {
-    id                 String    @id @default(cuid())
-    studentId          Int
-    packageId          String
-    updationProhibited Boolean   @default(false)
-    startingTime       DateTime  @default(now())
-    endingTime         DateTime?
-
-    // Relations
-    student Student       @relation(fields: [studentId], references: [id])
-    package CoursePackage @relation(fields: [packageId], references: [id])
-
-    @@map("final_exam_results")
-}
-
-model TarbiaAttendance {
-    id        String   @id @default(cuid())
-    studentId Int
-    packageId String
-    status    Boolean  @default(false)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    // Relations
-    student Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-    package CoursePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
-
-    @@map("tarbia_attendance")
-}
-
-// ============================================================================
-// PAYMENT & SALARY MODELS
-// ============================================================================
-
-model TeacherSalaryPayment {
-    id                Int       @id @default(autoincrement())
-    teacherId         String    @db.VarChar(255)
-    period            String
-    status            String
-    paidAt            DateTime?
-    totalSalary       Float
-    latenessDeduction Float
-    absenceDeduction  Float
-    bonuses           Float
-    createdAt         DateTime  @default(now())
-    adminId           String?
-    controllerId      Int?
-
-    // Relations
-    teacher    Teacher     @relation(fields: [teacherId], references: [ustazid])
-    admin      Admin?      @relation(fields: [adminId], references: [id])
-    controller Controller? @relation(fields: [controllerId], references: [id])
-
-    @@unique([teacherId, period])
-    @@index([teacherId, period])
-    @@index([adminId])
-    @@index([controllerId])
-    @@map("teacher_salary_payments")
-}
-
-model PackageSalary {
-    id               Int      @id @default(autoincrement())
-    packageName      String   @unique
-    salaryPerStudent Decimal  @db.Decimal(10, 2)
-    createdAt        DateTime @default(now())
-    updatedAt        DateTime @updatedAt
-
-    @@map("package_salaries")
-}
-
-model PackageDeduction {
+model controllerearning {
     id                 Int      @id @default(autoincrement())
-    packageName        String   @unique
-    latenessBaseAmount Decimal  @default(30.00) @db.Decimal(10, 2)
-    absenceBaseAmount  Decimal  @default(25.00) @db.Decimal(10, 2)
+    controllerUsername String
+    studentId          Int
+    paymentId          Int
+    amount             Decimal  @db.Decimal(10, 2)
     createdAt          DateTime @default(now())
-    updatedAt          DateTime @updatedAt
+    paidOut            Boolean  @default(false)
 
-    @@map("package_deductions")
+    @@map("controllerEarning")
 }
 
-model DeductionWaiver {
-    id             Int      @id @default(autoincrement())
-    teacherId      String   @db.VarChar(255)
-    deductionType  String   @db.VarChar(50)
-    deductionDate  DateTime @db.Date
-    originalAmount Decimal  @db.Decimal(10, 2)
-    reason         String   @db.Text
-    adminId        String   @db.VarChar(255)
-    createdAt      DateTime @default(now())
+model controllerearningsconfig {
+    id                        Int                  @id @default(autoincrement())
+    mainBaseRate              Float                @default(40)
+    referralBaseRate          Float                @default(40)
+    leavePenaltyMultiplier    Float                @default(3)
+    leaveThreshold            Int                  @default(5)
+    unpaidPenaltyMultiplier   Float                @default(2)
+    referralBonusMultiplier   Float                @default(4)
+    targetEarnings            Float                @default(3000)
+    effectiveFrom             DateTime             @default(now())
+    isActive                  Boolean              @default(true)
+    createdAt                 DateTime             @default(now())
+    updatedAt                 DateTime
+    adminId                   String?
+    wpos_wpdatatable_28Wdt_ID Int?
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "ControllerEarningsConfig_admin_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "ControllerEarningsConfig_wpos_wpdatatable_28Wdt_ID_fkey")
 
-    @@unique([teacherId, deductionType, deductionDate], name: "unique_waiver")
-    @@index([teacherId, deductionDate])
-    @@index([deductionType, deductionDate])
-    @@index([adminId])
-    @@map("deduction_waivers")
+    @@index([adminId], map: "ControllerEarningsConfig_admin_fkey")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "ControllerEarningsConfig_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("ControllerEarningsConfig")
 }
 
-// ============================================================================
-// ATTENDANCE & LATENESS MODELS
-// ============================================================================
+model deductionbonusconfig {
+    id                        Int                  @id @default(autoincrement())
+    configType                String
+    key                       String
+    value                     String
+    effectiveMonths           String?
+    updatedAt                 DateTime
+    adminId                   String?
+    wpos_wpdatatable_28Wdt_ID Int?
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "DeductionBonusConfig_admin_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "DeductionBonusConfig_wpos_wpdatatable_28Wdt_ID_fkey")
 
-model AbsenceRecord {
-    id                  Int      @id @default(autoincrement())
-    teacherId           String
-    classDate           DateTime
-    timeSlots           String? // JSON string of affected time slots
-    permitted           Boolean
-    permissionRequestId Int?
-    deductionApplied    Float
-    reviewedByManager   Boolean
-    reviewNotes         String?
-    createdAt           DateTime @default(now())
-    adminId             String?
-    controllerId        Int?
-
-    // Relations
-    teacher           Teacher            @relation(fields: [teacherId], references: [ustazid])
-    admin             Admin?             @relation(fields: [adminId], references: [id])
-    controller        Controller?        @relation(fields: [controllerId], references: [id])
-    permissionRequest PermissionRequest? @relation(fields: [permissionRequestId], references: [id])
-
-    @@index([teacherId])
-    @@index([adminId])
-    @@index([controllerId])
-    @@index([permissionRequestId])
-    @@map("absence_records")
+    @@index([adminId], map: "DeductionBonusConfig_admin_fkey")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "DeductionBonusConfig_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("DeductionBonusConfig")
 }
 
-model LatenessRecord {
-    id               Int      @id @default(autoincrement())
-    teacherId        String
-    classDate        DateTime
-    scheduledTime    DateTime
-    actualStartTime  DateTime
-    latenessMinutes  Int
-    deductionApplied Float
-    deductionTier    String
-    createdAt        DateTime @default(now())
-    adminId          String?
-    controllerId     Int?
-
-    // Relations
-    teacher    Teacher     @relation(fields: [teacherId], references: [ustazid])
-    admin      Admin?      @relation(fields: [adminId], references: [id])
-    controller Controller? @relation(fields: [controllerId], references: [id])
-
-    @@index([teacherId])
-    @@index([adminId])
-    @@index([controllerId])
-    @@map("lateness_records")
-}
-
-model AttendanceSubmissionLog {
-    id               Int      @id @default(autoincrement())
-    teacherId        String
-    classDate        DateTime
-    submittedAt      DateTime
-    isLate           Boolean
-    deductionApplied Float
-    createdAt        DateTime @default(now())
-    adminId          String?
-    controllerId     Int?
-
-    // Relations
-    teacher    Teacher     @relation(fields: [teacherId], references: [ustazid])
-    admin      Admin?      @relation(fields: [adminId], references: [id])
-    controller Controller? @relation(fields: [controllerId], references: [id])
-
-    @@index([teacherId])
-    @@index([adminId])
-    @@index([controllerId])
-    @@map("attendance_submission_logs")
-}
-
-// ============================================================================
-// CONFIGURATION MODELS
-// ============================================================================
-
-model LatenessDeductionConfig {
+model latenessdeductionconfig {
     id               Int      @id @default(autoincrement())
     excusedThreshold Int
     tier             Int
@@ -543,391 +361,41 @@ model LatenessDeductionConfig {
     createdAt        DateTime @default(now())
     updatedAt        DateTime
     adminId          String?
-    controllerId     Int?
 
-    // Relations
-    teacher    Teacher?    @relation(fields: [teacherId], references: [ustazid])
-    admin      Admin?      @relation(fields: [adminId], references: [id])
-    controller Controller? @relation(fields: [controllerId], references: [id])
+    wpos_wpdatatable_28Wdt_ID Int?
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "LatenessDeductionConfig_admin_fkey")
+    wpos_wpdatatable_24       wpos_wpdatatable_24? @relation(fields: [teacherId], references: [ustazid], map: "LatenessDeductionConfig_teacherId_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "LatenessDeductionConfig_wpos_wpdatatable_28Wdt_ID_fkey")
 
-    @@index([teacherId])
-    @@index([adminId])
-    @@index([controllerId])
-    @@map("lateness_deduction_configs")
+    @@index([adminId], map: "LatenessDeductionConfig_admin_fkey")
+    @@index([teacherId], map: "LatenessDeductionConfig_teacherId_fkey")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "LatenessDeductionConfig_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("LatenessDeductionConfig")
 }
 
-model ControllerEarningsConfig {
-    id                      Int      @id @default(autoincrement())
-    mainBaseRate            Float    @default(40)
-    referralBaseRate        Float    @default(40)
-    leavePenaltyMultiplier  Float    @default(3)
-    leaveThreshold          Int      @default(5)
-    unpaidPenaltyMultiplier Float    @default(2)
-    referralBonusMultiplier Float    @default(4)
-    targetEarnings          Float    @default(3000)
-    effectiveFrom           DateTime @default(now())
-    isActive                Boolean  @default(true)
-    createdAt               DateTime @default(now())
-    updatedAt               DateTime
-    adminId                 String?
-    controllerId            Int?
+model latenessrecord {
+    id                        Int                  @id @default(autoincrement())
+    teacherId                 String
+    classDate                 DateTime
+    scheduledTime             DateTime
+    actualStartTime           DateTime
+    latenessMinutes           Int
+    deductionApplied          Float
+    deductionTier             String
+    createdAt                 DateTime             @default(now())
+    adminId                   String?
+    wpos_wpdatatable_28Wdt_ID Int?
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "LatenessRecord_admin_fkey")
+    wpos_wpdatatable_24       wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid], map: "LatenessRecord_teacherId_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "LatenessRecord_wpos_wpdatatable_28Wdt_ID_fkey")
 
-    // Relations
-    admin      Admin?      @relation(fields: [adminId], references: [id])
-    controller Controller? @relation(fields: [controllerId], references: [id])
-
-    @@index([adminId])
-    @@index([controllerId])
-    @@map("controller_earnings_configs")
+    @@index([adminId], map: "LatenessRecord_admin_fkey")
+    @@index([teacherId], map: "LatenessRecord_teacherId_fkey")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "LatenessRecord_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("LatenessRecord")
 }
 
-model DeductionBonusConfig {
-    id              Int      @id @default(autoincrement())
-    configType      String
-    key             String
-    value           String
-    effectiveMonths String?
-    updatedAt       DateTime
-    adminId         String?
-    controllerId    Int?
-
-    // Relations
-    admin      Admin?      @relation(fields: [adminId], references: [id])
-    controller Controller? @relation(fields: [controllerId], references: [id])
-
-    @@index([adminId])
-    @@index([controllerId])
-    @@map("deduction_bonus_configs")
-}
-
-// ============================================================================
-// QUALITY & ASSESSMENT MODELS
-// ============================================================================
-
-model QualityAssessment {
-    id                 Int      @id @default(autoincrement())
-    teacherId          String
-    weekStart          DateTime
-    supervisorFeedback String   @db.Text
-    examinerRating     Float?
-    studentPassRate    Float?
-    overallQuality     String
-    managerApproved    Boolean
-    managerOverride    Boolean
-    overrideNotes      String?
-    bonusAwarded       Float?
-    createdAt          DateTime @default(now())
-    adminId            String?
-    controllerId       Int?
-
-    // Relations
-    teacher    Teacher     @relation(fields: [teacherId], references: [ustazid])
-    admin      Admin?      @relation(fields: [adminId], references: [id])
-    controller Controller? @relation(fields: [controllerId], references: [id])
-
-    @@index([teacherId])
-    @@index([adminId])
-    @@index([controllerId])
-    @@map("quality_assessments")
-}
-
-model QualityDescription {
-    id           Int      @id @default(autoincrement())
-    type         String
-    description  String
-    updatedAt    DateTime @default(now())
-    adminId      String?
-    controllerId Int?
-
-    // Relations
-    admin      Admin?      @relation(fields: [adminId], references: [id])
-    controller Controller? @relation(fields: [controllerId], references: [id])
-
-    @@index([adminId])
-    @@index([controllerId])
-    @@map("quality_descriptions")
-}
-
-// ============================================================================
-// PERMISSION & REQUEST MODELS
-// ============================================================================
-
-model PermissionRequest {
-    id               Int       @id @default(autoincrement())
-    teacherId        String
-    requestedDate    String // Single date
-    timeSlots        String // JSON array of time slots
-    reasonCategory   String
-    reasonDetails    String
-    supportingDocs   String?
-    status           String
-    reviewedAt       DateTime?
-    reviewNotes      String?
-    lateReviewReason String?
-    createdAt        DateTime  @default(now())
-    adminId          String?
-    controllerId     Int?
-
-    // Relations
-    teacher        Teacher         @relation(fields: [teacherId], references: [ustazid])
-    admin          Admin?          @relation(fields: [adminId], references: [id])
-    controller     Controller?     @relation(fields: [controllerId], references: [id])
-    absenceRecords AbsenceRecord[]
-
-    @@index([teacherId])
-    @@index([adminId])
-    @@index([controllerId])
-    @@map("permission_requests")
-}
-
-model PermissionReason {
-    id        Int      @id @default(autoincrement())
-    reason    String
-    createdAt DateTime @default(now())
-
-    @@map("permission_reasons")
-}
-
-// ============================================================================
-// BONUS & EARNINGS MODELS
-// ============================================================================
-
-model BonusRecord {
-    id           Int      @id @default(autoincrement())
-    teacherId    String
-    period       String
-    amount       Float
-    reason       String
-    createdAt    DateTime @default(now())
-    adminId      String?
-    controllerId Int?
-
-    // Relations
-    teacher    Teacher     @relation(fields: [teacherId], references: [ustazid])
-    admin      Admin?      @relation(fields: [adminId], references: [id])
-    controller Controller? @relation(fields: [controllerId], references: [id])
-
-    @@index([teacherId])
-    @@index([adminId])
-    @@index([controllerId])
-    @@map("bonus_records")
-}
-
-model ControllerEarning {
-    id                 Int      @id @default(autoincrement())
-    controllerUsername String
-    studentId          Int
-    paymentId          Int
-    amount             Decimal  @db.Decimal(10, 2)
-    createdAt          DateTime @default(now())
-    paidOut            Boolean  @default(false)
-
-    @@map("controller_earnings")
-}
-
-// ============================================================================
-// ZOOM & COMMUNICATION MODELS
-// ============================================================================
-
-model ZoomLink {
-    id             Int       @id @default(autoincrement())
-    studentId      Int
-    teacherId      String?   @db.VarChar(255)
-    link           String    @db.VarChar(255)
-    trackingToken  String    @db.VarChar(32)
-    clickedAt      DateTime? @db.DateTime(0)
-    sentTime       DateTime? @db.DateTime(0)
-    report         Int?      @default(0)
-    expirationDate DateTime? @db.DateTime(0)
-    packageId      String?   @db.VarChar(191)
-    packageRate    Decimal?  @db.Decimal(10, 2)
-
-    // Relations
-    student Student  @relation(fields: [studentId], references: [id])
-    teacher Teacher? @relation(fields: [teacherId], references: [ustazid])
-
-    @@index([studentId])
-    @@index([teacherId])
-    @@index([sentTime])
-    @@map("zoom_links")
-}
-
-model TeacherOccupiedTime {
-    id         Int       @id @default(autoincrement())
-    teacherId  String    @db.VarChar(255)
-    timeSlot   String    @db.VarChar(255)
-    dayPackage String    @db.VarChar(255)
-    studentId  Int
-    occupiedAt DateTime? @default(now()) @db.Timestamp(0)
-    endAt      DateTime? @db.Timestamp(0)
-
-    // Relations
-    teacher Teacher @relation(fields: [teacherId], references: [ustazid])
-    student Student @relation("StudentOccupiedTimes", fields: [studentId], references: [id])
-
-    @@unique([teacherId, timeSlot, dayPackage])
-    @@index([studentId])
-    @@index([occupiedAt])
-    @@map("teacher_occupied_times")
-}
-
-// ============================================================================
-// PAYMENT & FINANCIAL MODELS
-// ============================================================================
-
-model Payment {
-    id            Int      @id @default(autoincrement()) @map("wdt_ID")
-    studentId     Int
-    studentName   String   @db.VarChar(255)
-    paymentDate   DateTime @db.DateTime(0)
-    transactionId String   @db.VarChar(255)
-    paidAmount    Decimal  @db.Decimal(10, 0)
-    reason        String   @db.VarChar(2000)
-    status        String   @default("pending") @db.VarChar(20)
-
-    // Relations
-    student Student @relation(fields: [studentId], references: [id])
-
-    @@map("payments")
-}
-
-model MonthTable {
-    id              Int       @id @default(autoincrement())
-    studentId       Int
-    month           String?   @db.Char(7)
-    paidAmount      Int
-    paymentStatus   String    @db.VarChar(50)
-    endDate         DateTime? @db.DateTime(0)
-    paymentType     String?   @default("full") @db.VarChar(20)
-    startDate       DateTime? @db.DateTime(0)
-    freeMonthReason String?   @db.VarChar(100)
-    isFreeMonth     Boolean?  @default(false)
-
-    // Relations
-    student Student @relation(fields: [studentId], references: [id])
-
-    @@index([studentId])
-    @@map("months_table")
-}
-
-model StudentAttendanceProgress {
-    id               Int      @id @default(autoincrement())
-    studentId        Int
-    date             DateTime @default(now()) @db.DateTime(0)
-    attendanceStatus String   @db.VarChar(255)
-    surah            String?  @db.VarChar(255)
-    pagesRead        Int?
-    level            String?  @db.VarChar(255)
-    lesson           String?  @db.VarChar(255)
-    notes            String?  @db.Text
-
-    // Relations
-    student Student @relation(fields: [studentId], references: [id])
-
-    @@index([studentId])
-    @@index([date])
-    @@map("student_attendance_progress")
-}
-
-// ============================================================================
-// TESTING MODELS
-// ============================================================================
-
-model Test {
-    id            String @id @default(uuid())
-    name          String @unique
-    passingResult Int
-    lastSubject   String @default("")
-
-    // Relations
-    testAppointments TestAppointment[]
-    testQuestions    TestQuestion[]
-
-    @@map("tests")
-}
-
-model TestAppointment {
-    id        String    @id
-    studentId Int
-    testId    String
-    date      DateTime?
-
-    // Relations
-    student Student @relation(fields: [studentId], references: [id])
-    test    Test    @relation(fields: [testId], references: [id])
-
-    @@unique([studentId, testId])
-    @@index([testId])
-    @@map("test_appointments")
-}
-
-model TestQuestion {
-    id       String @id
-    testId   String
-    question String
-    odd      Int
-
-    // Relations
-    test        Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
-    testResults TestResult[]
-
-    @@index([testId])
-    @@map("test_questions")
-}
-
-model TestResult {
-    id         String @id
-    studentId  Int
-    questionId String
-    result     Int
-
-    // Relations
-    student  Student      @relation(fields: [studentId], references: [id])
-    question TestQuestion @relation(fields: [questionId], references: [id])
-
-    @@index([questionId])
-    @@index([studentId])
-    @@map("test_results")
-}
-
-// ============================================================================
-// RATING & FEEDBACK MODELS
-// ============================================================================
-
-model TeacherRating {
-    id        String @id @default(uuid())
-    teacherId String
-    rating    Int // Rating from 1-5
-
-    // Relations
-    teacher Teacher? @relation(fields: [teacherId], references: [ustazid], onDelete: Cascade)
-
-    @@map("teacher_ratings")
-}
-
-// ============================================================================
-// AUDIT & LOGGING MODELS
-// ============================================================================
-
-model AuditLog {
-    id           Int      @id @default(autoincrement())
-    actionType   String
-    adminId      String?
-    targetId     Int?
-    details      String
-    createdAt    DateTime @default(now())
-    controllerId Int?
-
-    // Relations
-    admin      Admin?      @relation(fields: [adminId], references: [id])
-    controller Controller? @relation(fields: [controllerId], references: [id])
-
-    @@index([adminId])
-    @@index([controllerId])
-    @@map("audit_logs")
-}
-
-model Notification {
+model notification {
     id        Int      @id @default(autoincrement())
     title     String   @db.VarChar(255)
     message   String   @db.Text
@@ -937,40 +405,435 @@ model Notification {
     userId    String   @db.VarChar(255)
     userRole  String   @db.VarChar(50)
 
-    @@map("notifications")
+    @@map("Notification")
 }
 
-// ============================================================================
-// SETTINGS & CONFIGURATION MODELS
-// ============================================================================
+model payment {
+    id                  Int                 @id @default(autoincrement()) @map("wdt_ID")
+    studentid           Int
+    studentname         String              @db.VarChar(255)
+    paymentdate         DateTime            @db.DateTime(0)
+    transactionid       String              @db.VarChar(255)
+    paidamount          Decimal             @db.Decimal(10, 0)
+    reason              String              @db.VarChar(2000)
+    status              String              @default("pending") @db.VarChar(20)
+    wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentid], references: [wdt_ID], map: "Payment_studentid_fkey")
 
-model Setting {
+    @@map("wpos_wpdatatable_29")
+}
+
+model permissionreason {
     id        Int      @id @default(autoincrement())
-    key       String   @unique @db.VarChar(64)
+    reason    String
+    createdAt DateTime @default(now())
+
+    @@map("PermissionReason")
+}
+
+model permissionrequest {
+    id                        Int                  @id @default(autoincrement())
+    teacherId                 String
+    requestedDate             String // Single date
+    timeSlots                 String // JSON array of time slots
+    reasonCategory            String
+    reasonDetails             String
+    supportingDocs            String?
+    status                    String
+    reviewedAt                DateTime?
+    reviewNotes               String?
+    lateReviewReason          String?
+    createdAt                 DateTime             @default(now())
+    adminId                   String?
+    wpos_wpdatatable_28Wdt_ID Int?
+    absencerecord             absencerecord[]
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "PermissionRequest_admin_fkey")
+    wpos_wpdatatable_24       wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid], map: "PermissionRequest_teacherId_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "PermissionRequest_wpos_wpdatatable_28Wdt_ID_fkey")
+
+    @@index([adminId], map: "PermissionRequest_admin_fkey")
+    @@index([teacherId], map: "PermissionRequest_teacherId_fkey")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "PermissionRequest_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("PermissionRequest")
+}
+
+model qualityassessment {
+    id                        Int                  @id @default(autoincrement())
+    teacherId                 String
+    weekStart                 DateTime
+    supervisorFeedback        String               @db.Text
+    examinerRating            Float?
+    studentPassRate           Float?
+    overallQuality            String
+    managerApproved           Boolean
+    managerOverride           Boolean
+    overrideNotes             String?
+    bonusAwarded              Float?
+    createdAt                 DateTime             @default(now())
+    adminId                   String?
+    wpos_wpdatatable_28Wdt_ID Int?
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "QualityAssessment_admin_fkey")
+    wpos_wpdatatable_24       wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid], map: "QualityAssessment_teacherId_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "QualityAssessment_wpos_wpdatatable_28Wdt_ID_fkey")
+
+    @@index([adminId], map: "QualityAssessment_admin_fkey")
+    @@index([teacherId], map: "QualityAssessment_teacherId_fkey")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "QualityAssessment_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("QualityAssessment")
+}
+
+model qualitydescription {
+    id                        Int                  @id @default(autoincrement())
+    type                      String
+    description               String
+    updatedAt                 DateTime             @default(now())
+    adminId                   String?
+    wpos_wpdatatable_28Wdt_ID Int?
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "QualityDescription_admin_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "QualityDescription_wpos_wpdatatable_28Wdt_ID_fkey")
+
+    @@index([adminId], map: "QualityDescription_admin_fkey")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "QualityDescription_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("QualityDescription")
+}
+
+model setting {
+    id        Int      @id @default(autoincrement())
+    key       String   @unique(map: "Setting_key_key") @db.VarChar(64)
     value     String?  @db.Text
     updatedAt DateTime
-
-    @@map("settings")
 }
 
-model RegistralEarningsConfig {
-    id        Int      @id @default(autoincrement())
-    key       String   @unique @db.VarChar(255)
-    value     String   @db.Text
-    createdAt DateTime @default(now()) @db.Timestamp(0)
-    updatedAt DateTime @default(now()) @updatedAt @db.Timestamp(0)
-
-    @@map("registral_earnings_configs")
+model registralearningsconfig {
+    id         Int      @id @default(autoincrement())
+    key        String   @unique @db.VarChar(255)
+    value      String   @db.Text
+    created_at DateTime @default(now()) @db.Timestamp(0)
+    updated_at DateTime @default(now()) @updatedAt @db.Timestamp(0)
 }
 
-model StudentDayPackage {
+model teachersalarypayment {
+    id                        Int                  @id @default(autoincrement())
+    teacherId                 String               @db.VarChar(255)
+    period                    String
+    status                    String
+    paidAt                    DateTime?
+    adminId                   String?
+    totalSalary               Float
+    latenessDeduction         Float
+    absenceDeduction          Float
+    bonuses                   Float
+    createdAt                 DateTime             @default(now())
+    wpos_wpdatatable_28Wdt_ID Int?
+    admin                     admin?               @relation(fields: [adminId], references: [id], map: "TeacherSalaryPayment_admin_fkey")
+    wpos_wpdatatable_24       wpos_wpdatatable_24  @relation(fields: [teacherId], references: [ustazid], map: "TeacherSalaryPayment_teacherId_fkey")
+    wpos_wpdatatable_28       wpos_wpdatatable_28? @relation(fields: [wpos_wpdatatable_28Wdt_ID], references: [wdt_ID], map: "TeacherSalaryPayment_wpos_wpdatatable_28Wdt_ID_fkey")
+
+    @@unique([teacherId, period], map: "TeacherSalaryPayment_teacherId_period_key")
+    @@index([adminId], map: "TeacherSalaryPayment_admin_fkey")
+    @@index([teacherId, period], map: "TeacherSalaryPayment_teacherId_period_idx")
+    @@index([wpos_wpdatatable_28Wdt_ID], map: "TeacherSalaryPayment_wpos_wpdatatable_28Wdt_ID_fkey")
+    @@map("TeacherSalaryPayment")
+}
+
+model testappointment {
+    id                  String              @id
+    studentId           Int
+    testId              String
+    date                DateTime?
+    wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID], map: "testAppointment_studentId_fkey")
+    test                test                @relation(fields: [testId], references: [id], map: "testAppointment_testId_fkey")
+
+    @@unique([studentId, testId], map: "testAppointment_studentId_testId_key")
+    @@index([testId], map: "testAppointment_testId_fkey")
+    @@map("testAppointment")
+}
+
+model testquestion {
+    id         String       @id
+    testId     String
+    question   String
+    odd        Int
+    test       test         @relation(fields: [testId], references: [id], onDelete: Cascade, map: "testQuestion_testId_fkey")
+    testresult testresult[]
+
+    @@index([testId], map: "testQuestion_testId_fkey")
+}
+
+model testresult {
+    id                  String              @id
+    studentId           Int
+    questionId          String
+    result              Int
+    testquestion        testquestion        @relation(fields: [questionId], references: [id], map: "testResult_questionId_fkey")
+    wpos_wpdatatable_23 wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID], map: "testResult_studentId_fkey")
+
+    @@index([questionId], map: "testResult_questionId_idx")
+    @@index([studentId], map: "testResult_studentId_idx")
+    @@map("testResult")
+}
+
+model coursePackage {
+    id                  String                @id @default(uuid())
+    name                String                @db.Text
+    description         String?               @db.Text
+    courses             course[]
+    questions           question[]
+    finalExamResult     finalExamResult[]
+    examDurationMinutes Int?
+    isPublished         Boolean               @default(false)
+    students            wpos_wpdatatable_23[] @relation("PackageHistory")
+    activeStudents      wpos_wpdatatable_23[] @relation("ActivePackage")
+    subjectPackages     subjectPackage[] // <-- Add this line for the relation
+    terbiaAttendance    tarbiaAttendance[]
+    ustazId             Int?
+    ustaz               wpos_wpdatatable_24?  @relation(fields: [id], references: [ustazid])
+    createdAt           DateTime              @default(now())
+    updatedAt           DateTime              @updatedAt
+}
+
+model subjectPackage {
+    id          String        @id @default(uuid())
+    kidpackage  Boolean?      @default(false)
+    packageType String?
+    subject     String?
+    package     coursePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+    packageId   String
+    createdAt   DateTime      @default(now())
+    // @@unique([subject, packageId])
+}
+
+model course {
+    id          String        @id @default(uuid())
+    title       String        @db.Text
+    description String?       @db.Text
+    imageUrl    String?       @db.Text
+    isPublished Boolean       @default(false)
+    order       Int // Determines sequence in package
+    packageId   String
+    package     coursePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+    timeLimit Int?
+    timeUnit  String?
+
+    chapters  chapter[]
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+
+    @@index([packageId])
+}
+
+model chapter {
+    id          String  @id @default(uuid())
+    title       String
+    description String? @db.Text
+    videoUrl    String? @db.Text
+    position    Int
+    isPublished Boolean @default(false)
+    // isFree      Boolean @default(false)
+
+    questions question[]
+
+    courseId String
+    course   course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+    studentProgress studentProgress[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([courseId])
+}
+
+model question {
+    id              String           @id @default(cuid())
+    chapter         chapter?         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+    chapterId       String?
+    coursePackage   coursePackage?   @relation(fields: [packageId], references: [id], onDelete: Cascade)
+    packageId       String?
+    question        String           @db.Text
+    questionOptions questionOption[]
+    questionAnswer  questionAnswer[]
+    studentQuiz     studentQuiz[]
+
+    @@index([chapterId])
+}
+
+model questionOption {
+    id                 String              @id @default(cuid())
+    question           question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+    questionId         String
+    option             String
+    questionAnswer     questionAnswer[]
+    studentQuizAnswers studentQuizAnswer[]
+
+    @@index([questionId])
+}
+
+model questionAnswer {
+    id         String         @id @default(cuid())
+    question   question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+    questionId String
+    answer     questionOption @relation(fields: [answerId], references: [id], onDelete: Cascade)
+    answerId   String
+
+    @@index([answerId])
+    @@index([questionId])
+}
+
+model studentQuiz {
+    id                 String              @id @default(cuid())
+    student            wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID], onDelete: Cascade)
+    studentId          Int
+    question           question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+    questionId         String
+    isFinalExam        Boolean             @default(false)
+    takenAt            DateTime            @default(now())
+    studentQuizAnswers studentQuizAnswer[]
+
+    @@unique([studentId, questionId])
+    @@index([questionId])
+    @@index([studentId])
+}
+
+model studentQuizAnswer {
+    id               String         @id @default(cuid())
+    studentQuiz      studentQuiz    @relation(fields: [studentQuizId], references: [id], onDelete: Cascade)
+    studentQuizId    String
+    selectedOption   questionOption @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
+    selectedOptionId String
+
+    @@unique([studentQuizId, selectedOptionId])
+    @@index([selectedOptionId])
+    @@index([studentQuizId])
+}
+
+model studentProgress {
+    id          String              @id @default(cuid())
+    student     wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID], onDelete: Cascade)
+    studentId   Int
+    chapter     chapter             @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+    chapterId   String
+    isStarted   Boolean             @default(true)
+    isCompleted Boolean             @default(false)
+    completedAt DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([studentId, chapterId])
+    @@index([chapterId])
+    @@index([studentId])
+}
+
+model finalExamResult {
+    id                 String              @id @default(cuid())
+    student            wpos_wpdatatable_23 @relation(fields: [studentId], references: [wdt_ID])
+    studentId          Int
+    coursePackage      coursePackage       @relation(fields: [packageId], references: [id])
+    packageId          String
+    updationProhibited Boolean             @default(false)
+    startingTime       DateTime            @default(now())
+    endingTime         DateTime?
+}
+
+model tarbiaAttendance {
+    id             String              @id @default(cuid())
+    studId         Int
+    student        wpos_wpdatatable_23 @relation(fields: [studId], references: [wdt_ID], onDelete: Cascade)
+    packageId      String
+    coursesPackage coursePackage       @relation(fields: [packageId], references: [id], onDelete: Cascade)
+    status         Boolean             @default(false)
+    createdAt      DateTime            @default(now())
+    updatedAt      DateTime            @updatedAt
+}
+
+model PackageSalary {
+    id               Int      @id @default(autoincrement())
+    packageName      String   @unique
+    salaryPerStudent Decimal  @db.Decimal(10, 2)
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
+}
+
+model StudentStatus {
     id        Int      @id @default(autoincrement())
     name      String   @unique
     isActive  Boolean  @default(true)
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
+}
 
-    @@map("student_day_packages")
+model StudentPackage {
+    id        Int      @id @default(autoincrement())
+    name      String   @unique
+    isActive  Boolean  @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model StudentSubject {
+    id        Int      @id @default(autoincrement())
+    name      String   @unique
+    isActive  Boolean  @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model PackageDeduction {
+    id                 Int      @id @default(autoincrement())
+    packageName        String   @unique
+    latenessBaseAmount Decimal  @default(30.00) @db.Decimal(10, 2)
+    absenceBaseAmount  Decimal  @default(25.00) @db.Decimal(10, 2)
+    createdAt          DateTime @default(now())
+    updatedAt          DateTime @updatedAt
+}
+
+enum role {
+    manager
+    teacher
+    student
+}
+
+model user {
+    id                  String               @id @default(cuid())
+    role                role
+    firstName           String               @default("")
+    lastName            String               @default("")
+    phoneNumber         String               @default("")
+    email               String               @unique @map("username")
+    password            String
+    wpos_wpdatatable_23 wpos_wpdatatable_23?
+}
+
+model studentdaypackage {
+    id        Int      @id @default(autoincrement())
+    name      String   @unique
+    isActive  Boolean  @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model deduction_waivers {
+    id             Int      @id @default(autoincrement())
+    teacherId      String   @db.VarChar(255)
+    deductionType  String   @db.VarChar(50)
+    deductionDate  DateTime @db.Date
+    originalAmount Decimal  @db.Decimal(10, 2)
+    reason         String   @db.Text
+    adminId        String   @db.VarChar(255)
+    createdAt      DateTime @default(now())
+
+    @@unique([teacherId, deductionType, deductionDate], name: "unique_waiver")
+    @@index([teacherId, deductionDate], map: "idx_teacher_date")
+    @@index([deductionType, deductionDate], map: "idx_type_date")
+    @@index([adminId], map: "idx_admin")
+}
+
+model teacherRating {
+    id        String               @id @default(uuid())
+    teacherId String
+    teacher   wpos_wpdatatable_24? @relation(fields: [teacherId], references: [ustazid], onDelete: Cascade) // 24
+    rating    Int // Rating from 1-5
 }
 
 // ============================================================================
@@ -1043,14 +906,4 @@ model SalaryReport {
     @@index([status])
     @@index([adminId])
     @@map("salary_reports")
-}
-
-// ============================================================================
-// ENUMS
-// ============================================================================
-
-enum Role {
-    manager
-    teacher
-    student
 }

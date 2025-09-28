@@ -304,44 +304,6 @@ export default function AdminDashboardPage() {
           ? qualityData.filter((t: any) => t.overallQuality === "Bad")
           : []
       );
-
-      const auditLogs = await prisma.auditlog.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        include: {
-          admin: {
-            select: { name: true },
-          },
-        },
-      });
-
-      setAdminActions(
-        auditLogs.map((log: any) => ({
-          id: log.id,
-          action: log.actionType,
-          user: log.admin?.name || "Unknown",
-          date: log.createdAt.toISOString().split("T")[0],
-        }))
-      );
-
-      const recentAbsencesData = await prisma.absencerecord.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        include: {
-          wpos_wpdatatable_24: {
-            select: { ustazname: true },
-          },
-        },
-      });
-
-      setRecentAbsences(
-        recentAbsencesData.map((absence: any) => ({
-          id: absence.id,
-          teacher: absence.wpos_wpdatatable_24?.ustazname || "Unknown",
-          date: absence.classDate.toISOString().split("T")[0],
-          processed: absence.reviewedByManager,
-        }))
-      );
     } catch (e: any) {
       setWidgetError("Failed to load dashboard widgets.");
       toast({
@@ -451,7 +413,10 @@ export default function AdminDashboardPage() {
   const PIE_COLORS = ["#4F46E5", "#10B981", "#F59E0B", "#EF4444"];
   // Chart datasets and totals
   const paymentBreakdown = analytics.paymentStatusBreakdown || [];
-  const paymentTotal = paymentBreakdown.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+  const paymentTotal = paymentBreakdown.reduce(
+    (sum, d) => sum + (Number(d.value) || 0),
+    0
+  );
 
   const qualityData = (() => {
     const totalTeachers = stats.teachers;
@@ -464,7 +429,10 @@ export default function AdminDashboardPage() {
       { name: "Excellent", value: excellentCount > 0 ? excellentCount : 0 },
     ];
   })();
-  const qualityTotal = qualityData.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+  const qualityTotal = qualityData.reduce(
+    (sum, d) => sum + (Number(d.value) || 0),
+    0
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -479,7 +447,9 @@ export default function AdminDashboardPage() {
                   System Online
                 </span>
                 <span className="text-gray-400">•</span>
-                <span className="text-sm text-gray-500">Last updated: {format(new Date(), "MMM dd, HH:mm")}</span>
+                <span className="text-sm text-gray-500">
+                  Last updated: {format(new Date(), "MMM dd, HH:mm")}
+                </span>
               </div>
 
               <h1 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -510,17 +480,21 @@ export default function AdminDashboardPage() {
                 ))}
               </div>
             </div>
-            
+
             {/* Action Panel */}
             <div className="flex flex-col gap-4">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full lg:w-64 justify-start">
+                  <Button
+                    variant="outline"
+                    className="w-full lg:w-64 justify-start"
+                  >
                     <FiCalendar className="mr-2 h-4 w-4" />
                     {date?.from ? (
                       date.to ? (
                         <>
-                          {format(date.from, "MMM dd")} - {format(date.to, "MMM dd")}
+                          {format(date.from, "MMM dd")} -{" "}
+                          {format(date.to, "MMM dd")}
                         </>
                       ) : (
                         format(date.from, "MMM dd, y")
@@ -541,13 +515,17 @@ export default function AdminDashboardPage() {
                   />
                 </PopoverContent>
               </Popover>
-              
+
               <div className="flex flex-col gap-2">
                 <Button size="sm" className="w-full lg:w-64">
                   <FiUserPlus className="mr-2 h-4 w-4" />
                   Add User
                 </Button>
-                <Button variant="outline" size="sm" className="w-full lg:w-64 relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full lg:w-64 relative"
+                >
                   <FiClipboard className="mr-2 h-4 w-4" />
                   Permissions
                   {pendingPermissions > 0 && (
@@ -556,14 +534,19 @@ export default function AdminDashboardPage() {
                     </span>
                   )}
                 </Button>
-                <Button variant="outline" size="sm" className="w-full lg:w-64 relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full lg:w-64 relative"
+                >
                   <FiDollarSign className="mr-2 h-4 w-4" />
                   Payments
-                  {stats?.pendingPaymentCount && stats.pendingPaymentCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {stats.pendingPaymentCount}
-                    </span>
-                  )}
+                  {stats?.pendingPaymentCount &&
+                    stats.pendingPaymentCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {stats.pendingPaymentCount}
+                      </span>
+                    )}
                 </Button>
               </div>
             </div>
@@ -787,7 +770,11 @@ export default function AdminDashboardPage() {
                     innerRadius={60}
                     outerRadius={90}
                     fill="#4F46E5"
-                    label={(props: any) => `${props.name}: ${Math.round((props.percent || 0) * 100)}%`}
+                    label={(props: any) =>
+                      `${props.name}: ${Math.round(
+                        (props.percent || 0) * 100
+                      )}%`
+                    }
                   >
                     {PIE_COLORS.map((color, index) => (
                       <Cell key={`cell-${index}`} fill={color} />
@@ -806,7 +793,9 @@ export default function AdminDashboardPage() {
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-2xl font-extrabold text-gray-900">{paymentTotal}</div>
+                  <div className="text-2xl font-extrabold text-gray-900">
+                    {paymentTotal}
+                  </div>
                   <div className="text-xs text-gray-500">Total payments</div>
                 </div>
               </div>
@@ -836,7 +825,11 @@ export default function AdminDashboardPage() {
                     outerRadius={90}
                     innerRadius={40}
                     fill="#4F46E5"
-                    label={(props: any) => `${props.name}: ${Math.round((props.percent || 0) * 100)}%`}
+                    label={(props: any) =>
+                      `${props.name}: ${Math.round(
+                        (props.percent || 0) * 100
+                      )}%`
+                    }
                   >
                     {[
                       "#10B981", // Good
@@ -859,7 +852,9 @@ export default function AdminDashboardPage() {
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-2xl font-extrabold text-gray-900">{qualityTotal}</div>
+                  <div className="text-2xl font-extrabold text-gray-900">
+                    {qualityTotal}
+                  </div>
                   <div className="text-xs text-gray-500">Total teachers</div>
                 </div>
               </div>

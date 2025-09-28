@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
       // Generate PDF report
       const pdfContent = generatePDFReport(salary, details, from, to);
 
-      return new NextResponse(pdfContent, {
+      return new NextResponse(new Uint8Array(pdfContent), {
         headers: {
           "Content-Type": "application/pdf",
           "Content-Disposition": `attachment; filename="salary-report-${startDate}-to-${endDate}.pdf"`,

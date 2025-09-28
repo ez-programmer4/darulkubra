@@ -66,7 +66,7 @@ export async function validateTeacherPayment(
   // Check if teacher exists
   const teacher = await prisma.wpos_wpdatatable_24.findUnique({
     where: { ustazid: teacherId },
-    select: { ustazname: true, status: true },
+    select: { ustazname: true },
   });
 
   if (!teacher) {
@@ -74,7 +74,7 @@ export async function validateTeacherPayment(
   }
 
   // Check if teacher is active
-  if (teacher && teacher.status !== "active") {
+  if (teacher && teacher.ustazname !== "active") {
     warnings.push("Teacher is not active");
   }
 
@@ -137,7 +137,7 @@ export async function getTeacherPaymentHistory(
       paidAt: true,
       createdAt: true,
       admin: {
-        select: { firstName: true, lastName: true },
+        select: { name: true },
       },
     },
   });
@@ -390,7 +390,7 @@ export async function generatePaymentReport(
         select: { ustazname: true },
       },
       admin: {
-        select: { firstName: true, lastName: true },
+        select: { name: true },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -496,4 +496,3 @@ export function validateDateRange(
     };
   }
 }
-

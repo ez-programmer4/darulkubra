@@ -49,12 +49,15 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const monthlyRevenue = revenueData.reduce((acc, payment) => {
-      const month = new Date(payment.paymentdate).toISOString().slice(0, 7); // YYYY-MM
-      const amount = payment._sum.paidamount?.toNumber() || 0;
-      acc[month] = (acc[month] || 0) + amount;
-      return acc;
-    }, {} as Record<string, number>);
+    const monthlyRevenue = revenueData.reduce(
+      (acc: Record<string, number>, payment) => {
+        const month = new Date(payment.paymentdate).toISOString().slice(0, 7); // YYYY-MM
+        const amount = payment._sum.paidamount?.toNumber() || 0;
+        acc[month] = (acc[month] || 0) + amount;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     // 2. Registration Trends (monthly)
     const registrationData = await prisma.wpos_wpdatatable_23.groupBy({
@@ -70,13 +73,16 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const monthlyRegistrations = registrationData.reduce((acc, reg) => {
-      if (!reg.registrationdate) return acc;
-      const month = new Date(reg.registrationdate).toISOString().slice(0, 7); // YYYY-MM
-      const count = reg._count.wdt_ID;
-      acc[month] = (acc[month] || 0) + count;
-      return acc;
-    }, {} as Record<string, number>);
+    const monthlyRegistrations = registrationData.reduce(
+      (acc: Record<string, number>, reg) => {
+        if (!reg.registrationdate) return acc;
+        const month = new Date(reg.registrationdate).toISOString().slice(0, 7); // YYYY-MM
+        const count = reg._count.wdt_ID;
+        acc[month] = (acc[month] || 0) + count;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     // 3. Payment Status Breakdown
     const paymentStatusData = await prisma.payment.groupBy({
