@@ -44,7 +44,7 @@ interface FormData {
   classfee?: number;
   startdate?: string;
   status?: string;
-  subject?: string;
+  subject?: string | string[];
   country?: string;
   rigistral?: string;
   daypackages?: string;
@@ -92,11 +92,11 @@ const convertTo12Hour = (time: string): string => {
     const [hour, minute] = time
       .split(":")
       .map((part) => parseInt(part.trim(), 10));
-    
+
     // Fix: Determine AM/PM first, then adjust hour
     const period = hour >= 12 ? "PM" : "AM";
     let adjustedHour = hour;
-    
+
     // Convert 24-hour to 12-hour format
     if (hour === 0) {
       adjustedHour = 12; // 00:xx becomes 12:xx AM
@@ -104,7 +104,7 @@ const convertTo12Hour = (time: string): string => {
       adjustedHour = hour - 12; // 13:xx becomes 1:xx PM, 14:xx becomes 2:xx PM, etc.
     }
     // hour 12 stays as 12 PM, hours 1-11 stay the same
-    
+
     return `${adjustedHour}:${minute.toString().padStart(2, "0")} ${period}`;
   } catch (error) {
     return "Invalid Time";
@@ -126,6 +126,7 @@ function RegistrationContent() {
   useEffect(() => {}, [step]);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [countries, setCountries] = useState<string[]>([]);
   const [loadingCountries, setLoadingCountries] = useState<boolean>(true);
@@ -258,19 +259,20 @@ function RegistrationContent() {
               "5 days",
               "Europe",
             ],
-            subjects: data.subjects?.map((s: any) => s.name) || [
-              "Qaidah",
-              "Nethor",
-              "Hifz",
-              "Kitab",
-            ],
+            subjects: data.subjects?.map((s: any) => s.name) || [],
           });
         } else {
           // Fallback to defaults
           setStudentConfigs({
-            statuses: ["Active", "Not yet", "Leave", "Completed", "On Progress"],
+            statuses: [
+              "Active",
+              "Not yet",
+              "Leave",
+              "Completed",
+              "On Progress",
+            ],
             packages: ["0 Fee", "3 days", "5 days", "Europe"],
-            subjects: ["Qaidah", "Nethor", "Hifz", "Kitab"],
+            subjects: [],
           });
         }
       } catch (error) {
@@ -279,7 +281,7 @@ function RegistrationContent() {
         setStudentConfigs({
           statuses: ["Active", "Not yet", "Leave", "Completed", "On Progress"],
           packages: ["0 Fee", "3 days", "5 days", "Europe"],
-          subjects: ["Qaidah", "Nethor", "Hifz", "Kitab"],
+          subjects: [],
         });
       } finally {
         setLoadingConfigs(false);
@@ -587,6 +589,17 @@ function RegistrationContent() {
           setSelectedTeacher(data.ustaz || "");
           setEditingTeacherName(data.ustaz || "");
 
+          // Handle multiple subjects from comma-separated string
+          if (data.subject) {
+            const subjectsArray = data.subject
+              .split(",")
+              .map((s: string) => s.trim())
+              .filter((s: string) => s);
+            setSelectedSubjects(subjectsArray);
+          } else {
+            setSelectedSubjects([]);
+          }
+
           await fetchTeachers();
         } catch (error) {
           setFetchError("Failed to load student data for editing.");
@@ -644,6 +657,14 @@ function RegistrationContent() {
         throw new Error("Teacher is required");
       }
 
+      // Require at least one subject (only if subjects are available)
+      if (
+        studentConfigs.subjects.length > 0 &&
+        (!selectedSubjects || selectedSubjects.length === 0)
+      ) {
+        throw new Error("At least one subject is required");
+      }
+
       const isoStartDate = data.startdate
         ? new Date(`${data.startdate}T00:00:00.000Z`).toISOString()
         : undefined;
@@ -666,18 +687,19 @@ function RegistrationContent() {
         control: control, // Automatically set based on selected ustaz's controlId
         status: data.status || "pending",
         ustaz:
-          !editId || editTimeTeacher 
-            ? (selectedTeacher || null) 
+          !editId || editTimeTeacher
+            ? selectedTeacher || null
             : editingTeacherName,
         package: data.package, // region
-        subject: data.subject,
+        subject:
+          selectedSubjects.length > 0 ? selectedSubjects.join(", ") : null,
         country: data.country || null,
         rigistral: data.rigistral || null,
         daypackages: data.daypackages, // day package
         refer: data.refer || null,
         selectedTime:
           !editId || editTimeTeacher
-            ? (selectedTime || null)
+            ? selectedTime || null
             : editId
             ? selectedTime
             : undefined,
@@ -732,7 +754,7 @@ function RegistrationContent() {
         package: data.package,
         daypackage: data.daypackages,
         status: data.status,
-        subject: data.subject,
+        subject: selectedSubjects.join(", "),
         country: data.country,
       });
       setShowSummary(true);
@@ -765,7 +787,11 @@ function RegistrationContent() {
   // Deduplicate time slots based on normalized time values
   const deduplicatedTimeSlots = timeSlots.reduce((acc, slot) => {
     const normalizedTime = convertTo12Hour(slot.time);
-    const existingSlot = acc.find(s => convertTo12Hour(s.time) === normalizedTime && s.category === slot.category);
+    const existingSlot = acc.find(
+      (s) =>
+        convertTo12Hour(s.time) === normalizedTime &&
+        s.category === slot.category
+    );
     if (!existingSlot) {
       acc.push(slot);
     }
@@ -1921,7 +1947,7 @@ function RegistrationContent() {
                     </div>
 
                     {/* Status field - show when teacher and time selected OR when editing */}
-                    {(editId || (selectedTime && selectedTeacher)) ? (
+                    {editId || (selectedTime && selectedTeacher) ? (
                       <div className="space-y-2">
                         <label className="block text-sm font-semibold text-gray-800 flex items-center">
                           <FiUserCheck className="mr-2 text-teal-600" />
@@ -1945,22 +1971,29 @@ function RegistrationContent() {
                           </option>
                           {(() => {
                             // ONLY for controllers: if current status is Active, only show Leave and Completed
-                            if (session?.user?.role === "controller" && editId) {
+                            if (
+                              session?.user?.role === "controller" &&
+                              editId
+                            ) {
                               const currentStatus = watch("status");
                               if (currentStatus === "Active") {
-                                return ["Leave", "Completed"].map((status, index) => (
-                                  <option key={index} value={status}>
-                                    {status}
-                                  </option>
-                                ));
+                                return ["Leave", "Completed"].map(
+                                  (status, index) => (
+                                    <option key={index} value={status}>
+                                      {status}
+                                    </option>
+                                  )
+                                );
                               }
                             }
                             // For registrals, admins, and all other cases, show all statuses
-                            return studentConfigs.statuses.map((status, index) => (
-                              <option key={index} value={status}>
-                                {status}
-                              </option>
-                            ));
+                            return studentConfigs.statuses.map(
+                              (status, index) => (
+                                <option key={index} value={status}>
+                                  {status}
+                                </option>
+                              )
+                            );
                           })()}
                         </select>
                         {errors.status && (
@@ -1970,7 +2003,11 @@ function RegistrationContent() {
                         )}
                       </div>
                     ) : (
-                      <input type="hidden" {...register("status")} value="On Progress" />
+                      <input
+                        type="hidden"
+                        {...register("status")}
+                        value="On Progress"
+                      />
                     )}
 
                     {watch("status") === "leave" && (
@@ -2005,33 +2042,87 @@ function RegistrationContent() {
                     <div className="space-y-2">
                       <label className="block text-sm font-semibold text-gray-800 flex items-center">
                         <FiBook className="mr-2 text-teal-600" />
-                        Subject *
+                        Subjects * (Select multiple)
                       </label>
                       <select
-                        {...register("subject", {
-                          required: "Subject is required",
-                        })}
-                        className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
-                          errors.subject
+                        multiple
+                        name="subject"
+                        value={selectedSubjects}
+                        onChange={(e) => {
+                          const selectedOptions = Array.from(
+                            e.target.selectedOptions,
+                            (option) => option.value
+                          );
+                          setSelectedSubjects(selectedOptions);
+                          setValue("subject", selectedOptions.join(", "));
+                          clearErrors("subject");
+                        }}
+                        className={`w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm min-h-[120px] ${
+                          errors.subject ||
+                          (selectedSubjects.length === 0 && formTouched)
                             ? "border-red-500"
                             : "border-gray-200 hover:border-teal-300"
                         } ${loadingConfigs ? "bg-gray-50" : ""}`}
                         disabled={loadingConfigs}
+                        size={Math.min(
+                          Math.max(studentConfigs.subjects.length, 1),
+                          6
+                        )}
                       >
-                        <option value="">
-                          {loadingConfigs
-                            ? "Loading subjects..."
-                            : "Select subject"}
-                        </option>
-                        {studentConfigs.subjects.map((subject, index) => (
-                          <option key={index} value={subject}>
-                            {subject}
+                        {studentConfigs.subjects.length > 0 ? (
+                          studentConfigs.subjects.map((subject, index) => (
+                            <option key={index} value={subject}>
+                              {subject}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>
+                            No subjects available. Please contact admin to add
+                            subjects.
                           </option>
-                        ))}
+                        )}
                       </select>
+                      {selectedSubjects.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-600 font-medium mb-1">
+                            Selected subjects:
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedSubjects.map((subject, index) => (
+                              <Badge
+                                key={index}
+                                className="bg-teal-100 text-teal-800 text-xs"
+                              >
+                                {subject}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {errors.subject && (
                         <p className="mt-1 text-xs text-red-600 font-medium">
                           {errors.subject.message}
+                        </p>
+                      )}
+                      {!errors.subject &&
+                        selectedSubjects.length === 0 &&
+                        formTouched &&
+                        studentConfigs.subjects.length > 0 && (
+                          <p className="mt-1 text-xs text-red-600 font-medium">
+                            At least one subject is required
+                          </p>
+                        )}
+                      {selectedSubjects.length === 0 &&
+                        !formTouched &&
+                        studentConfigs.subjects.length > 0 && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            Hold Ctrl/Cmd to select multiple subjects
+                          </p>
+                        )}
+                      {studentConfigs.subjects.length === 0 && (
+                        <p className="mt-1 text-xs text-yellow-600 font-medium">
+                          No subjects available. Please contact admin to add
+                          subjects to the system.
                         </p>
                       )}
                     </div>
