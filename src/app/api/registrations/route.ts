@@ -503,36 +503,34 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-    // Only require teacher, day package, and time if they are being provided
-    if (ustaz && ustaz.trim() === "") {
+    if (!ustaz || ustaz.trim() === "") {
       return NextResponse.json(
-        { message: "Teacher ID cannot be empty when provided" },
+        { message: "Teacher ID is required" },
         { status: 400 }
       );
     }
-    if (selectedDayPackage && selectedDayPackage.trim() === "") {
+    if (!selectedDayPackage || selectedDayPackage.trim() === "") {
       return NextResponse.json(
-        { message: "Day package cannot be empty when provided" },
+        { message: "Day package is required" },
         { status: 400 }
       );
     }
-    if (selectedTime && selectedTime.trim() === "") {
+    if (!selectedTime || selectedTime.trim() === "") {
       return NextResponse.json(
-        { message: "Selected time cannot be empty when provided" },
+        { message: "Selected time is required" },
         { status: 400 }
       );
     }
 
-    // Only validate time format if time is provided
-    if (selectedTime && !validateTime(selectedTime)) {
+    if (!validateTime(selectedTime)) {
       return NextResponse.json(
         { message: `Invalid time format: ${selectedTime}` },
         { status: 400 }
       );
     }
 
-    const timeToMatch = selectedTime ? to24Hour(selectedTime) : null;
-    const timeSlot = selectedTime && timeToMatch ? to12Hour(timeToMatch) : null;
+    const timeToMatch = to24Hour(selectedTime);
+    const timeSlot = to12Hour(timeToMatch);
 
     // Get current active assignment
     const currentOccupiedTime =
@@ -554,15 +552,10 @@ export async function PUT(request: NextRequest) {
       ? fromDbFormat(currentOccupiedTime.time_slot, "12h")
       : null;
 
-    const hasTimeChanged = selectedTime
-      ? currentTimeSlot !== selectedTime
-      : false;
-    const hasTeacherChanged = ustaz
-      ? existingRegistration.ustaz !== ustaz
-      : false;
-    const hasDayPackageChanged = selectedDayPackage
-      ? existingRegistration.daypackages !== selectedDayPackage
-      : false;
+    const hasTimeChanged = currentTimeSlot !== selectedTime;
+    const hasTeacherChanged = existingRegistration.ustaz !== ustaz;
+    const hasDayPackageChanged =
+      existingRegistration.daypackages !== selectedDayPackage;
     const hasAnyTimeTeacherChange =
       hasTimeChanged || hasTeacherChanged || hasDayPackageChanged;
 
@@ -580,25 +573,24 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Only check slot limits and availability if we have the necessary data
-    if (hasAnyTimeTeacherChange && selectedDayPackage && ustaz && timeToMatch) {
-      // Check student slot limits
-      const slotCount = await prismaClient.wpos_ustaz_occupied_times.count({
-        where: {
-          student_id: parseInt(id),
-          daypackage: selectedDayPackage,
-          end_at: null,
+    // Check student slot limits
+    const slotCount = await prismaClient.wpos_ustaz_occupied_times.count({
+      where: {
+        student_id: parseInt(id),
+        daypackage: selectedDayPackage,
+        end_at: null,
+      },
+    });
+    if (slotCount >= MAX_SLOTS_PER_STUDENT && hasAnyTimeTeacherChange) {
+      return NextResponse.json(
+        {
+          message: `Student exceeds maximum slots (${MAX_SLOTS_PER_STUDENT}) for ${selectedDayPackage}`,
         },
-      });
-      if (slotCount >= MAX_SLOTS_PER_STUDENT) {
-        return NextResponse.json(
-          {
-            message: `Student exceeds maximum slots (${MAX_SLOTS_PER_STUDENT}) for ${selectedDayPackage}`,
-          },
-          { status: 400 }
-        );
-      }
+        { status: 400 }
+      );
+    }
 
+    if (hasAnyTimeTeacherChange) {
       const availability = await checkTeacherAvailability(
         timeToMatch,
         selectedDayPackage,
@@ -660,42 +652,38 @@ export async function PUT(request: NextRequest) {
         currentRecord?.status &&
         !["Leave", "Completed", "Not succeed"].includes(currentRecord.status);
 
-      const updateData: any = {
-        name: fullName,
-        phoneno: phoneNumber,
-        classfee:
-          classfee !== undefined && classfee !== null
-            ? parseFloat(classfee)
-            : null,
-        startdate: startdate ? new Date(startdate) : null,
-        u_control,
-        status: newStatus,
-        package: regionPackage || null,
-        subject: subject || null,
-        country: country || null,
-        rigistral:
-          session.role === "registral"
-            ? session.username
-            : existingRegistration.rigistral,
-        refer: refer || null,
-        registrationdate: registrationdate
-          ? new Date(registrationdate)
-          : undefined,
-        chatId: chatId || null,
-        reason: reason || null,
-        ...(exitdate && { exitdate }),
-      };
-
-      // Only update teacher, day package if they are provided
-      if (ustaz) updateData.ustaz = ustaz;
-      if (selectedDayPackage) updateData.daypackages = selectedDayPackage;
-
       const registration = await tx.wpos_wpdatatable_23.update({
         where: { wdt_ID: parseInt(id) },
-        data: updateData,
+        data: {
+          name: fullName,
+          phoneno: phoneNumber,
+          classfee:
+            classfee !== undefined && classfee !== null
+              ? parseFloat(classfee)
+              : null,
+          startdate: startdate ? new Date(startdate) : null,
+          u_control,
+          status: newStatus,
+          ustaz,
+          package: regionPackage || null,
+          subject: subject || null,
+          country: country || null,
+          rigistral:
+            session.role === "registral"
+              ? session.username
+              : existingRegistration.rigistral,
+          daypackages: selectedDayPackage,
+          refer: refer || null,
+          registrationdate: registrationdate
+            ? new Date(registrationdate)
+            : undefined,
+          chatId: chatId || null,
+          reason: reason || null,
+          ...(exitdate && { exitdate }),
+        },
       });
 
-      if (hasTeacherChanged && !shouldFreeTimeSlot && ustaz) {
+      if (hasTeacherChanged && !shouldFreeTimeSlot) {
         const currentDate = new Date();
         const currentPeriod = `${currentDate.getFullYear()}-${String(
           currentDate.getMonth() + 1
@@ -749,13 +737,7 @@ export async function PUT(request: NextRequest) {
             end_at: null,
           },
         });
-      } else if (
-        hasAnyTimeTeacherChange &&
-        !shouldFreeTimeSlot &&
-        ustaz &&
-        selectedTime &&
-        selectedDayPackage
-      ) {
+      } else if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
         if (currentOccupiedTime) {
           await tx.wpos_ustaz_occupied_times.delete({
             where: { id: currentOccupiedTime.id },
@@ -772,13 +754,7 @@ export async function PUT(request: NextRequest) {
             end_at: null,
           },
         });
-      } else if (
-        !shouldFreeTimeSlot &&
-        !hasAnyTimeTeacherChange &&
-        ustaz &&
-        selectedTime &&
-        selectedDayPackage
-      ) {
+      } else if (!shouldFreeTimeSlot && !hasAnyTimeTeacherChange) {
         const activeStatuses = ["active", "not yet", "fresh"];
         if (
           activeStatuses.includes(newStatus.toLowerCase()) &&
@@ -799,13 +775,7 @@ export async function PUT(request: NextRequest) {
         }
       }
 
-      if (
-        hasAnyTimeTeacherChange &&
-        !shouldFreeTimeSlot &&
-        ustaz &&
-        selectedTime &&
-        selectedDayPackage
-      ) {
+      if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
         const auditDetails = {
           student: parseInt(id),
           oldTeacher: currentOccupiedTime?.ustaz_id || "none",
@@ -1268,12 +1238,12 @@ export async function PATCH(request: NextRequest) {
       }
 
       const validStatuses = [
-        "active",
+        "Active",
         "inactive",
         "pending",
         "leave",
         "remadan leave",
-        "not yet",
+        "Not yet",
         "fresh",
         "not succeed",
         "completed",
