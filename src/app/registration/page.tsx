@@ -689,7 +689,7 @@ function RegistrationContent() {
         ustaz:
           !editId || editTimeTeacher
             ? selectedTeacher || null
-            : editingTeacherName,
+            : editingTeacherName || selectedTeacher,
         package: data.package, // region
         subject:
           selectedSubjects.length > 0 ? selectedSubjects.join(", ") : null,
@@ -698,11 +698,7 @@ function RegistrationContent() {
         daypackages: data.daypackages, // day package
         refer: data.refer || null,
         selectedTime:
-          !editId || editTimeTeacher
-            ? selectedTime || null
-            : editId
-            ? selectedTime
-            : undefined,
+          !editId || editTimeTeacher ? selectedTime || null : selectedTime,
         registrationdate: editId ? undefined : new Date().toISOString(),
         // Add US student data
         email: usStudentEmail || null,
@@ -1946,7 +1942,7 @@ function RegistrationContent() {
                       )}
                     </div>
 
-                    {/* Status field - show when teacher and time selected OR when editing */}
+                    {/* Status field - show when editing OR when teacher and time selected */}
                     {editId || (selectedTime && selectedTeacher) ? (
                       <div className="space-y-2">
                         <label className="block text-sm font-semibold text-gray-800 flex items-center">
