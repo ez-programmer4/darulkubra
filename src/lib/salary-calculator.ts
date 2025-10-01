@@ -790,12 +790,18 @@ export class SalaryCalculator {
     };
 
     // Process each day in the period
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+
     for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
       const dateStr = d.toISOString().split("T")[0];
       const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, etc.
 
       // Skip weekends if configured
       if (dayOfWeek === 0) continue; // Skip Sunday
+
+      // Skip future dates - only process today and past dates
+      if (d > today) continue;
 
       // Check if there's an approved permission for this date
       const hasPermission = permissionRequests.some(
