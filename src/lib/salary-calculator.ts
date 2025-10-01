@@ -444,11 +444,17 @@ export class SalaryCalculator {
       salaryMap[pkg.packageName] = Number(pkg.salaryPerStudent);
     });
 
-    // Calculate working days
+    // Calculate working days (only count days that have passed, not today if it's still ongoing)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+
     let workingDays = 0;
     for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
       if (!this.config.includeSundays && d.getDay() === 0) continue;
-      workingDays++;
+      // Only count days that have passed (not including today if it's still ongoing)
+      if (d < today) {
+        workingDays++;
+      }
     }
 
     const dailyEarnings = new Map<string, number>();
