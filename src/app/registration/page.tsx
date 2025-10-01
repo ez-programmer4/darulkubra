@@ -1966,14 +1966,14 @@ function RegistrationContent() {
                               : "Select status"}
                           </option>
                           {(() => {
-                            // ONLY for controllers: if current status is Active, only show Leave and Completed
+                            // ONLY for controllers: if current status is Active, show Active, Leave and Completed
                             if (
                               session?.user?.role === "controller" &&
                               editId
                             ) {
                               const currentStatus = watch("status");
                               if (currentStatus === "Active") {
-                                return ["Leave", "Completed"].map(
+                                return ["Active", "Leave", "Completed"].map(
                                   (status, index) => (
                                     <option key={index} value={status}>
                                       {status}
