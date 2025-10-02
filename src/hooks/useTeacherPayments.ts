@@ -364,14 +364,33 @@ export function useTeacherPayments({
     await fetchStatistics();
   }, [fetchData, fetchStatistics]);
 
-  // Auto-refresh effect
+  // Auto-refresh effect - reduced frequency to prevent excessive API calls
   useEffect(() => {
     if (autoRefresh && refreshInterval > 0) {
-      const interval = setInterval(() => {
-        fetchData();
-      }, refreshInterval);
+      // Only refresh if the page is visible and user is active
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === "visible") {
+          fetchData();
+        }
+      };
 
-      return () => clearInterval(interval);
+      const interval = setInterval(() => {
+        // Only refresh if page is visible and user hasn't been idle
+        if (document.visibilityState === "visible") {
+          fetchData();
+        }
+      }, Math.max(refreshInterval, 60000)); // Minimum 1 minute between refreshes
+
+      // Listen for page visibility changes
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+      };
     }
   }, [autoRefresh, refreshInterval, fetchData]);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import dayjs from "dayjs";
 import {
   FiCalendar,
@@ -88,6 +88,54 @@ export default function TeacherPaymentsPage() {
   const [includeSundays, setIncludeSundays] = useState(false);
   const [showTeacherSalary, setShowTeacherSalary] = useState(true);
 
+  // Load Sunday inclusion setting from database
+  useEffect(() => {
+    const loadSundaySetting = async () => {
+      try {
+        const response = await fetch("/api/admin/settings/include-sundays");
+        if (response.ok) {
+          const data = await response.json();
+          setIncludeSundays(data.includeSundays || false);
+        }
+      } catch (error) {
+        console.error("Failed to load Sunday setting:", error);
+      }
+    };
+    loadSundaySetting();
+  }, []);
+
+  // Update Sunday inclusion setting
+  const updateSundaySetting = useCallback(
+    async (include: boolean) => {
+      try {
+        const response = await fetch("/api/admin/settings/include-sundays", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ includeSundays: include }),
+        });
+
+        if (response.ok) {
+          setIncludeSundays(include);
+          toast({
+            title: "Success",
+            description: `Sunday inclusion ${include ? "enabled" : "disabled"}`,
+          });
+          // Refresh data to reflect the change
+          window.location.reload();
+        } else {
+          throw new Error("Failed to update setting");
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update Sunday inclusion setting",
+          variant: "destructive",
+        });
+      }
+    },
+    [toast]
+  );
+
   // Get date range for the selected month/year
   const getDateRange = () => {
     const startDate = dayjs(
@@ -124,7 +172,7 @@ export default function TeacherPaymentsPage() {
     startDate,
     endDate,
     autoRefresh: true,
-    refreshInterval: 30000,
+    refreshInterval: 300000, // 5 minutes instead of 30 seconds
   });
 
   // Navigation handlers
@@ -145,6 +193,39 @@ export default function TeacherPaymentsPage() {
       setSelectedMonth(selectedMonth + 1);
     }
   }, [selectedMonth, selectedYear]);
+
+  const generateFinancialReport = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `/api/admin/teacher-payments/financial-report?startDate=${startDate}&endDate=${endDate}&format=csv`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to generate financial report");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `financial-report-${startDate}-to-${endDate}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "Financial report generated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate financial report",
+        variant: "destructive",
+      });
+    }
+  }, [startDate, endDate, toast]);
 
   const goToCurrentMonth = useCallback(() => {
     setSelectedMonth(dayjs().month() + 1);
@@ -241,6 +322,15 @@ export default function TeacherPaymentsPage() {
             >
               <FiAlertTriangle className="w-4 h-4" />
               Validate Changes
+            </Button>
+
+            <Button
+              variant="secondary"
+              onClick={generateFinancialReport}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+            >
+              <FiFileText className="w-4 h-4" />
+              Financial Report
             </Button>
 
             <Button
@@ -817,7 +907,7 @@ export default function TeacherPaymentsPage() {
                     <input
                       type="checkbox"
                       checked={includeSundays}
-                      onChange={(e) => setIncludeSundays(e.target.checked)}
+                      onChange={(e) => updateSundaySetting(e.target.checked)}
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
                   </div>

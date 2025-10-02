@@ -796,7 +796,23 @@ export class SalaryCalculator {
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
             const linkDate = new Date(link.sent_time);
-            if (!this.config.includeSundays && linkDate.getDay() === 0) return;
+
+            // Debug Sunday inclusion
+            const isSunday = linkDate.getDay() === 0;
+            const shouldInclude = this.config.includeSundays || !isSunday;
+
+            console.log(`📅 Processing zoom link for ${student.name}:`, {
+              sentTime: link.sent_time,
+              dayOfWeek: linkDate.getDay(),
+              isSunday: isSunday,
+              includeSundays: this.config.includeSundays,
+              shouldInclude: shouldInclude,
+            });
+
+            if (!shouldInclude) {
+              console.log(`❌ Excluding Sunday zoom link for ${student.name}`);
+              return;
+            }
 
             // Ensure sent_time is a Date object
             const sentTime =
