@@ -189,9 +189,8 @@ export async function GET(req: NextRequest) {
       absenceDeduction: record.absenceDeduction,
       bonuses: record.bonuses,
       createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-      processedAt: record.processedAt,
-      transactionId: record.transactionId,
+      paidAt: record.paidAt,
+      adminId: record.adminId,
     }));
 
     const report = {
@@ -253,7 +252,7 @@ function generateCSVReport(report: any): NextResponse {
 
   const csvContent = [
     csvHeaders.join(","),
-    ...csvRows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ...csvRows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(",")),
   ].join("\n");
 
   return new NextResponse(csvContent, {
