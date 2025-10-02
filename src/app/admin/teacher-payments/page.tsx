@@ -88,20 +88,29 @@ export default function TeacherPaymentsPage() {
   const [includeSundays, setIncludeSundays] = useState(false);
   const [showTeacherSalary, setShowTeacherSalary] = useState(true);
 
-  // Load Sunday inclusion setting from database
+  // Load settings from database
   useEffect(() => {
-    const loadSundaySetting = async () => {
+    const loadSettings = async () => {
       try {
-        const response = await fetch("/api/admin/settings/include-sundays");
-        if (response.ok) {
-          const data = await response.json();
-          setIncludeSundays(data.includeSundays || false);
+        const [sundayResponse, salaryResponse] = await Promise.all([
+          fetch("/api/admin/settings/include-sundays"),
+          fetch("/api/admin/settings/show-teacher-salary"),
+        ]);
+
+        if (sundayResponse.ok) {
+          const sundayData = await sundayResponse.json();
+          setIncludeSundays(sundayData.includeSundays || false);
+        }
+
+        if (salaryResponse.ok) {
+          const salaryData = await salaryResponse.json();
+          setShowTeacherSalary(salaryData.showTeacherSalary || true);
         }
       } catch (error) {
-        console.error("Failed to load Sunday setting:", error);
+        console.error("Failed to load settings:", error);
       }
     };
-    loadSundaySetting();
+    loadSettings();
   }, []);
 
   // Update Sunday inclusion setting
@@ -129,6 +138,41 @@ export default function TeacherPaymentsPage() {
         toast({
           title: "Error",
           description: "Failed to update Sunday inclusion setting",
+          variant: "destructive",
+        });
+      }
+    },
+    [toast]
+  );
+
+  // Update show teacher salary setting
+  const updateShowTeacherSalarySetting = useCallback(
+    async (show: boolean) => {
+      try {
+        const response = await fetch(
+          "/api/admin/settings/show-teacher-salary",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ showTeacherSalary: show }),
+          }
+        );
+
+        if (response.ok) {
+          setShowTeacherSalary(show);
+          toast({
+            title: "Success",
+            description: `Teacher salary visibility ${
+              show ? "enabled" : "disabled"
+            }`,
+          });
+        } else {
+          throw new Error("Failed to update setting");
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update teacher salary visibility setting",
           variant: "destructive",
         });
       }
@@ -925,7 +969,9 @@ export default function TeacherPaymentsPage() {
                     <input
                       type="checkbox"
                       checked={showTeacherSalary}
-                      onChange={(e) => setShowTeacherSalary(e.target.checked)}
+                      onChange={(e) =>
+                        updateShowTeacherSalarySetting(e.target.checked)
+                      }
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
                   </div>

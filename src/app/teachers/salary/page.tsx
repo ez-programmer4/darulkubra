@@ -151,6 +151,14 @@ export default function TeacherSalaryPage() {
       }
 
       const data = await response.json();
+
+      // Check if salary visibility is disabled
+      if (response.status === 403 && data.showTeacherSalary === false) {
+        setError("Salary information is currently hidden by administrator");
+        setSalaryData(null);
+        return;
+      }
+
       setSalaryData(data);
       setLastUpdated(new Date());
     } catch (err) {
@@ -294,6 +302,8 @@ export default function TeacherSalaryPage() {
   }
 
   if (error) {
+    const isSalaryHidden = error.includes("hidden by administrator");
+
     return (
       <div className="space-y-6">
         <Card className="border-0 shadow-lg bg-gradient-to-r from-red-50 to-red-100">
@@ -303,15 +313,21 @@ export default function TeacherSalaryPage() {
                 <FiAlertTriangle className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold">Error Loading Salary Data</h3>
+                <h3 className="text-xl font-bold">
+                  {isSalaryHidden
+                    ? "Salary Information Hidden"
+                    : "Error Loading Salary Data"}
+                </h3>
                 <p className="text-red-700 mt-2">{error}</p>
-                <Button
-                  onClick={fetchSalaryData}
-                  className="mt-4 bg-red-600 hover:bg-red-700"
-                >
-                  <FiRefreshCw className="w-4 h-4 mr-2" />
-                  Try Again
-                </Button>
+                {!isSalaryHidden && (
+                  <Button
+                    onClick={fetchSalaryData}
+                    className="mt-4 bg-red-600 hover:bg-red-700"
+                  >
+                    <FiRefreshCw className="w-4 h-4 mr-2" />
+                    Try Again
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>

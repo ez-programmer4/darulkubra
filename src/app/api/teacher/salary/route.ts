@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { createSalaryCalculator } from "@/lib/salary-calculator";
 import { parseISO } from "date-fns";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,6 +14,23 @@ export async function GET(req: NextRequest) {
 
     if (!session || !session.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if teacher salary visibility is enabled
+    const salaryVisibilitySetting = await prisma.setting.findUnique({
+      where: { key: "show_teacher_salary" },
+    });
+
+    const showTeacherSalary = salaryVisibilitySetting?.value === "true";
+
+    if (!showTeacherSalary) {
+      return NextResponse.json(
+        {
+          error: "Salary information is currently hidden by administrator",
+          showTeacherSalary: false,
+        },
+        { status: 403 }
+      );
     }
 
     const url = new URL(req.url);
@@ -53,7 +71,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(salaryData);
+    // Ensure net salary consistency - use breakdown.summary.netSalary
+    const correctedSalaryData = {
+      ...salaryData,
+      totalSalary: salaryData.breakdown.summary.netSalary,
+    };
+
+    return NextResponse.json(correctedSalaryData);
   } catch (error: any) {
     console.error("Error in teacher salary API:", error);
     return NextResponse.json(
