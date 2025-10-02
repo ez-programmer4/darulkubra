@@ -41,6 +41,7 @@ interface TeacherSalaryData {
   status: "Paid" | "Unpaid";
   numStudents: number;
   teachingDays: number;
+  hasTeacherChanges: boolean;
   breakdown: {
     dailyEarnings: Array<{ date: string; amount: number }>;
     studentBreakdown: Array<{
@@ -50,6 +51,14 @@ interface TeacherSalaryData {
       dailyRate: number;
       daysWorked: number;
       totalEarned: number;
+      periods?: Array<{
+        period: string;
+        daysWorked: number;
+        dailyRate: number;
+        periodEarnings: number;
+        teachingDates: string[];
+      }>;
+      teacherChanges: boolean;
     }>;
     latenessBreakdown: Array<{
       date: string;
@@ -113,6 +122,7 @@ export default function SalaryTable({
 }: SalaryTableProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [teacherChangeFilter, setTeacherChangeFilter] = useState("all");
   const [selectedTeacher, setSelectedTeacher] =
     useState<TeacherSalaryData | null>(null);
   const [salaryRangeFilter, setSalaryRangeFilter] = useState({
@@ -142,6 +152,16 @@ export default function SalaryTable({
         statusFilter &&
         statusFilter !== "all" &&
         teacher.status !== statusFilter
+      ) {
+        return false;
+      }
+
+      // Teacher change filter
+      if (
+        teacherChangeFilter &&
+        teacherChangeFilter !== "all" &&
+        ((teacherChangeFilter === "changed" && !teacher.hasTeacherChanges) ||
+          (teacherChangeFilter === "no_change" && teacher.hasTeacherChanges))
       ) {
         return false;
       }
@@ -183,7 +203,15 @@ export default function SalaryTable({
     });
 
     return filtered;
-  }, [data, search, statusFilter, salaryRangeFilter, sortKey, sortDir]);
+  }, [
+    data,
+    search,
+    statusFilter,
+    teacherChangeFilter,
+    salaryRangeFilter,
+    sortKey,
+    sortDir,
+  ]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -269,6 +297,20 @@ export default function SalaryTable({
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="Paid">Paid</SelectItem>
               <SelectItem value="Unpaid">Unpaid</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={teacherChangeFilter}
+            onValueChange={setTeacherChangeFilter}
+          >
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Teacher Changes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Teachers</SelectItem>
+              <SelectItem value="changed">With Teacher Changes</SelectItem>
+              <SelectItem value="no_change">No Teacher Changes</SelectItem>
             </SelectContent>
           </Select>
 
@@ -507,8 +549,16 @@ export default function SalaryTable({
                           </span>
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-gray-900 flex items-center gap-2">
                             {teacher.name || "Unknown Teacher"}
+                            {teacher.hasTeacherChanges && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-orange-50 text-orange-700 border-orange-200"
+                              >
+                                Teacher Changed
+                              </Badge>
+                            )}
                           </div>
                           <div className="text-sm text-gray-500 flex items-center gap-2">
                             <FiUsers className="w-3 h-3" />
@@ -664,6 +714,11 @@ export default function SalaryTable({
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">
                       Student Breakdown
+                      {selectedTeacher.hasTeacherChanges && (
+                        <span className="ml-2 text-sm text-orange-600 font-normal">
+                          (Includes teacher change periods)
+                        </span>
+                      )}
                     </h3>
                     <div className="overflow-x-auto">
                       <table className="min-w-full bg-white border border-gray-200">
@@ -683,6 +738,9 @@ export default function SalaryTable({
                             </th>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                               Total Earned
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Teacher Changes
                             </th>
                           </tr>
                         </thead>
@@ -705,12 +763,94 @@ export default function SalaryTable({
                                 <td className="px-4 py-2 text-sm font-medium text-gray-900">
                                   {formatCurrency(student.totalEarned)}
                                 </td>
+                                <td className="px-4 py-2 text-sm">
+                                  {student.teacherChanges ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs bg-orange-50 text-orange-700 border-orange-200"
+                                    >
+                                      Yes
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-gray-500">No</span>
+                                  )}
+                                </td>
                               </tr>
                             )
                           )}
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Show period breakdown for students with teacher changes */}
+                    {selectedTeacher.breakdown.studentBreakdown.some(
+                      (s) => s.teacherChanges && s.periods
+                    ) && (
+                      <div className="mt-6">
+                        <h4 className="text-md font-semibold text-gray-900 mb-3">
+                          Teacher Change Periods
+                        </h4>
+                        <div className="space-y-4">
+                          {selectedTeacher.breakdown.studentBreakdown
+                            .filter((s) => s.teacherChanges && s.periods)
+                            .map((student, studentIndex) => (
+                              <div
+                                key={studentIndex}
+                                className="bg-orange-50 border border-orange-200 rounded-lg p-4"
+                              >
+                                <h5 className="font-medium text-orange-900 mb-2">
+                                  {student.studentName}
+                                </h5>
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-full">
+                                    <thead>
+                                      <tr className="text-xs text-orange-700">
+                                        <th className="px-2 py-1 text-left">
+                                          Period
+                                        </th>
+                                        <th className="px-2 py-1 text-left">
+                                          Days Worked
+                                        </th>
+                                        <th className="px-2 py-1 text-left">
+                                          Daily Rate
+                                        </th>
+                                        <th className="px-2 py-1 text-left">
+                                          Period Earnings
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {student.periods?.map(
+                                        (period, periodIndex) => (
+                                          <tr
+                                            key={periodIndex}
+                                            className="text-xs"
+                                          >
+                                            <td className="px-2 py-1 text-gray-700">
+                                              {period.period}
+                                            </td>
+                                            <td className="px-2 py-1 text-gray-700">
+                                              {period.daysWorked}
+                                            </td>
+                                            <td className="px-2 py-1 text-gray-700">
+                                              {formatCurrency(period.dailyRate)}
+                                            </td>
+                                            <td className="px-2 py-1 font-medium text-gray-900">
+                                              {formatCurrency(
+                                                period.periodEarnings
+                                              )}
+                                            </td>
+                                          </tr>
+                                        )
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

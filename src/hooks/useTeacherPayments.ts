@@ -12,6 +12,7 @@ export interface TeacherSalaryData {
   status: "Paid" | "Unpaid";
   numStudents: number;
   teachingDays: number;
+  hasTeacherChanges: boolean;
   breakdown: {
     dailyEarnings: Array<{ date: string; amount: number }>;
     studentBreakdown: Array<{
@@ -21,6 +22,14 @@ export interface TeacherSalaryData {
       dailyRate: number;
       daysWorked: number;
       totalEarned: number;
+      periods?: Array<{
+        period: string;
+        daysWorked: number;
+        dailyRate: number;
+        periodEarnings: number;
+        teachingDates: string[];
+      }>;
+      teacherChanges: boolean;
     }>;
     latenessBreakdown: Array<{
       date: string;
@@ -387,4 +396,3 @@ export function useTeacherPayments({
     refresh,
   };
 }
-

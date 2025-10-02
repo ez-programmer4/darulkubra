@@ -58,6 +58,7 @@ import {
   formatCurrency,
   formatCompactCurrency,
 } from "@/lib/teacher-payment-utils";
+import TeacherChangeValidator from "@/components/teacher-payments/TeacherChangeValidator";
 
 // Month options
 const months = [
@@ -82,6 +83,8 @@ export default function TeacherPaymentsPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showStatistics, setShowStatistics] = useState(false);
+  const [showTeacherChangeValidator, setShowTeacherChangeValidator] =
+    useState(false);
   const [includeSundays, setIncludeSundays] = useState(false);
   const [showTeacherSalary, setShowTeacherSalary] = useState(true);
 
@@ -229,6 +232,15 @@ export default function TeacherPaymentsPage() {
             >
               <FiSettings className="w-4 h-4" />
               Settings
+            </Button>
+
+            <Button
+              variant="secondary"
+              onClick={() => setShowTeacherChangeValidator(true)}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+            >
+              <FiAlertTriangle className="w-4 h-4" />
+              Validate Changes
             </Button>
 
             <Button
@@ -1109,6 +1121,28 @@ export default function TeacherPaymentsPage() {
               </>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Teacher Change Validator Modal */}
+      <Dialog
+        open={showTeacherChangeValidator}
+        onOpenChange={setShowTeacherChangeValidator}
+      >
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FiAlertTriangle className="w-5 h-5" />
+              Teacher Change Validation
+            </DialogTitle>
+            <DialogDescription>
+              Validate teacher changes and check for payment conflicts
+            </DialogDescription>
+          </DialogHeader>
+          <TeacherChangeValidator
+            period={`${selectedYear}-${String(selectedMonth).padStart(2, "0")}`}
+            onClose={() => setShowTeacherChangeValidator(false)}
+          />
         </DialogContent>
       </Dialog>
     </div>

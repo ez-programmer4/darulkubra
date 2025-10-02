@@ -52,7 +52,7 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.6 }}
             className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-700 mb-8"
           >
-            Quran Academy Management System
+            Student Management System
           </motion.h2>
 
           <motion.p
@@ -61,7 +61,7 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.8 }}
             className="text-lg sm:text-xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed"
           >
-            Comprehensive digital platform for managing Quran academies, student
+            Comprehensive digital platform for managing academies, student
             registrations, attendance tracking, payment processing, and advanced
             analytics.
           </motion.p>

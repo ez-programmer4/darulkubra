@@ -31,6 +31,7 @@ export interface TeacherSalaryData {
   status: "Paid" | "Unpaid";
   numStudents: number;
   teachingDays: number;
+  hasTeacherChanges: boolean;
   breakdown: {
     dailyEarnings: Array<{ date: string; amount: number }>;
     studentBreakdown: Array<{
@@ -40,6 +41,14 @@ export interface TeacherSalaryData {
       dailyRate: number;
       daysWorked: number;
       totalEarned: number;
+      periods?: Array<{
+        period: string;
+        daysWorked: number;
+        dailyRate: number;
+        periodEarnings: number;
+        teachingDates: string[];
+      }>;
+      teacherChanges: boolean;
     }>;
     latenessBreakdown: Array<{
       date: string;
@@ -113,11 +122,12 @@ export class SalaryCalculator {
         toDate
       );
 
-      // Calculate base salary
+      // Calculate base salary with assignment periods
       const baseSalaryData = await this.calculateBaseSalary(
         students,
         fromDate,
-        toDate
+        toDate,
+        assignments
       );
 
       // Calculate deductions
@@ -165,6 +175,9 @@ export class SalaryCalculator {
         status: (payment?.status as "Paid" | "Unpaid") || "Unpaid",
         numStudents: students.length,
         teachingDays: baseSalaryData.teachingDays,
+        hasTeacherChanges: baseSalaryData.studentBreakdown.some(
+          (s) => s.teacherChanges
+        ),
         breakdown: {
           dailyEarnings: baseSalaryData.dailyEarnings,
           studentBreakdown: baseSalaryData.studentBreakdown,
@@ -345,7 +358,7 @@ export class SalaryCalculator {
       },
     });
 
-    // Get historical assignments from audit log
+    // Get historical assignments from audit log with enhanced parsing
     const auditLogs = await prisma.auditlog.findMany({
       where: {
         actionType: "assignment_update",
@@ -363,14 +376,31 @@ export class SalaryCalculator {
       .map((log) => {
         try {
           const details = JSON.parse(log.details);
+
+          // Handle both old and new teacher assignments
           if (details.oldTeacher === teacherId && log.targetId) {
+            // Teacher was removed from student
             return {
               student_id: log.targetId,
               ustaz_id: String(details.oldTeacher || ""),
               time_slot: String(details.oldTime || "09:00 AM"),
-              daypackage: String(details.newDayPackage || "MWF"),
+              daypackage: String(
+                details.oldDayPackage || details.newDayPackage || "MWF"
+              ),
               occupied_at: new Date(details.occupied_at || log.createdAt),
               end_at: log.createdAt,
+              assignment_type: "removed" as const,
+            };
+          } else if (details.newTeacher === teacherId && log.targetId) {
+            // Teacher was assigned to student
+            return {
+              student_id: log.targetId,
+              ustaz_id: String(details.newTeacher || ""),
+              time_slot: String(details.newTime || "09:00 AM"),
+              daypackage: String(details.newDayPackage || "MWF"),
+              occupied_at: log.createdAt,
+              end_at: null,
+              assignment_type: "assigned" as const,
             };
           }
           return null;
@@ -403,10 +433,20 @@ export class SalaryCalculator {
       }
     });
 
-    return [
-      ...activeAssignments,
+    // Combine and sort assignments by effective date
+    const allAssignments = [
+      ...activeAssignments.map((a) => ({
+        ...a,
+        assignment_type: "active" as const,
+      })),
       ...historicalAssignments.filter((a) => (a as any).student),
-    ];
+    ].sort((a, b) => {
+      const aDate = a.occupied_at || new Date(0);
+      const bDate = b.occupied_at || new Date(0);
+      return aDate.getTime() - bDate.getTime();
+    });
+
+    return allAssignments;
   }
 
   private async getTeacherStudents(
@@ -436,7 +476,8 @@ export class SalaryCalculator {
   private async calculateBaseSalary(
     students: any[],
     fromDate: Date,
-    toDate: Date
+    toDate: Date,
+    assignments: any[] = []
   ) {
     const packageSalaries = await prisma.packageSalary.findMany();
     const salaryMap: Record<string, number> = {};
@@ -453,53 +494,134 @@ export class SalaryCalculator {
 
     const dailyEarnings = new Map<string, number>();
     const studentBreakdown = [];
+    const teacherPeriods = new Map<
+      string,
+      Array<{ start: Date; end: Date | null; student: any }>
+    >();
 
+    // Group assignments by student to track teacher periods
+    for (const assignment of assignments) {
+      const studentId = assignment.student_id || assignment.student?.wdt_ID;
+      if (!studentId) continue;
+
+      const student =
+        assignment.student || students.find((s) => s.wdt_ID === studentId);
+      if (!student) continue;
+
+      if (!teacherPeriods.has(studentId.toString())) {
+        teacherPeriods.set(studentId.toString(), []);
+      }
+
+      const periods = teacherPeriods.get(studentId.toString())!;
+      const startDate = assignment.occupied_at || fromDate;
+      const endDate = assignment.end_at || toDate;
+
+      periods.push({
+        start: startDate,
+        end: endDate,
+        student: student,
+      });
+    }
+
+    // Process each student with their teacher periods
     for (const student of students) {
       if (!student.package || !salaryMap[student.package]) continue;
 
       const monthlyPackageSalary = Math.round(salaryMap[student.package] || 0);
       const dailyRate = Math.round(monthlyPackageSalary / workingDays);
 
-      // Count actual teaching days for this student
-      const teachingDates = new Set<string>();
-      const dailyLinks = new Map<string, Date>();
+      // Get teacher periods for this student
+      const periods = teacherPeriods.get(student.wdt_ID.toString()) || [];
 
-      student.zoom_links.forEach((link: any) => {
-        if (link.sent_time) {
-          const linkDate = new Date(link.sent_time);
-          if (!this.config.includeSundays && linkDate.getDay() === 0) return;
+      // If no specific periods found, assume teacher was assigned for the entire period
+      if (periods.length === 0) {
+        periods.push({
+          start: fromDate,
+          end: toDate,
+          student: student,
+        });
+      }
 
-          const dateStr = link.sent_time.toISOString().split("T")[0];
+      // Calculate earnings for each period
+      let totalEarned = 0;
+      const periodBreakdown = [];
 
-          if (
-            !dailyLinks.has(dateStr) ||
-            link.sent_time < dailyLinks.get(dateStr)!
-          ) {
-            dailyLinks.set(dateStr, link.sent_time);
+      for (const period of periods) {
+        const periodStart = new Date(
+          Math.max(period.start.getTime(), fromDate.getTime())
+        );
+        const periodEnd = new Date(
+          Math.min((period.end || toDate).getTime(), toDate.getTime())
+        );
+
+        if (periodStart > periodEnd) continue;
+
+        // Count teaching days in this period
+        const teachingDates = new Set<string>();
+        const dailyLinks = new Map<string, Date>();
+
+        // Get zoom links for this period
+        const periodZoomLinks =
+          student.zoom_links?.filter((link: any) => {
+            if (!link.sent_time) return false;
+            const linkDate = new Date(link.sent_time);
+            return linkDate >= periodStart && linkDate <= periodEnd;
+          }) || [];
+
+        periodZoomLinks.forEach((link: any) => {
+          if (link.sent_time) {
+            const linkDate = new Date(link.sent_time);
+            if (!this.config.includeSundays && linkDate.getDay() === 0) return;
+
+            const dateStr = link.sent_time.toISOString().split("T")[0];
+
+            if (
+              !dailyLinks.has(dateStr) ||
+              link.sent_time < dailyLinks.get(dateStr)!
+            ) {
+              dailyLinks.set(dateStr, link.sent_time);
+            }
           }
+        });
+
+        dailyLinks.forEach((_, dateStr) => {
+          teachingDates.add(dateStr);
+        });
+
+        const periodEarnings = dailyRate * teachingDates.size;
+        totalEarned += periodEarnings;
+
+        // Add to daily earnings
+        teachingDates.forEach((dateStr) => {
+          if (!dailyEarnings.has(dateStr)) {
+            dailyEarnings.set(dateStr, 0);
+          }
+          dailyEarnings.set(dateStr, dailyEarnings.get(dateStr)! + dailyRate);
+        });
+
+        if (teachingDates.size > 0) {
+          periodBreakdown.push({
+            period: `${periodStart.toISOString().split("T")[0]} to ${
+              periodEnd.toISOString().split("T")[0]
+            }`,
+            daysWorked: teachingDates.size,
+            dailyRate: dailyRate,
+            periodEarnings: periodEarnings,
+            teachingDates: Array.from(teachingDates),
+          });
         }
-      });
+      }
 
-      dailyLinks.forEach((_, dateStr) => {
-        teachingDates.add(dateStr);
-      });
-
-      // Add to daily earnings
-      teachingDates.forEach((dateStr) => {
-        if (!dailyEarnings.has(dateStr)) {
-          dailyEarnings.set(dateStr, 0);
-        }
-        dailyEarnings.set(dateStr, dailyEarnings.get(dateStr)! + dailyRate);
-      });
-
-      if (teachingDates.size > 0) {
+      if (totalEarned > 0) {
         studentBreakdown.push({
           studentName: student.name || "Unknown",
           package: student.package || "Unknown",
           monthlyRate: monthlyPackageSalary,
           dailyRate: dailyRate,
-          daysWorked: teachingDates.size,
-          totalEarned: dailyRate * teachingDates.size,
+          daysWorked: Array.from(dailyEarnings.keys()).length,
+          totalEarned: totalEarned,
+          periods: periodBreakdown,
+          teacherChanges: periods.length > 1,
         });
       }
     }
