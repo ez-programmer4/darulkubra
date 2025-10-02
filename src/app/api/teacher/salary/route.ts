@@ -21,7 +21,9 @@ export async function GET(req: NextRequest) {
       where: { key: "show_teacher_salary" },
     });
 
-    const showTeacherSalary = salaryVisibilitySetting?.value === "true";
+    // Default to true if setting doesn't exist
+    const showTeacherSalary =
+      salaryVisibilitySetting?.value === "true" || !salaryVisibilitySetting;
 
     if (!showTeacherSalary) {
       return NextResponse.json(
