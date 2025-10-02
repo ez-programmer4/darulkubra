@@ -47,7 +47,6 @@ export async function POST(req: NextRequest) {
       create: {
         key: "include_sundays_in_salary",
         value: includeSundays.toString(),
-        description: "Include Sundays in salary calculation",
       },
     });
 
