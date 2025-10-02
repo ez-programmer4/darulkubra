@@ -679,11 +679,30 @@ export class SalaryCalculator {
             const firstZoomDate = zoomDates[0];
             const lastZoomDate = zoomDates[zoomDates.length - 1];
 
+            // Ensure the period covers the entire month, not just the zoom link dates
+            const periodStart = new Date(
+              Math.min(firstZoomDate.getTime(), fromDate.getTime())
+            );
+            const periodEnd = new Date(
+              Math.max(lastZoomDate.getTime(), toDate.getTime())
+            );
+
             periods.push({
-              start: firstZoomDate,
-              end: lastZoomDate,
+              start: periodStart,
+              end: periodEnd,
               student: student,
             });
+
+            console.log(
+              `📅 Created period for student ${student.name} based on zoom links:`,
+              {
+                firstZoomDate: firstZoomDate.toISOString(),
+                lastZoomDate: lastZoomDate.toISOString(),
+                periodStart: periodStart.toISOString(),
+                periodEnd: periodEnd.toISOString(),
+                zoomLinksCount: zoomDates.length,
+              }
+            );
           }
         } else {
           // No zoom links, assume teacher was assigned for the entire period
@@ -721,24 +740,52 @@ export class SalaryCalculator {
             return linkDate >= periodStart && linkDate <= periodEnd;
           }) || [];
 
+        // Debug logging for zoom links
+        console.log(
+          `🔍 Student ${student.name} (${student.wdt_ID}) zoom links:`,
+          {
+            totalZoomLinks: student.zoom_links?.length || 0,
+            periodZoomLinks: periodZoomLinks.length,
+            periodStart: periodStart.toISOString(),
+            periodEnd: periodEnd.toISOString(),
+            zoomLinkDates: periodZoomLinks.map(
+              (link: any) => link.sent_time?.toISOString?.() || link.sent_time
+            ),
+          }
+        );
+
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
             const linkDate = new Date(link.sent_time);
             if (!this.config.includeSundays && linkDate.getDay() === 0) return;
 
-            const dateStr = link.sent_time.toISOString().split("T")[0];
+            // Ensure sent_time is a Date object
+            const sentTime =
+              link.sent_time instanceof Date
+                ? link.sent_time
+                : new Date(link.sent_time);
+            const dateStr = sentTime.toISOString().split("T")[0];
 
             if (
               !dailyLinks.has(dateStr) ||
-              link.sent_time < dailyLinks.get(dateStr)!
+              sentTime < dailyLinks.get(dateStr)!
             ) {
-              dailyLinks.set(dateStr, link.sent_time);
+              dailyLinks.set(dateStr, sentTime);
             }
           }
         });
 
         dailyLinks.forEach((_, dateStr) => {
           teachingDates.add(dateStr);
+        });
+
+        // Debug logging for teaching days
+        console.log(`📅 Student ${student.name} teaching days calculated:`, {
+          dailyLinksCount: dailyLinks.size,
+          teachingDatesCount: teachingDates.size,
+          teachingDates: Array.from(teachingDates),
+          dailyRate: dailyRate,
+          periodEarnings: dailyRate * teachingDates.size,
         });
 
         const periodEarnings = dailyRate * teachingDates.size;
