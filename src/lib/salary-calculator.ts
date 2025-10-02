@@ -454,7 +454,11 @@ export class SalaryCalculator {
     fromDate: Date,
     toDate: Date
   ) {
-    return await prisma.wpos_wpdatatable_23.findMany({
+    // Get students who were assigned to this teacher during the period
+    // This includes both current assignments and historical assignments
+
+    // First, get current students assigned to this teacher
+    const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         ustaz: teacherId,
         status: { in: ["active", "Active", "Not yet"] },
@@ -465,12 +469,136 @@ export class SalaryCalculator {
         package: true,
         zoom_links: {
           where: {
+            ustazid: teacherId, // Only zoom links sent by this teacher
             sent_time: { gte: fromDate, lte: toDate },
           },
           select: { sent_time: true },
         },
       },
     });
+
+    // Get historical assignments from audit logs for this teacher
+    const auditLogs = await prisma.auditlog.findMany({
+      where: {
+        actionType: "assignment_update",
+        createdAt: { gte: fromDate, lte: toDate },
+      },
+      select: {
+        targetId: true,
+        details: true,
+        createdAt: true,
+      },
+    });
+
+    // Find students who were assigned to this teacher during the period
+    const historicalStudentIds = new Set<number>();
+
+    auditLogs.forEach((log) => {
+      try {
+        const details = JSON.parse(log.details);
+        if (details.newTeacher === teacherId && log.targetId) {
+          // Teacher was assigned to this student
+          historicalStudentIds.add(log.targetId);
+        }
+      } catch (e) {
+        console.warn(`Failed to parse audit log details:`, e);
+      }
+    });
+
+    // Get historical students who were assigned to this teacher
+    const historicalStudents =
+      historicalStudentIds.size > 0
+        ? await prisma.wpos_wpdatatable_23.findMany({
+            where: {
+              wdt_ID: { in: Array.from(historicalStudentIds) },
+              status: { in: ["active", "Active", "Not yet"] },
+            },
+            select: {
+              wdt_ID: true,
+              name: true,
+              package: true,
+              zoom_links: {
+                where: {
+                  ustazid: teacherId, // Only zoom links sent by this teacher
+                  sent_time: { gte: fromDate, lte: toDate },
+                },
+                select: { sent_time: true },
+              },
+            },
+          })
+        : [];
+
+    // Combine current and historical students, removing duplicates
+    const allStudents = [...currentStudents];
+    const currentStudentIds = new Set(currentStudents.map((s) => s.wdt_ID));
+
+    historicalStudents.forEach((student) => {
+      if (!currentStudentIds.has(student.wdt_ID)) {
+        allStudents.push(student);
+      }
+    });
+
+    // Fallback: Find students based on zoom links sent by this teacher
+    // This catches cases where assignment data might be missing but zoom links exist
+    const zoomLinkStudents = await prisma.wpos_zoom_links.findMany({
+      where: {
+        ustazid: teacherId,
+        sent_time: { gte: fromDate, lte: toDate },
+      },
+      select: {
+        studentid: true,
+        wpos_wpdatatable_23: {
+          select: {
+            wdt_ID: true,
+            name: true,
+            package: true,
+            status: true,
+          },
+        },
+      },
+      distinct: ["studentid"],
+    });
+
+    // Add students found through zoom links
+    const existingStudentIds = new Set(allStudents.map((s) => s.wdt_ID));
+
+    for (const zoomLink of zoomLinkStudents) {
+      const student = zoomLink.wpos_wpdatatable_23;
+      if (
+        student &&
+        !existingStudentIds.has(student.wdt_ID) &&
+        student.status &&
+        ["active", "Active", "Not yet"].includes(student.status)
+      ) {
+        // Get zoom links for this student
+        const studentZoomLinks = await prisma.wpos_zoom_links.findMany({
+          where: {
+            ustazid: teacherId,
+            studentid: student.wdt_ID,
+            sent_time: { gte: fromDate, lte: toDate },
+          },
+          select: { sent_time: true },
+        });
+
+        allStudents.push({
+          wdt_ID: student.wdt_ID,
+          name: student.name,
+          package: student.package,
+          zoom_links: studentZoomLinks,
+        });
+      }
+    }
+
+    // Debug logging
+    console.log(`🔍 Teacher ${teacherId} students found:`, {
+      currentStudents: currentStudents.length,
+      historicalStudents: historicalStudents.length,
+      zoomLinkStudents: zoomLinkStudents.length,
+      totalStudents: allStudents.length,
+      studentNames: allStudents.map((s) => s.name).join(", "),
+    });
+
+    return allStudents;
   }
 
   private async calculateBaseSalary(
@@ -533,13 +661,38 @@ export class SalaryCalculator {
       // Get teacher periods for this student
       const periods = teacherPeriods.get(student.wdt_ID.toString()) || [];
 
-      // If no specific periods found, assume teacher was assigned for the entire period
+      // If no specific periods found, check if teacher has zoom links for this student
+      // This handles the case where teacher was transferred but still has zoom links
       if (periods.length === 0) {
-        periods.push({
-          start: fromDate,
-          end: toDate,
-          student: student,
-        });
+        // Check if teacher has any zoom links for this student during the period
+        const hasZoomLinks =
+          student.zoom_links && student.zoom_links.length > 0;
+
+        if (hasZoomLinks) {
+          // Find the date range of zoom links
+          const zoomDates = student.zoom_links
+            .filter((link: any) => link.sent_time)
+            .map((link: any) => new Date(link.sent_time!))
+            .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+
+          if (zoomDates.length > 0) {
+            const firstZoomDate = zoomDates[0];
+            const lastZoomDate = zoomDates[zoomDates.length - 1];
+
+            periods.push({
+              start: firstZoomDate,
+              end: lastZoomDate,
+              student: student,
+            });
+          }
+        } else {
+          // No zoom links, assume teacher was assigned for the entire period
+          periods.push({
+            start: fromDate,
+            end: toDate,
+            student: student,
+          });
+        }
       }
 
       // Calculate earnings for each period
