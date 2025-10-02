@@ -254,6 +254,7 @@ export class SalaryCalculator {
     absenceRecords: any[];
     bonusRecords: any[];
     unmatchedZoomLinks?: any[];
+    salaryData: TeacherSalaryData;
   }> {
     const assignments = await this.getTeacherAssignments(
       teacherId,
@@ -293,12 +294,20 @@ export class SalaryCalculator {
       toDate
     );
 
+    // Get the complete salary data for this teacher
+    const salaryData = await this.calculateTeacherSalary(
+      teacherId,
+      fromDate,
+      toDate
+    );
+
     return {
       latenessRecords,
       absenceRecords,
       bonusRecords,
       unmatchedZoomLinks:
         unmatchedZoomLinks.length > 0 ? unmatchedZoomLinks : undefined,
+      salaryData,
     };
   }
 
@@ -596,6 +605,36 @@ export class SalaryCalculator {
       zoomLinkStudents: zoomLinkStudents.length,
       totalStudents: allStudents.length,
       studentNames: allStudents.map((s) => s.name).join(", "),
+    });
+
+    // Debug: Log all zoom links for this teacher
+    const allTeacherZoomLinks = await prisma.wpos_zoom_links.findMany({
+      where: {
+        ustazid: teacherId,
+        sent_time: { gte: fromDate, lte: toDate },
+      },
+      select: {
+        studentid: true,
+        sent_time: true,
+        wpos_wpdatatable_23: {
+          select: {
+            wdt_ID: true,
+            name: true,
+            ustaz: true,
+          },
+        },
+      },
+      orderBy: { sent_time: "desc" },
+    });
+
+    console.log(`📊 All zoom links for teacher ${teacherId}:`, {
+      totalZoomLinks: allTeacherZoomLinks.length,
+      zoomLinks: allTeacherZoomLinks.map((z) => ({
+        studentId: z.studentid,
+        studentName: z.wpos_wpdatatable_23?.name,
+        currentTeacher: z.wpos_wpdatatable_23?.ustaz,
+        sentTime: z.sent_time,
+      })),
     });
 
     return allStudents;

@@ -65,6 +65,7 @@ export interface PaymentDetails {
   absenceRecords: any[];
   bonusRecords: any[];
   unmatchedZoomLinks?: any[];
+  salaryData: TeacherSalaryData;
 }
 
 export interface PaymentStatistics {
