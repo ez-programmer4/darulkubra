@@ -467,10 +467,18 @@ export class SalaryCalculator {
     // This includes both current assignments and historical assignments
 
     // First, get current students assigned to this teacher
+    // Only include students who have actual assignment records in wpos_ustaz_occupied_times
     const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         ustaz: teacherId,
         status: { in: ["active", "Active", "Not yet"] },
+        occupiedTimes: {
+          some: {
+            ustaz_id: teacherId,
+            occupied_at: { lte: toDate },
+            OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+          },
+        },
       },
       select: {
         wdt_ID: true,
@@ -598,8 +606,6 @@ export class SalaryCalculator {
       }
     }
 
-  
-
     // Debug: Log all zoom links for this teacher
     const allTeacherZoomLinks = await prisma.wpos_zoom_links.findMany({
       where: {
@@ -619,7 +625,6 @@ export class SalaryCalculator {
       },
       orderBy: { sent_time: "desc" },
     });
-
 
     return allStudents;
   }
@@ -715,7 +720,6 @@ export class SalaryCalculator {
               end: periodEnd,
               student: student,
             });
-
           }
         } else {
           // No zoom links, assume teacher was assigned for the entire period
@@ -753,8 +757,6 @@ export class SalaryCalculator {
             return linkDate >= periodStart && linkDate <= periodEnd;
           }) || [];
 
-     
-
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
             const linkDate = new Date(link.sent_time);
@@ -763,10 +765,7 @@ export class SalaryCalculator {
             const isSunday = linkDate.getDay() === 0;
             const shouldInclude = this.config.includeSundays || !isSunday;
 
-           
-
             if (!shouldInclude) {
-          
               return;
             }
 
@@ -789,8 +788,6 @@ export class SalaryCalculator {
         dailyLinks.forEach((_, dateStr) => {
           teachingDates.add(dateStr);
         });
-
-    
 
         const periodEarnings = dailyRate * teachingDates.size;
         totalEarned += periodEarnings;
@@ -861,12 +858,22 @@ export class SalaryCalculator {
     toDate: Date
   ) {
     // Get zoom links for the period to calculate lateness
+    // Only include zoom links for students who have actual assignment records
     const zoomLinks = await prisma.wpos_zoom_links.findMany({
       where: {
         ustazid: teacherId,
         sent_time: {
           gte: fromDate,
           lte: toDate,
+        },
+        wpos_wpdatatable_23: {
+          occupiedTimes: {
+            some: {
+              ustaz_id: teacherId,
+              occupied_at: { lte: toDate },
+              OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+            },
+          },
         },
       },
       include: {
@@ -876,6 +883,11 @@ export class SalaryCalculator {
             name: true,
             package: true,
             occupiedTimes: {
+              where: {
+                ustaz_id: teacherId,
+                occupied_at: { lte: toDate },
+                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+              },
               select: {
                 time_slot: true,
                 occupied_at: true,
@@ -1032,16 +1044,28 @@ export class SalaryCalculator {
     const isDebugMode = debugTeachers.includes(teacherId);
 
     if (isDebugMode) {
-      
     }
     // Get teacher's students with their assignment periods and schedules
+    // Only include students who have actual assignment records in wpos_ustaz_occupied_times
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         ustaz: teacherId,
         status: { in: ["active", "Active", "Not yet"] },
+        occupiedTimes: {
+          some: {
+            ustaz_id: teacherId,
+            occupied_at: { lte: toDate },
+            OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+          },
+        },
       },
       include: {
         occupiedTimes: {
+          where: {
+            ustaz_id: teacherId,
+            occupied_at: { lte: toDate },
+            OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+          },
           select: {
             time_slot: true,
             daypackage: true,
@@ -1069,6 +1093,40 @@ export class SalaryCalculator {
         },
       },
     });
+
+    // Debug: Log students found and any missing assignment records
+    if (isDebugMode) {
+      console.log(`👥 Students with assignment records: ${students.length}`);
+
+      // Check for students who might be missing assignment records
+      const allStudentsForTeacher = await prisma.wpos_wpdatatable_23.findMany({
+        where: {
+          ustaz: teacherId,
+          status: { in: ["active", "Active", "Not yet"] },
+        },
+        select: {
+          wdt_ID: true,
+          name: true,
+          occupiedTimes: {
+            where: { ustaz_id: teacherId },
+            select: { id: true },
+          },
+        },
+      });
+
+      const studentsWithoutAssignments = allStudentsForTeacher.filter(
+        (s) => s.occupiedTimes.length === 0
+      );
+
+      if (studentsWithoutAssignments.length > 0) {
+        console.log(
+          `❌ Students without assignment records: ${studentsWithoutAssignments.length}`
+        );
+        studentsWithoutAssignments.forEach((student) => {
+          console.log(`❌ Student ${student.name} has no occupiedTimes data`);
+        });
+      }
+    }
 
     // Debug: Log MOHAMED's data (only if found)
     const mohamedStudent = students.find(
