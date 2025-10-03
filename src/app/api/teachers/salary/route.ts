@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
     if (visibilitySetting?.value !== "true") {
       return NextResponse.json(
-        { error: "Salary access is currently disabled" },
+        { error: "Salary access is currently disabled by administrator" },
         { status: 403 }
       );
     }
@@ -131,54 +131,60 @@ async function calculateTeacherSalaryDirect(
       where: {
         ustaz_id: teacherId,
         occupied_at: { lte: toDate },
-        OR: [
-          { end_at: null },
-          { end_at: { gte: fromDate } }
-        ]
+        OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
       },
       include: {
         student: {
           select: {
             wdt_ID: true,
             name: true,
-            package: true
-          }
-        }
-      }
+            package: true,
+          },
+        },
+      },
     });
 
     // Calculate base salary from zoom links with package rates
     let baseSalary = 0;
-    
+
     for (const assignment of assignments) {
       // Get zoom links for this assignment period
-      const assignmentStart = assignment.occupied_at && assignment.occupied_at > fromDate ? assignment.occupied_at : fromDate;
-      const assignmentEnd = assignment.end_at && assignment.end_at < toDate ? assignment.end_at : toDate;
-      
+      const assignmentStart =
+        assignment.occupied_at && assignment.occupied_at > fromDate
+          ? assignment.occupied_at
+          : fromDate;
+      const assignmentEnd =
+        assignment.end_at && assignment.end_at < toDate
+          ? assignment.end_at
+          : toDate;
+
       const zoomLinks = await prisma.wpos_zoom_links.findMany({
         where: {
           ustazid: teacherId,
           studentid: assignment.student_id,
           sent_time: {
             gte: assignmentStart,
-            lte: assignmentEnd
+            lte: assignmentEnd,
           },
-          packageRate: { not: null }
+          packageRate: { not: null },
         },
         select: {
-          packageRate: true
-        }
+          packageRate: true,
+        },
       });
-      
+
       // Sum package rates from zoom links
-      baseSalary += zoomLinks.reduce((sum, link) => sum + Number(link.packageRate || 0), 0);
+      baseSalary += zoomLinks.reduce(
+        (sum, link) => sum + Number(link.packageRate || 0),
+        0
+      );
     }
 
     // Get payment record with deductions and bonuses
     const period = `${fromDate.getFullYear()}-${String(
       fromDate.getMonth() + 1
     ).padStart(2, "0")}`;
-    
+
     const payment = await prisma.teachersalarypayment.findUnique({
       where: {
         teacherId_period: { teacherId, period },
@@ -187,10 +193,10 @@ async function calculateTeacherSalaryDirect(
         status: true,
         latenessDeduction: true,
         absenceDeduction: true,
-        bonuses: true
+        bonuses: true,
       },
     });
-    
+
     const latenessDeduction = payment?.latenessDeduction || 0;
     const absenceDeduction = payment?.absenceDeduction || 0;
     const bonuses = payment?.bonuses || 0;

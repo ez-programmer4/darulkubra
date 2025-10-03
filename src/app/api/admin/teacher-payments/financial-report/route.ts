@@ -7,7 +7,7 @@ import { parseISO } from "date-fns";
 export async function GET(req: NextRequest) {
   try {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    if (!token || token.role !== "admin") {
+    if (!token || (token.role !== "admin" && token.role !== "teacher")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -40,24 +40,65 @@ export async function GET(req: NextRequest) {
     // Get salary calculator with current configuration
     const calculator = await createSalaryCalculator();
 
-    // Calculate all teacher salaries
-    const salaries = await calculator.calculateAllTeacherSalaries(
-      fromDate,
-      toDate
-    );
+    // Debug: Log current Sunday configuration
+    const sundayConfig = await prisma.setting.findUnique({
+      where: { key: "include_sundays_in_salary" },
+    });
+    console.log("🔧 Financial Report - Sunday Configuration:", {
+      setting: sundayConfig?.value,
+      includeSundays: sundayConfig?.value === "true",
+      period: `${startDate} to ${endDate}`,
+    });
 
-    // Get payment records for the period
-    const paymentRecords = await prisma.teachersalarypayment.findMany({
-      where: {
-        period: {
-          gte: `${fromDate.getFullYear()}-${String(
-            fromDate.getMonth() + 1
-          ).padStart(2, "0")}`,
-          lte: `${toDate.getFullYear()}-${String(
-            toDate.getMonth() + 1
-          ).padStart(2, "0")}`,
-        },
+    // Check if teacher salary visibility is enabled for teachers
+    if (token.role === "teacher") {
+      const salaryVisibilitySetting = await prisma.setting.findUnique({
+        where: { key: "teacher_salary_visible" },
+      });
+
+      if (salaryVisibilitySetting?.value !== "true") {
+        return NextResponse.json(
+          { error: "Salary access is currently disabled by administrator" },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Calculate teacher salaries - filter for teachers to only see their own data
+    let salaries;
+    if (token.role === "teacher") {
+      // Teachers can only see their own salary
+      const teacherSalary = await calculator.calculateTeacherSalary(
+        token.id as string,
+        fromDate,
+        toDate
+      );
+      salaries = [teacherSalary];
+    } else {
+      // Admins can see all teacher salaries
+      salaries = await calculator.calculateAllTeacherSalaries(fromDate, toDate);
+    }
+
+    // Get payment records for the period - filter for teachers
+    const paymentRecordsWhere: any = {
+      period: {
+        gte: `${fromDate.getFullYear()}-${String(
+          fromDate.getMonth() + 1
+        ).padStart(2, "0")}`,
+        lte: `${toDate.getFullYear()}-${String(toDate.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}`,
       },
+    };
+
+    // Teachers can only see their own payment records
+    if (token.role === "teacher") {
+      paymentRecordsWhere.teacherId = token.id;
+    }
+
+    const paymentRecords = await prisma.teachersalarypayment.findMany({
+      where: paymentRecordsWhere,
       orderBy: { createdAt: "desc" },
     });
 

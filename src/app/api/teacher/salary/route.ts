@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     // Check if teacher salary visibility is enabled
     const salaryVisibilitySetting = await prisma.setting.findUnique({
-      where: { key: "show_teacher_salary" },
+      where: { key: "teacher_salary_visible" },
     });
 
     // Default to true if setting doesn't exist

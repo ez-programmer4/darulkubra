@@ -1379,5 +1379,14 @@ export async function createSalaryCalculator(): Promise<SalaryCalculator> {
     packageDeductions: packageDeductionMap,
   };
 
+  // Debug: Log configuration
+  console.log("🔧 Salary Calculator Configuration:", {
+    includeSundays: config.includeSundays,
+    settingValue: workingDaysConfig?.value,
+    excusedThreshold: config.excusedThreshold,
+    latenessTiersCount: config.latenessTiers.length,
+    packageDeductionsCount: Object.keys(config.packageDeductions).length,
+  });
+
   return new SalaryCalculator(config);
 }
