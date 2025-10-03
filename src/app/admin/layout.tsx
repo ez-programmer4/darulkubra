@@ -58,6 +58,11 @@ const navItems = [
     icon: Settings,
   },
   {
+    href: "/admin/package-salaries",
+    label: "Package Salaries",
+    icon: DollarSign,
+  },
+  {
     href: "/admin/on-progress",
     label: "On Progress Student",
     icon: Users,
