@@ -927,7 +927,11 @@ export class SalaryCalculator {
             name: true,
             package: true,
             occupiedTimes: {
-              select: { time_slot: true },
+              select: {
+                time_slot: true,
+                occupied_at: true,
+                end_at: true,
+              },
             },
           },
         },
@@ -996,6 +1000,22 @@ export class SalaryCalculator {
       const student = firstLink.wpos_wpdatatable_23;
       if (!student || !firstLink.sent_time) continue;
 
+      // Check if student was assigned to teacher on this date
+      const assignment = student.occupiedTimes?.[0];
+      if (assignment) {
+        const assignmentStart = assignment.occupied_at
+          ? new Date(assignment.occupied_at)
+          : null;
+        const assignmentEnd = assignment.end_at
+          ? new Date(assignment.end_at)
+          : null;
+        const linkDate = new Date(firstLink.sent_time);
+
+        // Skip if student was not assigned to teacher on this date
+        if (assignmentStart && linkDate < assignmentStart) continue;
+        if (assignmentEnd && linkDate > assignmentEnd) continue;
+      }
+
       const timeSlot = student.occupiedTimes?.[0]?.time_slot;
       if (!timeSlot) continue;
 
@@ -1057,7 +1077,7 @@ export class SalaryCalculator {
     fromDate: Date,
     toDate: Date
   ) {
-    // Get teacher's students with their schedules
+    // Get teacher's students with their assignment periods and schedules
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         ustaz: teacherId,
@@ -1065,7 +1085,12 @@ export class SalaryCalculator {
       },
       include: {
         occupiedTimes: {
-          select: { time_slot: true, daypackage: true },
+          select: {
+            time_slot: true,
+            daypackage: true,
+            occupied_at: true,
+            end_at: true,
+          },
         },
         zoom_links: {
           where: {
@@ -1133,7 +1158,6 @@ export class SalaryCalculator {
       }
 
       // Map daypackage to day numbers (assuming daypackage contains day information)
-      // This might need adjustment based on your actual daypackage format
       const daypackage = student.occupiedTimes[0]?.daypackage || "";
 
       // Common daypackage formats: "Monday,Wednesday,Friday" or "1,3,5" or "MWF"
@@ -1153,17 +1177,61 @@ export class SalaryCalculator {
       if (daypackage.includes("6") && dayOfWeek === 6) return true;
 
       // If no specific schedule found, assume student is scheduled based on package
-      // This is a fallback - ideally we should have proper schedule data
       const packageName = student.package || "";
       if (packageName.includes("3 days")) {
-        // Assume 3-day package students are scheduled on Mon, Wed, Fri
         return dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5;
       } else if (packageName.includes("5 days")) {
-        // Assume 5-day package students are scheduled Mon-Fri
         return dayOfWeek >= 1 && dayOfWeek <= 5;
       }
 
       return false;
+    };
+
+    // Helper function to check if student was assigned to teacher on a specific date
+    const isStudentAssignedOnDate = (student: any, date: Date) => {
+      if (!student.occupiedTimes || student.occupiedTimes.length === 0) {
+        return false;
+      }
+
+      const assignment = student.occupiedTimes[0];
+      const assignmentStart = assignment.occupied_at
+        ? new Date(assignment.occupied_at)
+        : null;
+      const assignmentEnd = assignment.end_at
+        ? new Date(assignment.end_at)
+        : null;
+
+      // If no assignment start date, assume student was always assigned
+      if (!assignmentStart) return true;
+
+      // Check if date is after assignment start
+      if (date < assignmentStart) {
+        console.log(
+          `❌ Student ${student.name} not assigned on ${
+            date.toISOString().split("T")[0]
+          } (assigned from ${assignmentStart.toISOString().split("T")[0]})`
+        );
+        return false;
+      }
+
+      // Check if assignment has ended and date is after end date
+      if (assignmentEnd && date > assignmentEnd) {
+        console.log(
+          `❌ Student ${student.name} assignment ended on ${
+            assignmentEnd.toISOString().split("T")[0]
+          } (checking ${date.toISOString().split("T")[0]})`
+        );
+        return false;
+      }
+
+      console.log(
+        `✅ Student ${student.name} assigned on ${
+          date.toISOString().split("T")[0]
+        } (${assignmentStart.toISOString().split("T")[0]} - ${
+          assignmentEnd ? assignmentEnd.toISOString().split("T")[0] : "ongoing"
+        })`
+      );
+      return true;
     };
 
     // Process each day in the period
@@ -1215,6 +1283,9 @@ export class SalaryCalculator {
         // Skip if student has zoom link for this day
         if (dayZoomLinks.has(student.wdt_ID.toString())) continue;
 
+        // Skip if student was not assigned to teacher on this date
+        if (!isStudentAssignedOnDate(student, d)) continue;
+
         // Skip if student is not scheduled to have class on this day
         if (!isStudentScheduledOnDay(student, dayOfWeek)) continue;
 
@@ -1234,6 +1305,8 @@ export class SalaryCalculator {
           studentName: student.name || "Unknown Student",
           studentPackage: student.package || "Unknown Package",
           rate: packageRate,
+          assignmentStart: student.occupiedTimes[0]?.occupied_at,
+          assignmentEnd: student.occupiedTimes[0]?.end_at,
         });
       }
 
