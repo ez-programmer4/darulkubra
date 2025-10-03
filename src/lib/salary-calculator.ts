@@ -598,14 +598,7 @@ export class SalaryCalculator {
       }
     }
 
-    // Debug logging
-    console.log(`🔍 Teacher ${teacherId} students found:`, {
-      currentStudents: currentStudents.length,
-      historicalStudents: historicalStudents.length,
-      zoomLinkStudents: zoomLinkStudents.length,
-      totalStudents: allStudents.length,
-      studentNames: allStudents.map((s) => s.name).join(", "),
-    });
+  
 
     // Debug: Log all zoom links for this teacher
     const allTeacherZoomLinks = await prisma.wpos_zoom_links.findMany({
@@ -627,15 +620,6 @@ export class SalaryCalculator {
       orderBy: { sent_time: "desc" },
     });
 
-    console.log(`📊 All zoom links for teacher ${teacherId}:`, {
-      totalZoomLinks: allTeacherZoomLinks.length,
-      zoomLinks: allTeacherZoomLinks.map((z) => ({
-        studentId: z.studentid,
-        studentName: z.wpos_wpdatatable_23?.name,
-        currentTeacher: z.wpos_wpdatatable_23?.ustaz,
-        sentTime: z.sent_time,
-      })),
-    });
 
     return allStudents;
   }
@@ -732,16 +716,6 @@ export class SalaryCalculator {
               student: student,
             });
 
-            console.log(
-              `📅 Created period for student ${student.name} based on zoom links:`,
-              {
-                firstZoomDate: firstZoomDate.toISOString(),
-                lastZoomDate: lastZoomDate.toISOString(),
-                periodStart: periodStart.toISOString(),
-                periodEnd: periodEnd.toISOString(),
-                zoomLinksCount: zoomDates.length,
-              }
-            );
           }
         } else {
           // No zoom links, assume teacher was assigned for the entire period
@@ -779,19 +753,7 @@ export class SalaryCalculator {
             return linkDate >= periodStart && linkDate <= periodEnd;
           }) || [];
 
-        // Debug logging for zoom links
-        console.log(
-          `🔍 Student ${student.name} (${student.wdt_ID}) zoom links:`,
-          {
-            totalZoomLinks: student.zoom_links?.length || 0,
-            periodZoomLinks: periodZoomLinks.length,
-            periodStart: periodStart.toISOString(),
-            periodEnd: periodEnd.toISOString(),
-            zoomLinkDates: periodZoomLinks.map(
-              (link: any) => link.sent_time?.toISOString?.() || link.sent_time
-            ),
-          }
-        );
+     
 
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
@@ -801,16 +763,10 @@ export class SalaryCalculator {
             const isSunday = linkDate.getDay() === 0;
             const shouldInclude = this.config.includeSundays || !isSunday;
 
-            console.log(`📅 Processing zoom link for ${student.name}:`, {
-              sentTime: link.sent_time,
-              dayOfWeek: linkDate.getDay(),
-              isSunday: isSunday,
-              includeSundays: this.config.includeSundays,
-              shouldInclude: shouldInclude,
-            });
+           
 
             if (!shouldInclude) {
-              console.log(`❌ Excluding Sunday zoom link for ${student.name}`);
+          
               return;
             }
 
@@ -834,14 +790,7 @@ export class SalaryCalculator {
           teachingDates.add(dateStr);
         });
 
-        // Debug logging for teaching days
-        console.log(`📅 Student ${student.name} teaching days calculated:`, {
-          dailyLinksCount: dailyLinks.size,
-          teachingDatesCount: teachingDates.size,
-          teachingDates: Array.from(teachingDates),
-          dailyRate: dailyRate,
-          periodEarnings: dailyRate * teachingDates.size,
-        });
+    
 
         const periodEarnings = dailyRate * teachingDates.size;
         totalEarned += periodEarnings;
@@ -1083,12 +1032,7 @@ export class SalaryCalculator {
     const isDebugMode = debugTeachers.includes(teacherId);
 
     if (isDebugMode) {
-      console.log(`🔍 ABSENCE DEBUG MODE ENABLED for Teacher: ${teacherId}`);
-      console.log(
-        `📅 Period: ${fromDate.toISOString().split("T")[0]} to ${
-          toDate.toISOString().split("T")[0]
-        }`
-      );
+      
     }
     // Get teacher's students with their assignment periods and schedules
     const students = await prisma.wpos_wpdatatable_23.findMany({

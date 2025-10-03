@@ -12,21 +12,11 @@ export async function POST(req: NextRequest) {
   try {
     const { adjustmentType, dateRange, teacherIds, timeSlots, reason } =
       await req.json();
-    
+
     // Ensure teacherIds is always an array of strings
-    const teacherIdsArray = Array.isArray(teacherIds) 
-      ? teacherIds.map(id => String(id)) 
+    const teacherIdsArray = Array.isArray(teacherIds)
+      ? teacherIds.map((id) => String(id))
       : [String(teacherIds)];
-    
-    console.log("🔧 ADJUSTMENT API CALLED:", {
-      adjustmentType,
-      dateRange,
-      teacherIds: teacherIdsArray,
-      teacherCount: teacherIdsArray.length,
-      reason: reason?.substring(0, 50),
-    });
-    
-    console.log("🔍 TEACHER IDS AFTER CONVERSION:", teacherIdsArray);
 
     if (
       !dateRange?.startDate ||
@@ -47,17 +37,8 @@ export async function POST(req: NextRequest) {
     let recordsAffected = 0;
     let totalAmountWaived = 0;
 
-    // Use transaction to ensure data consistency
-    console.log("💾 Starting database transaction...");
     const result = await prisma.$transaction(async (tx) => {
-      console.log("💾 Inside transaction, processing:", adjustmentType);
       if (adjustmentType === "waive_absence") {
-        console.log(`🔍 SEARCHING FOR ABSENCE RECORDS:`, {
-          teacherIds: teacherIdsArray,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0]
-        });
-        
         // Get absence records to waive
         const absenceRecords = await tx.absencerecord.findMany({
           where: {
@@ -65,21 +46,8 @@ export async function POST(req: NextRequest) {
             classDate: { gte: startDate, lte: endDate },
           },
         });
-        
-        console.log(`📊 FOUND ${absenceRecords.length} ABSENCE RECORDS:`, 
-          absenceRecords.map(r => ({
-            id: r.id,
-            teacherId: r.teacherId,
-            date: r.classDate.toISOString().split('T')[0],
-            deduction: r.deductionApplied
-          }))
-        );
 
         if (absenceRecords.length > 0) {
-          console.log(
-            `💾 PROCESSING ${absenceRecords.length} ABSENCE RECORDS FOR WAIVER`
-          );
-
           // Check for existing waivers first
           const existingWaivers = await tx.deduction_waivers.findMany({
             where: {
@@ -88,21 +56,19 @@ export async function POST(req: NextRequest) {
               deductionDate: { gte: startDate, lte: endDate },
             },
           });
-          
-          console.log(`🔍 FOUND ${existingWaivers.length} EXISTING ABSENCE WAIVERS`);
-          
+
           // Filter out records that already have waivers
-          const recordsToWaive = absenceRecords.filter(record => 
-            !existingWaivers.some(waiver => 
-              waiver.teacherId === record.teacherId && 
-              waiver.deductionDate.toISOString().split('T')[0] === record.classDate.toISOString().split('T')[0]
-            )
+          const recordsToWaive = absenceRecords.filter(
+            (record) =>
+              !existingWaivers.some(
+                (waiver) =>
+                  waiver.teacherId === record.teacherId &&
+                  waiver.deductionDate.toISOString().split("T")[0] ===
+                    record.classDate.toISOString().split("T")[0]
+              )
           );
-          
-          console.log(`📝 RECORDS TO WAIVE AFTER FILTERING: ${recordsToWaive.length}`);
-          
+
           if (recordsToWaive.length === 0) {
-            console.log(`⚠️ NO NEW RECORDS TO WAIVE - ALL ALREADY HAVE WAIVERS`);
             return { recordsAffected: 0, totalAmountWaived: 0 };
           }
 
@@ -115,35 +81,23 @@ export async function POST(req: NextRequest) {
             reason,
             adminId,
           }));
-          
-          console.log(`💾 CREATING WAIVER DATA:`, waiverData.map(w => ({
-            teacherId: w.teacherId,
-            date: w.deductionDate.toISOString().split('T')[0],
-            amount: w.originalAmount
-          })));
 
           const createdWaivers = await tx.deduction_waivers.createMany({
             data: waiverData,
             skipDuplicates: true,
           });
 
-          console.log(
-            `✅ CREATED ${createdWaivers.count} ABSENCE WAIVER RECORDS`
-          );
-
           recordsAffected = createdWaivers.count;
           totalAmountWaived = recordsToWaive.reduce(
             (sum, r) => sum + r.deductionApplied,
             0
           );
-
-          console.log(
-            `💰 TOTAL ABSENCE AMOUNT WAIVED: ${totalAmountWaived} ETB`
-          );
         } else {
-          console.log(`ℹ️ NO DATABASE ABSENCE RECORDS FOUND, CHECKING FOR COMPUTED ABSENCES...`);
+          console.log(
+            `ℹ️ NO DATABASE ABSENCE RECORDS FOUND, CHECKING FOR COMPUTED ABSENCES...`
+          );
         }
-        
+
         // Also handle computed absences (same logic as preview API)
         for (const teacherId of teacherIdsArray) {
           const teacher = await tx.wpos_wpdatatable_24.findUnique({
@@ -155,7 +109,10 @@ export async function POST(req: NextRequest) {
 
           // Get package deduction rates
           const packageDeductions = await tx.packageDeduction.findMany();
-          const packageDeductionMap: Record<string, { lateness: number; absence: number }> = {};
+          const packageDeductionMap: Record<
+            string,
+            { lateness: number; absence: number }
+          > = {};
           packageDeductions.forEach((pkg) => {
             packageDeductionMap[pkg.packageName] = {
               lateness: Number(pkg.latenessBaseAmount),
@@ -187,7 +144,9 @@ export async function POST(req: NextRequest) {
           });
 
           const waivedDates = new Set(
-            existingWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
+            existingWaivers.map(
+              (w) => w.deductionDate.toISOString().split("T")[0]
+            )
           );
 
           // Get existing absence records
@@ -199,8 +158,8 @@ export async function POST(req: NextRequest) {
           });
 
           const existingAbsenceDates = new Set(
-            existingAbsenceRecords.map((record) =>
-              record.classDate.toISOString().split("T")[0]
+            existingAbsenceRecords.map(
+              (record) => record.classDate.toISOString().split("T")[0]
             )
           );
 
@@ -215,14 +174,19 @@ export async function POST(req: NextRequest) {
 
           const computedAbsenceWaivers = [];
 
-          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+          for (
+            let d = new Date(startDate);
+            d <= endDate;
+            d.setDate(d.getDate() + 1)
+          ) {
             if (d > today) continue;
             if (!includeSundays && d.getDay() === 0) continue;
 
             const dateStr = d.toISOString().split("T")[0];
 
             // Skip if already have database record or waiver
-            if (existingAbsenceDates.has(dateStr) || waivedDates.has(dateStr)) continue;
+            if (existingAbsenceDates.has(dateStr) || waivedDates.has(dateStr))
+              continue;
 
             // Check if teacher sent zoom links
             const dayHasZoomLinks = currentStudents.some((student) =>
@@ -266,7 +230,11 @@ export async function POST(req: NextRequest) {
                 deductionType: "absence" as const,
                 deductionDate: new Date(d),
                 originalAmount: dailyDeduction,
-                reason: `${reason} | Per-schedule absence: ${affectedStudents.length} students affected - ${affectedStudents.map(s => `${s.name}(${s.package}): ${s.rate}ETB`).join(", ")}`,
+                reason: `${reason} | Per-schedule absence: ${
+                  affectedStudents.length
+                } students affected - ${affectedStudents
+                  .map((s) => `${s.name}(${s.package}): ${s.rate}ETB`)
+                  .join(", ")}`,
                 adminId,
               });
               totalAmountWaived += dailyDeduction;
@@ -274,14 +242,12 @@ export async function POST(req: NextRequest) {
           }
 
           if (computedAbsenceWaivers.length > 0) {
-            console.log(`💾 CREATING ${computedAbsenceWaivers.length} PER-SCHEDULE ABSENCE WAIVERS FOR ${teacherId}`);
-            
-            const createdComputedWaivers = await tx.deduction_waivers.createMany({
-              data: computedAbsenceWaivers,
-              skipDuplicates: true,
-            });
+            const createdComputedWaivers =
+              await tx.deduction_waivers.createMany({
+                data: computedAbsenceWaivers,
+                skipDuplicates: true,
+              });
 
-            console.log(`✅ CREATED ${createdComputedWaivers.count} PER-SCHEDULE ABSENCE WAIVERS`);
             recordsAffected += createdComputedWaivers.count;
           }
         }
@@ -474,25 +440,11 @@ export async function POST(req: NextRequest) {
         }
 
         if (waiverData.length > 0) {
-          // CRITICAL: Log waiver creation for audit
-          console.log(
-            `💾 CREATING ${waiverData.length} LATENESS WAIVERS:`,
-            waiverData.map(
-              (w) =>
-                `${w.teacherId} - ${
-                  w.deductionDate.toISOString().split("T")[0]
-                } - ${w.originalAmount} ETB`
-            )
-          );
-
           const createdWaivers = await tx.deduction_waivers.createMany({
             data: waiverData,
             skipDuplicates: true,
           });
 
-          console.log(
-            `✅ SUCCESSFULLY CREATED ${createdWaivers.count} LATENESS WAIVERS`
-          );
           recordsAffected = createdWaivers.count;
 
           // Verify creation
@@ -503,9 +455,6 @@ export async function POST(req: NextRequest) {
               deductionDate: { gte: startDate, lte: endDate },
             },
           });
-          console.log(
-            `🔍 VERIFICATION: ${verifyCount} lateness waivers now exist in database`
-          );
         }
       }
 
@@ -528,14 +477,8 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      console.log("✅ Transaction completed:", {
-        recordsAffected,
-        totalAmountWaived,
-      });
       return { recordsAffected, totalAmountWaived };
     });
-
-    console.log("🎉 ADJUSTMENT SUCCESSFUL:", result);
 
     return NextResponse.json({
       success: true,
