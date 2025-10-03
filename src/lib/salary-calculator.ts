@@ -1113,6 +1113,34 @@ export class SalaryCalculator {
       },
     });
 
+    // Debug: Log MOHAMED's data
+    const mohamedStudent = students.find(
+      (s) => s.name && s.name.toUpperCase().includes("MOHAMED")
+    );
+    if (mohamedStudent) {
+      console.log(`🔍 MOHAMED Student Data:`, {
+        studentId: mohamedStudent.wdt_ID,
+        studentName: mohamedStudent.name,
+        package: mohamedStudent.package,
+        status: mohamedStudent.status,
+        occupiedTimes: mohamedStudent.occupiedTimes,
+        zoomLinksCount: mohamedStudent.zoom_links.length,
+        attendanceRecordsCount: mohamedStudent.attendance_progress.length,
+        zoomLinks: mohamedStudent.zoom_links.map((link) => ({
+          sent_time: link.sent_time,
+          date: link.sent_time
+            ? link.sent_time.toISOString().split("T")[0]
+            : null,
+        })),
+      });
+    }
+
+    // Helper function to convert UTC to UTC+3 (Ethiopia timezone)
+    const convertToEthiopiaTime = (utcDate: Date) => {
+      const ethiopiaTime = new Date(utcDate.getTime() + 3 * 60 * 60 * 1000); // Add 3 hours
+      return ethiopiaTime;
+    };
+
     // Get package deduction rates
     const packageDeductions = await prisma.packageDeduction.findMany();
     const packageMap = Object.fromEntries(
@@ -1154,36 +1182,155 @@ export class SalaryCalculator {
     // Helper function to check if a student is scheduled on a specific day
     const isStudentScheduledOnDay = (student: any, dayOfWeek: number) => {
       if (!student.occupiedTimes || student.occupiedTimes.length === 0) {
+        console.log(`❌ Student ${student.name} has no occupiedTimes data`);
         return false;
       }
 
       // Map daypackage to day numbers (assuming daypackage contains day information)
       const daypackage = student.occupiedTimes[0]?.daypackage || "";
-
-      // Common daypackage formats: "Monday,Wednesday,Friday" or "1,3,5" or "MWF"
-      if (daypackage.includes("Monday") && dayOfWeek === 1) return true;
-      if (daypackage.includes("Tuesday") && dayOfWeek === 2) return true;
-      if (daypackage.includes("Wednesday") && dayOfWeek === 3) return true;
-      if (daypackage.includes("Thursday") && dayOfWeek === 4) return true;
-      if (daypackage.includes("Friday") && dayOfWeek === 5) return true;
-      if (daypackage.includes("Saturday") && dayOfWeek === 6) return true;
-
-      // Numeric format (1=Monday, 2=Tuesday, etc.)
-      if (daypackage.includes("1") && dayOfWeek === 1) return true;
-      if (daypackage.includes("2") && dayOfWeek === 2) return true;
-      if (daypackage.includes("3") && dayOfWeek === 3) return true;
-      if (daypackage.includes("4") && dayOfWeek === 4) return true;
-      if (daypackage.includes("5") && dayOfWeek === 5) return true;
-      if (daypackage.includes("6") && dayOfWeek === 6) return true;
-
-      // If no specific schedule found, assume student is scheduled based on package
       const packageName = student.package || "";
-      if (packageName.includes("3 days")) {
-        return dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5;
-      } else if (packageName.includes("5 days")) {
-        return dayOfWeek >= 1 && dayOfWeek <= 5;
+
+      // Debug for MOHAMED specifically
+      if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+        console.log(`🔍 MOHAMED Schedule Debug:`, {
+          studentName: student.name,
+          dayOfWeek: dayOfWeek,
+          dayOfWeekName: [
+            "Sunday",
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+          ][dayOfWeek],
+          daypackage: daypackage,
+          packageName: packageName,
+          occupiedTimes: student.occupiedTimes[0],
+        });
       }
 
+      // Common daypackage formats: "Monday,Wednesday,Friday" or "1,3,5" or "MWF"
+      if (daypackage.includes("Monday") && dayOfWeek === 1) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `✅ MOHAMED scheduled on Monday (daypackage contains Monday)`
+          );
+        }
+        return true;
+      }
+      if (daypackage.includes("Tuesday") && dayOfWeek === 2) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `✅ MOHAMED scheduled on Tuesday (daypackage contains Tuesday)`
+          );
+        }
+        return true;
+      }
+      if (daypackage.includes("Wednesday") && dayOfWeek === 3) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `✅ MOHAMED scheduled on Wednesday (daypackage contains Wednesday)`
+          );
+        }
+        return true;
+      }
+      if (daypackage.includes("Thursday") && dayOfWeek === 4) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `✅ MOHAMED scheduled on Thursday (daypackage contains Thursday)`
+          );
+        }
+        return true;
+      }
+      if (daypackage.includes("Friday") && dayOfWeek === 5) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `✅ MOHAMED scheduled on Friday (daypackage contains Friday)`
+          );
+        }
+        return true;
+      }
+      if (daypackage.includes("Saturday") && dayOfWeek === 6) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `✅ MOHAMED scheduled on Saturday (daypackage contains Saturday)`
+          );
+        }
+        return true;
+      }
+
+      // Numeric format (1=Monday, 2=Tuesday, etc.)
+      if (daypackage.includes("1") && dayOfWeek === 1) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(`✅ MOHAMED scheduled on Monday (daypackage contains 1)`);
+        }
+        return true;
+      }
+      if (daypackage.includes("2") && dayOfWeek === 2) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `✅ MOHAMED scheduled on Tuesday (daypackage contains 2)`
+          );
+        }
+        return true;
+      }
+      if (daypackage.includes("3") && dayOfWeek === 3) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `✅ MOHAMED scheduled on Wednesday (daypackage contains 3)`
+          );
+        }
+        return true;
+      }
+      if (daypackage.includes("4") && dayOfWeek === 4) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `✅ MOHAMED scheduled on Thursday (daypackage contains 4)`
+          );
+        }
+        return true;
+      }
+      if (daypackage.includes("5") && dayOfWeek === 5) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(`✅ MOHAMED scheduled on Friday (daypackage contains 5)`);
+        }
+        return true;
+      }
+      if (daypackage.includes("6") && dayOfWeek === 6) {
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `✅ MOHAMED scheduled on Saturday (daypackage contains 6)`
+          );
+        }
+        return true;
+      }
+
+      // If no specific schedule found, assume student is scheduled based on package
+      if (packageName.includes("3 days")) {
+        const isScheduled =
+          dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5;
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `📦 MOHAMED 3-day package check: dayOfWeek=${dayOfWeek}, scheduled=${isScheduled}`
+          );
+        }
+        return isScheduled;
+      } else if (packageName.includes("5 days")) {
+        const isScheduled = dayOfWeek >= 1 && dayOfWeek <= 5;
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `📦 MOHAMED 5-day package check: dayOfWeek=${dayOfWeek}, scheduled=${isScheduled}`
+          );
+        }
+        return isScheduled;
+      }
+
+      if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+        console.log(
+          `❌ MOHAMED not scheduled on day ${dayOfWeek} - no matching schedule found`
+        );
+      }
       return false;
     };
 
@@ -1239,14 +1386,34 @@ export class SalaryCalculator {
     today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
 
     for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split("T")[0];
-      const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, etc.
+      // Convert to Ethiopia timezone for proper day calculation
+      const ethiopiaDate = convertToEthiopiaTime(d);
+      const dateStr = ethiopiaDate.toISOString().split("T")[0];
+      const dayOfWeek = ethiopiaDate.getDay(); // 0=Sunday, 1=Monday, etc.
+
+      // Debug for MOHAMED - log every day being processed
+      const dayName = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ][dayOfWeek];
+      console.log(`📅 Processing day: ${dateStr} (${dayName}) - Ethiopia Time`);
 
       // Skip weekends if configured
-      if (dayOfWeek === 0) continue; // Skip Sunday
+      if (dayOfWeek === 0) {
+        console.log(`⏭️ Skipping Sunday: ${dateStr}`);
+        continue; // Skip Sunday
+      }
 
       // Skip future dates - only process today and past dates
-      if (d > today) continue;
+      if (ethiopiaDate > today) {
+        console.log(`⏭️ Skipping future date: ${dateStr}`);
+        continue;
+      }
 
       // Check if there's an approved permission for this date
       const hasPermission = permissionRequests.some(
@@ -1280,25 +1447,70 @@ export class SalaryCalculator {
       const affectedStudents: any[] = [];
 
       for (const student of students) {
+        // Debug for MOHAMED specifically
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(`🔍 MOHAMED Absence Check for ${dateStr}:`, {
+            studentName: student.name,
+            studentId: student.wdt_ID,
+            hasZoomLink: dayZoomLinks.has(student.wdt_ID.toString()),
+            dayOfWeek: dayOfWeek,
+            dayName: dayName,
+          });
+        }
+
         // Skip if student has zoom link for this day
-        if (dayZoomLinks.has(student.wdt_ID.toString())) continue;
+        if (dayZoomLinks.has(student.wdt_ID.toString())) {
+          if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+            console.log(
+              `✅ MOHAMED has zoom link for ${dateStr} - skipping absence`
+            );
+          }
+          continue;
+        }
 
         // Skip if student was not assigned to teacher on this date
-        if (!isStudentAssignedOnDate(student, d)) continue;
+        if (!isStudentAssignedOnDate(student, ethiopiaDate)) {
+          if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+            console.log(
+              `❌ MOHAMED not assigned on ${dateStr} - skipping absence`
+            );
+          }
+          continue;
+        }
 
         // Skip if student is not scheduled to have class on this day
-        if (!isStudentScheduledOnDay(student, dayOfWeek)) continue;
+        if (!isStudentScheduledOnDay(student, dayOfWeek)) {
+          if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+            console.log(
+              `❌ MOHAMED not scheduled on ${dayName} (${dayOfWeek}) - skipping absence`
+            );
+          }
+          continue;
+        }
 
         // Check if student has permission attendance status
         const attendanceRecord = student.attendance_progress.find(
           (att) => att.date.toISOString().split("T")[0] === dateStr
         );
 
-        if (attendanceRecord?.attendance_status === "Permission") continue;
+        if (attendanceRecord?.attendance_status === "Permission") {
+          if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+            console.log(
+              `✅ MOHAMED has permission for ${dateStr} - skipping absence`
+            );
+          }
+          continue;
+        }
 
         // Calculate deduction based on student's package
         const packageRate = packageMap[student.package || ""] || 25;
         dailyDeduction += packageRate;
+
+        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+          console.log(
+            `💰 MOHAMED ABSENCE DEDUCTION: ${packageRate} ETB for ${dateStr} (${dayName})`
+          );
+        }
 
         affectedStudents.push({
           studentId: student.wdt_ID,
