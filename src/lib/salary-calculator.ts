@@ -1077,6 +1077,19 @@ export class SalaryCalculator {
     fromDate: Date,
     toDate: Date
   ) {
+    // Enable debug mode for specific teachers (add teacher IDs here)
+    // To enable debugging: Replace "TEACHER_ID_1" with actual teacher ID from database
+    const debugTeachers = ["TEACHER_ID_1", "TEACHER_ID_2"]; // Add actual teacher IDs
+    const isDebugMode = debugTeachers.includes(teacherId);
+
+    if (isDebugMode) {
+      console.log(`🔍 ABSENCE DEBUG MODE ENABLED for Teacher: ${teacherId}`);
+      console.log(
+        `📅 Period: ${fromDate.toISOString().split("T")[0]} to ${
+          toDate.toISOString().split("T")[0]
+        }`
+      );
+    }
     // Get teacher's students with their assignment periods and schedules
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
@@ -1123,6 +1136,20 @@ export class SalaryCalculator {
       );
     }
 
+    // Debug mode: Log all students data
+    if (isDebugMode) {
+      console.log(`👥 Students found: ${students.length}`);
+      students.forEach((student, index) => {
+        console.log(`  ${index + 1}. ${student.name} (ID: ${student.wdt_ID})`, {
+          package: student.package,
+          status: student.status,
+          occupiedTimes: student.occupiedTimes.length,
+          zoomLinks: student.zoom_links.length,
+          attendanceRecords: student.attendance_progress.length,
+        });
+      });
+    }
+
     // Helper function to convert UTC to UTC+3 (Ethiopia timezone)
     const convertToEthiopiaTime = (utcDate: Date) => {
       const ethiopiaTime = new Date(utcDate.getTime() + 3 * 60 * 60 * 1000); // Add 3 hours
@@ -1137,6 +1164,11 @@ export class SalaryCalculator {
         Number(p.absenceBaseAmount || 25),
       ])
     );
+
+    // Debug mode: Log package deductions
+    if (isDebugMode) {
+      console.log(`💰 Package Deductions:`, packageMap);
+    }
 
     // Get permission requests for the period
     const permissionRequests = await prisma.permissionrequest.findMany({
@@ -1163,6 +1195,18 @@ export class SalaryCalculator {
       },
       select: { deductionDate: true, reason: true },
     });
+
+    // Debug mode: Log permissions and waivers
+    if (isDebugMode) {
+      console.log(
+        `📋 Permission Requests: ${permissionRequests.length}`,
+        permissionRequests
+      );
+      console.log(
+        `🛡️ Deduction Waivers: ${deductionWaivers.length}`,
+        deductionWaivers
+      );
+    }
 
     let totalDeduction = 0;
     const breakdown: any[] = [];
@@ -1271,65 +1315,123 @@ export class SalaryCalculator {
         "Saturday",
       ][dayOfWeek];
 
+      // Debug mode: Log each day being processed
+      if (isDebugMode) {
+        console.log(
+          `\n📅 Processing ${dateStr} (${dayName}) - Day ${dayOfWeek}`
+        );
+      }
+
       // Skip weekends if configured
-      if (dayOfWeek === 0) continue; // Skip Sunday
+      if (dayOfWeek === 0) {
+        if (isDebugMode) console.log(`  ⏭️ Skipping Sunday`);
+        continue; // Skip Sunday
+      }
 
       // Skip future dates - only process today and past dates
-      if (ethiopiaDate > today) continue;
+      if (ethiopiaDate > today) {
+        if (isDebugMode) console.log(`  ⏭️ Skipping future date`);
+        continue;
+      }
 
       // Check if there's an approved permission for this date
       const hasPermission = permissionRequests.some(
         (req) => req.requestedDate === dateStr
       );
 
-      if (hasPermission) continue; // Skip deduction if permission is approved
+      if (hasPermission) {
+        if (isDebugMode)
+          console.log(`  ✅ Has permission - skipping deduction`);
+        continue; // Skip deduction if permission is approved
+      }
 
       // Check if there's a deduction waiver for this date
       const hasWaiver = deductionWaivers.some(
         (waiver) => waiver.deductionDate.toISOString().split("T")[0] === dateStr
       );
 
-      if (hasWaiver) continue; // Skip deduction if waiver exists
+      if (hasWaiver) {
+        if (isDebugMode) console.log(`  🛡️ Has waiver - skipping deduction`);
+        continue; // Skip deduction if waiver exists
+      }
 
       // Check if teacher sent zoom links for this date
       const dayZoomLinks = new Set<string>();
+      const scheduledStudents: any[] = [];
+
       students.forEach((student) => {
         // Only check zoom links for students who are scheduled on this day
-        if (
-          isStudentScheduledOnDay(student, dayOfWeek) &&
-          isStudentAssignedOnDate(student, ethiopiaDate)
-        ) {
+        const isScheduled = isStudentScheduledOnDay(student, dayOfWeek);
+        const isAssigned = isStudentAssignedOnDate(student, ethiopiaDate);
+
+        if (isDebugMode && (isScheduled || isAssigned)) {
+          scheduledStudents.push({
+            name: student.name,
+            isScheduled,
+            isAssigned,
+            zoomLinks: student.zoom_links.length,
+          });
+        }
+
+        if (isScheduled && isAssigned) {
           student.zoom_links.forEach((link) => {
             if (link.sent_time) {
               const linkDate = link.sent_time.toISOString().split("T")[0];
               if (linkDate === dateStr) {
                 dayZoomLinks.add(student.wdt_ID.toString());
+                if (isDebugMode) {
+                  console.log(
+                    `  📹 ${student.name} has zoom link for ${dateStr}`
+                  );
+                }
               }
             }
           });
         }
       });
 
+      if (isDebugMode) {
+        console.log(`  📊 Scheduled students:`, scheduledStudents);
+        console.log(`  📹 Students with zoom links: ${dayZoomLinks.size}`);
+      }
+
       // Calculate deduction for students without zoom links
       let dailyDeduction = 0;
       const affectedStudents: any[] = [];
 
       for (const student of students) {
-        // Skip if student has zoom link for this day
-        if (dayZoomLinks.has(student.wdt_ID.toString())) continue;
-
-        // Skip if student was not assigned to teacher on this date
-        if (!isStudentAssignedOnDate(student, ethiopiaDate)) continue;
-
-        // Skip if student is not scheduled to have class on this day
-        if (!isStudentScheduledOnDay(student, dayOfWeek)) continue;
+        const hasZoomLink = dayZoomLinks.has(student.wdt_ID.toString());
+        const isAssigned = isStudentAssignedOnDate(student, ethiopiaDate);
+        const isScheduled = isStudentScheduledOnDay(student, dayOfWeek);
 
         // Check if student has permission attendance status
         const attendanceRecord = student.attendance_progress.find(
           (att) => att.date.toISOString().split("T")[0] === dateStr
         );
+        const hasPermission =
+          attendanceRecord?.attendance_status === "Permission";
 
-        if (attendanceRecord?.attendance_status === "Permission") continue;
+        // Debug mode: Log each student's status
+        if (isDebugMode) {
+          console.log(`  👤 ${student.name}:`, {
+            hasZoomLink,
+            isAssigned,
+            isScheduled,
+            hasPermission,
+            package: student.package,
+          });
+        }
+
+        // Skip if student has zoom link for this day
+        if (hasZoomLink) continue;
+
+        // Skip if student was not assigned to teacher on this date
+        if (!isAssigned) continue;
+
+        // Skip if student is not scheduled to have class on this day
+        if (!isScheduled) continue;
+
+        if (hasPermission) continue;
 
         // Calculate deduction based on student's package
         const packageRate = packageMap[student.package || ""] || 25;
@@ -1339,6 +1441,13 @@ export class SalaryCalculator {
         if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
           console.log(
             `💰 MOHAMED ABSENCE: ${packageRate} ETB for ${dateStr} (${dayName})`
+          );
+        }
+
+        // Debug mode: Log all deductions
+        if (isDebugMode) {
+          console.log(
+            `  💰 ABSENCE DEDUCTION: ${student.name} - ${packageRate} ETB`
           );
         }
 
@@ -1355,6 +1464,12 @@ export class SalaryCalculator {
       if (dailyDeduction > 0) {
         totalDeduction += dailyDeduction;
 
+        if (isDebugMode) {
+          console.log(
+            `  💰 Daily Total: ${dailyDeduction} ETB (${affectedStudents.length} students)`
+          );
+        }
+
         breakdown.push({
           date: dateStr,
           studentId: affectedStudents[0]?.studentId || 0,
@@ -1368,7 +1483,17 @@ export class SalaryCalculator {
           waived: false,
           affectedStudents,
         });
+      } else if (isDebugMode) {
+        console.log(`  ✅ No deductions for ${dateStr}`);
       }
+    }
+
+    // Debug mode: Final summary
+    if (isDebugMode) {
+      console.log(`\n📊 ABSENCE CALCULATION SUMMARY:`);
+      console.log(`  Total Deduction: ${totalDeduction} ETB`);
+      console.log(`  Breakdown Records: ${breakdown.length}`);
+      console.log(`  Breakdown:`, breakdown);
     }
 
     return {
