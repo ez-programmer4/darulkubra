@@ -102,6 +102,9 @@ export class SalaryCalculator {
     }
 
     try {
+      // Debug configuration - add teacher IDs here to enable debug logging
+      const debugTeacherIds = ["MOHAMED_TEACHER_ID", "SPECIFIC_TEACHER_ID"]; // Add actual teacher IDs here
+
       // Get teacher info
       const teacher = await this.getTeacherInfo(teacherId);
       if (!teacher) {
@@ -131,11 +134,17 @@ export class SalaryCalculator {
       );
 
       // Calculate deductions
+      // Enable debug mode for lateness calculations
+      const latenessDebugMode =
+        debugTeacherIds.includes(teacherId) ||
+        process.env.DEBUG_LATENESS === "true";
+
       const latenessData = await this.calculateLatenessDeductions(
         teacherId,
         assignments,
         fromDate,
-        toDate
+        toDate,
+        latenessDebugMode
       );
 
       const absenceData = await this.calculateAbsenceDeductions(
@@ -855,8 +864,18 @@ export class SalaryCalculator {
     teacherId: string,
     assignments: any[],
     fromDate: Date,
-    toDate: Date
+    toDate: Date,
+    isDebugMode: boolean = false
   ) {
+    if (isDebugMode) {
+      console.log(`\n🚨 === LATENESS DEDUCTION DEBUG ===`);
+      console.log(`Teacher ID: ${teacherId}`);
+      console.log(
+        `Period: ${fromDate.toISOString().split("T")[0]} to ${
+          toDate.toISOString().split("T")[0]
+        }`
+      );
+    }
     // Get zoom links for the period to calculate lateness
     // Only include zoom links for students who have actual assignment records
     const zoomLinks = await prisma.wpos_zoom_links.findMany({
@@ -991,8 +1010,27 @@ export class SalaryCalculator {
         firstLink.sent_time.getHours() * 60 + firstLink.sent_time.getMinutes();
       const latenessMinutes = actualMinutes - scheduledMinutes;
 
-      // Skip if within excused threshold
-      if (latenessMinutes <= excusedThreshold) continue;
+      // Skip if early (negative lateness) - teachers who send zoom links early should not be penalized
+      if (latenessMinutes < 0) {
+        if (isDebugMode) {
+          console.log(
+            `🚀 ${student.name}: Sent zoom link ${Math.abs(
+              latenessMinutes
+            )} minutes early - No late penalty`
+          );
+        }
+        continue;
+      }
+
+      // Skip if within excused threshold (no lateness or minor lateness)
+      if (latenessMinutes <= excusedThreshold) {
+        if (isDebugMode) {
+          console.log(
+            `✅ ${student.name}: Within excused threshold (${latenessMinutes} min) - No deduction`
+          );
+        }
+        continue;
+      }
 
       // Check if there's a lateness waiver for this date
       const hasLatenessWaiver = latenessWaivers.some(
