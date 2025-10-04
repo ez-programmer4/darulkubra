@@ -1079,9 +1079,7 @@ export class SalaryCalculator {
     // Enhanced Debug mode - enable for specific teachers or testing
     // To enable debugging for a specific teacher, replace the condition below
     const debugTeacherIds = ["MOHAMED_TEACHER_ID", "SPECIFIC_TEACHER_ID"]; // Add actual teacher IDs here
-    const isDebugMode =
-      debugTeacherIds.includes(teacherId) ||
-      process.env.DEBUG_ABSENCE === "true";
+    const isDebugMode = true; // Enable debug mode to see what's happening
 
     if (isDebugMode) {
       console.log(`\n🔍 === ABSENCE DEDUCTION DEBUG ===`);
@@ -1661,23 +1659,26 @@ export class SalaryCalculator {
           studentsWithZoomLinks.add(student.wdt_ID.toString());
         }
 
-        // If student is scheduled OR has zoom links (indicating they should be scheduled), add to processing list
-        if ((isScheduled && isAssigned) || (!isScheduled && hasZoomLinkForDate)) {
-          scheduledStudentsForDay.push({
-            student: student,
-            scheduleResult: scheduleResult,
-            assignmentResults: assignmentResults,
-            hasZoomLink: hasZoomLinkForDate,
-          });
-
+        // Process all students who are assigned to this teacher
+        if (isAssigned) {
           if (isDebugMode) {
             console.log(`  📋 ${student.name}:`, {
               scheduled: isScheduled,
               assigned: isAssigned,
               hasZoomLink: hasZoomLinkForDate,
-              reason: scheduleResult.reason,
               daypackage: student.occupiedTimes[0]?.daypackage,
               package: student.package,
+              willProcess: isScheduled || hasZoomLinkForDate
+            });
+          }
+          
+          // Only add to processing if scheduled OR has zoom link for this date
+          if (isScheduled || hasZoomLinkForDate) {
+            scheduledStudentsForDay.push({
+              student: student,
+              scheduleResult: scheduleResult,
+              assignmentResults: assignmentResults,
+              hasZoomLink: hasZoomLinkForDate,
             });
           }
         }
