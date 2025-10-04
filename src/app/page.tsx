@@ -62,8 +62,8 @@ export default function Home() {
             className="text-lg sm:text-xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed"
           >
             Comprehensive digital platform for managing academies, student
-            registrations, attendance tracking, payment processing, and advanced
-            analytics.
+            registration, attendance trackings, payment processings, and
+            advanced analytics and more.
           </motion.p>
 
           {/* Login Buttons */}
