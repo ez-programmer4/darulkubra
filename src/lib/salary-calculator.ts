@@ -1156,21 +1156,46 @@ export class SalaryCalculator {
 
     // Enhanced timezone conversion - properly handle Ethiopia timezone (UTC+3)
     const convertToEthiopiaTime = (utcDate: Date) => {
-      // Create a new date to avoid mutating the original
-      const ethiopiaTime = new Date(utcDate.getTime() + 3 * 60 * 60 * 1000); // Add 3 hours
+      // Ensure we're working with a proper UTC date at midnight
+      const utcMidnight = new Date(
+        Date.UTC(
+          utcDate.getUTCFullYear(),
+          utcDate.getUTCMonth(),
+          utcDate.getUTCDate(),
+          0,
+          0,
+          0,
+          0
+        )
+      );
+
+      // Add 3 hours to get Ethiopia time
+      const ethiopiaTime = new Date(utcMidnight.getTime() + 3 * 60 * 60 * 1000);
+
+      // Create a date without time component for comparison
+      const ethiopiaDateOnly = new Date(
+        Date.UTC(
+          ethiopiaTime.getUTCFullYear(),
+          ethiopiaTime.getUTCMonth(),
+          ethiopiaTime.getUTCDate(),
+          0,
+          0,
+          0,
+          0
+        )
+      );
+
       return {
-        date: new Date(
-          ethiopiaTime.getFullYear(),
-          ethiopiaTime.getMonth(),
-          ethiopiaTime.getDate()
-        ), // Date part only
-        dayOfWeek: ethiopiaTime.getDay(), // 0=Sunday, 1=Monday, etc.
-        year: ethiopiaTime.getFullYear(),
-        month: ethiopiaTime.getMonth() + 1,
-        day: ethiopiaTime.getDate(),
-        hour: ethiopiaTime.getHours(),
-        minute: ethiopiaTime.getMinutes(),
+        date: ethiopiaDateOnly,
+        dayOfWeek: ethiopiaDateOnly.getUTCDay(), // 0=Sunday, 1=Monday, etc.
+        year: ethiopiaTime.getUTCFullYear(),
+        month: ethiopiaTime.getUTCMonth() + 1,
+        day: ethiopiaTime.getUTCDate(),
+        hour: ethiopiaTime.getUTCHours(),
+        minute: ethiopiaTime.getUTCMinutes(),
         datetime: ethiopiaTime,
+        utcInput: utcMidnight.toISOString(),
+        ethiopiaOutput: ethiopiaTime.toISOString(),
       };
     };
 
@@ -1356,9 +1381,18 @@ export class SalaryCalculator {
       return { isScheduled, reason };
     };
 
-    // Helper function to check if student was assigned to teacher on a specific date
-    const isStudentAssignedOnDate = (student: any, date: Date) => {
+    // Enhanced helper function to check if student was assigned to teacher on a specific date
+    const isStudentAssignedOnDate = (
+      student: any,
+      date: Date,
+      debugContext?: { studentName?: string; dateStr?: string }
+    ) => {
       if (!student.occupiedTimes || student.occupiedTimes.length === 0) {
+        if (isDebugMode && debugContext?.studentName) {
+          console.log(
+            `  ❌ ${debugContext.studentName}: No occupiedTimes data`
+          );
+        }
         return false;
       }
 
@@ -1370,27 +1404,94 @@ export class SalaryCalculator {
         ? new Date(assignment.end_at)
         : null;
 
+      if (isDebugMode && debugContext?.studentName) {
+        console.log(`  📋 ${debugContext.studentName} Assignment Check:`);
+        console.log(`    Check Date (Ethiopia): ${debugContext.dateStr}`);
+        console.log(
+          `    Assignment Start: ${
+            assignmentStart
+              ? assignmentStart.toISOString().split("T")[0]
+              : "No start date"
+          }`
+        );
+        console.log(
+          `    Assignment End: ${
+            assignmentEnd
+              ? assignmentEnd.toISOString().split("T")[0]
+              : "No end date"
+          }`
+        );
+      }
+
       // If no assignment start date, assume student was always assigned
-      if (!assignmentStart) return true;
+      if (!assignmentStart) {
+        if (isDebugMode && debugContext?.studentName) {
+          console.log(
+            `    ✅ No assignment start date - assuming always assigned`
+          );
+        }
+        return true;
+      }
 
       // Check if date is after assignment start
       if (date < assignmentStart) {
+        if (isDebugMode && debugContext?.studentName) {
+          console.log(
+            `    ❌ Date is before assignment start: ${date < assignmentStart}`
+          );
+        }
         return false;
       }
 
       // Check if assignment has ended and date is after end date
       if (assignmentEnd && date > assignmentEnd) {
+        if (isDebugMode && debugContext?.studentName) {
+          console.log(
+            `    ❌ Date is after assignment end: ${date > assignmentEnd}`
+          );
+        }
         return false;
+      }
+
+      if (isDebugMode && debugContext?.studentName) {
+        console.log(`    ✅ Assignment valid for this date`);
       }
 
       return true;
     };
 
-    // Process each day in the period
+    // Process each day in the period with proper timezone handling
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
 
-    for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
+    // Create a safe date iterator to avoid month boundary issues
+    const safeDateIterator = (startDate: Date, endDate: Date) => {
+      const dates: Date[] = [];
+      let currentDate = new Date(startDate);
+
+      while (currentDate <= endDate) {
+        // Always create a new Date object to avoid mutation issues
+        dates.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      return dates;
+    };
+
+    const datesToProcess = safeDateIterator(fromDate, toDate);
+
+    if (isDebugMode) {
+      console.log(
+        `🗓️ Processing ${datesToProcess.length} days from ${
+          fromDate.toISOString().split("T")[0]
+        } to ${toDate.toISOString().split("T")[0]}`
+      );
+      console.log(
+        `📅 Dates to process:`,
+        datesToProcess.map((d) => d.toISOString().split("T")[0])
+      );
+    }
+
+    for (const d of datesToProcess) {
       // Convert to Ethiopia timezone (UTC+3) for proper day calculation
       const ethiopiaTime = convertToEthiopiaTime(d);
       const ethiopiaDate = ethiopiaTime.date;
@@ -1407,11 +1508,29 @@ export class SalaryCalculator {
         "Saturday",
       ][dayOfWeek];
 
-      // Debug mode: Log each day being processed
+      // Debug mode: Log each day being processed with timezone details
       if (isDebugMode) {
+        console.log(`\n📍 === DATE PROCESSING ===`);
         console.log(
-          `\n📅 Processing ${dateStr} (${dayName}) - Day ${dayOfWeek}`
+          `UTC Input Date: ${d.toISOString().split("T")[0]} (${d.getDay()} - ${
+            [
+              "Sunday",
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday",
+              "Saturday",
+            ][d.getDay()]
+          })`
         );
+        console.log(
+          `Ethiopia Date: ${dateStr} (${dayName}) - Day ${dayOfWeek}`
+        );
+        console.log(`Timezone Offset: +3 hours (UTC+3)`);
+        console.log(`UTC Input: ${ethiopiaTime.utcInput}`);
+        console.log(`Ethiopia Output: ${ethiopiaTime.ethiopiaOutput}`);
+        console.log(`Full Ethiopia Time Object:`, ethiopiaTime);
       }
 
       // Skip weekends if configured
@@ -1459,7 +1578,10 @@ export class SalaryCalculator {
           daypackage: student.occupiedTimes[0]?.daypackage || undefined,
         });
         const isScheduled = scheduleResult.isScheduled;
-        const isAssigned = isStudentAssignedOnDate(student, ethiopiaDate);
+        const isAssigned = isStudentAssignedOnDate(student, ethiopiaDate, {
+          studentName: student.name || undefined,
+          dateStr: dateStr,
+        });
 
         if (isDebugMode && (isScheduled || isAssigned)) {
           scheduledStudents.push({
@@ -1499,7 +1621,10 @@ export class SalaryCalculator {
 
       for (const student of students) {
         const hasZoomLink = dayZoomLinks.has(student.wdt_ID.toString());
-        const isAssigned = isStudentAssignedOnDate(student, ethiopiaDate);
+        const isAssigned = isStudentAssignedOnDate(student, ethiopiaDate, {
+          studentName: student.name || undefined,
+          dateStr: dateStr,
+        });
         const scheduleResult = isStudentScheduledOnDay(student, dayOfWeek, {
           studentName: student.name || undefined,
           packageName: student.package || undefined,
@@ -1573,8 +1698,19 @@ export class SalaryCalculator {
         totalDeduction += dailyDeduction;
 
         if (isDebugMode) {
+          console.log(`  💰 === DEDUCTION APPLIED ===`);
           console.log(
-            `  💰 Daily Total: ${dailyDeduction} ETB (${affectedStudents.length} students)`
+            `  Daily Total: ${dailyDeduction} ETB (${affectedStudents.length} students)`
+          );
+          console.log(
+            `  Affected Students:`,
+            affectedStudents.map((s) => ({
+              name: s.studentName,
+              package: s.studentPackage,
+              rate: s.rate,
+              scheduleReason: s.scheduleReason,
+              daypackage: s.daypackage,
+            }))
           );
         }
 
