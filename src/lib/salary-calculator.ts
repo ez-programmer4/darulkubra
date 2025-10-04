@@ -1093,12 +1093,33 @@ export class SalaryCalculator {
       );
       console.log(`Debug Mode: Enabled`);
     }
-    // Get teacher's students with their assignment periods and schedules
-    // Only include students who have actual assignment records in wpos_ustaz_occupied_times
-    const students = await prisma.wpos_wpdatatable_23.findMany({
+    // Enhanced student query - get ALL students who were assigned to this teacher during the period
+    // This includes both current assignments and historical assignments
+
+    // First get student IDs from audit logs
+    const historicalStudentIds = await prisma.auditlog
+      .findMany({
+        where: {
+          actionType: "assignment_update",
+          createdAt: { gte: fromDate, lte: toDate },
+          details: {
+            contains: `"newTeacher":"${teacherId}"`,
+          },
+        },
+        select: { targetId: true },
+        distinct: ["targetId"],
+      })
+      .then((logs) =>
+        logs
+          .map((log) => log.targetId)
+          .filter((id): id is number => id !== null)
+      );
+
+    // Get current students assigned to this teacher
+    const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
       where: {
-        ustaz: teacherId,
         status: { in: ["active", "Active", "Not yet"] },
+        ustaz: teacherId,
         occupiedTimes: {
           some: {
             ustaz_id: teacherId,
@@ -1108,21 +1129,38 @@ export class SalaryCalculator {
         },
       },
       include: {
+        // Get ALL occupied times for this teacher during the period
         occupiedTimes: {
           where: {
-            ustaz_id: teacherId,
-            occupied_at: { lte: toDate },
-            OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+            OR: [
+              // Current assignment
+              {
+                ustaz_id: teacherId,
+                occupied_at: { lte: toDate },
+                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+              },
+              // Historical assignments (even if student is reassigned)
+              {
+                ustaz_id: teacherId,
+                OR: [
+                  { occupied_at: { lte: toDate } },
+                  { end_at: { gte: fromDate } },
+                ],
+              },
+            ],
           },
           select: {
             time_slot: true,
             daypackage: true,
             occupied_at: true,
             end_at: true,
+            ustaz_id: true,
           },
         },
+        // Get ALL zoom links sent by this teacher during the period
         zoom_links: {
           where: {
+            ustazid: teacherId,
             sent_time: {
               gte: fromDate,
               lte: toDate,
@@ -1130,6 +1168,7 @@ export class SalaryCalculator {
           },
           select: { sent_time: true },
         },
+        // Get attendance progress for the period
         attendance_progress: {
           where: {
             date: {
@@ -1142,9 +1181,104 @@ export class SalaryCalculator {
       },
     });
 
+    // Get students who have zoom links from this teacher (covers historical assignments)
+    const zoomLinkStudents = await prisma.wpos_wpdatatable_23.findMany({
+      where: {
+        status: { in: ["active", "Active", "Not yet"] },
+        zoom_links: {
+          some: {
+            ustazid: teacherId,
+            sent_time: { gte: fromDate, lte: toDate },
+          },
+        },
+        wdt_ID: { notIn: currentStudents.map((s) => s.wdt_ID) }, // Exclude already found students
+      },
+      include: {
+        occupiedTimes: {
+          where: { ustaz_id: teacherId },
+          select: {
+            time_slot: true,
+            daypackage: true,
+            occupied_at: true,
+            end_at: true,
+            ustaz_id: true,
+          },
+        },
+        zoom_links: {
+          where: {
+            ustazid: teacherId,
+            sent_time: { gte: fromDate, lte: toDate },
+          },
+          select: { sent_time: true },
+        },
+        attendance_progress: {
+          where: {
+            date: { gte: fromDate, lte: toDate },
+          },
+          select: { date: true, attendance_status: true },
+        },
+      },
+    });
+
+    // Get historical students from audit logs (if any)
+    const historicalStudents =
+      historicalStudentIds.length > 0
+        ? await prisma.wpos_wpdatatable_23.findMany({
+            where: {
+              status: { in: ["active", "Active", "Not yet"] },
+              wdt_ID: {
+                in: historicalStudentIds,
+                notIn: [...currentStudents, ...zoomLinkStudents].map(
+                  (s) => s.wdt_ID
+                ),
+              }, // Exclude already found students
+            },
+            include: {
+              occupiedTimes: {
+                where: { ustaz_id: teacherId },
+                select: {
+                  time_slot: true,
+                  daypackage: true,
+                  occupied_at: true,
+                  end_at: true,
+                  ustaz_id: true,
+                },
+              },
+              zoom_links: {
+                where: {
+                  ustazid: teacherId,
+                  sent_time: { gte: fromDate, lte: toDate },
+                },
+                select: { sent_time: true },
+              },
+              attendance_progress: {
+                where: {
+                  date: { gte: fromDate, lte: toDate },
+                },
+                select: { date: true, attendance_status: true },
+              },
+            },
+          })
+        : [];
+
+    // Combine all students (remove duplicates)
+    const allStudentsSet = new Set();
+    const students = [
+      ...currentStudents,
+      ...zoomLinkStudents,
+      ...historicalStudents,
+    ].filter((student) => {
+      if (allStudentsSet.has(student.wdt_ID)) return false;
+      allStudentsSet.add(student.wdt_ID);
+      return true;
+    });
+
     // Debug: Log students found and any missing assignment records
     if (isDebugMode) {
-      console.log(`👥 Students with assignment records: ${students.length}`);
+      console.log(`👥 Total students found: ${students.length}`);
+      console.log(`   Current students: ${currentStudents.length}`);
+      console.log(`   Zoom link students: ${zoomLinkStudents.length}`);
+      console.log(`   Historical students: ${historicalStudents.length}`);
 
       // Check for students who might be missing assignment records
       const allStudentsForTeacher = await prisma.wpos_wpdatatable_23.findMany({
@@ -1338,45 +1472,105 @@ export class SalaryCalculator {
       const parseDaypackage = (dp: string) => {
         const days: number[] = [];
 
-        // Handle "All days" - should match Monday to Friday (1-5)
+        if (!dp || dp.trim() === "") return days;
+
+        const dpLower = dp.toLowerCase();
+
+        // Handle comprehensive day variations
+        const dayPatterns = {
+          sunday: [0],
+          monday: [1],
+          tuesday: [2],
+          wednesday: [3],
+          thursday: [4],
+          friday: [5],
+          saturday: [6],
+          sun: [0],
+          mon: [1],
+          tue: [2],
+          wed: [3],
+          thu: [4],
+          fri: [5],
+          sat: [6],
+          "0": [0],
+          "1": [1],
+          "2": [2],
+          "3": [3],
+          "4": [4],
+          "5": [5],
+          "6": [6],
+        };
+
+        // Handle "All days" variations
         if (
-          dp.toLowerCase().includes("all days") ||
-          dp.toLowerCase().includes("alldays")
+          dpLower.includes("all days") ||
+          dpLower.includes("alldays") ||
+          dpLower.includes("daily") ||
+          dpLower.includes("everyday")
+        ) {
+          return [1, 2, 3, 4, 5]; // Monday to Friday (standard working days)
+        }
+
+        // Handle weekday ranges
+        if (
+          dpLower.includes("weekday") ||
+          dpLower.includes("mon-fri") ||
+          dpLower.includes("mon to fri")
         ) {
           return [1, 2, 3, 4, 5]; // Monday to Friday
         }
 
-        // Handle day names
-        const dayNames = [
-          "monday",
-          "tuesday",
-          "wednesday",
-          "thursday",
-          "friday",
-          "saturday",
-          "sunday",
-        ];
-        dayNames.forEach((day, index) => {
-          if (dp.toLowerCase().includes(day)) {
-            days.push(index === 6 ? 0 : index + 1); // Sunday = 0, others = index+1
-          }
-        });
+        // Handle weekend
+        if (
+          dpLower.includes("weekend") ||
+          dpLower.includes("sat-sun") ||
+          dpLower.includes("sat to sun")
+        ) {
+          return [0, 6]; // Sunday, Saturday
+        }
 
-        // Handle abbreviations (MWF = Monday, Wednesday, Friday)
-        if (dp.includes("MWF") || dp.includes("M,W,F")) {
+        // Check for day patterns
+        for (const [pattern, dayNumbers] of Object.entries(dayPatterns)) {
+          if (dpLower.includes(pattern)) {
+            days.push(...dayNumbers);
+          }
+        }
+
+        // Handle common abbreviations (MWF = Monday, Wednesday, Friday)
+        if (dp.includes("MWF") || dp.includes("M,W,F") || dp.includes("MW-F")) {
           days.push(1, 3, 5); // Monday, Wednesday, Friday
         }
 
-        // Handle numeric formats (comma separated)
-        const numericDays = dp.match(/\d+/g);
-        if (numericDays) {
-          numericDays.forEach((num) => {
-            const dayNum = parseInt(num);
-            // Assume 0=Sunday, 1=Monday, etc.
-            if (dayNum >= 0 && dayNum <= 6) {
-              days.push(dayNum);
-            }
-          });
+        // Handle TTS (Tuesday, Thursday, Saturday)
+        if (dp.includes("TTS") || dp.includes("T,T,S") || dp.includes("TT-S")) {
+          days.push(2, 4, 6); // Tuesday, Thursday, Saturday
+        }
+
+        // Handle MTWTF (Monday to Friday)
+        if (dp.includes("MTWTF") || dp.includes("M,T,W,T,F")) {
+          days.push(1, 2, 3, 4, 5); // Monday to Friday
+        }
+
+        // Handle numeric formats with potential separators
+        const numericPatterns = [
+          /(\d)[,\s\-_]*(\d)/g, // Multiple numbers with separators
+          /\b(\d)\b/g, // Single numbers (word boundary)
+        ];
+
+        for (const pattern of numericPatterns) {
+          const matches = dp.match(pattern);
+          if (matches) {
+            matches.forEach((match) => {
+              const cleanMatch = match.replace(/[^0-9]/g, "");
+              const dayNum = parseInt(cleanMatch);
+              // Handle both 0-6 format and 1-7 format
+              if (dayNum >= 0 && dayNum <= 6) {
+                days.push(dayNum);
+              } else if (dayNum >= 1 && dayNum <= 7) {
+                days.push(dayNum === 7 ? 0 : dayNum); // 7 becomes 0 (Sunday)
+              }
+            });
+          }
         }
 
         return [...new Set(days)]; // Remove duplicates
@@ -1604,71 +1798,105 @@ export class SalaryCalculator {
         continue; // Skip deduction if waiver exists
       }
 
-      // Check if teacher sent zoom links for this date
-      const dayZoomLinks = new Set<string>();
-      const scheduledStudents: any[] = [];
+      // === COMPREHENSIVE ABSENCE DEDUCTION PROCESSING ===
 
-      students.forEach((student) => {
-        // Enhanced schedule checking with debugging
+      // Step 1: Get all students scheduled for this day
+      const scheduledStudentsForDay = [];
+      const studentsWithZoomLinks = new Set<string>();
+
+      for (const student of students) {
+        // Enhanced schedule checking
         const scheduleResult = isStudentScheduledOnDay(student, dayOfWeek, {
           studentName: student.name || undefined,
           packageName: student.package || undefined,
           daypackage: student.occupiedTimes[0]?.daypackage || undefined,
         });
+
+        // Enhanced assignment checking with all occupiedTimes
+        const assignmentResults = student.occupiedTimes
+          .filter((ot) => ot.ustaz_id === teacherId)
+          .map((ot) => ({
+            timeSlot: ot.time_slot,
+            daypackage: ot.daypackage,
+            occupiedAt: ot.occupied_at,
+            endAt: ot.end_at,
+            isValid: isStudentAssignedOnDate(student, ethiopiaDate, {
+              studentName: student.name || undefined,
+              dateStr: dateStr,
+            }),
+          }));
+
         const isScheduled = scheduleResult.isScheduled;
-        const isAssigned = isStudentAssignedOnDate(student, ethiopiaDate, {
-          studentName: student.name || undefined,
-          dateStr: dateStr,
+        const isAssigned = assignmentResults.some((result) => result.isValid);
+
+        // Check for zoom links on this date from this teacher
+        const hasZoomLinkForDate = student.zoom_links.some((link) => {
+          if (!link.sent_time) return false;
+          const linkDate = link.sent_time.toISOString().split("T")[0];
+          return linkDate === dateStr;
         });
 
-        if (isDebugMode && (isScheduled || isAssigned)) {
-          scheduledStudents.push({
-            name: student.name,
-            isScheduled,
-            isAssigned,
-            zoomLinks: student.zoom_links.length,
-            scheduleReason: scheduleResult.reason,
-          });
+        if (hasZoomLinkForDate) {
+          studentsWithZoomLinks.add(student.wdt_ID.toString());
         }
 
+        // If student is scheduled and assigned, add to processing list
         if (isScheduled && isAssigned) {
-          student.zoom_links.forEach((link) => {
-            if (link.sent_time) {
-              const linkDate = link.sent_time.toISOString().split("T")[0];
-              if (linkDate === dateStr) {
-                dayZoomLinks.add(student.wdt_ID.toString());
-                if (isDebugMode) {
-                  console.log(
-                    `  📹 ${student.name} has zoom link for ${dateStr}`
-                  );
-                }
-              }
-            }
+          scheduledStudentsForDay.push({
+            student: student,
+            scheduleResult: scheduleResult,
+            assignmentResults: assignmentResults,
+            hasZoomLink: hasZoomLinkForDate,
           });
-        }
-      });
 
-      if (isDebugMode) {
-        console.log(`  📊 Scheduled students:`, scheduledStudents);
-        console.log(`  📹 Students with zoom links: ${dayZoomLinks.size}`);
+          if (isDebugMode) {
+            console.log(`  📋 ${student.name}:`, {
+              scheduled: isScheduled,
+              assigned: isAssigned,
+              hasZoomLink: hasZoomLinkForDate,
+              reason: scheduleResult.reason,
+              packages: assignmentResults.map((r) => ({
+                timeSlot: r.timeSlot,
+                daypackage: r.daypackage,
+              })),
+            });
+          }
+        }
       }
 
-      // Calculate deduction for students without zoom links
+      if (isDebugMode) {
+        console.log(
+          `  📊 Total students scheduled for ${dateStr}: ${scheduledStudentsForDay.length}`
+        );
+        console.log(
+          `  📹 Students with zoom links: ${studentsWithZoomLinks.size}`
+        );
+        console.log(
+          `  📅 Scheduled students:`,
+          scheduledStudentsForDay.map((s) => ({
+            name: s.student.name,
+            package: s.student.package,
+            hasZoomLink: s.hasZoomLink,
+          }))
+        );
+      }
+
+      // Step 2: Calculate deductions for students without zoom links
       let dailyDeduction = 0;
       const affectedStudents: any[] = [];
 
-      for (const student of students) {
-        const hasZoomLink = dayZoomLinks.has(student.wdt_ID.toString());
-        const isAssigned = isStudentAssignedOnDate(student, ethiopiaDate, {
-          studentName: student.name || undefined,
-          dateStr: dateStr,
-        });
-        const scheduleResult = isStudentScheduledOnDay(student, dayOfWeek, {
-          studentName: student.name || undefined,
-          packageName: student.package || undefined,
-          daypackage: student.occupiedTimes[0]?.daypackage || undefined,
-        });
-        const isScheduled = scheduleResult.isScheduled;
+      for (const scheduledStudent of scheduledStudentsForDay) {
+        const student = scheduledStudent.student;
+
+        // Skip if student has zoom link
+        if (scheduledStudent.hasZoomLink) {
+          if (isDebugMode) {
+            console.log(
+              `  ✅ ${student.name}: Has zoom link - No absence deduction`
+            );
+          }
+          continue;
+        }
 
         // Check if student has permission attendance status
         const attendanceRecord = student.attendance_progress.find(
@@ -1677,46 +1905,31 @@ export class SalaryCalculator {
         const hasPermission =
           attendanceRecord?.attendance_status === "Permission";
 
-        // Debug mode: Log each student's status with enhanced details
-        if (isDebugMode) {
-          console.log(`  👤 ${student.name}:`, {
-            hasZoomLink,
-            isAssigned,
-            isScheduled,
-            scheduleReason: scheduleResult.reason,
-            hasPermission,
-            package: student.package,
-            occupiedTimes: student.occupiedTimes[0]
-              ? {
-                  daypackage: student.occupiedTimes[0].daypackage,
-                  occupied_at: student.occupiedTimes[0].occupied_at,
-                  end_at: student.occupiedTimes[0].end_at,
-                }
-              : "No occupiedTimes",
-          });
+        if (hasPermission) {
+          if (isDebugMode) {
+            console.log(
+              `  ✅ ${student.name}: Has permission - No absence deduction`
+            );
+          }
+          continue;
         }
-
-        // Skip if student has zoom link for this day
-        if (hasZoomLink) continue;
-
-        // Skip if student was not assigned to teacher on this date
-        if (!isAssigned) continue;
-
-        // Skip if student is not scheduled to have class on this day
-        if (!isScheduled) continue;
-
-        if (hasPermission) continue;
 
         // Calculate deduction based on student's package
         const packageRate = packageMap[student.package || ""] || 25;
         dailyDeduction += packageRate;
 
-        // Debug logging removed to prevent console noise
-
-        // Debug mode: Log all deductions
         if (isDebugMode) {
           console.log(
-            `  💰 ABSENCE DEDUCTION: ${student.name} - ${packageRate} ETB`
+            `  💰 ${student.name}: ABSENCE DEDUCTION - ${packageRate} ETB`
+          );
+          console.log(`    Package: ${student.package}`);
+          console.log(
+            `    Schedule Reason: ${scheduledStudent.scheduleResult.reason}`
+          );
+          console.log(
+            `    Assignment Periods: ${JSON.stringify(
+              scheduledStudent.assignmentResults
+            )}`
           );
         }
 
@@ -1725,10 +1938,11 @@ export class SalaryCalculator {
           studentName: student.name || "Unknown Student",
           studentPackage: student.package || "Unknown Package",
           rate: packageRate,
-          scheduleReason: scheduleResult.reason,
+          scheduleReason: scheduledStudent.scheduleResult.reason,
           assignmentStart: student.occupiedTimes[0]?.occupied_at,
           assignmentEnd: student.occupiedTimes[0]?.end_at,
           daypackage: student.occupiedTimes[0]?.daypackage,
+          assignmentResults: scheduledStudent.assignmentResults,
         });
       }
 
