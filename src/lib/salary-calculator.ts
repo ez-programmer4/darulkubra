@@ -1079,7 +1079,9 @@ export class SalaryCalculator {
     // Enhanced Debug mode - enable for specific teachers or testing
     // To enable debugging for a specific teacher, replace the condition below
     const debugTeacherIds = ["MOHAMED_TEACHER_ID", "SPECIFIC_TEACHER_ID"]; // Add actual teacher IDs here
-    const isDebugMode = true; // Enable debug mode to see what's happening
+    const isDebugMode =
+      debugTeacherIds.includes(teacherId) ||
+      process.env.DEBUG_ABSENCE === "true";
 
     if (isDebugMode) {
       console.log(`\n🔍 === ABSENCE DEDUCTION DEBUG ===`);
@@ -1582,11 +1584,8 @@ export class SalaryCalculator {
         continue; // Skip Sunday
       }
 
-      // Skip future dates - only process today and past dates
-      if (ethiopiaDate > today) {
-        if (isDebugMode) console.log(`  ⏭️ Skipping future date`);
-        continue;
-      }
+      // Process all dates in the specified range (don't skip future dates for salary calculation)
+      // The salary calculation should work for any date range
 
       // Check if there's an approved permission for this date
       const hasPermission = permissionRequests.some(
