@@ -238,7 +238,7 @@ export async function getTeacherStudents(teacherId: string) {
   return await prisma.wpos_wpdatatable_23.findMany({
     where: {
       ustaz: teacherId,
-      status: { in: ["active", "Active"] },
+      status: { in: ["active", "Active", "Not yet", "not yet"] },
     },
     select: {
       wdt_ID: true,
