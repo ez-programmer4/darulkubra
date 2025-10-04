@@ -1038,12 +1038,22 @@ export class SalaryCalculator {
     fromDate: Date,
     toDate: Date
   ) {
-    // Enable debug mode for specific teachers (add teacher IDs here)
-    // To enable debugging: Replace "TEACHER_ID_1" with actual teacher ID from database
-    const debugTeachers = ["TEACHER_ID_1", "TEACHER_ID_2"]; // Add actual teacher IDs
-    const isDebugMode = debugTeachers.includes(teacherId);
+    // Enhanced Debug mode - enable for specific teachers or testing
+    // To enable debugging for a specific teacher, replace the condition below
+    const debugTeacherIds = ["MOHAMED_TEACHER_ID", "SPECIFIC_TEACHER_ID"]; // Add actual teacher IDs here
+    const isDebugMode =
+      debugTeacherIds.includes(teacherId) ||
+      process.env.DEBUG_ABSENCE === "true";
 
     if (isDebugMode) {
+      console.log(`\n🔍 === ABSENCE DEDUCTION DEBUG ===`);
+      console.log(`Teacher ID: ${teacherId}`);
+      console.log(
+        `Period: ${fromDate.toISOString().split("T")[0]} to ${
+          toDate.toISOString().split("T")[0]
+        }`
+      );
+      console.log(`Debug Mode: Enabled`);
     }
     // Get teacher's students with their assignment periods and schedules
     // Only include students who have actual assignment records in wpos_ustaz_occupied_times
@@ -1128,15 +1138,7 @@ export class SalaryCalculator {
       }
     }
 
-    // Debug: Log MOHAMED's data (only if found)
-    const mohamedStudent = students.find(
-      (s) => s.name && s.name.toUpperCase().includes("MOHAMED")
-    );
-    if (mohamedStudent) {
-      console.log(
-        `🔍 MOHAMED Debug - Student: ${mohamedStudent.name}, Package: ${mohamedStudent.package}, Zoom Links: ${mohamedStudent.zoom_links.length}`
-      );
-    }
+    // Debug logging removed to prevent console noise
 
     // Debug mode: Log all students data
     if (isDebugMode) {
@@ -1152,10 +1154,24 @@ export class SalaryCalculator {
       });
     }
 
-    // Helper function to convert UTC to UTC+3 (Ethiopia timezone)
+    // Enhanced timezone conversion - properly handle Ethiopia timezone (UTC+3)
     const convertToEthiopiaTime = (utcDate: Date) => {
+      // Create a new date to avoid mutating the original
       const ethiopiaTime = new Date(utcDate.getTime() + 3 * 60 * 60 * 1000); // Add 3 hours
-      return ethiopiaTime;
+      return {
+        date: new Date(
+          ethiopiaTime.getFullYear(),
+          ethiopiaTime.getMonth(),
+          ethiopiaTime.getDate()
+        ), // Date part only
+        dayOfWeek: ethiopiaTime.getDay(), // 0=Sunday, 1=Monday, etc.
+        year: ethiopiaTime.getFullYear(),
+        month: ethiopiaTime.getMonth() + 1,
+        day: ethiopiaTime.getDate(),
+        hour: ethiopiaTime.getHours(),
+        minute: ethiopiaTime.getMinutes(),
+        datetime: ethiopiaTime,
+      };
     };
 
     // Get package deduction rates
@@ -1213,21 +1229,31 @@ export class SalaryCalculator {
     let totalDeduction = 0;
     const breakdown: any[] = [];
 
-    // Helper function to check if a student is scheduled on a specific day
-    const isStudentScheduledOnDay = (student: any, dayOfWeek: number) => {
+    // Enhanced helper function to check if a student is scheduled on a specific day with UTC+3 timezone
+    const isStudentScheduledOnDay = (
+      student: any,
+      dayOfWeek: number,
+      debugContext?: {
+        studentName?: string;
+        packageName?: string;
+        daypackage?: string;
+      }
+    ) => {
       if (!student.occupiedTimes || student.occupiedTimes.length === 0) {
-        console.log(`❌ Student ${student.name} has no occupiedTimes data`);
-        return false;
+        if (isDebugMode) {
+          console.log(`  ❌ Student ${student.name} has no occupiedTimes data`);
+        }
+        return { isScheduled: false, reason: "no_occupied_times" };
       }
 
-      // Map daypackage to day numbers (assuming daypackage contains day information)
-      const daypackage = student.occupiedTimes[0]?.daypackage || "";
-      const packageName = student.package || "";
+      // Map daypackage to day numbers with enhanced parsing
+      const daypackage = student.occupiedTimes[0]?.daypackage?.trim() || "";
+      const packageName = student.package?.trim() || "";
 
-      // Debug for MOHAMED specifically (simplified)
-      if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
+      if (isDebugMode && debugContext?.studentName) {
+        console.log(`  📅 Schedule Check for ${debugContext.studentName}:`);
         console.log(
-          `🔍 MOHAMED Schedule Check: ${dayOfWeek} (${
+          `    Day of Week: ${dayOfWeek} (${
             [
               "Sunday",
               "Monday",
@@ -1237,34 +1263,97 @@ export class SalaryCalculator {
               "Friday",
               "Saturday",
             ][dayOfWeek]
-          }) - daypackage: "${daypackage}"`
+          })`
+        );
+        console.log(`    Daypackage: "${daypackage}"`);
+        console.log(
+          `    Package: "${debugContext.packageName || packageName}"`
         );
       }
 
-      // Common daypackage formats: "Monday,Wednesday,Friday" or "1,3,5" or "MWF"
-      if (daypackage.includes("Monday") && dayOfWeek === 1) return true;
-      if (daypackage.includes("Tuesday") && dayOfWeek === 2) return true;
-      if (daypackage.includes("Wednesday") && dayOfWeek === 3) return true;
-      if (daypackage.includes("Thursday") && dayOfWeek === 4) return true;
-      if (daypackage.includes("Friday") && dayOfWeek === 5) return true;
-      if (daypackage.includes("Saturday") && dayOfWeek === 6) return true;
+      // Enhanced parsing logic for different daypackage formats
+      const parseDaypackage = (dp: string) => {
+        const days: number[] = [];
 
-      // Numeric format (1=Monday, 2=Tuesday, etc.)
-      if (daypackage.includes("1") && dayOfWeek === 1) return true;
-      if (daypackage.includes("2") && dayOfWeek === 2) return true;
-      if (daypackage.includes("3") && dayOfWeek === 3) return true;
-      if (daypackage.includes("4") && dayOfWeek === 4) return true;
-      if (daypackage.includes("5") && dayOfWeek === 5) return true;
-      if (daypackage.includes("6") && dayOfWeek === 6) return true;
+        // Handle "All days" - should match Monday to Friday (1-5)
+        if (
+          dp.toLowerCase().includes("all days") ||
+          dp.toLowerCase().includes("alldays")
+        ) {
+          return [1, 2, 3, 4, 5]; // Monday to Friday
+        }
 
-      // If no specific schedule found, assume student is scheduled based on package
-      if (packageName.includes("3 days")) {
-        return dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5;
-      } else if (packageName.includes("5 days")) {
-        return dayOfWeek >= 1 && dayOfWeek <= 5;
+        // Handle day names
+        const dayNames = [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday",
+          "sunday",
+        ];
+        dayNames.forEach((day, index) => {
+          if (dp.toLowerCase().includes(day)) {
+            days.push(index === 6 ? 0 : index + 1); // Sunday = 0, others = index+1
+          }
+        });
+
+        // Handle abbreviations (MWF = Monday, Wednesday, Friday)
+        if (dp.includes("MWF") || dp.includes("M,W,F")) {
+          days.push(1, 3, 5); // Monday, Wednesday, Friday
+        }
+
+        // Handle numeric formats (comma separated)
+        const numericDays = dp.match(/\d+/g);
+        if (numericDays) {
+          numericDays.forEach((num) => {
+            const dayNum = parseInt(num);
+            // Assume 0=Sunday, 1=Monday, etc.
+            if (dayNum >= 0 && dayNum <= 6) {
+              days.push(dayNum);
+            }
+          });
+        }
+
+        return [...new Set(days)]; // Remove duplicates
+      };
+
+      const scheduledDays = parseDaypackage(daypackage);
+      let isScheduled = scheduledDays.includes(dayOfWeek);
+      let reason = `daypackage=${JSON.stringify(scheduledDays)}`;
+
+      if (isDebugMode && debugContext?.studentName) {
+        console.log(`    Scheduled Days: ${JSON.stringify(scheduledDays)}`);
+        console.log(`    Is Scheduled Today: ${isScheduled}`);
       }
 
-      return false;
+      // Fallback to package-based logic if daypackage couldn't be parsed
+      if (scheduledDays.length === 0) {
+        if (
+          packageName.toLowerCase().includes("3 days") ||
+          packageName.toLowerCase().includes("monday wednesday friday")
+        ) {
+          isScheduled = dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5;
+          reason = "package_3days_fallback";
+        } else if (
+          packageName.toLowerCase().includes("5 days") ||
+          packageName.toLowerCase().includes("daily")
+        ) {
+          isScheduled = dayOfWeek >= 1 && dayOfWeek <= 5;
+          reason = "package_5days_fallback";
+        } else if (packageName.toLowerCase().includes("weekend")) {
+          isScheduled = dayOfWeek === 0 || dayOfWeek === 6;
+          reason = "package_weekend_fallback";
+        }
+
+        if (isDebugMode && debugContext?.studentName) {
+          console.log(`    Using Package Fallback: ${reason}`);
+          console.log(`    Final Scheduled: ${isScheduled}`);
+        }
+      }
+
+      return { isScheduled, reason };
     };
 
     // Helper function to check if student was assigned to teacher on a specific date
@@ -1302,10 +1391,11 @@ export class SalaryCalculator {
     today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
 
     for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
-      // Convert to Ethiopia timezone for proper day calculation
-      const ethiopiaDate = convertToEthiopiaTime(d);
+      // Convert to Ethiopia timezone (UTC+3) for proper day calculation
+      const ethiopiaTime = convertToEthiopiaTime(d);
+      const ethiopiaDate = ethiopiaTime.date;
       const dateStr = ethiopiaDate.toISOString().split("T")[0];
-      const dayOfWeek = ethiopiaDate.getDay(); // 0=Sunday, 1=Monday, etc.
+      const dayOfWeek = ethiopiaTime.dayOfWeek; // 0=Sunday, 1=Monday, etc.
 
       const dayName = [
         "Sunday",
@@ -1362,8 +1452,13 @@ export class SalaryCalculator {
       const scheduledStudents: any[] = [];
 
       students.forEach((student) => {
-        // Only check zoom links for students who are scheduled on this day
-        const isScheduled = isStudentScheduledOnDay(student, dayOfWeek);
+        // Enhanced schedule checking with debugging
+        const scheduleResult = isStudentScheduledOnDay(student, dayOfWeek, {
+          studentName: student.name || undefined,
+          packageName: student.package || undefined,
+          daypackage: student.occupiedTimes[0]?.daypackage || undefined,
+        });
+        const isScheduled = scheduleResult.isScheduled;
         const isAssigned = isStudentAssignedOnDate(student, ethiopiaDate);
 
         if (isDebugMode && (isScheduled || isAssigned)) {
@@ -1372,6 +1467,7 @@ export class SalaryCalculator {
             isScheduled,
             isAssigned,
             zoomLinks: student.zoom_links.length,
+            scheduleReason: scheduleResult.reason,
           });
         }
 
@@ -1404,7 +1500,12 @@ export class SalaryCalculator {
       for (const student of students) {
         const hasZoomLink = dayZoomLinks.has(student.wdt_ID.toString());
         const isAssigned = isStudentAssignedOnDate(student, ethiopiaDate);
-        const isScheduled = isStudentScheduledOnDay(student, dayOfWeek);
+        const scheduleResult = isStudentScheduledOnDay(student, dayOfWeek, {
+          studentName: student.name || undefined,
+          packageName: student.package || undefined,
+          daypackage: student.occupiedTimes[0]?.daypackage || undefined,
+        });
+        const isScheduled = scheduleResult.isScheduled;
 
         // Check if student has permission attendance status
         const attendanceRecord = student.attendance_progress.find(
@@ -1413,14 +1514,22 @@ export class SalaryCalculator {
         const hasPermission =
           attendanceRecord?.attendance_status === "Permission";
 
-        // Debug mode: Log each student's status
+        // Debug mode: Log each student's status with enhanced details
         if (isDebugMode) {
           console.log(`  👤 ${student.name}:`, {
             hasZoomLink,
             isAssigned,
             isScheduled,
+            scheduleReason: scheduleResult.reason,
             hasPermission,
             package: student.package,
+            occupiedTimes: student.occupiedTimes[0]
+              ? {
+                  daypackage: student.occupiedTimes[0].daypackage,
+                  occupied_at: student.occupiedTimes[0].occupied_at,
+                  end_at: student.occupiedTimes[0].end_at,
+                }
+              : "No occupiedTimes",
           });
         }
 
@@ -1439,12 +1548,7 @@ export class SalaryCalculator {
         const packageRate = packageMap[student.package || ""] || 25;
         dailyDeduction += packageRate;
 
-        // Debug for MOHAMED - only log actual deductions
-        if (student.name && student.name.toUpperCase().includes("MOHAMED")) {
-          console.log(
-            `💰 MOHAMED ABSENCE: ${packageRate} ETB for ${dateStr} (${dayName})`
-          );
-        }
+        // Debug logging removed to prevent console noise
 
         // Debug mode: Log all deductions
         if (isDebugMode) {
@@ -1458,8 +1562,10 @@ export class SalaryCalculator {
           studentName: student.name || "Unknown Student",
           studentPackage: student.package || "Unknown Package",
           rate: packageRate,
+          scheduleReason: scheduleResult.reason,
           assignmentStart: student.occupiedTimes[0]?.occupied_at,
           assignmentEnd: student.occupiedTimes[0]?.end_at,
+          daypackage: student.occupiedTimes[0]?.daypackage,
         });
       }
 
