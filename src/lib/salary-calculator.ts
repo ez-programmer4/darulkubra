@@ -1459,13 +1459,28 @@ export class SalaryCalculator {
         console.log(`    Is Scheduled Today: ${isScheduled}`);
       }
 
-      // Fallback: if daypackage couldn't be parsed, assume Monday-Friday
+      // Fallback: if daypackage couldn't be parsed, be more conservative
       if (scheduledDays.length === 0) {
-        isScheduled = dayOfWeek >= 1 && dayOfWeek <= 5;
-        reason = "default_weekdays_fallback";
+        // Only assume weekdays if student has zoom links (indicating they're active)
+        if (student.zoom_links && student.zoom_links.length > 0) {
+          isScheduled = dayOfWeek >= 1 && dayOfWeek <= 5;
+          reason = "weekdays_fallback_with_zoom_links";
 
-        if (isDebugMode && debugContext?.studentName) {
-          console.log(`    No daypackage match, using weekdays fallback`);
+          if (isDebugMode && debugContext?.studentName) {
+            console.log(
+              `    No daypackage match, using weekdays fallback (has zoom links)`
+            );
+          }
+        } else {
+          // No zoom links and no daypackage - don't assume schedule
+          isScheduled = false;
+          reason = "no_daypackage_no_zoom_links";
+
+          if (isDebugMode && debugContext?.studentName) {
+            console.log(
+              `    No daypackage match and no zoom links - not scheduled`
+            );
+          }
         }
       }
 
@@ -1615,10 +1630,15 @@ export class SalaryCalculator {
         );
       }
 
-      // Skip weekends if configured
+      // Skip Sunday only (Saturday should be processed as it's a valid teaching day)
       if (dayOfWeek === 0) {
         if (isDebugMode) console.log(`  ⏭️ Skipping Sunday`);
-        continue; // Skip Sunday
+        continue; // Skip Sunday only
+      }
+
+      // Debug: Log Saturday processing
+      if (dayOfWeek === 6 && isDebugMode) {
+        console.log(`  📅 Processing Saturday - Valid teaching day`);
       }
 
       // CRITICAL: Skip future dates - absence deductions should only apply to past/present dates
@@ -1725,18 +1745,29 @@ export class SalaryCalculator {
               hasZoomLink: hasZoomLinkForThisDate,
               daypackage: student.occupiedTimes[0]?.daypackage,
               package: student.package,
-              willProcess: isScheduled || hasZoomLinkForThisDate,
+              willProcess: isAssigned && isScheduled,
             });
           }
 
-          // Only add to processing if scheduled OR has zoom link for this date
-          if (isScheduled || hasZoomLinkForThisDate) {
+          // CRITICAL FIX: Process students who are assigned AND scheduled according to their daypackage
+          // This ensures absence deductions are applied even when no zoom link is sent
+          if (isAssigned && isScheduled) {
             scheduledStudentsForDay.push({
               student: student,
               scheduleResult: scheduleResult,
               assignmentResults: assignmentResults,
               hasZoomLink: hasZoomLinkForThisDate,
             });
+
+            if (isDebugMode) {
+              console.log(
+                `  ✅ ${student.name}: Added to processing - Assigned & Scheduled`
+              );
+            }
+          } else if (isDebugMode) {
+            console.log(
+              `  ⏭️ ${student.name}: Skipped - Assigned: ${isAssigned}, Scheduled: ${isScheduled}`
+            );
           }
         }
       }
