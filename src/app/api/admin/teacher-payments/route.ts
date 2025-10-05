@@ -459,6 +459,7 @@ export async function GET(req: NextRequest) {
       );
 
       const computedAbsences = [];
+      // Only process up to yesterday to avoid penalizing for today and future dates
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       yesterday.setHours(23, 59, 59, 999);

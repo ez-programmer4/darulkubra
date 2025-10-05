@@ -1235,48 +1235,21 @@ export class SalaryCalculator {
       });
     }
 
-    // Enhanced timezone conversion - properly handle Ethiopia timezone (UTC+3)
-    const convertToEthiopiaTime = (utcDate: Date) => {
-      // Ensure we're working with a proper UTC date at midnight
-      const utcMidnight = new Date(
-        Date.UTC(
-          utcDate.getUTCFullYear(),
-          utcDate.getUTCMonth(),
-          utcDate.getUTCDate(),
-          0,
-          0,
-          0,
-          0
-        )
-      );
-
-      // Add 3 hours to get Ethiopia time
-      const ethiopiaTime = new Date(utcMidnight.getTime() + 3 * 60 * 60 * 1000);
-
-      // Create a date without time component for comparison
-      const ethiopiaDateOnly = new Date(
-        Date.UTC(
-          ethiopiaTime.getUTCFullYear(),
-          ethiopiaTime.getUTCMonth(),
-          ethiopiaTime.getUTCDate(),
-          0,
-          0,
-          0,
-          0
-        )
-      );
-
+    // Simplified date processing - work with local dates directly
+    const getDateInfo = (date: Date) => {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const day = date.getDate();
+      const dayOfWeek = date.getDay(); // 0=Sunday, 1=Monday, etc.
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
       return {
-        date: ethiopiaDateOnly,
-        dayOfWeek: ethiopiaDateOnly.getUTCDay(), // 0=Sunday, 1=Monday, etc.
-        year: ethiopiaTime.getUTCFullYear(),
-        month: ethiopiaTime.getUTCMonth() + 1,
-        day: ethiopiaTime.getUTCDate(),
-        hour: ethiopiaTime.getUTCHours(),
-        minute: ethiopiaTime.getUTCMinutes(),
-        datetime: ethiopiaTime,
-        utcInput: utcMidnight.toISOString(),
-        ethiopiaOutput: ethiopiaTime.toISOString(),
+        date,
+        dateStr,
+        dayOfWeek,
+        year,
+        month: month + 1,
+        day
       };
     };
 
@@ -1512,12 +1485,12 @@ export class SalaryCalculator {
     // Create a safe date iterator to avoid month boundary issues
     const safeDateIterator = (startDate: Date, endDate: Date) => {
       const dates: Date[] = [];
-      let currentDate = new Date(startDate);
+      const current = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
 
-      while (currentDate <= endDate) {
-        // Always create a new Date object to avoid mutation issues
-        dates.push(new Date(currentDate));
-        currentDate.setDate(currentDate.getDate() + 1);
+      while (current <= end) {
+        dates.push(new Date(current));
+        current.setDate(current.getDate() + 1);
       }
       return dates;
     };
@@ -1537,11 +1510,8 @@ export class SalaryCalculator {
     }
 
     for (const d of datesToProcess) {
-      // Convert to Ethiopia timezone (UTC+3) for proper day calculation
-      const ethiopiaTime = convertToEthiopiaTime(d);
-      const ethiopiaDate = ethiopiaTime.date;
-      const dateStr = ethiopiaDate.toISOString().split("T")[0];
-      const dayOfWeek = ethiopiaTime.dayOfWeek; // 0=Sunday, 1=Monday, etc.
+      const dateInfo = getDateInfo(d);
+      const { dateStr, dayOfWeek } = dateInfo;
 
       const dayName = [
         "Sunday",
@@ -1553,29 +1523,10 @@ export class SalaryCalculator {
         "Saturday",
       ][dayOfWeek];
 
-      // Debug mode: Log each day being processed with timezone details
+      // Debug mode: Log each day being processed
       if (isDebugMode) {
         console.log(`\n📍 === DATE PROCESSING ===`);
-        console.log(
-          `UTC Input Date: ${d.toISOString().split("T")[0]} (${d.getDay()} - ${
-            [
-              "Sunday",
-              "Monday",
-              "Tuesday",
-              "Wednesday",
-              "Thursday",
-              "Friday",
-              "Saturday",
-            ][d.getDay()]
-          })`
-        );
-        console.log(
-          `Ethiopia Date: ${dateStr} (${dayName}) - Day ${dayOfWeek}`
-        );
-        console.log(`Timezone Offset: +3 hours (UTC+3)`);
-        console.log(`UTC Input: ${ethiopiaTime.utcInput}`);
-        console.log(`Ethiopia Output: ${ethiopiaTime.ethiopiaOutput}`);
-        console.log(`Full Ethiopia Time Object:`, ethiopiaTime);
+        console.log(`Processing Date: ${dateStr} (${dayName}) - Day ${dayOfWeek}`);
       }
 
       // Skip weekends if configured
@@ -1630,7 +1581,7 @@ export class SalaryCalculator {
             daypackage: ot.daypackage,
             occupiedAt: ot.occupied_at,
             endAt: ot.end_at,
-            isValid: isStudentAssignedOnDate(student, ethiopiaDate, {
+            isValid: isStudentAssignedOnDate(student, d, {
               studentName: student.name || undefined,
               dateStr: dateStr,
             }),
