@@ -1093,6 +1093,22 @@ export class SalaryCalculator {
       );
       console.log(`Debug Mode: Enabled`);
     }
+
+    // CRITICAL FIX: Don't process future dates for absence deductions
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    const effectiveToDate = toDate > today ? today : toDate;
+
+    if (isDebugMode) {
+      console.log(
+        `📅 Effective date range: ${fromDate.toISOString().split("T")[0]} to ${
+          effectiveToDate.toISOString().split("T")[0]
+        }`
+      );
+      if (toDate > today) {
+        console.log(`⚠️ Original toDate was in the future, adjusted to today`);
+      }
+    }
     // Get ALL students who should be processed for absence deductions
     // This includes students with assignments AND students with zoom links from this teacher
 
@@ -1128,10 +1144,9 @@ export class SalaryCalculator {
       .then((links) => links.map((link) => link.studentid));
 
     // Combine all student IDs that need to be processed
-    const allStudentIds = [...new Set([
-      ...historicalStudentIds,
-      ...zoomLinkStudentIds,
-    ])];
+    const allStudentIds = [
+      ...new Set([...historicalStudentIds, ...zoomLinkStudentIds]),
+    ];
 
     // Get current students assigned to this teacher
     const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
@@ -1214,8 +1229,12 @@ export class SalaryCalculator {
     // Debug: Log students found
     if (isDebugMode) {
       console.log(`👥 Total students found: ${students.length}`);
-      console.log(`📊 Student IDs from audit logs: ${historicalStudentIds.length}`);
-      console.log(`📹 Student IDs from zoom links: ${zoomLinkStudentIds.length}`);
+      console.log(
+        `📊 Student IDs from audit logs: ${historicalStudentIds.length}`
+      );
+      console.log(
+        `📹 Student IDs from zoom links: ${zoomLinkStudentIds.length}`
+      );
       console.log(`🔗 Combined unique student IDs: ${allStudentIds.length}`);
     }
 
@@ -1241,15 +1260,17 @@ export class SalaryCalculator {
       const month = date.getMonth();
       const day = date.getDate();
       const dayOfWeek = date.getDay(); // 0=Sunday, 1=Monday, etc.
-      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+        day
+      ).padStart(2, "0")}`;
+
       return {
         date,
         dateStr,
         dayOfWeek,
         year,
         month: month + 1,
-        day
+        day,
       };
     };
 
@@ -1355,23 +1376,75 @@ export class SalaryCalculator {
         );
       }
 
-      // Simple parsing for specific daypackage formats: All days, MWF, TTS
+      // Enhanced daypackage parsing with better handling
       const parseDaypackage = (dp: string) => {
         if (!dp || dp.trim() === "") return [];
 
-        const dpTrimmed = dp.trim();
-        
+        const dpTrimmed = dp.trim().toUpperCase();
+
         // Handle exact matches for known formats
-        if (dpTrimmed === "All days") {
+        if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
           return [1, 2, 3, 4, 5]; // Monday to Friday
         }
-        
+
         if (dpTrimmed === "MWF") {
           return [1, 3, 5]; // Monday, Wednesday, Friday
         }
-        
-        if (dpTrimmed === "TTS") {
+
+        if (dpTrimmed === "TTS" || dpTrimmed === "TTH") {
           return [2, 4, 6]; // Tuesday, Thursday, Saturday
+        }
+
+        // Handle individual day patterns
+        if (dpTrimmed.includes("MONDAY") || dpTrimmed.includes("MON")) {
+          return [1];
+        }
+        if (dpTrimmed.includes("TUESDAY") || dpTrimmed.includes("TUE")) {
+          return [2];
+        }
+        if (dpTrimmed.includes("WEDNESDAY") || dpTrimmed.includes("WED")) {
+          return [3];
+        }
+        if (dpTrimmed.includes("THURSDAY") || dpTrimmed.includes("THU")) {
+          return [4];
+        }
+        if (dpTrimmed.includes("FRIDAY") || dpTrimmed.includes("FRI")) {
+          return [5];
+        }
+        if (dpTrimmed.includes("SATURDAY") || dpTrimmed.includes("SAT")) {
+          return [6];
+        }
+        if (dpTrimmed.includes("SUNDAY") || dpTrimmed.includes("SUN")) {
+          return [0];
+        }
+
+        // Handle numeric patterns (1=Monday, 2=Tuesday, etc.)
+        const numericMatch = dpTrimmed.match(/\d+/g);
+        if (numericMatch) {
+          const days = numericMatch.map(Number).filter((d) => d >= 0 && d <= 6);
+          return days.length > 0 ? days : [];
+        }
+
+        // Handle comma-separated days
+        if (dpTrimmed.includes(",")) {
+          const parts = dpTrimmed.split(",").map((p) => p.trim());
+          const days: number[] = [];
+
+          for (const part of parts) {
+            if (part === "MON" || part === "MONDAY") days.push(1);
+            else if (part === "TUE" || part === "TUESDAY") days.push(2);
+            else if (part === "WED" || part === "WEDNESDAY") days.push(3);
+            else if (part === "THU" || part === "THURSDAY") days.push(4);
+            else if (part === "FRI" || part === "FRIDAY") days.push(5);
+            else if (part === "SAT" || part === "SATURDAY") days.push(6);
+            else if (part === "SUN" || part === "SUNDAY") days.push(0);
+            else {
+              const num = parseInt(part);
+              if (!isNaN(num) && num >= 0 && num <= 6) days.push(num);
+            }
+          }
+
+          return days.length > 0 ? days : [];
         }
 
         return [];
@@ -1390,7 +1463,7 @@ export class SalaryCalculator {
       if (scheduledDays.length === 0) {
         isScheduled = dayOfWeek >= 1 && dayOfWeek <= 5;
         reason = "default_weekdays_fallback";
-        
+
         if (isDebugMode && debugContext?.studentName) {
           console.log(`    No daypackage match, using weekdays fallback`);
         }
@@ -1479,29 +1552,40 @@ export class SalaryCalculator {
     };
 
     // Process each day in the period with proper timezone handling
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+    // Use effectiveToDate instead of original toDate to avoid future dates
 
-    // Create a safe date iterator to avoid month boundary issues
+    // Create a robust date iterator to avoid month boundary issues
     const safeDateIterator = (startDate: Date, endDate: Date) => {
       const dates: Date[] = [];
-      const current = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-      const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      const current = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate()
+      );
+      const end = new Date(
+        endDate.getFullYear(),
+        endDate.getMonth(),
+        endDate.getDate()
+      );
 
-      while (current <= end) {
+      // Use timestamp comparison to avoid date object mutation issues
+      const endTimestamp = end.getTime();
+
+      while (current.getTime() <= endTimestamp) {
         dates.push(new Date(current));
-        current.setDate(current.getDate() + 1);
+        // Increment by adding 24 hours in milliseconds to avoid month boundary issues
+        current.setTime(current.getTime() + 24 * 60 * 60 * 1000);
       }
       return dates;
     };
 
-    const datesToProcess = safeDateIterator(fromDate, toDate);
+    const datesToProcess = safeDateIterator(fromDate, effectiveToDate);
 
     if (isDebugMode) {
       console.log(
         `🗓️ Processing ${datesToProcess.length} days from ${
           fromDate.toISOString().split("T")[0]
-        } to ${toDate.toISOString().split("T")[0]}`
+        } to ${effectiveToDate.toISOString().split("T")[0]}`
       );
       console.log(
         `📅 Dates to process:`,
@@ -1526,7 +1610,9 @@ export class SalaryCalculator {
       // Debug mode: Log each day being processed
       if (isDebugMode) {
         console.log(`\n📍 === DATE PROCESSING ===`);
-        console.log(`Processing Date: ${dateStr} (${dayName}) - Day ${dayOfWeek}`);
+        console.log(
+          `Processing Date: ${dateStr} (${dayName}) - Day ${dayOfWeek}`
+        );
       }
 
       // Skip weekends if configured
@@ -1535,8 +1621,13 @@ export class SalaryCalculator {
         continue; // Skip Sunday
       }
 
-      // Process all dates in the specified range (don't skip future dates for salary calculation)
-      // The salary calculation should work for any date range
+      // CRITICAL: Skip future dates - absence deductions should only apply to past/present dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (d > today) {
+        if (isDebugMode) console.log(`  ⏭️ Skipping future date: ${dateStr}`);
+        continue;
+      }
 
       // Check if there's an approved permission for this date
       const hasPermission = permissionRequests.some(
@@ -1589,23 +1680,39 @@ export class SalaryCalculator {
 
         const isScheduled = scheduleResult.isScheduled;
         let isAssigned = assignmentResults.some((result) => result.isValid);
-        
-        // If no valid assignment found but student has zoom links from this teacher, consider them assigned
-        if (!isAssigned && student.zoom_links.length > 0) {
-          isAssigned = true;
-          if (isDebugMode) {
-            console.log(`  📹 ${student.name}: Assigned based on zoom link history`);
-          }
-        }
 
-        // Check for zoom links on this date from this teacher
-        const hasZoomLinkForDate = student.zoom_links.some((link) => {
+        // Enhanced assignment logic: Check if student has zoom links from this teacher on this specific date
+        const hasZoomLinkForThisDate = student.zoom_links.some((link) => {
           if (!link.sent_time) return false;
           const linkDate = link.sent_time.toISOString().split("T")[0];
           return linkDate === dateStr;
         });
 
-        if (hasZoomLinkForDate) {
+        // If no valid assignment found but student has zoom links from this teacher, consider them assigned
+        if (!isAssigned && student.zoom_links.length > 0) {
+          // Only consider assigned if they have zoom links for this specific date OR if they have recent zoom links
+          const recentZoomLinks = student.zoom_links.filter((link) => {
+            if (!link.sent_time) return false;
+            const linkDate = new Date(link.sent_time);
+            const daysDiff = Math.floor(
+              (d.getTime() - linkDate.getTime()) / (1000 * 60 * 60 * 24)
+            );
+            return daysDiff >= 0 && daysDiff <= 7; // Within 7 days
+          });
+
+          if (hasZoomLinkForThisDate || recentZoomLinks.length > 0) {
+            isAssigned = true;
+            if (isDebugMode) {
+              console.log(
+                `  📹 ${student.name}: Assigned based on zoom link history (${
+                  hasZoomLinkForThisDate ? "same day" : "recent"
+                })`
+              );
+            }
+          }
+        }
+
+        if (hasZoomLinkForThisDate) {
           studentsWithZoomLinks.add(student.wdt_ID.toString());
         }
 
@@ -1615,20 +1722,20 @@ export class SalaryCalculator {
             console.log(`  📋 ${student.name}:`, {
               scheduled: isScheduled,
               assigned: isAssigned,
-              hasZoomLink: hasZoomLinkForDate,
+              hasZoomLink: hasZoomLinkForThisDate,
               daypackage: student.occupiedTimes[0]?.daypackage,
               package: student.package,
-              willProcess: isScheduled || hasZoomLinkForDate
+              willProcess: isScheduled || hasZoomLinkForThisDate,
             });
           }
-          
+
           // Only add to processing if scheduled OR has zoom link for this date
-          if (isScheduled || hasZoomLinkForDate) {
+          if (isScheduled || hasZoomLinkForThisDate) {
             scheduledStudentsForDay.push({
               student: student,
               scheduleResult: scheduleResult,
               assignmentResults: assignmentResults,
-              hasZoomLink: hasZoomLinkForDate,
+              hasZoomLink: hasZoomLinkForThisDate,
             });
           }
         }
