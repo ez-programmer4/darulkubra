@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { parseISO, startOfDay, endOfDay } from "date-fns";
 import { format, toZonedTime, fromZonedTime } from "date-fns-tz";
 
+const TZ = "Asia/Riyadh";
+
 export interface SalaryCalculationConfig {
   includeSundays: boolean;
   excusedThreshold: number;
@@ -644,10 +646,32 @@ export class SalaryCalculator {
    */
   private calculateWorkingDays(fromDate: Date, toDate: Date): number {
     let workingDays = 0;
-    for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
-      if (!this.config.includeSundays && d.getDay() === 0) continue;
-      workingDays++;
+    const current = new Date(fromDate);
+
+    while (current <= toDate) {
+      // Validate the date to avoid invalid dates like Sept 31st
+      const year = current.getFullYear();
+      const month = current.getMonth();
+      const day = current.getDate();
+
+      // Check if this is a valid date
+      const testDate = new Date(year, month, day);
+      if (
+        testDate.getFullYear() === year &&
+        testDate.getMonth() === month &&
+        testDate.getDate() === day
+      ) {
+        // Convert to timezone-aware date for proper day calculation
+        const zonedDate = toZonedTime(testDate, TZ);
+        if (this.config.includeSundays || zonedDate.getDay() !== 0) {
+          workingDays++;
+        }
+      }
+
+      // Move to next day safely
+      current.setTime(current.getTime() + 24 * 60 * 60 * 1000);
     }
+
     console.log(
       `📅 Working days calculation: ${workingDays} days (includeSundays: ${this.config.includeSundays})`
     );
@@ -1348,13 +1372,41 @@ export class SalaryCalculator {
         `✅ Permitted dates: ${Array.from(permittedDates).join(", ") || "None"}`
       );
 
-      for (
-        let d = new Date(fromDate);
-        d <= effectiveToDate;
-        d.setDate(d.getDate() + 1)
-      ) {
-        const dateStr = format(d, "yyyy-MM-dd");
-        const dayOfWeek = d.getDay();
+      // Safe date iteration to avoid invalid dates like Sept 31st
+      const safeDateIterator = (startDate: Date, endDate: Date) => {
+        const dates: Date[] = [];
+        const current = new Date(startDate);
+
+        while (current <= endDate) {
+          // Validate the date to avoid invalid dates like Sept 31st
+          const year = current.getFullYear();
+          const month = current.getMonth();
+          const day = current.getDate();
+
+          // Check if this is a valid date
+          const testDate = new Date(year, month, day);
+          if (
+            testDate.getFullYear() === year &&
+            testDate.getMonth() === month &&
+            testDate.getDate() === day
+          ) {
+            dates.push(new Date(testDate));
+          }
+
+          // Move to next day safely
+          current.setTime(current.getTime() + 24 * 60 * 60 * 1000);
+        }
+
+        return dates;
+      };
+
+      const datesToProcess = safeDateIterator(fromDate, effectiveToDate);
+
+      for (const d of datesToProcess) {
+        // Convert to timezone-aware date for proper day calculation
+        const zonedDate = toZonedTime(d, TZ);
+        const dateStr = format(zonedDate, "yyyy-MM-dd");
+        const dayOfWeek = zonedDate.getDay();
         const dayName = [
           "Sunday",
           "Monday",

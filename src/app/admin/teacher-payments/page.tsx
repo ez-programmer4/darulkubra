@@ -885,6 +885,174 @@ export default function TeacherPaymentsPage() {
           />
         )}
 
+        {/* Absence Deduction Summary */}
+        {!loading && teachers.length > 0 && (
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-red-50 to-orange-50">
+              <CardTitle className="flex items-center gap-2 text-red-800">
+                <FiAlertTriangle className="w-5 h-5 text-red-600" />
+                Absence Deduction Summary
+              </CardTitle>
+              <CardDescription>
+                Students who received absence deductions this month
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              {(() => {
+                // Collect all absence deductions from all teachers
+                const allAbsenceDeductions = teachers.flatMap(
+                  (teacher) => teacher.breakdown?.absenceBreakdown || []
+                );
+
+                if (allAbsenceDeductions.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-gray-500">
+                      <FiCheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                      <p className="text-lg font-medium">
+                        No absence deductions this month
+                      </p>
+                      <p className="text-sm">
+                        All students attended their scheduled classes
+                      </p>
+                    </div>
+                  );
+                }
+
+                // Group by student for better organization
+                const groupedByStudent = allAbsenceDeductions.reduce(
+                  (acc, deduction) => {
+                    const key = `${deduction.studentId}-${deduction.studentName}`;
+                    if (!acc[key]) {
+                      acc[key] = {
+                        studentId: deduction.studentId,
+                        studentName: deduction.studentName,
+                        studentPackage: deduction.studentPackage,
+                        totalDeduction: 0,
+                        deductions: [],
+                      };
+                    }
+                    acc[key].totalDeduction += deduction.deduction;
+                    acc[key].deductions.push(deduction);
+                    return acc;
+                  },
+                  {} as Record<string, any>
+                );
+
+                const studentGroups = Object.values(groupedByStudent);
+
+                return (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="bg-red-50 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-red-600">
+                          {studentGroups.length}
+                        </div>
+                        <div className="text-sm text-red-700">
+                          Students with Absences
+                        </div>
+                      </div>
+                      <div className="bg-orange-50 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-orange-600">
+                          {allAbsenceDeductions.length}
+                        </div>
+                        <div className="text-sm text-orange-700">
+                          Total Absence Days
+                        </div>
+                      </div>
+                      <div className="bg-red-100 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-red-700">
+                          -
+                          {formatCurrency(
+                            allAbsenceDeductions.reduce(
+                              (sum, d) => sum + d.deduction,
+                              0
+                            )
+                          )}
+                        </div>
+                        <div className="text-sm text-red-800">
+                          Total Deductions
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {studentGroups.map((student, index) => (
+                        <div
+                          key={index}
+                          className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                                <FiUser className="w-5 h-5 text-red-600" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-gray-900">
+                                  {student.studentName}
+                                </h4>
+                                <p className="text-sm text-gray-600">
+                                  Package: {student.studentPackage}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-bold text-red-600">
+                                -{formatCurrency(student.totalDeduction)}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {student.deductions.length} absence
+                                {student.deductions.length > 1 ? "s" : ""}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {student.deductions.map(
+                              (deduction: any, dedIndex: number) => (
+                                <div
+                                  key={dedIndex}
+                                  className="bg-gray-50 rounded p-3 text-sm"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium text-gray-700">
+                                      {dayjs(deduction.date).format("MMM DD")}
+                                    </span>
+                                    <span className="text-red-600 font-semibold">
+                                      -{formatCurrency(deduction.deduction)}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {deduction.permitted && (
+                                      <span className="text-green-600">
+                                        ✓ Permitted
+                                      </span>
+                                    )}
+                                    {deduction.waived && (
+                                      <span className="text-blue-600">
+                                        ✓ Waived
+                                      </span>
+                                    )}
+                                    {!deduction.permitted &&
+                                      !deduction.waived && (
+                                        <span className="text-red-600">
+                                          ✗ Unauthorized
+                                        </span>
+                                      )}
+                                  </div>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Reports Section */}
         <Card className="border-0 shadow-lg">
           <CardHeader className="bg-gradient-to-r from-gray-50 to-purple-50">
