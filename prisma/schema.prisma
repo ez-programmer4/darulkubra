@@ -36,6 +36,8 @@ model wpos_wpdatatable_24 {
     zoom_links              wpos_zoom_links[]
     coursePackage           coursePackage[]
     teacherRating           teacherRating[]
+    old_teacher_changes     teacher_change_history[]    @relation("fk_old_teacher_history")
+    new_teacher_changes     teacher_change_history[]    @relation("fk_new_teacher_history")
 
     @@index([ustazid], map: "idx_ustazid")
     @@index([control], map: "wpos_wpdatatable_24_control_fkey")
@@ -57,31 +59,32 @@ model wpos_wpdatatable_23 {
     activePackage  coursePackage?  @relation("ActivePackage", fields: [youtubeSubject], references: [id])
     youtubeSubject String?
 
-    daypackages         String?                       @db.VarChar(255)
-    refer               String?                       @db.VarChar(255)
-    registrationdate    DateTime?                     @default(now()) @db.DateTime(0)
-    isTrained           Boolean?                      @default(false)
-    chatId              String?                       @map("chat_id") @db.VarChar(64)
-    progress            String?                       @db.VarChar(64)
-    u_control           String?                       @db.VarChar(255)
-    exitdate            DateTime?                     @db.DateTime(0)
-    isKid               Boolean?                      @default(false)
-    reason              String?                       @db.VarChar(255)
-    months_table        months_table[]
-    payment             payment[]
-    attendance_progress student_attendance_progress[]
-    testappointment     testappointment[]
-    testresult          testresult[]
-    occupiedTimes       wpos_ustaz_occupied_times[]   @relation("fk_student_occupied_times")
-    controller          wpos_wpdatatable_28?          @relation("StudentToController", fields: [u_control], references: [code])
-    teacher             wpos_wpdatatable_24?          @relation("fk_student_ustaz", fields: [ustaz], references: [ustazid])
-    zoom_links          wpos_zoom_links[]
-    studentProgress     studentProgress[]
-    finalExamResult     finalExamResult[]
-    tarbiaAttendance    tarbiaAttendance[]
-    studentQuiz         studentQuiz[]
-    user                user?                         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-    userId              String?                       @unique
+    daypackages          String?                       @db.VarChar(255)
+    refer                String?                       @db.VarChar(255)
+    registrationdate     DateTime?                     @default(now()) @db.DateTime(0)
+    isTrained            Boolean?                      @default(false)
+    chatId               String?                       @map("chat_id") @db.VarChar(64)
+    progress             String?                       @db.VarChar(64)
+    u_control            String?                       @db.VarChar(255)
+    exitdate             DateTime?                     @db.DateTime(0)
+    isKid                Boolean?                      @default(false)
+    reason               String?                       @db.VarChar(255)
+    months_table         months_table[]
+    payment              payment[]
+    attendance_progress  student_attendance_progress[]
+    testappointment      testappointment[]
+    testresult           testresult[]
+    occupiedTimes        wpos_ustaz_occupied_times[]   @relation("fk_student_occupied_times")
+    teacherChangeHistory teacher_change_history[]      @relation("fk_student_change_history")
+    controller           wpos_wpdatatable_28?          @relation("StudentToController", fields: [u_control], references: [code])
+    teacher              wpos_wpdatatable_24?          @relation("fk_student_ustaz", fields: [ustaz], references: [ustazid])
+    zoom_links           wpos_zoom_links[]
+    studentProgress      studentProgress[]
+    finalExamResult      finalExamResult[]
+    tarbiaAttendance     tarbiaAttendance[]
+    studentQuiz          studentQuiz[]
+    user                 user?                         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+    userId               String?                       @unique
 
     @@index([ustaz], map: "idx_ustaz")
     @@index([u_control], map: "wpos_wpdatatable_23_u_control_fkey")
@@ -124,6 +127,31 @@ model wpos_ustaz_occupied_times {
     @@unique([ustaz_id, time_slot, daypackage])
     @@index([student_id], map: "idx_student")
     @@index([occupied_at], map: "idx_occupied_times_occupied_at")
+}
+
+model teacher_change_history {
+    id              Int      @id @default(autoincrement())
+    student_id      Int
+    old_teacher_id  String?  @db.VarChar(255)
+    new_teacher_id  String   @db.VarChar(255)
+    change_date     DateTime @default(now()) @db.Timestamp(0)
+    change_reason   String?  @db.VarChar(500)
+    time_slot       String   @db.VarChar(255)
+    daypackage      String   @db.VarChar(255)
+    student_package String?  @db.VarChar(255)
+    monthly_rate    Decimal? @db.Decimal(10, 2)
+    daily_rate      Decimal? @db.Decimal(10, 2)
+    created_by      String?  @db.VarChar(255)
+    created_at      DateTime @default(now()) @db.Timestamp(0)
+
+    student     wpos_wpdatatable_23  @relation("fk_student_change_history", fields: [student_id], references: [wdt_ID])
+    old_teacher wpos_wpdatatable_24? @relation("fk_old_teacher_history", fields: [old_teacher_id], references: [ustazid])
+    new_teacher wpos_wpdatatable_24  @relation("fk_new_teacher_history", fields: [new_teacher_id], references: [ustazid])
+
+    @@index([student_id], map: "idx_teacher_change_student")
+    @@index([old_teacher_id], map: "idx_teacher_change_old_teacher")
+    @@index([new_teacher_id], map: "idx_teacher_change_new_teacher")
+    @@index([change_date], map: "idx_teacher_change_date")
 }
 
 model wpos_wpdatatable_33 {

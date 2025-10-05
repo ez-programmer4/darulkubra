@@ -375,6 +375,33 @@ export async function POST(request: NextRequest) {
               end_at: null,
             },
           });
+
+          // Record initial teacher assignment in history
+          const packageSalary = await tx.packageSalary.findFirst({
+            where: { packageName: regionPackage },
+            select: { salaryPerStudent: true },
+          });
+
+          const monthlyRate = Number(packageSalary?.salaryPerStudent || 0);
+          const dailyRate = monthlyRate / 30;
+
+          await tx.teacher_change_history.create({
+            data: {
+              student_id: registration.wdt_ID,
+              old_teacher_id: null, // No previous teacher for new registration
+              new_teacher_id: ustaz,
+              change_date: new Date(),
+              change_reason: "Initial student registration",
+              time_slot: toDbFormat(selectedTime),
+              daypackage: selectedDayPackage,
+              student_package: regionPackage || null,
+              monthly_rate: monthlyRate,
+              daily_rate: dailyRate,
+              created_by: session?.email || "system",
+            },
+          });
+
+          console.log(`✅ Initial teacher assignment recorded: Student ${fullName} (${registration.wdt_ID}) assigned to teacher ${ustaz} on ${new Date().toISOString()}`);
         } catch (occupiedError) {
           console.warn("Failed to create assignment record:", occupiedError);
         }
@@ -731,6 +758,40 @@ export async function PUT(request: NextRequest) {
       }
 
       if (shouldFreeTimeSlot && wasActiveStatus) {
+        // Record teacher change when student leaves/completes
+        if (currentOccupiedTime) {
+          const student = await tx.wpos_wpdatatable_23.findUnique({
+            where: { wdt_ID: parseInt(id) },
+            select: { name: true, package: true },
+          });
+
+          const packageSalary = await tx.packageSalary.findFirst({
+            where: { packageName: student?.package || regionPackage },
+            select: { salaryPerStudent: true },
+          });
+
+          const monthlyRate = Number(packageSalary?.salaryPerStudent || 0);
+          const dailyRate = monthlyRate / 30;
+
+          await tx.teacher_change_history.create({
+            data: {
+              student_id: parseInt(id),
+              old_teacher_id: currentOccupiedTime.ustaz_id,
+              new_teacher_id: currentOccupiedTime.ustaz_id, // Same teacher, but ending assignment
+              change_date: new Date(),
+              change_reason: `Student status changed to ${newStatus}`,
+              time_slot: currentOccupiedTime.time_slot,
+              daypackage: currentOccupiedTime.daypackage,
+              student_package: student?.package || regionPackage || null,
+              monthly_rate: monthlyRate,
+              daily_rate: dailyRate,
+              created_by: session?.email || "system",
+            },
+          });
+
+          console.log(`✅ Teacher assignment ended: Student ${student?.name} (${parseInt(id)}) status changed to ${newStatus}, ending assignment with teacher ${currentOccupiedTime.ustaz_id}`);
+        }
+
         await tx.wpos_ustaz_occupied_times.deleteMany({
           where: {
             student_id: parseInt(id),
@@ -738,12 +799,36 @@ export async function PUT(request: NextRequest) {
           },
         });
       } else if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
+        // Get student and package information for teacher change history
+        const student = await tx.wpos_wpdatatable_23.findUnique({
+          where: { wdt_ID: parseInt(id) },
+          select: { name: true, package: true },
+        });
+
+        // Get package salary information
+        const packageSalary = await tx.packageSalary.findFirst({
+          where: { packageName: student?.package || regionPackage },
+          select: { salaryPerStudent: true },
+        });
+
+        const monthlyRate = Number(packageSalary?.salaryPerStudent || 0);
+        const dailyRate = monthlyRate / 30; // Approximate daily rate
+
+        // End current assignment if exists
         if (currentOccupiedTime) {
-          await tx.wpos_ustaz_occupied_times.delete({
-            where: { id: currentOccupiedTime.id },
+          await tx.wpos_ustaz_occupied_times.updateMany({
+            where: {
+              student_id: parseInt(id),
+              ustaz_id: currentOccupiedTime.ustaz_id,
+              end_at: null,
+            },
+            data: {
+              end_at: new Date(),
+            },
           });
         }
 
+        // Create new assignment
         await tx.wpos_ustaz_occupied_times.create({
           data: {
             ustaz_id: ustaz,
@@ -754,6 +839,25 @@ export async function PUT(request: NextRequest) {
             end_at: null,
           },
         });
+
+        // Record teacher change in history
+        await tx.teacher_change_history.create({
+          data: {
+            student_id: parseInt(id),
+            old_teacher_id: currentOccupiedTime?.ustaz_id || null,
+            new_teacher_id: ustaz,
+            change_date: new Date(),
+            change_reason: "Student registration update",
+            time_slot: toDbFormat(selectedTime),
+            daypackage: selectedDayPackage,
+            student_package: student?.package || regionPackage || null,
+            monthly_rate: monthlyRate,
+            daily_rate: dailyRate,
+            created_by: session?.email || "system",
+          },
+        });
+
+        console.log(`✅ Teacher change recorded: Student ${student?.name} (${parseInt(id)}) changed from ${currentOccupiedTime?.ustaz_id || 'none'} to ${ustaz} on ${new Date().toISOString()}`);
       } else if (!shouldFreeTimeSlot && !hasAnyTimeTeacherChange) {
         const activeStatuses = ["active", "not yet", "fresh"];
         if (
@@ -772,36 +876,6 @@ export async function PUT(request: NextRequest) {
               end_at: null,
             },
           });
-        }
-      }
-
-      if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
-        const auditDetails = {
-          student: parseInt(id),
-          oldTeacher: currentOccupiedTime?.ustaz_id || "none",
-          newTeacher: ustaz,
-          oldTime: currentTimeSlot || "none",
-          newTime: selectedTime,
-          oldPackage: currentOccupiedTime?.daypackage || "none",
-          newPackage: selectedDayPackage,
-        };
-        const detailsString = JSON.stringify(auditDetails);
-        const truncatedDetails =
-          detailsString.length > 200
-            ? detailsString.substring(0, 197) + "..."
-            : detailsString;
-
-        try {
-          await tx.auditlog.create({
-            data: {
-              actionType: "assignment_update",
-              adminId: null,
-              targetId: parseInt(id),
-              details: truncatedDetails,
-            },
-          });
-        } catch (auditError) {
-          console.warn("Audit log creation failed:", auditError);
         }
       }
 

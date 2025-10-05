@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { parseISO, startOfDay, endOfDay } from "date-fns";
 import { format, toZonedTime, fromZonedTime } from "date-fns-tz";
+import {
+  getTeacherChangePeriods,
+  TeacherChangePeriod,
+} from "@/lib/teacher-change-utils";
 
 const TZ = "Asia/Riyadh";
 
@@ -379,93 +383,42 @@ export class SalaryCalculator {
       },
     });
 
-    // Get historical assignments from audit log with enhanced parsing
-    const auditLogs = await prisma.auditlog.findMany({
-      where: {
-        actionType: "assignment_update",
-        createdAt: { gte: fromDate, lte: toDate },
-      },
-      select: {
-        targetId: true,
-        details: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "asc" },
-    });
+    // Get teacher change periods from the new history system
+    const teacherChangePeriods = await getTeacherChangePeriods(
+      teacherId,
+      fromDate,
+      toDate
+    );
 
-    const historicalAssignments = auditLogs
-      .map((log) => {
-        try {
-          const details = JSON.parse(log.details);
-
-          // Handle both old and new teacher assignments
-          if (details.oldTeacher === teacherId && log.targetId) {
-            // Teacher was removed from student
-            return {
-              student_id: log.targetId,
-              ustaz_id: String(details.oldTeacher || ""),
-              time_slot: String(details.oldTime || "09:00 AM"),
-              daypackage: String(
-                details.oldDayPackage || details.newDayPackage || "MWF"
-              ),
-              occupied_at: new Date(details.occupied_at || log.createdAt),
-              end_at: log.createdAt,
-              assignment_type: "removed" as const,
-            };
-          } else if (details.newTeacher === teacherId && log.targetId) {
-            // Teacher was assigned to student
-            return {
-              student_id: log.targetId,
-              ustaz_id: String(details.newTeacher || ""),
-              time_slot: String(details.newTime || "09:00 AM"),
-              daypackage: String(details.newDayPackage || "MWF"),
-              occupied_at: log.createdAt,
-              end_at: null,
-              assignment_type: "assigned" as const,
-            };
-          }
-          return null;
-        } catch (e) {
-          console.warn(`Failed to parse audit log details:`, e);
-          return null;
-        }
-      })
-      .filter((a): a is NonNullable<typeof a> => a !== null);
-
-    // Get student details for historical assignments
-    const historicalStudentIds = [
-      ...new Set(historicalAssignments.map((a) => a.student_id)),
-    ];
-    const historicalStudents = await prisma.wpos_wpdatatable_23.findMany({
-      where: { wdt_ID: { in: historicalStudentIds } },
-      select: { wdt_ID: true, name: true, package: true },
-    });
-
-    historicalAssignments.forEach((assignment) => {
-      const student = historicalStudents.find(
-        (s) => s.wdt_ID === assignment.student_id
-      );
-      if (student && student.name && student.package) {
-        (assignment as any).student = {
-          wdt_ID: student.wdt_ID,
-          name: student.name,
-          package: student.package,
-        };
-      }
-    });
-
-    // Combine and sort assignments by effective date
+    // Combine active assignments with historical periods
     const allAssignments = [
-      ...activeAssignments.map((a) => ({
-        ...a,
+      ...activeAssignments.map((assignment) => ({
+        student_id: assignment.student_id,
+        ustaz_id: assignment.ustaz_id,
+        time_slot: assignment.time_slot,
+        daypackage: assignment.daypackage,
+        occupied_at: assignment.occupied_at,
+        end_at: assignment.end_at,
+        student: assignment.student,
         assignment_type: "active" as const,
       })),
-      ...historicalAssignments.filter((a) => (a as any).student),
-    ].sort((a, b) => {
-      const aDate = a.occupied_at || new Date(0);
-      const bDate = b.occupied_at || new Date(0);
-      return aDate.getTime() - bDate.getTime();
-    });
+      ...teacherChangePeriods.map((period) => ({
+        student_id: period.studentId,
+        ustaz_id: period.teacherId,
+        time_slot: period.timeSlot,
+        daypackage: period.dayPackage,
+        occupied_at: period.startDate,
+        end_at: period.endDate,
+        student: {
+          wdt_ID: period.studentId,
+          name: period.studentName,
+          package: period.package,
+        },
+        assignment_type: "historical" as const,
+        monthlyRate: period.monthlyRate,
+        dailyRate: period.dailyRate,
+      })),
+    ];
 
     return allAssignments;
   }
@@ -1132,7 +1085,7 @@ export class SalaryCalculator {
       // Get permission requests and waivers
       const [permissionRequests, deductionWaivers] = await Promise.all([
         prisma.permissionrequest.findMany({
-          where: {
+        where: {
             teacherId,
             requestedDate: {
               gte: format(fromDate, "yyyy-MM-dd"),
@@ -1143,7 +1096,7 @@ export class SalaryCalculator {
           select: { requestedDate: true },
         }),
         prisma.deduction_waivers.findMany({
-          where: {
+        where: {
             teacherId,
             deductionType: "absence",
             deductionDate: {
@@ -1164,20 +1117,20 @@ export class SalaryCalculator {
 
       // Get all students assigned to this teacher during the period
       const students = await prisma.wpos_wpdatatable_23.findMany({
-        where: {
-          status: { in: ["active", "Active", "Not yet"] },
-          OR: [
+      where: {
+        status: { in: ["active", "Active", "Not yet"] },
+        OR: [
             // Current assignments
-            {
-              ustaz: teacherId,
-              occupiedTimes: {
-                some: {
-                  ustaz_id: teacherId,
+          {
+            ustaz: teacherId,
+            occupiedTimes: {
+              some: {
+                ustaz_id: teacherId,
                   occupied_at: { lte: effectiveToDate },
-                  OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
-                },
+                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
               },
             },
+          },
             // Historical assignments from audit logs
             {
               occupiedTimes: {
@@ -1187,44 +1140,44 @@ export class SalaryCalculator {
                   OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
                 },
               },
-            },
-          ],
-        },
-        include: {
-          occupiedTimes: {
-            where: {
-              ustaz_id: teacherId,
+          },
+        ],
+      },
+      include: {
+        occupiedTimes: {
+          where: {
+                ustaz_id: teacherId,
               occupied_at: { lte: effectiveToDate },
-              OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
-            },
-            select: {
-              time_slot: true,
-              daypackage: true,
-              occupied_at: true,
-              end_at: true,
-            },
+                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
           },
-          zoom_links: {
-            where: {
-              ustazid: teacherId,
-              sent_time: {
-                gte: fromDate,
-                lte: effectiveToDate,
-              },
-            },
-            select: { sent_time: true },
-          },
-          attendance_progress: {
-            where: {
-              date: {
-                gte: fromDate,
-                lte: effectiveToDate,
-              },
-            },
-            select: { date: true, attendance_status: true },
+          select: {
+            time_slot: true,
+            daypackage: true,
+            occupied_at: true,
+            end_at: true,
           },
         },
-      });
+        zoom_links: {
+          where: {
+            ustazid: teacherId,
+            sent_time: {
+              gte: fromDate,
+                lte: effectiveToDate,
+            },
+          },
+          select: { sent_time: true },
+        },
+        attendance_progress: {
+          where: {
+            date: {
+              gte: fromDate,
+                lte: effectiveToDate,
+            },
+          },
+          select: { date: true, attendance_status: true },
+        },
+      },
+    });
 
       console.log(
         `📊 Processing ${students.length} students for absence deductions`
@@ -1232,13 +1185,13 @@ export class SalaryCalculator {
 
       // Debug: Log all students being processed
       students.forEach((student, index) => {
-        console.log(
+      console.log(
           `👤 Student ${index + 1}: ${student.name} (ID: ${student.wdt_ID})`
-        );
+      );
         console.log(`   Package: ${student.package}`);
         console.log(`   Occupied Times: ${student.occupiedTimes?.length || 0}`);
         console.log(`   Zoom Links: ${student.zoom_links?.length || 0}`);
-        console.log(
+      console.log(
           `   Attendance Records: ${student.attendance_progress?.length || 0}`
         );
 
@@ -1252,8 +1205,8 @@ export class SalaryCalculator {
         }
       });
 
-      let totalDeduction = 0;
-      const breakdown: any[] = [];
+    let totalDeduction = 0;
+    const breakdown: any[] = [];
 
       // Helper function to parse daypackage
       const parseDaypackage = (dp: string): number[] => {
@@ -1271,12 +1224,12 @@ export class SalaryCalculator {
         // Common patterns
         if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
           console.log(`       ✅ Matched "ALL DAYS" pattern`);
-          console.log(
+        console.log(
             `       🔍 Exact comparison: "${dpTrimmed}" === "ALL DAYS": ${
               dpTrimmed === "ALL DAYS"
             }`
           );
-          console.log(
+        console.log(
             `       🔍 Exact comparison: "${dpTrimmed}" === "ALLDAYS": ${
               dpTrimmed === "ALLDAYS"
             }`
@@ -1359,22 +1312,22 @@ export class SalaryCalculator {
       const workingDays = this.calculateWorkingDays(fromDate, effectiveToDate);
 
       // Process each day in the period
-      console.log(
+          console.log(
         `📅 Processing period: ${format(fromDate, "yyyy-MM-dd")} to ${format(
           effectiveToDate,
           "yyyy-MM-dd"
         )}`
       );
-      console.log(
+          console.log(
         `🚫 Waived dates: ${Array.from(waivedDates).join(", ") || "None"}`
       );
-      console.log(
+          console.log(
         `✅ Permitted dates: ${Array.from(permittedDates).join(", ") || "None"}`
       );
 
       // Safe date iteration to avoid invalid dates like Sept 31st
-      const safeDateIterator = (startDate: Date, endDate: Date) => {
-        const dates: Date[] = [];
+    const safeDateIterator = (startDate: Date, endDate: Date) => {
+      const dates: Date[] = [];
         const current = new Date(startDate);
 
         while (current <= endDate) {
@@ -1397,25 +1350,25 @@ export class SalaryCalculator {
           current.setTime(current.getTime() + 24 * 60 * 60 * 1000);
         }
 
-        return dates;
-      };
+      return dates;
+    };
 
       const datesToProcess = safeDateIterator(fromDate, effectiveToDate);
 
-      for (const d of datesToProcess) {
+    for (const d of datesToProcess) {
         // Convert to timezone-aware date for proper day calculation
         const zonedDate = toZonedTime(d, TZ);
         const dateStr = format(zonedDate, "yyyy-MM-dd");
         const dayOfWeek = zonedDate.getDay();
-        const dayName = [
-          "Sunday",
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday",
-          "Saturday",
-        ][dayOfWeek];
+      const dayName = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ][dayOfWeek];
 
         console.log(
           `\n📅 Processing ${dateStr} (${dayName}, dayOfWeek: ${dayOfWeek})`
@@ -1446,7 +1399,7 @@ export class SalaryCalculator {
         );
 
         // Check each student
-        for (const student of students) {
+      for (const student of students) {
           console.log(
             `     👤 Checking student: ${student.name} (${student.wdt_ID})`
           );
@@ -1489,17 +1442,17 @@ export class SalaryCalculator {
             }
           }
 
-          console.log(
+        console.log(
             `       📅 All scheduled days: [${scheduledDays.join(", ")}]`
-          );
-          console.log(
+        );
+        console.log(
             `       📅 Is scheduled on ${dayName} (${dayOfWeek}): ${isScheduled}`
-          );
+        );
 
           // Fallback: if no daypackage but has zoom links, assume weekdays
           if (!isScheduled && student.zoom_links?.length > 0) {
             isScheduled = dayOfWeek >= 1 && dayOfWeek <= 5;
-            console.log(
+        console.log(
               `       🔄 Fallback: assuming weekdays due to zoom links: ${isScheduled}`
             );
           }
@@ -1519,8 +1472,8 @@ export class SalaryCalculator {
           console.log(`       🔗 Has zoom link for ${dateStr}: ${hasZoomLink}`);
           if (hasZoomLink) {
             console.log(`       ✅ Student has zoom link, no deduction`);
-            continue;
-          }
+          continue;
+        }
 
           // Check attendance permission
           const attendanceRecord = student.attendance_progress?.find(
@@ -1530,49 +1483,49 @@ export class SalaryCalculator {
             }
           );
 
-          console.log(
+            console.log(
             `       📋 Attendance record: ${
               attendanceRecord ? attendanceRecord.attendance_status : "None"
             }`
-          );
+            );
           if (attendanceRecord?.attendance_status === "Permission") {
             console.log(`       ✅ Student has permission, no deduction`);
-            continue;
-          }
+          continue;
+        }
 
           // Apply deduction
-          const packageRate = packageMap[student.package || ""] || 25;
-          dailyDeduction += packageRate;
+        const packageRate = packageMap[student.package || ""] || 25;
+        dailyDeduction += packageRate;
           console.log(
             `       💰 APPLYING DEDUCTION: ${packageRate} ETB (package: ${student.package})`
           );
 
-          affectedStudents.push({
-            studentId: student.wdt_ID,
-            studentName: student.name || "Unknown Student",
-            studentPackage: student.package || "Unknown Package",
-            rate: packageRate,
+        affectedStudents.push({
+          studentId: student.wdt_ID,
+          studentName: student.name || "Unknown Student",
+          studentPackage: student.package || "Unknown Package",
+          rate: packageRate,
             daypackage: relevantOccupiedTimes[0]?.daypackage || "Unknown",
-          });
-        }
+        });
+      }
 
-        if (dailyDeduction > 0) {
-          totalDeduction += dailyDeduction;
+      if (dailyDeduction > 0) {
+        totalDeduction += dailyDeduction;
           console.log(
             `   💰 DAILY DEDUCTION APPLIED: ${dailyDeduction} ETB for ${affectedStudents.length} students`
           );
 
           // Add individual student entries to breakdown for detailed view
           affectedStudents.forEach((student) => {
-            breakdown.push({
-              date: dateStr,
+        breakdown.push({
+          date: dateStr,
               studentId: student.studentId,
               studentName: student.studentName,
               studentPackage: student.studentPackage,
               reason: "No zoom link sent",
               deduction: Math.round(student.rate),
-              permitted: false,
-              waived: false,
+          permitted: false,
+          waived: false,
             });
           });
         } else {
@@ -1587,10 +1540,10 @@ export class SalaryCalculator {
         `📅 Total working days in period: ${workingDays} (includeSundays: ${this.config.includeSundays})`
       );
 
-      return {
-        totalDeduction: Math.round(totalDeduction),
-        breakdown,
-      };
+    return {
+      totalDeduction: Math.round(totalDeduction),
+      breakdown,
+    };
     } catch (error) {
       console.error(
         `Error calculating absence deductions for teacher ${teacherId}:`,
