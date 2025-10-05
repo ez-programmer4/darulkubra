@@ -100,6 +100,12 @@ interface TeacherSalaryData {
   };
 }
 
+interface SalaryError {
+  error: string;
+  showTeacherSalary: boolean;
+  adminContact?: string;
+}
+
 interface PaymentDetails {
   latenessRecords: any[];
   absenceRecords: any[];
@@ -114,6 +120,7 @@ export default function TeacherSalaryPage() {
   const [details, setDetails] = useState<PaymentDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [salaryError, setSalaryError] = useState<SalaryError | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
@@ -139,6 +146,7 @@ export default function TeacherSalaryPage() {
   const fetchSalaryData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setSalaryError(null);
 
     try {
       const response = await fetch(
@@ -147,18 +155,18 @@ export default function TeacherSalaryPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
+
+        // Check if salary visibility is disabled
+        if (response.status === 403 && errorData.showTeacherSalary === false) {
+          setSalaryError(errorData);
+          setSalaryData(null);
+          return;
+        }
+
         throw new Error(errorData.message || "Failed to fetch salary data");
       }
 
       const data = await response.json();
-
-      // Check if salary visibility is disabled
-      if (response.status === 403 && data.showTeacherSalary === false) {
-        setError("Salary information is currently hidden by administrator");
-        setSalaryData(null);
-        return;
-      }
-
       setSalaryData(data);
       setLastUpdated(new Date());
     } catch (err) {
@@ -302,8 +310,6 @@ export default function TeacherSalaryPage() {
   }
 
   if (error) {
-    const isSalaryHidden = error.includes("hidden by administrator");
-
     return (
       <div className="space-y-6">
         <Card className="border-0 shadow-lg bg-gradient-to-r from-red-50 to-red-100">
@@ -313,21 +319,73 @@ export default function TeacherSalaryPage() {
                 <FiAlertTriangle className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold">
-                  {isSalaryHidden
-                    ? "Salary Information Hidden"
-                    : "Error Loading Salary Data"}
-                </h3>
+                <h3 className="text-xl font-bold">Error Loading Salary Data</h3>
                 <p className="text-red-700 mt-2">{error}</p>
-                {!isSalaryHidden && (
+                <Button
+                  onClick={fetchSalaryData}
+                  className="mt-4 bg-red-600 hover:bg-red-700"
+                >
+                  <FiRefreshCw className="w-4 h-4 mr-2" />
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (salaryError) {
+    return (
+      <div className="space-y-6">
+        <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-100">
+          <CardContent className="p-8">
+            <div className="flex items-center gap-4 text-blue-800">
+              <div className="p-3 bg-blue-500 rounded-full">
+                <FiInfo className="w-8 h-8 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold mb-3">
+                  Salary Information Temporarily Unavailable
+                </h3>
+                <p className="text-blue-700 mb-4">{salaryError.error}</p>
+
+                {salaryError.adminContact && (
+                  <div className="bg-blue-100 rounded-lg p-4 mb-4">
+                    <div className="flex items-start gap-3">
+                      <FiAlertTriangle className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <h4 className="font-semibold text-blue-800 mb-1">
+                          Need Help?
+                        </h4>
+                        <p className="text-blue-700 text-sm">
+                          {salaryError.adminContact}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
                   <Button
                     onClick={fetchSalaryData}
-                    className="mt-4 bg-red-600 hover:bg-red-700"
+                    className="bg-blue-600 hover:bg-blue-700"
                   >
                     <FiRefreshCw className="w-4 h-4 mr-2" />
-                    Try Again
+                    Check Again
                   </Button>
-                )}
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      (window.location.href = "/teachers/notifications")
+                    }
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                  >
+                    <FiFileText className="w-4 h-4 mr-2" />
+                    Contact Support
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>

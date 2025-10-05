@@ -87,6 +87,8 @@ export default function TeacherPaymentsPage() {
     useState(false);
   const [includeSundays, setIncludeSundays] = useState(false);
   const [showTeacherSalary, setShowTeacherSalary] = useState(true);
+  const [customMessage, setCustomMessage] = useState("");
+  const [adminContact, setAdminContact] = useState("");
 
   // Load settings from database
   useEffect(() => {
@@ -94,7 +96,7 @@ export default function TeacherPaymentsPage() {
       try {
         const [sundayResponse, salaryResponse] = await Promise.all([
           fetch("/api/admin/settings/include-sundays"),
-          fetch("/api/admin/settings/show-teacher-salary"),
+          fetch("/api/admin/settings/teacher-salary-visibility"),
         ]);
 
         if (sundayResponse.ok) {
@@ -105,6 +107,8 @@ export default function TeacherPaymentsPage() {
         if (salaryResponse.ok) {
           const salaryData = await salaryResponse.json();
           setShowTeacherSalary(salaryData.showTeacherSalary || true);
+          setCustomMessage(salaryData.customMessage || "");
+          setAdminContact(salaryData.adminContact || "");
         }
       } catch (error) {
         console.error("Failed to load settings:", error);
@@ -147,19 +151,25 @@ export default function TeacherPaymentsPage() {
 
   // Update show teacher salary setting
   const updateShowTeacherSalarySetting = useCallback(
-    async (show: boolean) => {
+    async (show: boolean, message?: string, contact?: string) => {
       try {
         const response = await fetch(
-          "/api/admin/settings/show-teacher-salary",
+          "/api/admin/settings/teacher-salary-visibility",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ showTeacherSalary: show }),
+            body: JSON.stringify({
+              showTeacherSalary: show,
+              customMessage: message || customMessage,
+              adminContact: contact || adminContact,
+            }),
           }
         );
 
         if (response.ok) {
           setShowTeacherSalary(show);
+          if (message !== undefined) setCustomMessage(message);
+          if (contact !== undefined) setAdminContact(contact);
           toast({
             title: "Success",
             description: `Teacher salary visibility ${
@@ -177,7 +187,7 @@ export default function TeacherPaymentsPage() {
         });
       }
     },
-    [toast]
+    [toast, customMessage, adminContact]
   );
 
   // Get date range for the selected month/year
@@ -1179,25 +1189,93 @@ export default function TeacherPaymentsPage() {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">
-                      Show Teacher Salary
-                    </label>
-                    <p className="text-xs text-gray-500">
-                      Allow teachers to view their own salary information
-                    </p>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Show Teacher Salary
+                      </label>
+                      <p className="text-xs text-gray-500">
+                        Allow teachers to view their own salary information
+                      </p>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={showTeacherSalary}
+                        onChange={(e) =>
+                          updateShowTeacherSalarySetting(e.target.checked)
+                        }
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={showTeacherSalary}
-                      onChange={(e) =>
-                        updateShowTeacherSalarySetting(e.target.checked)
-                      }
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                  </div>
+
+                  {!showTeacherSalary && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          Custom Message for Teachers
+                        </label>
+                        <textarea
+                          value={customMessage}
+                          onChange={(e) => setCustomMessage(e.target.value)}
+                          placeholder="Enter a custom message to show teachers when salary is hidden..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                          rows={3}
+                        />
+                        <p className="text-xs text-gray-500">
+                          This message will be displayed to teachers when salary
+                          information is hidden
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          Admin Contact Information
+                        </label>
+                        <textarea
+                          value={adminContact}
+                          onChange={(e) => setAdminContact(e.target.value)}
+                          placeholder="Enter contact information for teachers to reach admin..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                          rows={2}
+                        />
+                        <p className="text-xs text-gray-500">
+                          Contact information shown to teachers when they need
+                          help
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() =>
+                            updateShowTeacherSalarySetting(
+                              false,
+                              customMessage,
+                              adminContact
+                            )
+                          }
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          Save Message & Contact
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setCustomMessage(
+                              "Salary information is currently hidden by administrator. Please contact the administration for more details."
+                            );
+                            setAdminContact(
+                              "Contact the administration office for assistance."
+                            );
+                          }}
+                        >
+                          Reset to Default
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>

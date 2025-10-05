@@ -17,9 +17,18 @@ export async function GET(req: NextRequest) {
     }
 
     // Check if teacher salary visibility is enabled
-    const salaryVisibilitySetting = await prisma.setting.findUnique({
-      where: { key: "teacher_salary_visible" },
-    });
+    const [salaryVisibilitySetting, customMessageSetting, adminContactSetting] =
+      await Promise.all([
+        prisma.setting.findUnique({
+          where: { key: "teacher_salary_visible" },
+        }),
+        prisma.setting.findUnique({
+          where: { key: "teacher_salary_hidden_message" },
+        }),
+        prisma.setting.findUnique({
+          where: { key: "admin_contact_info" },
+        }),
+      ]);
 
     // Default to true if setting doesn't exist
     const showTeacherSalary =
@@ -28,8 +37,13 @@ export async function GET(req: NextRequest) {
     if (!showTeacherSalary) {
       return NextResponse.json(
         {
-          error: "Salary information is currently hidden by administrator",
+          error:
+            customMessageSetting?.value ||
+            "Salary information is currently hidden by administrator. Please contact the administration for more details.",
           showTeacherSalary: false,
+          adminContact:
+            adminContactSetting?.value ||
+            "Contact the administration office for assistance.",
         },
         { status: 403 }
       );
