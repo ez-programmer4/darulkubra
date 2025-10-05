@@ -117,7 +117,7 @@ export function useTeacherPayments({
         params.append("teacherId", teacherId);
       }
 
-      const response = await fetch(`/api/admin/teacher-payments/v2?${params}`);
+      const response = await fetch(`/api/admin/teacher-payments?${params}`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -156,9 +156,7 @@ export function useTeacherPayments({
           details: "true",
         });
 
-        const response = await fetch(
-          `/api/admin/teacher-payments/v2?${params}`
-        );
+        const response = await fetch(`/api/admin/teacher-payments?${params}`);
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -218,7 +216,7 @@ export function useTeacherPayments({
       setError(null);
 
       try {
-        const response = await fetch("/api/admin/teacher-payments/v2", {
+        const response = await fetch("/api/admin/teacher-payments", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
