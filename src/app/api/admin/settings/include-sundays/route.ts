@@ -65,6 +65,22 @@ export async function POST(req: NextRequest) {
       console.warn("⚠️ Failed to clear salary calculator cache:", error);
     }
 
+    // Clear teacher payments API calculator cache
+    try {
+      const { clearCalculatorCache } = await import(
+        "@/app/api/admin/teacher-payments/route"
+      );
+      clearCalculatorCache();
+      console.log(
+        "✅ Teacher payments calculator cache cleared after Sunday setting change"
+      );
+    } catch (error) {
+      console.warn(
+        "⚠️ Failed to clear teacher payments calculator cache:",
+        error
+      );
+    }
+
     return NextResponse.json({
       success: true,
       includeSundays,

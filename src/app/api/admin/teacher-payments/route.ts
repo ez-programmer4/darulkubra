@@ -42,6 +42,12 @@ async function getSalaryCalculator(): Promise<SalaryCalculator> {
   return calculatorCache.get(cacheKey)!;
 }
 
+// Function to clear the calculator cache (for when settings change)
+export function clearCalculatorCache(): void {
+  calculatorCache.clear();
+  console.log("🧹 Teacher payments calculator cache cleared");
+}
+
 export async function GET(req: NextRequest) {
   try {
     const ip =

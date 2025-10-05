@@ -130,7 +130,7 @@ export default function TeacherPaymentsPage() {
             description: `Sunday inclusion ${include ? "enabled" : "disabled"}`,
           });
           // Refresh data to reflect the change
-          window.location.reload();
+          await refresh();
         } else {
           throw new Error("Failed to update setting");
         }
