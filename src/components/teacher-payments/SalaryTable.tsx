@@ -707,19 +707,53 @@ export default function SalaryTable({
                 </div>
               </div>
 
+              {/* Key Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600 font-medium">
+                    Total Students
+                  </div>
+                  <div className="text-xl font-bold text-gray-900">
+                    {selectedTeacher.numStudents}
+                  </div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600 font-medium">
+                    Teaching Days
+                  </div>
+                  <div className="text-xl font-bold text-gray-900">
+                    {selectedTeacher.teachingDays}
+                  </div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600 font-medium">
+                    Net Salary
+                  </div>
+                  <div className="text-xl font-bold text-gray-900">
+                    {formatCurrency(selectedTeacher.totalSalary)}
+                  </div>
+                </div>
+              </div>
+
               {/* Breakdown Sections */}
               <div className="space-y-6">
                 {/* Student Breakdown */}
                 {selectedTeacher.breakdown?.studentBreakdown && (
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                      Student Breakdown
-                      {selectedTeacher.hasTeacherChanges && (
-                        <span className="ml-2 text-sm text-orange-600 font-normal">
-                          (Includes teacher change periods)
-                        </span>
-                      )}
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Student Breakdown
+                        {selectedTeacher.hasTeacherChanges && (
+                          <span className="ml-2 text-sm text-orange-600 font-normal">
+                            (Includes teacher change periods)
+                          </span>
+                        )}
+                      </h3>
+                      <div className="text-sm text-gray-600">
+                        {selectedTeacher.breakdown.studentBreakdown.length}{" "}
+                        student(s)
+                      </div>
+                    </div>
                     <div className="overflow-x-auto">
                       <table className="min-w-full bg-white border border-gray-200">
                         <thead className="bg-gray-50">
@@ -732,6 +766,9 @@ export default function SalaryTable({
                             </th>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                               Monthly Rate
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Daily Rate
                             </th>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                               Days Worked
@@ -756,6 +793,9 @@ export default function SalaryTable({
                                 </td>
                                 <td className="px-4 py-2 text-sm text-gray-600">
                                   {formatCurrency(student.monthlyRate)}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {formatCurrency(student.dailyRate)}
                                 </td>
                                 <td className="px-4 py-2 text-sm text-gray-600">
                                   {student.daysWorked}
@@ -914,9 +954,21 @@ export default function SalaryTable({
                 {selectedTeacher.breakdown?.absenceBreakdown &&
                   selectedTeacher.breakdown.absenceBreakdown.length > 0 && (
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                        Absence Deductions
-                      </h3>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Absence Deductions
+                        </h3>
+                        <div className="text-sm text-gray-600">
+                          {selectedTeacher.breakdown.absenceBreakdown.length}{" "}
+                          absence(s) • Total: -
+                          {formatCurrency(
+                            selectedTeacher.breakdown.absenceBreakdown.reduce(
+                              (sum, record) => sum + record.deduction,
+                              0
+                            )
+                          )}
+                        </div>
+                      </div>
                       <div className="overflow-x-auto">
                         <table className="min-w-full bg-white border border-gray-200">
                           <thead className="bg-gray-50">
@@ -958,17 +1010,19 @@ export default function SalaryTable({
                                     {record.reason}
                                   </td>
                                   <td className="px-4 py-2 text-sm">
-                                    <span
-                                      className={`px-2 py-1 rounded-full text-xs ${
-                                        record.permitted
-                                          ? "bg-green-100 text-green-800"
-                                          : "bg-red-100 text-red-800"
-                                      }`}
-                                    >
-                                      {record.permitted
-                                        ? "Permitted"
-                                        : "Not Permitted"}
-                                    </span>
+                                    {record.permitted ? (
+                                      <Badge className="bg-green-100 text-green-800 border-green-200">
+                                        ✓ Permitted
+                                      </Badge>
+                                    ) : record.waived ? (
+                                      <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                                        ✓ Waived
+                                      </Badge>
+                                    ) : (
+                                      <Badge className="bg-red-100 text-red-800 border-red-200">
+                                        ✗ Unauthorized
+                                      </Badge>
+                                    )}
                                   </td>
                                   <td className="px-4 py-2 text-sm font-medium text-red-600">
                                     -{formatCurrency(record.deduction)}

@@ -1561,13 +1561,19 @@ export class SalaryCalculator {
           console.log(
             `   💰 DAILY DEDUCTION APPLIED: ${dailyDeduction} ETB for ${affectedStudents.length} students`
           );
-          breakdown.push({
-            date: dateStr,
-            reason: `No zoom link sent for ${affectedStudents.length} scheduled student(s)`,
-            deduction: Math.round(dailyDeduction),
-            permitted: false,
-            waived: false,
-            affectedStudents,
+
+          // Add individual student entries to breakdown for detailed view
+          affectedStudents.forEach((student) => {
+            breakdown.push({
+              date: dateStr,
+              studentId: student.studentId,
+              studentName: student.studentName,
+              studentPackage: student.studentPackage,
+              reason: "No zoom link sent",
+              deduction: Math.round(student.rate),
+              permitted: false,
+              waived: false,
+            });
           });
         } else {
           console.log(`   ✅ No deductions for this day`);
