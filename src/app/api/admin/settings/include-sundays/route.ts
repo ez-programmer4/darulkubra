@@ -67,9 +67,7 @@ export async function POST(req: NextRequest) {
 
     // Clear teacher payments API calculator cache
     try {
-      const { clearCalculatorCache } = await import(
-        "@/app/api/admin/teacher-payments/route"
-      );
+      const { clearCalculatorCache } = await import("@/lib/calculator-cache");
       clearCalculatorCache();
       console.log(
         "✅ Teacher payments calculator cache cleared after Sunday setting change"

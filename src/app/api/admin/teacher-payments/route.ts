@@ -5,6 +5,10 @@ import {
   SalaryCalculator,
 } from "@/lib/salary-calculator";
 import { format, parseISO } from "date-fns";
+import {
+  getCachedCalculator,
+  setCachedCalculator,
+} from "@/lib/calculator-cache";
 
 // Rate limiting
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
@@ -28,24 +32,16 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-// Cache for salary calculator instances
-const calculatorCache = new Map<string, SalaryCalculator>();
-
 async function getSalaryCalculator(): Promise<SalaryCalculator> {
-  const cacheKey = "default";
+  const cacheKey = "teacher-payments";
 
-  if (!calculatorCache.has(cacheKey)) {
-    const calculator = await createSalaryCalculator();
-    calculatorCache.set(cacheKey, calculator);
+  let calculator = getCachedCalculator(cacheKey);
+  if (!calculator) {
+    calculator = await createSalaryCalculator();
+    setCachedCalculator(cacheKey, calculator);
   }
 
-  return calculatorCache.get(cacheKey)!;
-}
-
-// Function to clear the calculator cache (for when settings change)
-export function clearCalculatorCache(): void {
-  calculatorCache.clear();
-  console.log("🧹 Teacher payments calculator cache cleared");
+  return calculator;
 }
 
 export async function GET(req: NextRequest) {
