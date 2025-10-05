@@ -13,7 +13,6 @@ import {
   FiAward,
   FiSearch,
   FiFilter,
-  FiDownload,
   FiRefreshCw,
   FiX,
   FiEye,
@@ -251,8 +250,8 @@ export default function SalaryTable({
         variant={status === "Paid" ? "default" : "secondary"}
         className={`flex items-center gap-1 ${
           status === "Paid"
-            ? "bg-green-100 text-green-800"
-            : "bg-yellow-100 text-yellow-800"
+            ? "bg-green-100 text-green-800 border-green-200"
+            : "bg-orange-100 text-orange-800 border-orange-200"
         }`}
       >
         {status === "Paid" ? (
@@ -317,7 +316,7 @@ export default function SalaryTable({
           <Button
             variant="outline"
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50"
           >
             <FiFilter className="w-4 h-4" />
             Filters
@@ -329,24 +328,19 @@ export default function SalaryTable({
             variant="outline"
             onClick={onRefresh}
             disabled={loading}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50"
           >
             <FiRefreshCw
               className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
             />
             Refresh
           </Button>
-
-          <Button variant="outline" className="flex items-center gap-2">
-            <FiDownload className="w-4 h-4" />
-            Export
-          </Button>
         </div>
       </div>
 
       {/* Advanced Filters */}
       {showAdvancedFilters && (
-        <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">
@@ -362,6 +356,7 @@ export default function SalaryTable({
                     min: e.target.value,
                   })
                 }
+                className="border-gray-300 focus:border-black focus:ring-black"
               />
             </div>
             <div>
@@ -378,6 +373,7 @@ export default function SalaryTable({
                     max: e.target.value,
                   })
                 }
+                className="border-gray-300 focus:border-black focus:ring-black"
               />
             </div>
           </div>
@@ -386,16 +382,16 @@ export default function SalaryTable({
 
       {/* Bulk Actions */}
       {selectedTeachers.size > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-blue-800">
+            <span className="text-sm text-gray-800">
               {selectedTeachers.size} teacher(s) selected
             </span>
             <div className="flex gap-2">
               <Button
                 size="sm"
                 onClick={() => handleBulkAction("mark-paid")}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 text-white"
               >
                 Mark as Paid
               </Button>
@@ -403,6 +399,7 @@ export default function SalaryTable({
                 size="sm"
                 variant="outline"
                 onClick={() => handleBulkAction("mark-unpaid")}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 Mark as Unpaid
               </Button>
@@ -410,6 +407,7 @@ export default function SalaryTable({
                 size="sm"
                 variant="outline"
                 onClick={() => setSelectedTeachers(new Set())}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 Clear Selection
               </Button>
@@ -419,10 +417,10 @@ export default function SalaryTable({
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-lg border overflow-hidden">
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 text-left">
                   <input
@@ -432,11 +430,11 @@ export default function SalaryTable({
                       filteredData.length > 0
                     }
                     onChange={handleSelectAll}
-                    className="rounded border-gray-300"
+                    className="rounded border-gray-300 text-black focus:ring-black"
                   />
                 </th>
                 <th
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 text-gray-900 font-medium"
                   onClick={() => handleSort("name")}
                 >
                   <div className="flex items-center gap-2">
@@ -445,7 +443,7 @@ export default function SalaryTable({
                   </div>
                 </th>
                 <th
-                  className="px-4 py-3 text-right cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-right cursor-pointer hover:bg-gray-100 text-gray-900 font-medium"
                   onClick={() => handleSort("totalSalary")}
                 >
                   <div className="flex items-center justify-end gap-2">
@@ -454,7 +452,7 @@ export default function SalaryTable({
                   </div>
                 </th>
                 <th
-                  className="px-4 py-3 text-right cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-right cursor-pointer hover:bg-gray-100 text-gray-900 font-medium"
                   onClick={() => handleSort("baseSalary")}
                 >
                   <div className="flex items-center justify-end gap-2">
@@ -463,7 +461,7 @@ export default function SalaryTable({
                   </div>
                 </th>
                 <th
-                  className="px-4 py-3 text-right cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-right cursor-pointer hover:bg-gray-100 text-gray-900 font-medium"
                   onClick={() => handleSort("latenessDeduction")}
                 >
                   <div className="flex items-center justify-end gap-2">
@@ -472,7 +470,7 @@ export default function SalaryTable({
                   </div>
                 </th>
                 <th
-                  className="px-4 py-3 text-right cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-right cursor-pointer hover:bg-gray-100 text-gray-900 font-medium"
                   onClick={() => handleSort("absenceDeduction")}
                 >
                   <div className="flex items-center justify-end gap-2">
@@ -481,7 +479,7 @@ export default function SalaryTable({
                   </div>
                 </th>
                 <th
-                  className="px-4 py-3 text-right cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-right cursor-pointer hover:bg-gray-100 text-gray-900 font-medium"
                   onClick={() => handleSort("bonuses")}
                 >
                   <div className="flex items-center justify-end gap-2">
@@ -490,7 +488,7 @@ export default function SalaryTable({
                   </div>
                 </th>
                 <th
-                  className="px-4 py-3 text-center cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-center cursor-pointer hover:bg-gray-100 text-gray-900 font-medium"
                   onClick={() => handleSort("status")}
                 >
                   <div className="flex items-center justify-center gap-2">
@@ -498,7 +496,9 @@ export default function SalaryTable({
                     {getSortIcon("status")}
                   </div>
                 </th>
-                <th className="px-4 py-3 text-center">Actions</th>
+                <th className="px-4 py-3 text-center text-gray-900 font-medium">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -527,7 +527,7 @@ export default function SalaryTable({
                 filteredData.map((teacher) => (
                   <tr
                     key={teacher.id}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="hover:bg-gray-50 cursor-pointer transition-colors"
                     onClick={() => onTeacherSelect(teacher)}
                   >
                     <td
@@ -538,13 +538,13 @@ export default function SalaryTable({
                         type="checkbox"
                         checked={selectedTeachers.has(teacher.id)}
                         onChange={() => handleSelectTeacher(teacher.id)}
-                        className="rounded border-gray-300"
+                        className="rounded border-gray-300 text-black focus:ring-black"
                       />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-medium text-indigo-700">
+                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-medium text-gray-700">
                             {teacher.name?.charAt(0)?.toUpperCase() || "?"}
                           </span>
                         </div>
@@ -608,7 +608,7 @@ export default function SalaryTable({
                         size="sm"
                         variant="outline"
                         onClick={() => setSelectedTeacher(teacher)}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50"
                       >
                         <FiEye className="w-4 h-4" />
                         View Details
@@ -624,15 +624,17 @@ export default function SalaryTable({
 
       {/* Summary */}
       {filteredData.length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-4">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <div className="text-gray-600">Total Teachers</div>
-              <div className="font-medium">{filteredData.length}</div>
+              <div className="font-semibold text-gray-900">
+                {filteredData.length}
+              </div>
             </div>
             <div>
               <div className="text-gray-600">Total Salary</div>
-              <div className="font-medium">
+              <div className="font-semibold text-gray-900">
                 {currencyFormatter.format(
                   filteredData.reduce((sum, t) => sum + t.totalSalary, 0)
                 )}
@@ -640,13 +642,13 @@ export default function SalaryTable({
             </div>
             <div>
               <div className="text-gray-600">Paid</div>
-              <div className="font-medium text-green-600">
+              <div className="font-semibold text-green-600">
                 {filteredData.filter((t) => t.status === "Paid").length}
               </div>
             </div>
             <div>
               <div className="text-gray-600">Unpaid</div>
-              <div className="font-medium text-yellow-600">
+              <div className="font-semibold text-orange-600">
                 {filteredData.filter((t) => t.status === "Unpaid").length}
               </div>
             </div>
@@ -657,7 +659,7 @@ export default function SalaryTable({
       {/* Detail View Modal */}
       {selectedTeacher && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
@@ -665,7 +667,7 @@ export default function SalaryTable({
                 </h2>
                 <button
                   onClick={() => setSelectedTeacher(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <FiX className="w-6 h-6" />
                 </button>
@@ -673,15 +675,15 @@ export default function SalaryTable({
 
               {/* Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-sm text-blue-600 font-medium">
+                <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600 font-medium">
                     Base Salary
                   </div>
-                  <div className="text-2xl font-bold text-blue-900">
+                  <div className="text-2xl font-bold text-gray-900">
                     {formatCurrency(selectedTeacher.baseSalary)}
                   </div>
                 </div>
-                <div className="bg-red-50 p-4 rounded-lg">
+                <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
                   <div className="text-sm text-red-600 font-medium">
                     Lateness Deduction
                   </div>
@@ -689,7 +691,7 @@ export default function SalaryTable({
                     -{formatCurrency(selectedTeacher.latenessDeduction)}
                   </div>
                 </div>
-                <div className="bg-orange-50 p-4 rounded-lg">
+                <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg">
                   <div className="text-sm text-orange-600 font-medium">
                     Absence Deduction
                   </div>
@@ -697,7 +699,7 @@ export default function SalaryTable({
                     -{formatCurrency(selectedTeacher.absenceDeduction)}
                   </div>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg">
+                <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
                   <div className="text-sm text-green-600 font-medium">
                     Bonuses
                   </div>
@@ -709,7 +711,7 @@ export default function SalaryTable({
 
               {/* Key Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
                   <div className="text-sm text-gray-600 font-medium">
                     Total Students
                   </div>
@@ -717,7 +719,7 @@ export default function SalaryTable({
                     {selectedTeacher.numStudents}
                   </div>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
                   <div className="text-sm text-gray-600 font-medium">
                     Teaching Days
                   </div>
@@ -725,7 +727,7 @@ export default function SalaryTable({
                     {selectedTeacher.teachingDays}
                   </div>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
                   <div className="text-sm text-gray-600 font-medium">
                     Net Salary
                   </div>
