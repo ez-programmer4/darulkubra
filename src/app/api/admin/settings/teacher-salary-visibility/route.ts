@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
           create: {
             key: "teacher_salary_visible",
             value: showTeacherSalary.toString(),
+            updatedAt: new Date(),
           },
         })
       );
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
           create: {
             key: "teacher_salary_hidden_message",
             value: customMessage,
+            updatedAt: new Date(),
           },
         })
       );
@@ -94,7 +96,11 @@ export async function POST(req: NextRequest) {
         prisma.setting.upsert({
           where: { key: "admin_contact_info" },
           update: { value: adminContact },
-          create: { key: "admin_contact_info", value: adminContact },
+          create: {
+            key: "admin_contact_info",
+            value: adminContact,
+            updatedAt: new Date(),
+          },
         })
       );
     }
