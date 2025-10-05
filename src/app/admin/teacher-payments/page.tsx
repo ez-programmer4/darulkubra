@@ -82,7 +82,6 @@ export default function TeacherPaymentsPage() {
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showStatistics, setShowStatistics] = useState(false);
   const [showTeacherChangeValidator, setShowTeacherChangeValidator] =
     useState(false);
   const [includeSundays, setIncludeSundays] = useState(false);
@@ -248,39 +247,6 @@ export default function TeacherPaymentsPage() {
     }
   }, [selectedMonth, selectedYear]);
 
-  const generateFinancialReport = useCallback(async () => {
-    try {
-      const response = await fetch(
-        `/api/admin/teacher-payments/financial-report?startDate=${startDate}&endDate=${endDate}&format=csv`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to generate financial report");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `financial-report-${startDate}-to-${endDate}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast({
-        title: "Success",
-        description: "Financial report generated successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to generate financial report",
-        variant: "destructive",
-      });
-    }
-  }, [startDate, endDate, toast]);
-
   const goToCurrentMonth = useCallback(() => {
     setSelectedMonth(dayjs().month() + 1);
     setSelectedYear(dayjs().year());
@@ -313,38 +279,20 @@ export default function TeacherPaymentsPage() {
     [bulkUpdatePaymentStatus]
   );
 
-  // Export handler
-  const handleExport = useCallback(
-    async (format: "csv" | "excel") => {
-      try {
-        await exportData(format);
-        toast({
-          title: "Success",
-          description: `Data exported as ${format.toUpperCase()}`,
-        });
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to export data",
-          variant: "destructive",
-        });
-      }
-    },
-    [exportData]
-  );
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
+      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Teacher Payments</h1>
-            <p className="text-blue-100 mt-1">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Teacher Payments
+            </h1>
+            <p className="text-gray-600 mt-1">
               Manage teacher salaries, deductions, bonuses, and payment status
             </p>
             {lastUpdated && (
-              <p className="text-sm text-blue-200 mt-1">
+              <p className="text-sm text-gray-500 mt-1">
                 Last updated: {lastUpdated.toLocaleString()}
               </p>
             )}
@@ -352,8 +300,8 @@ export default function TeacherPaymentsPage() {
               <div
                 className={`px-2 py-1 rounded-full text-xs font-medium ${
                   includeSundays
-                    ? "bg-green-500/20 text-green-200"
-                    : "bg-red-500/20 text-red-200"
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
                 }`}
               >
                 <FiCalendar className="w-3 h-3 inline mr-1" />
@@ -362,47 +310,29 @@ export default function TeacherPaymentsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
-              variant="secondary"
-              onClick={() => setShowStatistics(true)}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
-            >
-              <FiBarChart className="w-4 h-4" />
-              Statistics
-            </Button>
-
-            <Button
-              variant="secondary"
+              variant="outline"
               onClick={() => setShowSettings(true)}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+              className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               <FiSettings className="w-4 h-4" />
               Settings
             </Button>
 
             <Button
-              variant="secondary"
+              variant="outline"
               onClick={() => setShowTeacherChangeValidator(true)}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+              className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               <FiAlertTriangle className="w-4 h-4" />
               Validate Changes
             </Button>
 
             <Button
-              variant="secondary"
-              onClick={generateFinancialReport}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
-            >
-              <FiFileText className="w-4 h-4" />
-              Financial Report
-            </Button>
-
-            <Button
               onClick={refresh}
               disabled={loading}
-              className="flex items-center gap-2 bg-white hover:bg-gray-100 text-blue-600"
+              className="flex items-center gap-2 bg-black hover:bg-gray-800 text-white"
             >
               <FiRefreshCw
                 className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
@@ -414,29 +344,29 @@ export default function TeacherPaymentsPage() {
       </div>
 
       {/* Month/Year Selector */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50">
-          <CardTitle className="flex items-center gap-2 text-gray-800">
-            <FiCalendar className="w-5 h-5 text-blue-600" />
+      <Card className="border border-gray-200 shadow-sm">
+        <CardHeader className="bg-gray-50">
+          <CardTitle className="flex items-center gap-2 text-gray-900">
+            <FiCalendar className="w-5 h-5 text-gray-600" />
             Period Selection
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-gray-600">
             Select the month and year to view teacher payment data
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button
               variant="outline"
               size="sm"
               onClick={goToPreviousMonth}
-              className="flex items-center gap-1 hover:bg-blue-50 hover:border-blue-300"
+              className="flex items-center gap-1 border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               <FiChevronLeft className="w-4 h-4" />
               Previous
             </Button>
 
-            <div className="flex items-center gap-3 bg-white p-3 rounded-lg border shadow-sm">
+            <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
               <div className="flex items-center gap-2">
                 <FiCalendar className="w-4 h-4 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">
@@ -447,7 +377,7 @@ export default function TeacherPaymentsPage() {
                 value={selectedMonth.toString()}
                 onValueChange={(value) => setSelectedMonth(parseInt(value))}
               >
-                <SelectTrigger className="w-40 border-gray-300 focus:border-blue-500">
+                <SelectTrigger className="w-40 border-gray-300 focus:border-black">
                   <SelectValue placeholder="Select month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -469,7 +399,7 @@ export default function TeacherPaymentsPage() {
                 value={selectedYear.toString()}
                 onValueChange={(value) => setSelectedYear(parseInt(value))}
               >
-                <SelectTrigger className="w-24 border-gray-300 focus:border-blue-500">
+                <SelectTrigger className="w-24 border-gray-300 focus:border-black">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -489,7 +419,7 @@ export default function TeacherPaymentsPage() {
               variant="outline"
               size="sm"
               onClick={goToNextMonth}
-              className="flex items-center gap-1 hover:bg-blue-50 hover:border-blue-300"
+              className="flex items-center gap-1 border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               Next
               <FiChevronRight className="w-4 h-4" />
@@ -499,7 +429,7 @@ export default function TeacherPaymentsPage() {
               variant="default"
               size="sm"
               onClick={goToCurrentMonth}
-              className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white"
+              className="flex items-center gap-1 bg-black hover:bg-gray-800 text-white"
             >
               <FiCalendar className="w-4 h-4" />
               Current Month
@@ -510,224 +440,64 @@ export default function TeacherPaymentsPage() {
 
       {/* Key Metrics Summary */}
       {statistics && (
-        <Card className="border-0 shadow-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+        <Card className="border border-gray-200 shadow-sm">
           <CardContent className="p-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div className="text-center">
-                <div className="text-3xl font-bold mb-1">
+                <div className="text-3xl font-bold mb-1 text-gray-900">
                   {statistics.totalTeachers}
                 </div>
-                <div className="text-indigo-200 text-sm">Total Teachers</div>
+                <div className="text-gray-600 text-sm">Total Teachers</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold mb-1">
+                <div className="text-3xl font-bold mb-1 text-gray-900">
                   {formatCurrency(statistics.totalSalary)}
                 </div>
-                <div className="text-indigo-200 text-sm">Total Salary</div>
+                <div className="text-gray-600 text-sm">Total Salary</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold mb-1">
+                <div className="text-3xl font-bold mb-1 text-green-600">
                   {statistics.paidTeachers}
                 </div>
-                <div className="text-indigo-200 text-sm">Paid Teachers</div>
+                <div className="text-gray-600 text-sm">Paid Teachers</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold mb-1">
+                <div className="text-3xl font-bold mb-1 text-orange-600">
                   {statistics.unpaidTeachers}
                 </div>
-                <div className="text-indigo-200 text-sm">Unpaid Teachers</div>
+                <div className="text-gray-600 text-sm">Unpaid Teachers</div>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Statistics Cards */}
-      {statistics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-blue-50 to-blue-100">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-700 mb-1">
-                    Total Teachers
-                  </p>
-                  <p className="text-3xl font-bold text-blue-900 mb-1">
-                    {statistics.totalTeachers}
-                  </p>
-                  <p className="text-xs text-blue-600">
-                    Active teachers this month
-                  </p>
-                </div>
-                <div className="p-3 bg-blue-500 rounded-full group-hover:scale-110 transition-transform duration-300">
-                  <FiUsers className="w-8 h-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-green-50 to-green-100">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-700 mb-1">
-                    Total Salary
-                  </p>
-                  <p className="text-3xl font-bold text-green-900 mb-1">
-                    {formatCurrency(statistics.totalSalary)}
-                  </p>
-                  <p className="text-xs text-green-600">
-                    Before deductions & bonuses
-                  </p>
-                </div>
-                <div className="p-3 bg-green-500 rounded-full group-hover:scale-110 transition-transform duration-300">
-                  <FiDollarSign className="w-8 h-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-emerald-50 to-emerald-100">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-emerald-700 mb-1">
-                    Paid
-                  </p>
-                  <p className="text-3xl font-bold text-emerald-900 mb-1">
-                    {statistics.paidTeachers}
-                  </p>
-                  <p className="text-xs text-emerald-600">
-                    {Math.round(
-                      (statistics.paidTeachers / statistics.totalTeachers) * 100
-                    )}
-                    % completion rate
-                  </p>
-                </div>
-                <div className="p-3 bg-emerald-500 rounded-full group-hover:scale-110 transition-transform duration-300">
-                  <FiCheckCircle className="w-8 h-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-amber-50 to-amber-100">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-amber-700 mb-1">
-                    Unpaid
-                  </p>
-                  <p className="text-3xl font-bold text-amber-900 mb-1">
-                    {statistics.unpaidTeachers}
-                  </p>
-                  <p className="text-xs text-amber-600">
-                    Pending payment processing
-                  </p>
-                </div>
-                <div className="p-3 bg-amber-500 rounded-full group-hover:scale-110 transition-transform duration-300">
-                  <FiXCircle className="w-8 h-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Additional Statistics */}
-      {statistics && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-red-50 to-red-100">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-red-700 mb-1">
-                    Total Deductions
-                  </p>
-                  <p className="text-3xl font-bold text-red-900 mb-1">
-                    -{formatCurrency(statistics.totalDeductions)}
-                  </p>
-                  <p className="text-xs text-red-600">
-                    Lateness & absence penalties
-                  </p>
-                </div>
-                <div className="p-3 bg-red-500 rounded-full group-hover:scale-110 transition-transform duration-300">
-                  <FiAlertTriangle className="w-8 h-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-purple-50 to-purple-100">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-purple-700 mb-1">
-                    Total Bonuses
-                  </p>
-                  <p className="text-3xl font-bold text-purple-900 mb-1">
-                    +{formatCurrency(statistics.totalBonuses)}
-                  </p>
-                  <p className="text-xs text-purple-600">
-                    Quality & performance rewards
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-500 rounded-full group-hover:scale-110 transition-transform duration-300">
-                  <FiAward className="w-8 h-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-indigo-50 to-indigo-100">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-indigo-700 mb-1">
-                    Average Salary
-                  </p>
-                  <p className="text-3xl font-bold text-indigo-900 mb-1">
-                    {formatCurrency(statistics.averageSalary)}
-                  </p>
-                  <p className="text-xs text-indigo-600">
-                    Per teacher this month
-                  </p>
-                </div>
-                <div className="p-3 bg-indigo-500 rounded-full group-hover:scale-110 transition-transform duration-300">
-                  <FiBarChart className="w-8 h-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
       {/* Enhanced Main Content */}
       <div className="space-y-6">
-        {/* Enhanced Quick Actions */}
-        <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-blue-50/30">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
-            <CardTitle className="flex items-center gap-2 text-xl">
+        {/* Quick Actions */}
+        <Card className="border border-gray-200 shadow-sm">
+          <CardHeader className="bg-gray-50">
+            <CardTitle className="flex items-center gap-2 text-gray-900">
               <FiSettings className="w-6 h-6" />
               Quick Actions
             </CardTitle>
-            <CardDescription className="text-blue-100">
+            <CardDescription className="text-gray-600">
               Common administrative tasks for teacher payments
             </CardDescription>
           </CardHeader>
           <CardContent className="p-8">
-            {/* Sunday Inclusion Toggle - Prominent */}
-            <div className="mb-8 p-6 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl border-2 border-orange-200">
-              <div className="flex items-center justify-between">
+            {/* Sunday Inclusion Toggle */}
+            <div className="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-orange-500 rounded-full">
+                  <div className="p-3 bg-gray-800 rounded-full">
                     <FiCalendar className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-orange-800">
+                    <h3 className="text-lg font-bold text-gray-900">
                       Sunday Inclusion Setting
                     </h3>
-                    <p className="text-sm text-orange-700">
+                    <p className="text-sm text-gray-600">
                       {includeSundays
                         ? "Sundays are included in salary calculations (7 working days)"
                         : "Sundays are excluded from salary calculations (6 working days)"}
@@ -759,7 +529,7 @@ export default function TeacherPaymentsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <Button
                 variant="outline"
                 onClick={() =>
@@ -815,21 +585,6 @@ export default function TeacherPaymentsPage() {
                     {teachers.filter((t) => t.status === "Paid").length}{" "}
                     teachers
                   </div>
-                </div>
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => handleExport("csv")}
-                disabled={loading}
-                className="flex items-center gap-3 h-16 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-300 group border-2 hover:shadow-lg"
-              >
-                <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
-                  <FiDownload className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="text-left">
-                  <div className="font-semibold text-lg">Export All Data</div>
-                  <div className="text-sm text-gray-600">CSV format</div>
                 </div>
               </Button>
 
@@ -895,273 +650,33 @@ export default function TeacherPaymentsPage() {
           />
         )}
 
-        {/* Absence Deduction Summary */}
-        {!loading && teachers.length > 0 && (
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-red-50 to-orange-50">
-              <CardTitle className="flex items-center gap-2 text-red-800">
-                <FiAlertTriangle className="w-5 h-5 text-red-600" />
-                Absence Deduction Summary
-              </CardTitle>
-              <CardDescription>
-                Students who received absence deductions this month
-              </CardDescription>
-            </CardHeader>
+        {/* Error Display */}
+        {error && (
+          <Card className="border border-red-200 shadow-sm bg-red-50">
             <CardContent className="p-6">
-              {(() => {
-                // Collect all absence deductions from all teachers
-                const allAbsenceDeductions = teachers.flatMap(
-                  (teacher) => teacher.breakdown?.absenceBreakdown || []
-                );
-
-                if (allAbsenceDeductions.length === 0) {
-                  return (
-                    <div className="text-center py-8 text-gray-500">
-                      <FiCheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" />
-                      <p className="text-lg font-medium">
-                        No absence deductions this month
-                      </p>
-                      <p className="text-sm">
-                        All students attended their scheduled classes
-                      </p>
-                    </div>
-                  );
-                }
-
-                // Group by student for better organization
-                const groupedByStudent = allAbsenceDeductions.reduce(
-                  (acc, deduction) => {
-                    const key = `${deduction.studentId}-${deduction.studentName}`;
-                    if (!acc[key]) {
-                      acc[key] = {
-                        studentId: deduction.studentId,
-                        studentName: deduction.studentName,
-                        studentPackage: deduction.studentPackage,
-                        totalDeduction: 0,
-                        deductions: [],
-                      };
-                    }
-                    acc[key].totalDeduction += deduction.deduction;
-                    acc[key].deductions.push(deduction);
-                    return acc;
-                  },
-                  {} as Record<string, any>
-                );
-
-                const studentGroups = Object.values(groupedByStudent);
-
-                return (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="bg-red-50 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-red-600">
-                          {studentGroups.length}
-                        </div>
-                        <div className="text-sm text-red-700">
-                          Students with Absences
-                        </div>
-                      </div>
-                      <div className="bg-orange-50 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-orange-600">
-                          {allAbsenceDeductions.length}
-                        </div>
-                        <div className="text-sm text-orange-700">
-                          Total Absence Days
-                        </div>
-                      </div>
-                      <div className="bg-red-100 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-red-700">
-                          -
-                          {formatCurrency(
-                            allAbsenceDeductions.reduce(
-                              (sum, d) => sum + d.deduction,
-                              0
-                            )
-                          )}
-                        </div>
-                        <div className="text-sm text-red-800">
-                          Total Deductions
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {studentGroups.map((student, index) => (
-                        <div
-                          key={index}
-                          className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                                <FiUser className="w-5 h-5 text-red-600" />
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-gray-900">
-                                  {student.studentName}
-                                </h4>
-                                <p className="text-sm text-gray-600">
-                                  Package: {student.studentPackage}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-lg font-bold text-red-600">
-                                -{formatCurrency(student.totalDeduction)}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {student.deductions.length} absence
-                                {student.deductions.length > 1 ? "s" : ""}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {student.deductions.map(
-                              (deduction: any, dedIndex: number) => (
-                                <div
-                                  key={dedIndex}
-                                  className="bg-gray-50 rounded p-3 text-sm"
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-medium text-gray-700">
-                                      {dayjs(deduction.date).format("MMM DD")}
-                                    </span>
-                                    <span className="text-red-600 font-semibold">
-                                      -{formatCurrency(deduction.deduction)}
-                                    </span>
-                                  </div>
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    {deduction.permitted && (
-                                      <span className="text-green-600">
-                                        ✓ Permitted
-                                      </span>
-                                    )}
-                                    {deduction.waived && (
-                                      <span className="text-blue-600">
-                                        ✓ Waived
-                                      </span>
-                                    )}
-                                    {!deduction.permitted &&
-                                      !deduction.waived && (
-                                        <span className="text-red-600">
-                                          ✗ Unauthorized
-                                        </span>
-                                      )}
-                                  </div>
-                                </div>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
+              <div className="flex items-center gap-3 text-red-800">
+                <div className="p-2 bg-red-500 rounded-full">
+                  <FiAlertTriangle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <span className="font-semibold text-lg">Error:</span>
+                  <p className="text-red-700 mt-1">{error}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
-
-        {/* Reports Section */}
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-purple-50">
-            <CardTitle className="flex items-center gap-2 text-gray-800">
-              <FiFileText className="w-5 h-5 text-purple-600" />
-              Reports & Analytics
-            </CardTitle>
-            <CardDescription>
-              Generate and download comprehensive payment reports
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Button
-                onClick={() => handleExport("csv")}
-                className="flex items-center gap-3 h-14 bg-green-600 hover:bg-green-700 text-white transition-all duration-300"
-              >
-                <div className="p-2 bg-green-500 rounded-lg">
-                  <FiDownload className="w-5 h-5" />
-                </div>
-                <div className="text-left">
-                  <div className="font-medium">Export CSV</div>
-                  <div className="text-xs text-green-100">
-                    Spreadsheet format
-                  </div>
-                </div>
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => handleExport("excel")}
-                className="flex items-center gap-3 h-14 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-300"
-              >
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FiDownload className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="text-left">
-                  <div className="font-medium">Export Excel</div>
-                  <div className="text-xs text-gray-500">
-                    Advanced formatting
-                  </div>
-                </div>
-              </Button>
-            </div>
-
-            {/* Report Summary */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-gray-900">Report Summary</h4>
-                  <p className="text-sm text-gray-600">
-                    Period: {dayjs(startDate).format("MMMM YYYY")}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-500">Total Records</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {teachers.length} teachers
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {lastUpdated && (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <FiRefreshCw className="w-4 h-4" />
-                <span>Last updated: {lastUpdated.toLocaleString()}</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
-
-      {/* Error Display */}
-      {error && (
-        <Card className="border-0 shadow-lg bg-gradient-to-r from-red-50 to-red-100">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 text-red-800">
-              <div className="p-2 bg-red-500 rounded-full">
-                <FiAlertTriangle className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <span className="font-semibold text-lg">Error:</span>
-                <p className="text-red-700 mt-1">{error}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Settings Modal */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-gray-900">
               <FiSettings className="w-5 h-5" />
               Payment Settings
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-gray-600">
               Configure payment calculation settings and preferences
             </DialogDescription>
           </DialogHeader>
@@ -1185,7 +700,7 @@ export default function TeacherPaymentsPage() {
                       type="checkbox"
                       checked={includeSundays}
                       onChange={(e) => updateSundaySetting(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      className="w-4 h-4 text-black bg-gray-100 border-gray-300 rounded focus:ring-black"
                     />
                   </div>
                 </div>
@@ -1206,7 +721,7 @@ export default function TeacherPaymentsPage() {
                         onChange={(e) =>
                           updateShowTeacherSalarySetting(e.target.checked)
                         }
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-black bg-gray-100 border-gray-300 rounded focus:ring-black"
                       />
                     </div>
                   </div>
@@ -1388,179 +903,6 @@ export default function TeacherPaymentsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Analytics Modal */}
-      <Dialog open={showStatistics} onOpenChange={setShowStatistics}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FiBarChart className="w-5 h-5" />
-              Payment Analytics
-            </DialogTitle>
-            <DialogDescription>
-              Detailed analytics and insights for teacher payments
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6">
-            {statistics && (
-              <>
-                {/* Payment Status Distribution */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">
-                      Payment Status Distribution
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 bg-green-50 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">
-                          {statistics.paidTeachers}
-                        </div>
-                        <div className="text-sm text-green-700">
-                          Paid Teachers
-                        </div>
-                        <div className="text-xs text-green-600">
-                          {Math.round(
-                            (statistics.paidTeachers /
-                              statistics.totalTeachers) *
-                              100
-                          )}
-                          %
-                        </div>
-                      </div>
-                      <div className="text-center p-4 bg-amber-50 rounded-lg">
-                        <div className="text-2xl font-bold text-amber-600">
-                          {statistics.unpaidTeachers}
-                        </div>
-                        <div className="text-sm text-amber-700">
-                          Unpaid Teachers
-                        </div>
-                        <div className="text-xs text-amber-600">
-                          {Math.round(
-                            (statistics.unpaidTeachers /
-                              statistics.totalTeachers) *
-                              100
-                          )}
-                          %
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Financial Summary */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Financial Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center p-3 bg-blue-50 rounded-lg">
-                        <div className="text-lg font-bold text-blue-600">
-                          {formatCurrency(statistics.totalSalary)}
-                        </div>
-                        <div className="text-xs text-blue-700">
-                          Total Salary
-                        </div>
-                      </div>
-                      <div className="text-center p-3 bg-red-50 rounded-lg">
-                        <div className="text-lg font-bold text-red-600">
-                          -{formatCurrency(statistics.totalDeductions)}
-                        </div>
-                        <div className="text-xs text-red-700">
-                          Total Deductions
-                        </div>
-                      </div>
-                      <div className="text-center p-3 bg-purple-50 rounded-lg">
-                        <div className="text-lg font-bold text-purple-600">
-                          +{formatCurrency(statistics.totalBonuses)}
-                        </div>
-                        <div className="text-xs text-purple-700">
-                          Total Bonuses
-                        </div>
-                      </div>
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <div className="text-lg font-bold text-gray-600">
-                          {formatCurrency(statistics.averageSalary)}
-                        </div>
-                        <div className="text-xs text-gray-700">
-                          Average Salary
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Performance Metrics */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">
-                      Performance Metrics
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          Payment Completion Rate
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-32 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-green-500 h-2 rounded-full"
-                              style={{
-                                width: `${
-                                  (statistics.paidTeachers /
-                                    statistics.totalTeachers) *
-                                  100
-                                }%`,
-                              }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium">
-                            {Math.round(
-                              (statistics.paidTeachers /
-                                statistics.totalTeachers) *
-                                100
-                            )}
-                            %
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          Deduction Rate
-                        </span>
-                        <span className="text-sm font-medium">
-                          {Math.round(
-                            (statistics.totalDeductions /
-                              statistics.totalSalary) *
-                              100
-                          )}
-                          %
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          Bonus Rate
-                        </span>
-                        <span className="text-sm font-medium">
-                          {Math.round(
-                            (statistics.totalBonuses / statistics.totalSalary) *
-                              100
-                          )}
-                          %
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Teacher Change Validator Modal */}
       <Dialog
         open={showTeacherChangeValidator}
@@ -1568,11 +910,11 @@ export default function TeacherPaymentsPage() {
       >
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-gray-900">
               <FiAlertTriangle className="w-5 h-5" />
               Teacher Change Validation
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-gray-600">
               Validate teacher changes and check for payment conflicts
             </DialogDescription>
           </DialogHeader>
