@@ -1222,7 +1222,9 @@ export class SalaryCalculator {
 
       // Helper function to parse daypackage
       const parseDaypackage = (dp: string): number[] => {
-        console.log(`       🔍 Parsing daypackage: "${dp}"`);
+        console.log(
+          `       🔍 Parsing daypackage: "${dp}" (length: ${dp?.length || 0})`
+        );
         if (!dp || dp.trim() === "") {
           console.log(`       ❌ Empty daypackage`);
           return [];
@@ -1234,15 +1236,32 @@ export class SalaryCalculator {
         // Common patterns
         if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
           console.log(`       ✅ Matched "ALL DAYS" pattern`);
-          return [1, 2, 3, 4, 5]; // Monday to Friday
+          console.log(
+            `       🔍 Exact comparison: "${dpTrimmed}" === "ALL DAYS": ${
+              dpTrimmed === "ALL DAYS"
+            }`
+          );
+          console.log(
+            `       🔍 Exact comparison: "${dpTrimmed}" === "ALLDAYS": ${
+              dpTrimmed === "ALLDAYS"
+            }`
+          );
+          // ALL DAYS should include all days, then let configuration decide
+          const result = [0, 1, 2, 3, 4, 5, 6]; // Sunday to Saturday
+          console.log(`       📤 Returning: [${result.join(", ")}]`);
+          return result;
         }
         if (dpTrimmed === "MWF") {
           console.log(`       ✅ Matched "MWF" pattern`);
-          return [1, 3, 5]; // Monday, Wednesday, Friday
+          const result = [1, 3, 5]; // Monday, Wednesday, Friday
+          console.log(`       📤 Returning: [${result.join(", ")}]`);
+          return result;
         }
         if (dpTrimmed === "TTS" || dpTrimmed === "TTH") {
           console.log(`       ✅ Matched "TTS/TTH" pattern`);
-          return [2, 4, 6]; // Tuesday, Thursday, Saturday
+          const result = [2, 4, 6]; // Tuesday, Thursday, Saturday
+          console.log(`       📤 Returning: [${result.join(", ")}]`);
+          return result;
         }
 
         // Day mapping
