@@ -1077,426 +1077,512 @@ export class SalaryCalculator {
     fromDate: Date,
     toDate: Date
   ) {
-    // CRITICAL FIX: Don't process future dates for absence deductions
-    const TZ = "Asia/Riyadh"; // UTC+3
-    const nowInZone = toZonedTime(new Date(), TZ);
-    const todayStartInZone = startOfDay(nowInZone);
-    const todayEndInZone = fromZonedTime(
-      new Date(
-        nowInZone.getFullYear(),
-        nowInZone.getMonth(),
-        nowInZone.getDate(),
-        23,
-        59,
-        59,
-        999
-      ),
-      TZ
-    );
-    const effectiveToDate = toDate > todayEndInZone ? todayEndInZone : toDate;
-
-    // Constants
-    const ZOOM_ACTIVE_DAYS = 7; // Configurable window for zoom link validity
-
-    // Get ALL students who should be processed for absence deductions
-    // This includes students with assignments AND students with zoom links from this teacher
-
-    // Get student IDs from audit logs (historical assignments)
-    const historicalStudentIds = await prisma.auditlog
-      .findMany({
-        where: {
-          actionType: "assignment_update",
-          createdAt: { gte: fromDate, lte: effectiveToDate },
-          details: {
-            contains: `"newTeacher":"${teacherId}"`,
-          },
-        },
-        select: { targetId: true },
-        distinct: ["targetId"],
-      })
-      .then((logs) =>
-        logs
-          .map((log) => log.targetId)
-          .filter((id): id is number => id !== null)
+    try {
+      // CRITICAL FIX: Don't process future dates for absence deductions
+      const TZ = "Asia/Riyadh"; // UTC+3
+      const nowInZone = toZonedTime(new Date(), TZ);
+      const todayStartInZone = startOfDay(nowInZone);
+      const todayEndInZone = fromZonedTime(
+        new Date(
+          nowInZone.getFullYear(),
+          nowInZone.getMonth(),
+          nowInZone.getDate(),
+          23,
+          59,
+          59,
+          999
+        ),
+        TZ
       );
+      const effectiveToDate = toDate > todayEndInZone ? todayEndInZone : toDate;
 
-    // Get student IDs from zoom links (covers cases where assignment data might be missing)
-    const zoomLinkStudentIds = await prisma.wpos_zoom_links
-      .findMany({
-        where: {
-          ustazid: teacherId,
-          sent_time: { gte: fromDate, lte: effectiveToDate },
-        },
-        select: { studentid: true },
-        distinct: ["studentid"],
-      })
-      .then((links) => links.map((link) => link.studentid));
+      // Constants
+      const ZOOM_ACTIVE_DAYS = 7; // Configurable window for zoom link validity
+      const DEBUG_MODE = process.env.DEBUG_ABSENCE === "true" || false;
 
-    // Combine all student IDs that need to be processed
-    const allStudentIds = [
-      ...new Set([...historicalStudentIds, ...zoomLinkStudentIds]),
-    ];
+      // Input validation
+      if (!teacherId || !fromDate || !toDate) {
+        throw new Error(
+          "Missing required parameters for absence deduction calculation"
+        );
+      }
 
-    // Get current students assigned to this teacher
-    const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
-      where: {
-        status: { in: ["active", "Active", "Not yet"] },
-        OR: [
-          // Students currently assigned to this teacher
-          {
-            ustaz: teacherId,
-            occupiedTimes: {
-              some: {
-                ustaz_id: teacherId,
-                occupied_at: { lte: effectiveToDate },
-                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
-              },
+      if (fromDate > toDate) {
+        throw new Error("fromDate cannot be after toDate");
+      }
+
+      if (DEBUG_MODE) {
+        console.log(`🔍 ABSENCE DEDUCTION DEBUG - Teacher: ${teacherId}`);
+        console.log(
+          `📅 Period: ${format(
+            toZonedTime(fromDate, TZ),
+            "yyyy-MM-dd"
+          )} to ${format(toZonedTime(effectiveToDate, TZ), "yyyy-MM-dd")}`
+        );
+      }
+
+      // Get ALL students who should be processed for absence deductions
+      // This includes students with assignments AND students with zoom links from this teacher
+
+      // Get student IDs from audit logs (historical assignments)
+      const historicalStudentIds = await prisma.auditlog
+        .findMany({
+          where: {
+            actionType: "assignment_update",
+            createdAt: { gte: fromDate, lte: effectiveToDate },
+            details: {
+              contains: `"newTeacher":"${teacherId}"`,
             },
           },
-          // Students found in audit logs or zoom links
-          {
-            wdt_ID: { in: allStudentIds },
-          },
-        ],
-      },
-      include: {
-        // Get ALL occupied times for this teacher during the period
-        occupiedTimes: {
+          select: { targetId: true },
+          distinct: ["targetId"],
+        })
+        .then((logs) =>
+          logs
+            .map((log) => log.targetId)
+            .filter((id): id is number => id !== null)
+        )
+        .catch((error) => {
+          console.error("Error fetching historical student IDs:", error);
+          return [];
+        });
+
+      // Get student IDs from zoom links (covers cases where assignment data might be missing)
+      const zoomLinkStudentIds = await prisma.wpos_zoom_links
+        .findMany({
           where: {
+            ustazid: teacherId,
+            sent_time: { gte: fromDate, lte: effectiveToDate },
+          },
+          select: { studentid: true },
+          distinct: ["studentid"],
+        })
+        .then((links) => links.map((link) => link.studentid))
+        .catch((error) => {
+          console.error("Error fetching zoom link student IDs:", error);
+          return [];
+        });
+
+      // Combine all student IDs that need to be processed
+      const allStudentIds = [
+        ...new Set([...historicalStudentIds, ...zoomLinkStudentIds]),
+      ];
+
+      if (DEBUG_MODE) {
+        console.log(
+          `👥 Found ${historicalStudentIds.length} historical students, ${zoomLinkStudentIds.length} zoom link students`
+        );
+        console.log(
+          `🔗 Total unique students to process: ${allStudentIds.length}`
+        );
+      }
+
+      // Get current students assigned to this teacher
+      const currentStudents = await prisma.wpos_wpdatatable_23
+        .findMany({
+          where: {
+            status: { in: ["active", "Active", "Not yet"] },
             OR: [
-              // Current assignment
+              // Students currently assigned to this teacher
               {
-                ustaz_id: teacherId,
-                occupied_at: { lte: effectiveToDate },
-                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+                ustaz: teacherId,
+                occupiedTimes: {
+                  some: {
+                    ustaz_id: teacherId,
+                    occupied_at: { lte: effectiveToDate },
+                    OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+                  },
+                },
               },
-              // Historical assignments (even if student is reassigned)
+              // Students found in audit logs or zoom links
               {
-                ustaz_id: teacherId,
-                OR: [
-                  { occupied_at: { lte: effectiveToDate } },
-                  { end_at: { gte: fromDate } },
-                ],
+                wdt_ID: { in: allStudentIds },
               },
             ],
           },
-          select: {
-            time_slot: true,
-            daypackage: true,
-            occupied_at: true,
-            end_at: true,
-            ustaz_id: true,
+          include: {
+            // Get ALL occupied times for this teacher during the period
+            occupiedTimes: {
+              where: {
+                OR: [
+                  // Current assignment
+                  {
+                    ustaz_id: teacherId,
+                    occupied_at: { lte: effectiveToDate },
+                    OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+                  },
+                  // Historical assignments (even if student is reassigned)
+                  {
+                    ustaz_id: teacherId,
+                    OR: [
+                      { occupied_at: { lte: effectiveToDate } },
+                      { end_at: { gte: fromDate } },
+                    ],
+                  },
+                ],
+              },
+              select: {
+                time_slot: true,
+                daypackage: true,
+                occupied_at: true,
+                end_at: true,
+                ustaz_id: true,
+              },
+            },
+            // Get ALL zoom links sent by this teacher during the period
+            zoom_links: {
+              where: {
+                ustazid: teacherId,
+                sent_time: {
+                  gte: fromDate,
+                  lte: effectiveToDate,
+                },
+              },
+              select: { sent_time: true },
+            },
+            // Get attendance progress for the period
+            attendance_progress: {
+              where: {
+                date: {
+                  gte: fromDate,
+                  lte: effectiveToDate,
+                },
+              },
+              select: { date: true, attendance_status: true },
+            },
           },
-        },
-        // Get ALL zoom links sent by this teacher during the period
-        zoom_links: {
+        })
+        .catch((error) => {
+          console.error(
+            "Error fetching students for absence deduction:",
+            error
+          );
+          return [];
+        });
+
+      // All students are now in currentStudents, no need for separate queries
+      const students = currentStudents;
+
+      if (DEBUG_MODE) {
+        console.log(
+          `📊 Processing ${students.length} students for absence deductions`
+        );
+      }
+
+      // Simplified date processing - work with zoned dates
+      const getDateInfo = (zonedDate: Date) => {
+        const year = zonedDate.getFullYear();
+        const month = zonedDate.getMonth();
+        const day = zonedDate.getDate();
+        const dayOfWeek = zonedDate.getDay(); // 0=Sunday, 1=Monday, etc.
+        const dateStr = format(zonedDate, "yyyy-MM-dd");
+
+        return {
+          date: zonedDate,
+          dateStr,
+          dayOfWeek,
+          year,
+          month: month + 1,
+          day,
+        };
+      };
+
+      // Get package deduction rates
+      const packageDeductions = await prisma.packageDeduction
+        .findMany()
+        .catch((error) => {
+          console.error("Error fetching package deductions:", error);
+          return [];
+        });
+      const packageMap = Object.fromEntries(
+        packageDeductions.map((p: any) => [
+          p.packageName,
+          Number(p.absenceBaseAmount || 25),
+        ])
+      );
+
+      // Get permission requests for the period
+      const permissionRequests = await prisma.permissionrequest
+        .findMany({
           where: {
-            ustazid: teacherId,
-            sent_time: {
+            teacherId,
+            requestedDate: {
+              gte: format(toZonedTime(fromDate, TZ), "yyyy-MM-dd"),
+              lte: format(toZonedTime(effectiveToDate, TZ), "yyyy-MM-dd"),
+            },
+            status: "Approved",
+          },
+          select: { requestedDate: true, reasonDetails: true },
+        })
+        .catch((error) => {
+          console.error("Error fetching permission requests:", error);
+          return [];
+        });
+
+      // Get deduction waivers for the period
+      const deductionWaivers = await prisma.deduction_waivers
+        .findMany({
+          where: {
+            teacherId,
+            deductionType: "absence",
+            deductionDate: {
               gte: fromDate,
               lte: effectiveToDate,
             },
           },
-          select: { sent_time: true },
-        },
-        // Get attendance progress for the period
-        attendance_progress: {
-          where: {
-            date: {
-              gte: fromDate,
-              lte: effectiveToDate,
-            },
-          },
-          select: { date: true, attendance_status: true },
-        },
-      },
-    });
+          select: { deductionDate: true, reason: true },
+        })
+        .catch((error) => {
+          console.error("Error fetching deduction waivers:", error);
+          return [];
+        });
 
-    // All students are now in currentStudents, no need for separate queries
-    const students = currentStudents;
+      let totalDeduction = 0;
+      const breakdown: any[] = [];
 
-    // Simplified date processing - work with zoned dates
-    const getDateInfo = (zonedDate: Date) => {
-      const year = zonedDate.getFullYear();
-      const month = zonedDate.getMonth();
-      const day = zonedDate.getDate();
-      const dayOfWeek = zonedDate.getDay(); // 0=Sunday, 1=Monday, etc.
-      const dateStr = format(zonedDate, "yyyy-MM-dd");
+      // Enhanced helper function to parse daypackage
+      const parseDaypackage = (dp: string) => {
+        if (!dp || dp.trim() === "") return [];
+
+        const dpTrimmed = dp.trim().toUpperCase();
+
+        // Handle exact matches for known formats
+        if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
+          return [1, 2, 3, 4, 5]; // Monday to Friday
+        }
+
+        if (dpTrimmed === "MWF") {
+          return [1, 3, 5]; // Monday, Wednesday, Friday
+        }
+
+        if (dpTrimmed === "TTS" || dpTrimmed === "TTH") {
+          return [2, 4, 6]; // Tuesday, Thursday, Saturday
+        }
+
+        // Handle individual day patterns
+        const dayMap: Record<string, number> = {
+          MONDAY: 1,
+          MON: 1,
+          TUESDAY: 2,
+          TUE: 2,
+          WEDNESDAY: 3,
+          WED: 3,
+          THURSDAY: 4,
+          THU: 4,
+          FRIDAY: 5,
+          FRI: 5,
+          SATURDAY: 6,
+          SAT: 6,
+          SUNDAY: 0,
+          SUN: 0,
+        };
+
+        const matchedDay = dayMap[dpTrimmed];
+        if (matchedDay !== undefined) return [matchedDay];
+
+        // Handle numeric patterns
+        const numericMatch = dpTrimmed.match(/\d+/g);
+        if (numericMatch) {
+          const days = numericMatch.map(Number).filter((d) => d >= 0 && d <= 6);
+          return days;
+        }
+
+        // Handle comma-separated days
+        if (dpTrimmed.includes(",")) {
+          const parts = dpTrimmed.split(",").map((p) => p.trim());
+          const days: number[] = [];
+          for (const part of parts) {
+            const day = dayMap[part] ?? parseInt(part);
+            if (!isNaN(day) && day >= 0 && day <= 6) days.push(day);
+          }
+          return days;
+        }
+
+        return [];
+      };
+
+      // Enhanced helper function to check if a student is scheduled on a specific day
+      const isStudentScheduledOnDay = (student: any, dayOfWeek: number) => {
+        if (!student.occupiedTimes || student.occupiedTimes.length === 0) {
+          // If no occupied times but student has zoom links, assume they should be scheduled on weekdays
+          if (student.zoom_links && student.zoom_links.length > 0) {
+            const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+            return { isScheduled: isWeekday, reason: "zoom_link_fallback" };
+          }
+          return { isScheduled: false, reason: "no_occupied_times" };
+        }
+
+        // Check all occupied times for this teacher
+        let scheduledDays: number[] = [];
+        for (const ot of student.occupiedTimes) {
+          if (ot.ustaz_id === teacherId) {
+            const days = parseDaypackage(ot.daypackage?.trim() || "");
+            scheduledDays = [...new Set([...scheduledDays, ...days])];
+          }
+        }
+
+        let isScheduled = scheduledDays.includes(dayOfWeek);
+        let reason = `daypackage=${JSON.stringify(scheduledDays)}`;
+
+        // Fallback if no days parsed
+        if (scheduledDays.length === 0 && student.zoom_links?.length > 0) {
+          isScheduled = dayOfWeek >= 1 && dayOfWeek <= 5;
+          reason = "weekdays_fallback_with_zoom_links";
+        } else if (scheduledDays.length === 0) {
+          isScheduled = false;
+          reason = "no_daypackage_no_zoom_links";
+        }
+
+        return { isScheduled, reason };
+      };
+
+      // Enhanced helper function to check if student was assigned to teacher on a specific date
+      const isStudentAssignedOnDate = (student: any, zonedDate: Date) => {
+        const relevantSlots =
+          student.occupiedTimes?.filter(
+            (ot: any) => ot.ustaz_id === teacherId
+          ) || [];
+        if (relevantSlots.length === 0) return false;
+
+        return relevantSlots.some((assignment: any) => {
+          const assignmentStart = assignment.occupied_at
+            ? toZonedTime(new Date(assignment.occupied_at), TZ)
+            : null;
+          const assignmentEnd = assignment.end_at
+            ? toZonedTime(new Date(assignment.end_at), TZ)
+            : null;
+
+          if (assignmentStart && zonedDate < assignmentStart) return false;
+          if (assignmentEnd && zonedDate > assignmentEnd) return false;
+          return true;
+        });
+      };
+
+      // New helper: Check if covered by zoom link (exact or within window)
+      const isCoveredByZoom = (student: any, zonedDate: Date) => {
+        return (student.zoom_links || []).some((link: any) => {
+          if (!link.sent_time) return false;
+          const linkZoned = toZonedTime(new Date(link.sent_time), TZ);
+          const sameDay =
+            format(linkZoned, "yyyy-MM-dd") === format(zonedDate, "yyyy-MM-dd");
+          if (sameDay) return true;
+          const daysDiff = Math.floor(
+            (zonedDate.getTime() - linkZoned.getTime()) / (1000 * 60 * 60 * 24)
+          );
+          return daysDiff >= 0 && daysDiff <= ZOOM_ACTIVE_DAYS;
+        });
+      };
+
+      // Create a robust date iterator in zoned time
+      const safeDateIterator = (startDate: Date, endDate: Date) => {
+        const dates: Date[] = [];
+        let cur = toZonedTime(startDate, TZ);
+        const end = toZonedTime(endDate, TZ);
+        while (cur <= end) {
+          dates.push(new Date(cur));
+          cur = new Date(cur);
+          cur.setDate(cur.getDate() + 1);
+        }
+        return dates;
+      };
+
+      const datesToProcess = safeDateIterator(fromDate, effectiveToDate);
+
+      for (const zonedDay of datesToProcess) {
+        const dateInfo = getDateInfo(zonedDay);
+        const { dateStr, dayOfWeek } = dateInfo;
+
+        // Skip Sunday
+        if (dayOfWeek === 0) continue;
+
+        // Skip future dates
+        if (zonedDay > todayStartInZone) continue;
+
+        // Check if there's an approved permission for this date
+        const hasPermission = permissionRequests.some(
+          (req) => req.requestedDate === dateStr
+        );
+        if (hasPermission) continue;
+
+        // Check if there's a deduction waiver for this date
+        const hasWaiver = deductionWaivers.some(
+          (waiver) =>
+            format(toZonedTime(waiver.deductionDate, TZ), "yyyy-MM-dd") ===
+            dateStr
+        );
+        if (hasWaiver) continue;
+
+        // Process deductions
+        let dailyDeduction = 0;
+        const affectedStudents: any[] = [];
+
+        for (const student of students) {
+          // Check assignment
+          if (!isStudentAssignedOnDate(student, zonedDay)) continue;
+
+          // Check schedule
+          const scheduleResult = isStudentScheduledOnDay(student, dayOfWeek);
+          if (!scheduleResult.isScheduled) continue;
+
+          // Check zoom coverage
+          if (isCoveredByZoom(student, zonedDay)) continue;
+
+          // Check attendance permission
+          const attendanceRecord = student.attendance_progress?.find(
+            (att: any) =>
+              format(toZonedTime(att.date, TZ), "yyyy-MM-dd") === dateStr
+          );
+          if (attendanceRecord?.attendance_status === "Permission") continue;
+
+          // Deduction applies
+          const packageRate = packageMap[student.package || ""] || 25;
+          dailyDeduction += packageRate;
+
+          affectedStudents.push({
+            studentId: student.wdt_ID,
+            studentName: student.name || "Unknown Student",
+            studentPackage: student.package || "Unknown Package",
+            rate: packageRate,
+            scheduleReason: scheduleResult.reason,
+            assignmentStart: student.occupiedTimes[0]?.occupied_at, // For breakdown; consider improving
+            assignmentEnd: student.occupiedTimes[0]?.end_at,
+            daypackage: student.occupiedTimes[0]?.daypackage,
+          });
+        }
+
+        if (dailyDeduction > 0) {
+          totalDeduction += dailyDeduction;
+          breakdown.push({
+            date: dateStr,
+            reason: `No zoom link sent for ${affectedStudents.length} scheduled student(s)`,
+            deduction: Math.round(dailyDeduction),
+            permitted: false,
+            waived: false,
+            affectedStudents,
+          });
+        }
+      }
+
+      if (DEBUG_MODE) {
+        console.log(`💰 Final absence deduction: ${totalDeduction} ETB`);
+        console.log(`📋 Breakdown records: ${breakdown.length}`);
+      }
 
       return {
-        date: zonedDate,
-        dateStr,
-        dayOfWeek,
-        year,
-        month: month + 1,
-        day,
+        totalDeduction: Math.round(totalDeduction),
+        breakdown,
       };
-    };
-
-    // Get package deduction rates
-    const packageDeductions = await prisma.packageDeduction.findMany();
-    const packageMap = Object.fromEntries(
-      packageDeductions.map((p: any) => [
-        p.packageName,
-        Number(p.absenceBaseAmount || 25),
-      ])
-    );
-
-    // Get permission requests for the period
-    const permissionRequests = await prisma.permissionrequest.findMany({
-      where: {
-        teacherId,
-        requestedDate: {
-          gte: format(toZonedTime(fromDate, TZ), "yyyy-MM-dd"),
-          lte: format(toZonedTime(effectiveToDate, TZ), "yyyy-MM-dd"),
-        },
-        status: "Approved",
-      },
-      select: { requestedDate: true, reasonDetails: true },
-    });
-
-    // Get deduction waivers for the period
-    const deductionWaivers = await prisma.deduction_waivers.findMany({
-      where: {
-        teacherId,
-        deductionType: "absence",
-        deductionDate: {
-          gte: fromDate,
-          lte: effectiveToDate,
-        },
-      },
-      select: { deductionDate: true, reason: true },
-    });
-
-    let totalDeduction = 0;
-    const breakdown: any[] = [];
-
-    // Enhanced helper function to parse daypackage
-    const parseDaypackage = (dp: string) => {
-      if (!dp || dp.trim() === "") return [];
-
-      const dpTrimmed = dp.trim().toUpperCase();
-
-      // Handle exact matches for known formats
-      if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
-        return [1, 2, 3, 4, 5]; // Monday to Friday
-      }
-
-      if (dpTrimmed === "MWF") {
-        return [1, 3, 5]; // Monday, Wednesday, Friday
-      }
-
-      if (dpTrimmed === "TTS" || dpTrimmed === "TTH") {
-        return [2, 4, 6]; // Tuesday, Thursday, Saturday
-      }
-
-      // Handle individual day patterns
-      const dayMap: Record<string, number> = {
-        MONDAY: 1,
-        MON: 1,
-        TUESDAY: 2,
-        TUE: 2,
-        WEDNESDAY: 3,
-        WED: 3,
-        THURSDAY: 4,
-        THU: 4,
-        FRIDAY: 5,
-        FRI: 5,
-        SATURDAY: 6,
-        SAT: 6,
-        SUNDAY: 0,
-        SUN: 0,
+    } catch (error) {
+      console.error(
+        `Error calculating absence deductions for teacher ${teacherId}:`,
+        error
+      );
+      // Return empty result instead of throwing to prevent salary calculation failure
+      return {
+        totalDeduction: 0,
+        breakdown: [],
       };
-
-      const matchedDay = dayMap[dpTrimmed];
-      if (matchedDay !== undefined) return [matchedDay];
-
-      // Handle numeric patterns
-      const numericMatch = dpTrimmed.match(/\d+/g);
-      if (numericMatch) {
-        const days = numericMatch.map(Number).filter((d) => d >= 0 && d <= 6);
-        return days;
-      }
-
-      // Handle comma-separated days
-      if (dpTrimmed.includes(",")) {
-        const parts = dpTrimmed.split(",").map((p) => p.trim());
-        const days: number[] = [];
-        for (const part of parts) {
-          const day = dayMap[part] ?? parseInt(part);
-          if (!isNaN(day) && day >= 0 && day <= 6) days.push(day);
-        }
-        return days;
-      }
-
-      return [];
-    };
-
-    // Enhanced helper function to check if a student is scheduled on a specific day
-    const isStudentScheduledOnDay = (student: any, dayOfWeek: number) => {
-      if (!student.occupiedTimes || student.occupiedTimes.length === 0) {
-        // If no occupied times but student has zoom links, assume they should be scheduled on weekdays
-        if (student.zoom_links && student.zoom_links.length > 0) {
-          const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
-          return { isScheduled: isWeekday, reason: "zoom_link_fallback" };
-        }
-        return { isScheduled: false, reason: "no_occupied_times" };
-      }
-
-      // Check all occupied times for this teacher
-      let scheduledDays: number[] = [];
-      for (const ot of student.occupiedTimes) {
-        if (ot.ustaz_id === teacherId) {
-          const days = parseDaypackage(ot.daypackage?.trim() || "");
-          scheduledDays = [...new Set([...scheduledDays, ...days])];
-        }
-      }
-
-      let isScheduled = scheduledDays.includes(dayOfWeek);
-      let reason = `daypackage=${JSON.stringify(scheduledDays)}`;
-
-      // Fallback if no days parsed
-      if (scheduledDays.length === 0 && student.zoom_links?.length > 0) {
-        isScheduled = dayOfWeek >= 1 && dayOfWeek <= 5;
-        reason = "weekdays_fallback_with_zoom_links";
-      } else if (scheduledDays.length === 0) {
-        isScheduled = false;
-        reason = "no_daypackage_no_zoom_links";
-      }
-
-      return { isScheduled, reason };
-    };
-
-    // Enhanced helper function to check if student was assigned to teacher on a specific date
-    const isStudentAssignedOnDate = (student: any, zonedDate: Date) => {
-      const relevantSlots =
-        student.occupiedTimes?.filter((ot: any) => ot.ustaz_id === teacherId) ||
-        [];
-      if (relevantSlots.length === 0) return false;
-
-      return relevantSlots.some((assignment: any) => {
-        const assignmentStart = assignment.occupied_at
-          ? toZonedTime(new Date(assignment.occupied_at), TZ)
-          : null;
-        const assignmentEnd = assignment.end_at
-          ? toZonedTime(new Date(assignment.end_at), TZ)
-          : null;
-
-        if (assignmentStart && zonedDate < assignmentStart) return false;
-        if (assignmentEnd && zonedDate > assignmentEnd) return false;
-        return true;
-      });
-    };
-
-    // New helper: Check if covered by zoom link (exact or within window)
-    const isCoveredByZoom = (student: any, zonedDate: Date) => {
-      return (student.zoom_links || []).some((link: any) => {
-        if (!link.sent_time) return false;
-        const linkZoned = toZonedTime(new Date(link.sent_time), TZ);
-        const sameDay =
-          format(linkZoned, "yyyy-MM-dd") === format(zonedDate, "yyyy-MM-dd");
-        if (sameDay) return true;
-        const daysDiff = Math.floor(
-          (zonedDate.getTime() - linkZoned.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        return daysDiff >= 0 && daysDiff <= ZOOM_ACTIVE_DAYS;
-      });
-    };
-
-    // Create a robust date iterator in zoned time
-    const safeDateIterator = (startDate: Date, endDate: Date) => {
-      const dates: Date[] = [];
-      let cur = toZonedTime(startDate, TZ);
-      const end = toZonedTime(endDate, TZ);
-      while (cur <= end) {
-        dates.push(new Date(cur));
-        cur = new Date(cur);
-        cur.setDate(cur.getDate() + 1);
-      }
-      return dates;
-    };
-
-    const datesToProcess = safeDateIterator(fromDate, effectiveToDate);
-
-    for (const zonedDay of datesToProcess) {
-      const dateInfo = getDateInfo(zonedDay);
-      const { dateStr, dayOfWeek } = dateInfo;
-
-      // Skip Sunday
-      if (dayOfWeek === 0) continue;
-
-      // Skip future dates
-      if (zonedDay > todayStartInZone) continue;
-
-      // Check if there's an approved permission for this date
-      const hasPermission = permissionRequests.some(
-        (req) => req.requestedDate === dateStr
-      );
-      if (hasPermission) continue;
-
-      // Check if there's a deduction waiver for this date
-      const hasWaiver = deductionWaivers.some(
-        (waiver) =>
-          format(toZonedTime(waiver.deductionDate, TZ), "yyyy-MM-dd") ===
-          dateStr
-      );
-      if (hasWaiver) continue;
-
-      // Process deductions
-      let dailyDeduction = 0;
-      const affectedStudents: any[] = [];
-
-      for (const student of students) {
-        // Check assignment
-        if (!isStudentAssignedOnDate(student, zonedDay)) continue;
-
-        // Check schedule
-        const scheduleResult = isStudentScheduledOnDay(student, dayOfWeek);
-        if (!scheduleResult.isScheduled) continue;
-
-        // Check zoom coverage
-        if (isCoveredByZoom(student, zonedDay)) continue;
-
-        // Check attendance permission
-        const attendanceRecord = student.attendance_progress?.find(
-          (att: any) =>
-            format(toZonedTime(att.date, TZ), "yyyy-MM-dd") === dateStr
-        );
-        if (attendanceRecord?.attendance_status === "Permission") continue;
-
-        // Deduction applies
-        const packageRate = packageMap[student.package || ""] || 25;
-        dailyDeduction += packageRate;
-
-        affectedStudents.push({
-          studentId: student.wdt_ID,
-          studentName: student.name || "Unknown Student",
-          studentPackage: student.package || "Unknown Package",
-          rate: packageRate,
-          scheduleReason: scheduleResult.reason,
-          assignmentStart: student.occupiedTimes[0]?.occupied_at, // For breakdown; consider improving
-          assignmentEnd: student.occupiedTimes[0]?.end_at,
-          daypackage: student.occupiedTimes[0]?.daypackage,
-        });
-      }
-
-      if (dailyDeduction > 0) {
-        totalDeduction += dailyDeduction;
-        breakdown.push({
-          date: dateStr,
-          reason: `No zoom link sent for ${affectedStudents.length} scheduled student(s)`,
-          deduction: Math.round(dailyDeduction),
-          permitted: false,
-          waived: false,
-          affectedStudents,
-        });
-      }
     }
-
-    return {
-      totalDeduction: Math.round(totalDeduction),
-      breakdown,
-    };
   }
 
   private async calculateBonuses(
