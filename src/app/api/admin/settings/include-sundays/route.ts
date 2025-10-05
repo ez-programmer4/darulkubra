@@ -51,6 +51,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Clear salary calculator cache since this affects calculations
+    try {
+      const { createSalaryCalculator } = await import(
+        "@/lib/salary-calculator"
+      );
+      const calculator = await createSalaryCalculator();
+      calculator.clearCache();
+      console.log(
+        "✅ Salary calculator cache cleared after Sunday setting change"
+      );
+    } catch (error) {
+      console.warn("⚠️ Failed to clear salary calculator cache:", error);
+    }
+
     return NextResponse.json({
       success: true,
       includeSundays,

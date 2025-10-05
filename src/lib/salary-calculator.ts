@@ -639,6 +639,21 @@ export class SalaryCalculator {
     return allStudents;
   }
 
+  /**
+   * Calculate working days in a period based on Sunday inclusion setting
+   */
+  private calculateWorkingDays(fromDate: Date, toDate: Date): number {
+    let workingDays = 0;
+    for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
+      if (!this.config.includeSundays && d.getDay() === 0) continue;
+      workingDays++;
+    }
+    console.log(
+      `📅 Working days calculation: ${workingDays} days (includeSundays: ${this.config.includeSundays})`
+    );
+    return workingDays;
+  }
+
   private async calculateBaseSalary(
     students: any[],
     fromDate: Date,
@@ -651,12 +666,8 @@ export class SalaryCalculator {
       salaryMap[pkg.packageName] = Number(pkg.salaryPerStudent);
     });
 
-    // Calculate working days
-    let workingDays = 0;
-    for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
-      if (!this.config.includeSundays && d.getDay() === 0) continue;
-      workingDays++;
-    }
+    // Calculate working days using the helper function
+    const workingDays = this.calculateWorkingDays(fromDate, toDate);
 
     const dailyEarnings = new Map<string, number>();
     const studentBreakdown = [];
@@ -1320,6 +1331,9 @@ export class SalaryCalculator {
         return [];
       };
 
+      // Calculate working days for this period
+      const workingDays = this.calculateWorkingDays(fromDate, effectiveToDate);
+
       // Process each day in the period
       console.log(
         `📅 Processing period: ${format(fromDate, "yyyy-MM-dd")} to ${format(
@@ -1510,6 +1524,9 @@ export class SalaryCalculator {
 
       console.log(
         `💰 Final absence deduction: ${totalDeduction} ETB for ${breakdown.length} days`
+      );
+      console.log(
+        `📅 Total working days in period: ${workingDays} (includeSundays: ${this.config.includeSundays})`
       );
 
       return {

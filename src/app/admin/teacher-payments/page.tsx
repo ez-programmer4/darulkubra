@@ -338,6 +338,18 @@ export default function TeacherPaymentsPage() {
                 Last updated: {lastUpdated.toLocaleString()}
               </p>
             )}
+            <div className="flex items-center gap-2 mt-2">
+              <div
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  includeSundays
+                    ? "bg-green-500/20 text-green-200"
+                    : "bg-red-500/20 text-red-200"
+                }`}
+              >
+                <FiCalendar className="w-3 h-3 inline mr-1" />
+                Sundays: {includeSundays ? "Included" : "Excluded"}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -694,6 +706,49 @@ export default function TeacherPaymentsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-8">
+            {/* Sunday Inclusion Toggle - Prominent */}
+            <div className="mb-8 p-6 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl border-2 border-orange-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-orange-500 rounded-full">
+                    <FiCalendar className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-orange-800">
+                      Sunday Inclusion Setting
+                    </h3>
+                    <p className="text-sm text-orange-700">
+                      {includeSundays
+                        ? "Sundays are included in salary calculations (7 working days)"
+                        : "Sundays are excluded from salary calculations (6 working days)"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      includeSundays
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {includeSundays ? "INCLUDED" : "EXCLUDED"}
+                  </span>
+                  <Button
+                    onClick={() => updateSundaySetting(!includeSundays)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                      includeSundays
+                        ? "bg-red-500 hover:bg-red-600 text-white"
+                        : "bg-green-500 hover:bg-green-600 text-white"
+                    }`}
+                  >
+                    <FiSettings className="w-4 h-4" />
+                    {includeSundays ? "Exclude Sundays" : "Include Sundays"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Button
                 variant="outline"

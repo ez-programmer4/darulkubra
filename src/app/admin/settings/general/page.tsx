@@ -1,7 +1,16 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { toast } from "@/components/ui/use-toast";
-import { FiSettings, FiUser, FiBell, FiShield, FiServer, FiLoader, FiCheckCircle, FiXCircle } from "react-icons/fi";
+import {
+  FiSettings,
+  FiUser,
+  FiBell,
+  FiShield,
+  FiServer,
+  FiLoader,
+  FiCheckCircle,
+  FiXCircle,
+} from "react-icons/fi";
 
 const DEFAULTS = {
   siteName: "DarulKubra",
@@ -49,11 +58,20 @@ export default function GeneralSettingsPage() {
           defaultUserRole: get("default_user_role", DEFAULTS.defaultUserRole),
           supportEmail: get("support_email", DEFAULTS.supportEmail),
           smsNotifications: get("sms_notifications", DEFAULTS.smsNotifications),
-          maxLoginAttempts: get("max_login_attempts", DEFAULTS.maxLoginAttempts),
+          maxLoginAttempts: get(
+            "max_login_attempts",
+            DEFAULTS.maxLoginAttempts
+          ),
           sessionTimeout: get("session_timeout", DEFAULTS.sessionTimeout),
           maintenanceMode: get("maintenance_mode", DEFAULTS.maintenanceMode),
-          includeSundaysInSalary: get("include_sundays_in_salary", DEFAULTS.includeSundaysInSalary),
-          allowTeachersSalary: get("teacher_salary_visible", DEFAULTS.allowTeachersSalary),
+          includeSundaysInSalary: get(
+            "include_sundays_in_salary",
+            DEFAULTS.includeSundaysInSalary
+          ),
+          allowTeachersSalary: get(
+            "teacher_salary_visible",
+            DEFAULTS.allowTeachersSalary
+          ),
         });
         setLoading(false);
       })
@@ -76,23 +94,44 @@ export default function GeneralSettingsPage() {
       const entries = Object.entries(settings);
       for (const [key, value] of entries) {
         const apiKey =
-          key === "siteName" ? "site_name" :
-          key === "defaultLanguage" ? "default_language" :
-          key === "defaultUserRole" ? "default_user_role" :
-          key === "supportEmail" ? "support_email" :
-          key === "smsNotifications" ? "sms_notifications" :
-          key === "maxLoginAttempts" ? "max_login_attempts" :
-          key === "sessionTimeout" ? "session_timeout" :
-          key === "registrationOpen" ? "registration_open" :
-          key === "maintenanceMode" ? "maintenance_mode" :
-          key === "includeSundaysInSalary" ? "include_sundays_in_salary" :
-          key === "allowTeachersSalary" ? "teacher_salary_visible" : key;
-        
-        await fetch("/api/admin/settings", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: apiKey, value: String(value) }),
-        });
+          key === "siteName"
+            ? "site_name"
+            : key === "defaultLanguage"
+            ? "default_language"
+            : key === "defaultUserRole"
+            ? "default_user_role"
+            : key === "supportEmail"
+            ? "support_email"
+            : key === "smsNotifications"
+            ? "sms_notifications"
+            : key === "maxLoginAttempts"
+            ? "max_login_attempts"
+            : key === "sessionTimeout"
+            ? "session_timeout"
+            : key === "registrationOpen"
+            ? "registration_open"
+            : key === "maintenanceMode"
+            ? "maintenance_mode"
+            : key === "includeSundaysInSalary"
+            ? "include_sundays_in_salary"
+            : key === "allowTeachersSalary"
+            ? "teacher_salary_visible"
+            : key;
+
+        // Use dedicated endpoint for Sunday setting to trigger cache clearing
+        if (key === "includeSundaysInSalary") {
+          await fetch("/api/admin/settings/include-sundays", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ includeSundays: value }),
+          });
+        } else {
+          await fetch("/api/admin/settings", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: apiKey, value: String(value) }),
+          });
+        }
       }
       setSuccess("Settings saved successfully!");
       toast({ title: "Settings saved!" });
@@ -109,7 +148,9 @@ export default function GeneralSettingsPage() {
       <div className="text-center py-12">
         <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black mx-auto mb-6"></div>
         <p className="text-black font-medium text-lg">Loading settings...</p>
-        <p className="text-gray-500 text-sm mt-2">Please wait while we fetch the data</p>
+        <p className="text-gray-500 text-sm mt-2">
+          Please wait while we fetch the data
+        </p>
       </div>
     );
   }
@@ -120,7 +161,9 @@ export default function GeneralSettingsPage() {
         <div className="p-8 bg-red-50 rounded-full w-fit mx-auto mb-8">
           <FiXCircle className="h-16 w-16 text-red-500" />
         </div>
-        <h3 className="text-3xl font-bold text-black mb-4">Error Loading Settings</h3>
+        <h3 className="text-3xl font-bold text-black mb-4">
+          Error Loading Settings
+        </h3>
         <p className="text-red-600 text-xl">{error}</p>
       </div>
     );
@@ -174,8 +217,12 @@ export default function GeneralSettingsPage() {
                   <FiUser className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-black">Site Information</h2>
-                  <p className="text-gray-600">Basic site configuration and branding</p>
+                  <h2 className="text-2xl font-bold text-black">
+                    Site Information
+                  </h2>
+                  <p className="text-gray-600">
+                    Basic site configuration and branding
+                  </p>
                 </div>
               </div>
             </div>
@@ -192,7 +239,9 @@ export default function GeneralSettingsPage() {
                     disabled={saving}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
                   />
-                  <p className="text-xs text-gray-500 mt-2">Displayed in the admin panel and emails.</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Displayed in the admin panel and emails.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-black mb-3">
@@ -200,13 +249,17 @@ export default function GeneralSettingsPage() {
                   </label>
                   <input
                     value={settings.supportEmail}
-                    onChange={(e) => handleChange("supportEmail", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("supportEmail", e.target.value)
+                    }
                     placeholder="support@darelkubra.com"
                     disabled={saving}
                     type="email"
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
                   />
-                  <p className="text-xs text-gray-500 mt-2">Contact email for support requests.</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Contact email for support requests.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-black mb-3">
@@ -214,7 +267,9 @@ export default function GeneralSettingsPage() {
                   </label>
                   <select
                     value={settings.defaultLanguage}
-                    onChange={(e) => handleChange("defaultLanguage", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("defaultLanguage", e.target.value)
+                    }
                     disabled={saving}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
                   >
@@ -222,7 +277,9 @@ export default function GeneralSettingsPage() {
                     <option value="am">Amharic</option>
                     <option value="ar">Arabic</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-2">Default language for new users and notifications.</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Default language for new users and notifications.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-black mb-3">
@@ -235,7 +292,9 @@ export default function GeneralSettingsPage() {
                     disabled={saving}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
                   />
-                  <p className="text-xs text-gray-500 mt-2">Timezone for reports and scheduling.</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Timezone for reports and scheduling.
+                  </p>
                 </div>
               </div>
             </div>
@@ -249,8 +308,12 @@ export default function GeneralSettingsPage() {
                   <FiShield className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-black">User & Security</h2>
-                  <p className="text-gray-600">User management and security settings</p>
+                  <h2 className="text-2xl font-bold text-black">
+                    User & Security
+                  </h2>
+                  <p className="text-gray-600">
+                    User management and security settings
+                  </p>
                 </div>
               </div>
             </div>
@@ -262,7 +325,9 @@ export default function GeneralSettingsPage() {
                   </label>
                   <select
                     value={settings.defaultUserRole}
-                    onChange={(e) => handleChange("defaultUserRole", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("defaultUserRole", e.target.value)
+                    }
                     disabled={saving}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
                   >
@@ -271,7 +336,9 @@ export default function GeneralSettingsPage() {
                     <option value="controller">Controller</option>
                     <option value="admin">Admin</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-2">Role assigned to new users by default.</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Role assigned to new users by default.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-black mb-3">
@@ -279,14 +346,21 @@ export default function GeneralSettingsPage() {
                   </label>
                   <input
                     value={settings.maxLoginAttempts}
-                    onChange={(e) => handleChange("maxLoginAttempts", e.target.value.replace(/\D/g, ""))}
+                    onChange={(e) =>
+                      handleChange(
+                        "maxLoginAttempts",
+                        e.target.value.replace(/\D/g, "")
+                      )
+                    }
                     placeholder="5"
                     disabled={saving}
                     type="number"
                     min={1}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
                   />
-                  <p className="text-xs text-gray-500 mt-2">Number of failed logins before lockout.</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Number of failed logins before lockout.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-black mb-3">
@@ -294,25 +368,37 @@ export default function GeneralSettingsPage() {
                   </label>
                   <input
                     value={settings.sessionTimeout}
-                    onChange={(e) => handleChange("sessionTimeout", e.target.value.replace(/\D/g, ""))}
+                    onChange={(e) =>
+                      handleChange(
+                        "sessionTimeout",
+                        e.target.value.replace(/\D/g, "")
+                      )
+                    }
                     placeholder="30"
                     disabled={saving}
                     type="number"
                     min={5}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white text-gray-900 shadow-sm transition-all duration-200"
                   />
-                  <p className="text-xs text-gray-500 mt-2">User will be logged out after this period of inactivity.</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    User will be logged out after this period of inactivity.
+                  </p>
                 </div>
                 <div className="flex items-center gap-3 mt-6">
                   <input
                     type="checkbox"
                     checked={!!settings.registrationOpen}
-                    onChange={(e) => handleChange("registrationOpen", e.target.checked)}
+                    onChange={(e) =>
+                      handleChange("registrationOpen", e.target.checked)
+                    }
                     disabled={saving}
                     id="registrationOpen"
                     className="w-5 h-5 rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
                   />
-                  <label htmlFor="registrationOpen" className="text-sm font-bold text-black">
+                  <label
+                    htmlFor="registrationOpen"
+                    className="text-sm font-bold text-black"
+                  >
                     Registration Open
                   </label>
                 </div>
@@ -328,8 +414,12 @@ export default function GeneralSettingsPage() {
                   <FiBell className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-black">Notifications</h2>
-                  <p className="text-gray-600">Configure notification preferences</p>
+                  <h2 className="text-2xl font-bold text-black">
+                    Notifications
+                  </h2>
+                  <p className="text-gray-600">
+                    Configure notification preferences
+                  </p>
                 </div>
               </div>
             </div>
@@ -338,12 +428,17 @@ export default function GeneralSettingsPage() {
                 <input
                   type="checkbox"
                   checked={!!settings.smsNotifications}
-                  onChange={(e) => handleChange("smsNotifications", e.target.checked)}
+                  onChange={(e) =>
+                    handleChange("smsNotifications", e.target.checked)
+                  }
                   disabled={saving}
                   id="smsNotifications"
                   className="w-5 h-5 rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
                 />
-                <label htmlFor="smsNotifications" className="text-sm font-bold text-black">
+                <label
+                  htmlFor="smsNotifications"
+                  className="text-sm font-bold text-black"
+                >
                   Enable SMS Notifications
                 </label>
               </div>
@@ -359,7 +454,9 @@ export default function GeneralSettingsPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-black">System</h2>
-                  <p className="text-gray-600">System-wide configuration options</p>
+                  <p className="text-gray-600">
+                    System-wide configuration options
+                  </p>
                 </div>
               </div>
             </div>
@@ -370,50 +467,73 @@ export default function GeneralSettingsPage() {
                     <input
                       type="checkbox"
                       checked={!!settings.maintenanceMode}
-                      onChange={(e) => handleChange("maintenanceMode", e.target.checked)}
+                      onChange={(e) =>
+                        handleChange("maintenanceMode", e.target.checked)
+                      }
                       disabled={saving}
                       id="maintenanceMode"
                       className="w-5 h-5 rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
                     />
-                    <label htmlFor="maintenanceMode" className="text-sm font-bold text-black">
+                    <label
+                      htmlFor="maintenanceMode"
+                      className="text-sm font-bold text-black"
+                    >
                       Maintenance Mode
                     </label>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">When enabled, only administrators can access the system.</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    When enabled, only administrators can access the system.
+                  </p>
                 </div>
-                
+
                 <div>
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       checked={!!settings.includeSundaysInSalary}
-                      onChange={(e) => handleChange("includeSundaysInSalary", e.target.checked)}
+                      onChange={(e) =>
+                        handleChange("includeSundaysInSalary", e.target.checked)
+                      }
                       disabled={saving}
                       id="includeSundaysInSalary"
                       className="w-5 h-5 rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
                     />
-                    <label htmlFor="includeSundaysInSalary" className="text-sm font-bold text-black">
+                    <label
+                      htmlFor="includeSundaysInSalary"
+                      className="text-sm font-bold text-black"
+                    >
                       Include Sundays in salary calculation
                     </label>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">When enabled, Sundays will be counted as working days for salary calculations.</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    When enabled, Sundays will be counted as working days for
+                    salary calculations.
+                  </p>
                 </div>
-                
+
                 <div>
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       checked={!!settings.allowTeachersSalary}
-                      onChange={(e) => handleChange("allowTeachersSalary", e.target.checked)}
+                      onChange={(e) =>
+                        handleChange("allowTeachersSalary", e.target.checked)
+                      }
                       disabled={saving}
                       id="allowTeachersSalary"
                       className="w-5 h-5 rounded border-gray-300 text-black focus:ring-2 focus:ring-black"
                     />
-                    <label htmlFor="allowTeachersSalary" className="text-sm font-bold text-black">
+                    <label
+                      htmlFor="allowTeachersSalary"
+                      className="text-sm font-bold text-black"
+                    >
                       Allow teachers to see their salary
                     </label>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">When enabled, teachers can view their salary information in their dashboard.</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    When enabled, teachers can view their salary information in
+                    their dashboard.
+                  </p>
                 </div>
               </div>
             </div>
