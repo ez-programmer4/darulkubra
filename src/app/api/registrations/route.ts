@@ -385,6 +385,9 @@ export async function POST(request: NextRequest) {
           const monthlyRate = Number(packageSalary?.salaryPerStudent || 0);
           const dailyRate = monthlyRate / 30;
 
+          // Record initial teacher assignment in history
+          // COMMENTED OUT - teacher_change_history table temporarily disabled
+          /*
           await tx.teacher_change_history.create({
             data: {
               student_id: registration.wdt_ID,
@@ -400,6 +403,7 @@ export async function POST(request: NextRequest) {
               created_by: session?.email || "system",
             },
           });
+          */
 
           console.log(
             `✅ Initial teacher assignment recorded: Student ${fullName} (${
