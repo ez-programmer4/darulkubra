@@ -4,13 +4,56 @@ import { getToken } from "next-auth/jwt";
 
 export async function GET() {
   try {
-    const packageSalaries = await prisma.packageSalary.findMany({
-      orderBy: { packageName: "asc" },
+    // Get all student packages
+    const studentPackages = await prisma.studentPackage.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
     });
-    return NextResponse.json(packageSalaries);
+
+    // Get all configured package salaries
+    const packageSalaries = await prisma.packageSalary.findMany();
+
+    // Create a map of configured salaries for quick lookup
+    const salaryMap = new Map(
+      packageSalaries.map((salary) => [salary.packageName, salary])
+    );
+
+    // Combine student packages with their salary configurations
+    const packagesWithSalaries = await Promise.all(
+      studentPackages.map(async (studentPackage) => {
+        const salaryConfig = salaryMap.get(studentPackage.name);
+
+        // Count active students using this package
+        const activeStudentCount = await prisma.wpos_wpdatatable_23.count({
+          where: {
+            package: studentPackage.name,
+            status: {
+              not: "exit",
+            },
+          },
+        });
+
+        return {
+          id: studentPackage.id,
+          packageName: studentPackage.name,
+          isActive: studentPackage.isActive,
+          createdAt: studentPackage.createdAt,
+          updatedAt: studentPackage.updatedAt,
+          activeStudentCount,
+          salaryConfigured: !!salaryConfig,
+          salaryPerStudent: salaryConfig?.salaryPerStudent || 0,
+          salaryId: salaryConfig?.id || null,
+          salaryCreatedAt: salaryConfig?.createdAt || null,
+          salaryUpdatedAt: salaryConfig?.updatedAt || null,
+        };
+      })
+    );
+
+    return NextResponse.json(packagesWithSalaries);
   } catch (error) {
+    console.error("Error fetching packages:", error);
     return NextResponse.json(
-      { error: "Failed to fetch package salaries" },
+      { error: "Failed to fetch packages" },
       { status: 500 }
     );
   }

@@ -13,11 +13,53 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const deductions = await prisma.packageDeduction.findMany({
-      orderBy: { packageName: "asc" },
+    // Get all student packages
+    const studentPackages = await prisma.studentPackage.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
     });
 
-    return NextResponse.json(deductions);
+    // Get all configured package deductions
+    const packageDeductions = await prisma.packageDeduction.findMany();
+
+    // Create a map of configured deductions for quick lookup
+    const deductionMap = new Map(
+      packageDeductions.map((deduction) => [deduction.packageName, deduction])
+    );
+
+    // Combine student packages with their deduction configurations
+    const packagesWithDeductions = await Promise.all(
+      studentPackages.map(async (studentPackage) => {
+        const deductionConfig = deductionMap.get(studentPackage.name);
+
+        // Count active students using this package
+        const activeStudentCount = await prisma.wpos_wpdatatable_23.count({
+          where: {
+            package: studentPackage.name,
+            status: {
+              not: "exit",
+            },
+          },
+        });
+
+        return {
+          id: studentPackage.id,
+          packageName: studentPackage.name,
+          isActive: studentPackage.isActive,
+          createdAt: studentPackage.createdAt,
+          updatedAt: studentPackage.updatedAt,
+          activeStudentCount,
+          deductionConfigured: !!deductionConfig,
+          latenessBaseAmount: deductionConfig?.latenessBaseAmount || 0,
+          absenceBaseAmount: deductionConfig?.absenceBaseAmount || 0,
+          deductionId: deductionConfig?.id || null,
+          deductionCreatedAt: deductionConfig?.createdAt || null,
+          deductionUpdatedAt: deductionConfig?.updatedAt || null,
+        };
+      })
+    );
+
+    return NextResponse.json(packagesWithDeductions);
   } catch (error: any) {
     console.error("Error fetching package deductions:", error);
     return NextResponse.json(

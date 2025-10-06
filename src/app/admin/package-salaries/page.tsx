@@ -36,9 +36,15 @@ import {
 interface PackageSalary {
   id: number;
   packageName: string;
-  salaryPerStudent: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  activeStudentCount: number;
+  salaryConfigured: boolean;
+  salaryPerStudent: number;
+  salaryId: number | null;
+  salaryCreatedAt: string | null;
+  salaryUpdatedAt: string | null;
 }
 
 export default function PackageSalariesPage() {
@@ -136,7 +142,7 @@ export default function PackageSalariesPage() {
     setEditingSalary(salary);
     setFormData({
       packageName: salary.packageName,
-      salaryPerStudent: salary.salaryPerStudent,
+      salaryPerStudent: salary.salaryConfigured ? salary.salaryPerStudent : 0,
     });
     setShowAddDialog(true);
   };
@@ -227,12 +233,14 @@ export default function PackageSalariesPage() {
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <FiDollarSign className="w-5 h-5" />
-                    {editingSalary
+                    {editingSalary?.salaryConfigured
                       ? "Edit Package Salary"
-                      : "Add Package Salary"}
+                      : "Configure Package Salary"}
                   </DialogTitle>
                   <DialogDescription>
-                    Configure monthly salary per student for this package type
+                    {editingSalary?.salaryConfigured
+                      ? "Update monthly salary per student for this package type"
+                      : "Set monthly salary per student for this package type"}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
@@ -250,6 +258,7 @@ export default function PackageSalariesPage() {
                       }
                       placeholder="e.g., est 3 Fee, Premium Package"
                       className="mt-1"
+                      disabled={editingSalary?.salaryConfigured}
                     />
                   </div>
                   <div>
@@ -275,7 +284,7 @@ export default function PackageSalariesPage() {
                     </Button>
                     <Button onClick={handleSave} disabled={loading}>
                       <FiSave className="w-4 h-4 mr-2" />
-                      {editingSalary ? "Update" : "Create"}
+                      {editingSalary?.salaryConfigured ? "Update" : "Configure"}
                     </Button>
                   </div>
                 </div>
@@ -298,22 +307,29 @@ export default function PackageSalariesPage() {
             <div className="flex items-start gap-2">
               <FiDollarSign className="w-4 h-4 mt-0.5 text-green-600" />
               <div>
-                <strong>Monthly Salary:</strong> Base amount paid per student
-                per month for this package
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <FiCalendar className="w-4 h-4 mt-0.5 text-green-600" />
-              <div>
-                <strong>Daily Rate Calculation:</strong> Monthly salary ÷
-                working days in month
+                <strong>Package Management:</strong> All student packages are
+                listed here for salary configuration
               </div>
             </div>
             <div className="flex items-start gap-2">
               <FiUsers className="w-4 h-4 mt-0.5 text-green-600" />
               <div>
-                <strong>Per Student:</strong> Each student with this package
-                generates this amount monthly
+                <strong>Active Students:</strong> Shows how many students are
+                currently using each package
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <FiCheckCircle className="w-4 h-4 mt-0.5 text-green-600" />
+              <div>
+                <strong>Configuration Status:</strong> Configured packages have
+                salary settings, unconfigured ones need setup
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <FiCalendar className="w-4 h-4 mt-0.5 text-green-600" />
+              <div>
+                <strong>Salary Calculation:</strong> Monthly salary ÷ working
+                days = daily rate per student
               </div>
             </div>
           </div>
@@ -328,21 +344,23 @@ export default function PackageSalariesPage() {
             Package Salary Configuration
           </CardTitle>
           <CardDescription>
-            Manage monthly salary per student for each package type
+            View all student packages and configure salary settings for each
+            package type
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
             <div className="p-8 text-center">
               <FiRefreshCw className="w-8 h-8 animate-spin text-green-600 mx-auto mb-2" />
-              <p className="text-gray-600">Loading package salaries...</p>
+              <p className="text-gray-600">Loading student packages...</p>
             </div>
           ) : salaries.length === 0 ? (
             <div className="p-8 text-center">
               <FiDollarSign className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-600">No package salaries configured</p>
+              <p className="text-gray-600">No student packages found</p>
               <p className="text-sm text-gray-500">
-                Add your first package salary above
+                Student packages will appear here when they are created in the
+                system
               </p>
             </div>
           ) : (
@@ -352,6 +370,12 @@ export default function PackageSalariesPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Package Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Active Students
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Salary Configuration
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Monthly Salary per Student
@@ -376,19 +400,67 @@ export default function PackageSalariesPage() {
                             <div className="text-sm font-medium text-gray-900">
                               {salary.packageName}
                             </div>
+                            <div className="text-xs text-gray-500">
+                              {salary.isActive ? "Active" : "Inactive"}
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <FiDollarSign className="w-4 h-4 text-green-500 mr-2" />
-                          <span className="text-sm font-semibold text-gray-900">
-                            {formatCurrency(salary.salaryPerStudent)}
-                          </span>
+                          <div
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              salary.activeStudentCount > 0
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            <FiUsers className="w-3 h-3 mr-1 inline" />
+                            {salary.activeStudentCount} active
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {salary.salaryConfigured ? (
+                            <div className="flex items-center text-green-600">
+                              <FiCheckCircle className="w-4 h-4 mr-2" />
+                              <span className="text-sm font-medium">
+                                Configured
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-orange-600">
+                              <FiAlertTriangle className="w-4 h-4 mr-2" />
+                              <span className="text-sm font-medium">
+                                Not Configured
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {salary.salaryConfigured ? (
+                            <>
+                              <FiDollarSign className="w-4 h-4 text-green-500 mr-2" />
+                              <span className="text-sm font-semibold text-gray-900">
+                                {formatCurrency(salary.salaryPerStudent)}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-gray-400 italic">
+                              Not set
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(salary.updatedAt).toLocaleDateString()}
+                        {salary.salaryConfigured && salary.salaryUpdatedAt
+                          ? new Date(
+                              salary.salaryUpdatedAt
+                            ).toLocaleDateString()
+                          : new Date(salary.updatedAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
@@ -399,15 +471,18 @@ export default function PackageSalariesPage() {
                             className="text-blue-600 hover:text-blue-800"
                           >
                             <FiEdit className="w-4 h-4" />
+                            {salary.salaryConfigured ? "Edit" : "Configure"}
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(salary.id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <FiTrash2 className="w-4 h-4" />
-                          </Button>
+                          {salary.salaryConfigured && salary.salaryId && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(salary.salaryId!)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

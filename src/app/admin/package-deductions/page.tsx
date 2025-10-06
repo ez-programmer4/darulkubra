@@ -36,10 +36,16 @@ import {
 interface PackageDeduction {
   id: number;
   packageName: string;
-  latenessBaseAmount: number;
-  absenceBaseAmount: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  activeStudentCount: number;
+  deductionConfigured: boolean;
+  latenessBaseAmount: number;
+  absenceBaseAmount: number;
+  deductionId: number | null;
+  deductionCreatedAt: string | null;
+  deductionUpdatedAt: string | null;
 }
 
 export default function PackageDeductionsPage() {
@@ -136,8 +142,12 @@ export default function PackageDeductionsPage() {
     setEditingDeduction(deduction);
     setFormData({
       packageName: deduction.packageName,
-      latenessBaseAmount: deduction.latenessBaseAmount,
-      absenceBaseAmount: deduction.absenceBaseAmount,
+      latenessBaseAmount: deduction.deductionConfigured
+        ? deduction.latenessBaseAmount
+        : 30,
+      absenceBaseAmount: deduction.deductionConfigured
+        ? deduction.absenceBaseAmount
+        : 25,
     });
     setShowAddDialog(true);
   };
@@ -222,12 +232,14 @@ export default function PackageDeductionsPage() {
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <FiSettings className="w-5 h-5" />
-                    {editingDeduction
+                    {editingDeduction?.deductionConfigured
                       ? "Edit Package Deduction"
-                      : "Add Package Deduction"}
+                      : "Configure Package Deduction"}
                   </DialogTitle>
                   <DialogDescription>
-                    Configure base deduction amounts for this package type
+                    {editingDeduction?.deductionConfigured
+                      ? "Update base deduction amounts for this package type"
+                      : "Set base deduction amounts for this package type"}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
@@ -245,6 +257,7 @@ export default function PackageDeductionsPage() {
                       }
                       placeholder="e.g., 3 days, 5 days, Premium"
                       className="mt-1"
+                      disabled={editingDeduction?.deductionConfigured}
                     />
                   </div>
                   <div>
@@ -285,7 +298,9 @@ export default function PackageDeductionsPage() {
                     </Button>
                     <Button onClick={handleSave} disabled={loading}>
                       <FiSave className="w-4 h-4 mr-2" />
-                      {editingDeduction ? "Update" : "Create"}
+                      {editingDeduction?.deductionConfigured
+                        ? "Update"
+                        : "Configure"}
                     </Button>
                   </div>
                 </div>
@@ -306,24 +321,31 @@ export default function PackageDeductionsPage() {
         <CardContent>
           <div className="space-y-3 text-sm text-blue-700">
             <div className="flex items-start gap-2">
-              <FiClock className="w-4 h-4 mt-0.5 text-blue-600" />
+              <FiSettings className="w-4 h-4 mt-0.5 text-blue-600" />
               <div>
-                <strong>Lateness Deductions:</strong> Base amount deducted per
-                student when teacher is late
+                <strong>Package Management:</strong> All student packages are
+                listed here for deduction configuration
               </div>
             </div>
             <div className="flex items-start gap-2">
               <FiUsers className="w-4 h-4 mt-0.5 text-blue-600" />
               <div>
-                <strong>Absence Deductions:</strong> Base amount deducted per
-                student when teacher doesn't send zoom link
+                <strong>Active Students:</strong> Shows how many students are
+                currently using each package
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <FiDollarSign className="w-4 h-4 mt-0.5 text-blue-600" />
+              <FiCheckCircle className="w-4 h-4 mt-0.5 text-blue-600" />
               <div>
-                <strong>Package-Specific:</strong> Different packages can have
-                different base amounts
+                <strong>Configuration Status:</strong> Configured packages have
+                deduction settings, unconfigured ones need setup
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <FiClock className="w-4 h-4 mt-0.5 text-blue-600" />
+              <div>
+                <strong>Deduction Types:</strong> Lateness and absence base
+                amounts per student per package
               </div>
             </div>
           </div>
@@ -338,21 +360,23 @@ export default function PackageDeductionsPage() {
             Package Deduction Configuration
           </CardTitle>
           <CardDescription>
-            Manage base deduction amounts for each package type
+            View all student packages and configure deduction settings for each
+            package type
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
             <div className="p-8 text-center">
               <FiRefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
-              <p className="text-gray-600">Loading package deductions...</p>
+              <p className="text-gray-600">Loading student packages...</p>
             </div>
           ) : deductions.length === 0 ? (
             <div className="p-8 text-center">
               <FiSettings className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-600">No package deductions configured</p>
+              <p className="text-gray-600">No student packages found</p>
               <p className="text-sm text-gray-500">
-                Add your first package deduction above
+                Student packages will appear here when they are created in the
+                system
               </p>
             </div>
           ) : (
@@ -362,6 +386,12 @@ export default function PackageDeductionsPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Package Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Active Students
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Deduction Configuration
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Lateness Base Amount
@@ -389,27 +419,84 @@ export default function PackageDeductionsPage() {
                             <div className="text-sm font-medium text-gray-900">
                               {deduction.packageName}
                             </div>
+                            <div className="text-xs text-gray-500">
+                              {deduction.isActive ? "Active" : "Inactive"}
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <FiClock className="w-4 h-4 text-orange-500 mr-2" />
-                          <span className="text-sm text-gray-900">
-                            ETB {deduction.latenessBaseAmount}
-                          </span>
+                          <div
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              deduction.activeStudentCount > 0
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            <FiUsers className="w-3 h-3 mr-1 inline" />
+                            {deduction.activeStudentCount} active
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <FiUsers className="w-4 h-4 text-red-500 mr-2" />
-                          <span className="text-sm text-gray-900">
-                            ETB {deduction.absenceBaseAmount}
-                          </span>
+                          {deduction.deductionConfigured ? (
+                            <div className="flex items-center text-green-600">
+                              <FiCheckCircle className="w-4 h-4 mr-2" />
+                              <span className="text-sm font-medium">
+                                Configured
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-orange-600">
+                              <FiAlertTriangle className="w-4 h-4 mr-2" />
+                              <span className="text-sm font-medium">
+                                Not Configured
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {deduction.deductionConfigured ? (
+                            <>
+                              <FiClock className="w-4 h-4 text-orange-500 mr-2" />
+                              <span className="text-sm text-gray-900">
+                                ETB {deduction.latenessBaseAmount}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-gray-400 italic">
+                              Not set
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {deduction.deductionConfigured ? (
+                            <>
+                              <FiUsers className="w-4 h-4 text-red-500 mr-2" />
+                              <span className="text-sm text-gray-900">
+                                ETB {deduction.absenceBaseAmount}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-gray-400 italic">
+                              Not set
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(deduction.updatedAt).toLocaleDateString()}
+                        {deduction.deductionConfigured &&
+                        deduction.deductionUpdatedAt
+                          ? new Date(
+                              deduction.deductionUpdatedAt
+                            ).toLocaleDateString()
+                          : new Date(deduction.updatedAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
@@ -420,15 +507,23 @@ export default function PackageDeductionsPage() {
                             className="text-blue-600 hover:text-blue-800"
                           >
                             <FiEdit className="w-4 h-4" />
+                            {deduction.deductionConfigured
+                              ? "Edit"
+                              : "Configure"}
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(deduction.id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <FiTrash2 className="w-4 h-4" />
-                          </Button>
+                          {deduction.deductionConfigured &&
+                            deduction.deductionId && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleDelete(deduction.deductionId!)
+                                }
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <FiTrash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                         </div>
                       </td>
                     </tr>
