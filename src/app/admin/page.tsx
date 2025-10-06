@@ -294,7 +294,7 @@ export default function AdminDashboardPage() {
           setRealTeacherLeaderboard(topTeachers);
         }
       } catch (e) {
-        console.log("Failed to fetch teacher performance data");
+        console.log("Failed to fetch teacher performance information");
       }
 
       if (!qualityRes.ok) throw new Error("Failed to fetch quality reviews");
