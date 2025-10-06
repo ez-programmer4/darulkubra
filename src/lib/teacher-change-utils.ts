@@ -30,7 +30,9 @@ export interface TeacherChangePeriod {
 
 /**
  * Records a teacher change in the history table
+ * COMMENTED OUT - teacher_change_history table temporarily disabled
  */
+/*
 export async function recordTeacherChange(
   data: TeacherChangeData
 ): Promise<void> {
@@ -61,10 +63,13 @@ export async function recordTeacherChange(
     throw new Error("Failed to record teacher change");
   }
 }
+*/
 
 /**
  * Gets teacher change history for a student within a date range
+ * COMMENTED OUT - teacher_change_history table temporarily disabled
  */
+/*
 export async function getTeacherChangeHistory(
   studentId: number,
   fromDate: Date,
@@ -146,10 +151,13 @@ export async function getTeacherChangeHistory(
     throw new Error("Failed to get teacher change history");
   }
 }
+*/
 
 /**
  * Gets all teacher change periods for a specific teacher within a date range
+ * COMMENTED OUT - teacher_change_history table temporarily disabled
  */
+/*
 export async function getTeacherChangePeriods(
   teacherId: string,
   fromDate: Date,
@@ -224,6 +232,7 @@ export async function getTeacherChangePeriods(
     throw new Error("Failed to get teacher change periods");
   }
 }
+*/
 
 /**
  * Validates if a teacher change is valid (no conflicts, proper timing, etc.)
@@ -386,6 +395,8 @@ export async function processTeacherChange(
       });
 
       // Record the change in history
+      // COMMENTED OUT - teacher_change_history table temporarily disabled
+      /*
       await tx.teacher_change_history.create({
         data: {
           student_id: studentId,
@@ -401,6 +412,7 @@ export async function processTeacherChange(
           created_by: createdBy,
         },
       });
+      */
     });
 
     return {

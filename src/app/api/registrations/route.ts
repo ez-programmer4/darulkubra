@@ -401,7 +401,11 @@ export async function POST(request: NextRequest) {
             },
           });
 
-          console.log(`✅ Initial teacher assignment recorded: Student ${fullName} (${registration.wdt_ID}) assigned to teacher ${ustaz} on ${new Date().toISOString()}`);
+          console.log(
+            `✅ Initial teacher assignment recorded: Student ${fullName} (${
+              registration.wdt_ID
+            }) assigned to teacher ${ustaz} on ${new Date().toISOString()}`
+          );
         } catch (occupiedError) {
           console.warn("Failed to create assignment record:", occupiedError);
         }
@@ -773,6 +777,9 @@ export async function PUT(request: NextRequest) {
           const monthlyRate = Number(packageSalary?.salaryPerStudent || 0);
           const dailyRate = monthlyRate / 30;
 
+          // Record teacher change when student leaves/completes
+          // COMMENTED OUT - teacher_change_history table temporarily disabled
+          /*
           await tx.teacher_change_history.create({
             data: {
               student_id: parseInt(id),
@@ -788,8 +795,15 @@ export async function PUT(request: NextRequest) {
               created_by: session?.email || "system",
             },
           });
+          */
 
-          console.log(`✅ Teacher assignment ended: Student ${student?.name} (${parseInt(id)}) status changed to ${newStatus}, ending assignment with teacher ${currentOccupiedTime.ustaz_id}`);
+          console.log(
+            `✅ Teacher assignment ended: Student ${student?.name} (${parseInt(
+              id
+            )}) status changed to ${newStatus}, ending assignment with teacher ${
+              currentOccupiedTime.ustaz_id
+            }`
+          );
         }
 
         await tx.wpos_ustaz_occupied_times.deleteMany({
@@ -841,6 +855,8 @@ export async function PUT(request: NextRequest) {
         });
 
         // Record teacher change in history
+        // COMMENTED OUT - teacher_change_history table temporarily disabled
+        /*
         await tx.teacher_change_history.create({
           data: {
             student_id: parseInt(id),
@@ -856,8 +872,15 @@ export async function PUT(request: NextRequest) {
             created_by: session?.email || "system",
           },
         });
+        */
 
-        console.log(`✅ Teacher change recorded: Student ${student?.name} (${parseInt(id)}) changed from ${currentOccupiedTime?.ustaz_id || 'none'} to ${ustaz} on ${new Date().toISOString()}`);
+        console.log(
+          `✅ Teacher change recorded: Student ${student?.name} (${parseInt(
+            id
+          )}) changed from ${
+            currentOccupiedTime?.ustaz_id || "none"
+          } to ${ustaz} on ${new Date().toISOString()}`
+        );
       } else if (!shouldFreeTimeSlot && !hasAnyTimeTeacherChange) {
         const activeStatuses = ["active", "not yet", "fresh"];
         if (

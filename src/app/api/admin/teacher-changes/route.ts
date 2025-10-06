@@ -3,7 +3,7 @@ import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import {
   processTeacherChange,
-  getTeacherChangeHistory,
+  // getTeacherChangeHistory, // COMMENTED OUT - teacher_change_history table temporarily disabled
 } from "@/lib/teacher-change-utils";
 
 export async function GET(req: NextRequest) {
@@ -22,6 +22,8 @@ export async function GET(req: NextRequest) {
 
     if (studentId) {
       // Get teacher change history for a specific student
+      // COMMENTED OUT - teacher_change_history table temporarily disabled
+      /*
       if (!fromDate || !toDate) {
         return NextResponse.json(
           { error: "fromDate and toDate are required for student history" },
@@ -36,10 +38,17 @@ export async function GET(req: NextRequest) {
       );
 
       return NextResponse.json({ history });
+      */
+      return NextResponse.json(
+        { error: "Teacher change history temporarily disabled" },
+        { status: 503 }
+      );
     }
 
     if (teacherId) {
       // Get teacher change periods for a specific teacher
+      // COMMENTED OUT - teacher_change_history table temporarily disabled
+      /*
       if (!fromDate || !toDate) {
         return NextResponse.json(
           { error: "fromDate and toDate are required for teacher periods" },
@@ -57,9 +66,16 @@ export async function GET(req: NextRequest) {
       );
 
       return NextResponse.json({ periods });
+      */
+      return NextResponse.json(
+        { error: "Teacher change periods temporarily disabled" },
+        { status: 503 }
+      );
     }
 
     // Get all recent teacher changes
+    // COMMENTED OUT - teacher_change_history table temporarily disabled
+    /*
     const changes = await prisma.teacher_change_history.findMany({
       take: 50,
       orderBy: { change_date: "desc" },
@@ -77,6 +93,11 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ changes });
+    */
+    return NextResponse.json(
+      { error: "Teacher change history temporarily disabled" },
+      { status: 503 }
+    );
   } catch (error: any) {
     console.error("Error fetching teacher changes:", error);
     return NextResponse.json(
