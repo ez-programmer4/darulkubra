@@ -912,10 +912,10 @@ export default function TeacherPaymentsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-gray-900">
               <FiAlertTriangle className="w-5 h-5" />
-              Teacher Change Validation
+              Teacher Change Validations
             </DialogTitle>
             <DialogDescription className="text-gray-600">
-              Validate teacher changes and check for payment conflicts
+              Validate teacher changes and check for payment
             </DialogDescription>
           </DialogHeader>
           <TeacherChangeValidator
