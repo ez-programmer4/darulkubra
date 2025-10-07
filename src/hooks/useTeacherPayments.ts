@@ -28,6 +28,8 @@ export interface TeacherSalaryData {
         dailyRate: number;
         periodEarnings: number;
         teachingDates: string[];
+        teacherRole: "old_teacher" | "new_teacher";
+        changeDate?: string;
       }>;
       teacherChanges: boolean;
     }>;
