@@ -3,6 +3,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma as globalPrisma } from "@/lib/prisma";
 import { SalaryCalculator } from "@/lib/salary-calculator";
+import { clearCalculatorCache } from "@/lib/calculator-cache";
 import {
   to24Hour,
   to12Hour,
@@ -411,6 +412,9 @@ export async function POST(request: NextRequest) {
 
           // Clear salary cache for the teacher to ensure dynamic updates
           SalaryCalculator.clearGlobalTeacherCache(ustaz);
+          
+          // Clear the calculator cache to force fresh data
+          clearCalculatorCache();
         } catch (occupiedError) {
           console.warn("Failed to create assignment record:", occupiedError);
         }
@@ -885,6 +889,9 @@ export async function PUT(request: NextRequest) {
           );
         }
         SalaryCalculator.clearGlobalTeacherCache(ustaz);
+        
+        // Clear the calculator cache to force fresh data
+        clearCalculatorCache();
       } else if (!shouldFreeTimeSlot && !hasAnyTimeTeacherChange) {
         const activeStatuses = ["active", "not yet", "fresh"];
         if (

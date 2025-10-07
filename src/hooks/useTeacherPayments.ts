@@ -113,6 +113,7 @@ export function useTeacherPayments({
       const params = new URLSearchParams({
         startDate,
         endDate,
+        _t: Date.now().toString(), // Cache busting parameter
       });
 
       if (teacherId) {
@@ -156,6 +157,7 @@ export function useTeacherPayments({
           endDate,
           teacherId,
           details: "true",
+          _t: Date.now().toString(), // Cache busting parameter
         });
 
         const response = await fetch(`/api/admin/teacher-payments?${params}`);
@@ -188,7 +190,7 @@ export function useTeacherPayments({
 
     try {
       const response = await fetch(
-        `/api/admin/teacher-payments/statistics?startDate=${startDate}&endDate=${endDate}`
+        `/api/admin/teacher-payments/statistics?startDate=${startDate}&endDate=${endDate}&_t=${Date.now()}`
       );
 
       if (!response.ok) {

@@ -26,6 +26,7 @@ import {
   FiSettings,
   FiBarChart,
   FiFileText,
+  FiTrash2,
 } from "react-icons/fi";
 import { toast } from "@/components/ui/use-toast";
 import Tooltip from "@/components/Tooltip";
@@ -338,6 +339,38 @@ export default function TeacherPaymentsPage() {
                 className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
               />
               Refresh
+            </Button>
+
+            <Button
+              onClick={async () => {
+                try {
+                  const response = await fetch("/api/admin/clear-salary-cache", {
+                    method: "POST",
+                  });
+                  if (response.ok) {
+                    toast({
+                      title: "Success",
+                      description: "Salary cache cleared successfully",
+                    });
+                    // Refresh data after clearing cache
+                    await refresh();
+                  } else {
+                    throw new Error("Failed to clear cache");
+                  }
+                } catch (error) {
+                  toast({
+                    title: "Error",
+                    description: "Failed to clear salary cache",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              disabled={loading}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <FiTrash2 className="w-4 h-4" />
+              Clear Cache
             </Button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { SalaryCalculator } from "./salary-calculator";
+import { clearCalculatorCache } from "./calculator-cache";
 
 /**
  * Create zoom link with package rate tracking
@@ -43,6 +44,9 @@ export async function createZoomLinkWithPackage(
 
   // Clear salary cache for this teacher to ensure dynamic updates
   SalaryCalculator.clearGlobalTeacherCache(teacherId);
+  
+  // Clear the calculator cache to force fresh data
+  clearCalculatorCache();
 
   return result;
 }
