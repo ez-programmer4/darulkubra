@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { parseISO, startOfDay, endOfDay } from "date-fns";
 import { format, toZonedTime, fromZonedTime } from "date-fns-tz";
 import {
-  // getTeacherChangePeriods, // COMMENTED OUT - teacher_change_history table temporarily disabled
+  getTeacherChangePeriods,
   TeacherChangePeriod,
 } from "@/lib/teacher-change-utils";
 
@@ -384,15 +384,11 @@ export class SalaryCalculator {
     });
 
     // Get teacher change periods from the new history system
-    // COMMENTED OUT - teacher_change_history table temporarily disabled
-    /*
     const teacherChangePeriods = await getTeacherChangePeriods(
       teacherId,
       fromDate,
       toDate
     );
-    */
-    const teacherChangePeriods: TeacherChangePeriod[] = []; // Empty array since history is disabled
 
     // Combine active assignments with historical periods
     const allAssignments = [

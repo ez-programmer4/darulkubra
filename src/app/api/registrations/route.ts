@@ -386,8 +386,6 @@ export async function POST(request: NextRequest) {
           const dailyRate = monthlyRate / 30;
 
           // Record initial teacher assignment in history
-          // COMMENTED OUT - teacher_change_history table temporarily disabled
-          /*
           await tx.teacher_change_history.create({
             data: {
               student_id: registration.wdt_ID,
@@ -403,7 +401,6 @@ export async function POST(request: NextRequest) {
               created_by: session?.email || "system",
             },
           });
-          */
 
           console.log(
             `✅ Initial teacher assignment recorded: Student ${fullName} (${
@@ -782,8 +779,6 @@ export async function PUT(request: NextRequest) {
           const dailyRate = monthlyRate / 30;
 
           // Record teacher change when student leaves/completes
-          // COMMENTED OUT - teacher_change_history table temporarily disabled
-          /*
           await tx.teacher_change_history.create({
             data: {
               student_id: parseInt(id),
@@ -799,7 +794,6 @@ export async function PUT(request: NextRequest) {
               created_by: session?.email || "system",
             },
           });
-          */
 
           console.log(
             `✅ Teacher assignment ended: Student ${student?.name} (${parseInt(
@@ -859,8 +853,6 @@ export async function PUT(request: NextRequest) {
         });
 
         // Record teacher change in history
-        // COMMENTED OUT - teacher_change_history table temporarily disabled
-        /*
         await tx.teacher_change_history.create({
           data: {
             student_id: parseInt(id),
@@ -876,7 +868,6 @@ export async function PUT(request: NextRequest) {
             created_by: session?.email || "system",
           },
         });
-        */
 
         console.log(
           `✅ Teacher change recorded: Student ${student?.name} (${parseInt(
