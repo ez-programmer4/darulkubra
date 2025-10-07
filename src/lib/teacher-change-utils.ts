@@ -359,16 +359,13 @@ export async function processTeacherChange(
 
     // Process the change in a transaction
     await prisma.$transaction(async (tx) => {
-      // End current assignment if exists
+      // Delete current assignment if exists to free up the old teacher's occupied time
       if (oldTeacherId) {
-        await tx.wpos_ustaz_occupied_times.updateMany({
+        await tx.wpos_ustaz_occupied_times.deleteMany({
           where: {
             student_id: studentId,
             ustaz_id: oldTeacherId,
             end_at: null,
-          },
-          data: {
-            end_at: changeDate,
           },
         });
       }

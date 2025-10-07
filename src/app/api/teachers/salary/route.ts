@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getToken } from "next-auth/jwt";
 import { format } from "date-fns";
+import { createSalaryCalculator } from "@/lib/salary-calculator";
 
 export async function GET(req: NextRequest) {
   try {
@@ -108,7 +109,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Enhanced salary calculation using assignment tracking
+// Enhanced salary calculation using teacher change history
 async function calculateTeacherSalaryDirect(
   teacherId: string,
   fromDate: Date,
@@ -116,108 +117,24 @@ async function calculateTeacherSalaryDirect(
   includeDetails: boolean
 ) {
   try {
-    // Get teacher info
-    const teacher = await prisma.wpos_wpdatatable_24.findUnique({
-      where: { ustazid: teacherId },
-      select: { ustazname: true },
-    });
+    // Use the same salary calculator that includes teacher change history
+    const calculator = await createSalaryCalculator();
 
-    if (!teacher) {
-      return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
-    }
-
-    // Get teacher's assignments during the period
-    const assignments = await prisma.wpos_ustaz_occupied_times.findMany({
-      where: {
-        ustaz_id: teacherId,
-        occupied_at: { lte: toDate },
-        OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
-      },
-      include: {
-        student: {
-          select: {
-            wdt_ID: true,
-            name: true,
-            package: true,
-          },
-        },
-      },
-    });
-
-    // Calculate base salary from zoom links with package rates
-    let baseSalary = 0;
-
-    for (const assignment of assignments) {
-      // Get zoom links for this assignment period
-      const assignmentStart =
-        assignment.occupied_at && assignment.occupied_at > fromDate
-          ? assignment.occupied_at
-          : fromDate;
-      const assignmentEnd =
-        assignment.end_at && assignment.end_at < toDate
-          ? assignment.end_at
-          : toDate;
-
-      const zoomLinks = await prisma.wpos_zoom_links.findMany({
-        where: {
-          ustazid: teacherId,
-          studentid: assignment.student_id,
-          sent_time: {
-            gte: assignmentStart,
-            lte: assignmentEnd,
-          },
-          packageRate: { not: null },
-        },
-        select: {
-          packageRate: true,
-        },
-      });
-
-      // Sum package rates from zoom links
-      baseSalary += zoomLinks.reduce(
-        (sum, link) => sum + Number(link.packageRate || 0),
-        0
+    if (includeDetails) {
+      const details = await calculator.getTeacherSalaryDetails(
+        teacherId,
+        fromDate,
+        toDate
       );
+      return NextResponse.json(details);
+    } else {
+      const salary = await calculator.calculateTeacherSalary(
+        teacherId,
+        fromDate,
+        toDate
+      );
+      return NextResponse.json(salary);
     }
-
-    // Get payment record with deductions and bonuses
-    const period = `${fromDate.getFullYear()}-${String(
-      fromDate.getMonth() + 1
-    ).padStart(2, "0")}`;
-
-    const payment = await prisma.teachersalarypayment.findUnique({
-      where: {
-        teacherId_period: { teacherId, period },
-      },
-      select: {
-        status: true,
-        latenessDeduction: true,
-        absenceDeduction: true,
-        bonuses: true,
-      },
-    });
-
-    const latenessDeduction = payment?.latenessDeduction || 0;
-    const absenceDeduction = payment?.absenceDeduction || 0;
-    const bonuses = payment?.bonuses || 0;
-
-    const totalSalary = Math.round(
-      baseSalary - latenessDeduction - absenceDeduction + bonuses
-    );
-
-    const result = {
-      id: teacherId,
-      name: teacher.ustazname,
-      baseSalary: Math.round(baseSalary),
-      latenessDeduction: Math.round(latenessDeduction),
-      absenceDeduction: Math.round(absenceDeduction),
-      bonuses: Math.round(bonuses),
-      totalSalary,
-      numStudents: assignments.length,
-      status: (payment?.status as "Paid" | "Unpaid") || "Unpaid",
-    };
-
-    return NextResponse.json(result);
   } catch (error) {
     console.error("Direct calculation error:", error);
     return NextResponse.json(

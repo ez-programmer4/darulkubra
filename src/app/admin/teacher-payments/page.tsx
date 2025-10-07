@@ -442,7 +442,7 @@ export default function TeacherPaymentsPage() {
       {statistics && (
         <Card className="border border-gray-200 shadow-sm">
           <CardContent className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
               <div className="text-center">
                 <div className="text-3xl font-bold mb-1 text-gray-900">
                   {statistics.totalTeachers}
@@ -467,6 +467,14 @@ export default function TeacherPaymentsPage() {
                 </div>
                 <div className="text-gray-600 text-sm">Unpaid Teachers</div>
               </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold mb-1 text-blue-600">
+                  {teachers.filter((t) => t.hasTeacherChanges).length}
+                </div>
+                <div className="text-gray-600 text-sm">
+                  With Teacher Changes
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -474,6 +482,54 @@ export default function TeacherPaymentsPage() {
 
       {/* Enhanced Main Content */}
       <div className="space-y-6">
+        {/* Teacher Changes Summary */}
+        {teachers.filter((t) => t.hasTeacherChanges).length > 0 && (
+          <Card className="border border-orange-200 shadow-sm bg-orange-50">
+            <CardHeader className="bg-orange-100">
+              <CardTitle className="flex items-center gap-2 text-orange-900">
+                <FiAlertTriangle className="w-6 h-6" />
+                Teacher Changes Detected
+              </CardTitle>
+              <CardDescription className="text-orange-700">
+                {teachers.filter((t) => t.hasTeacherChanges).length} teacher(s)
+                have student assignments with teacher changes this period
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-3">
+                <div className="text-sm text-orange-800">
+                  <strong>Note:</strong> Teachers with student changes have been
+                  paid accurately based on their actual teaching periods. The
+                  salary calculations include both active assignments and
+                  historical periods from the teacher change history.
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {teachers
+                    .filter((t) => t.hasTeacherChanges)
+                    .map((teacher) => (
+                      <div
+                        key={teacher.id}
+                        className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 shadow-sm"
+                      >
+                        <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+                          <span className="text-xs font-medium text-orange-700">
+                            {teacher.name?.charAt(0)?.toUpperCase() || "?"}
+                          </span>
+                        </div>
+                        <span className="text-sm font-medium text-orange-900">
+                          {teacher.name}
+                        </span>
+                        <span className="text-xs text-orange-600">
+                          ({formatCurrency(teacher.totalSalary)})
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Quick Actions */}
         <Card className="border border-gray-200 shadow-sm">
           <CardHeader className="bg-gray-50">
@@ -618,6 +674,39 @@ export default function TeacherPaymentsPage() {
                     {showTeacherSalary
                       ? "Teachers can view salary"
                       : "Teachers cannot view salary"}
+                  </div>
+                </div>
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // This will be handled by the SalaryTable component's filter
+                  const teacherChangeFilter = document.querySelector(
+                    "[data-teacher-change-filter]"
+                  ) as HTMLSelectElement;
+                  if (teacherChangeFilter) {
+                    teacherChangeFilter.value = "changed";
+                    teacherChangeFilter.dispatchEvent(
+                      new Event("change", { bubbles: true })
+                    );
+                  }
+                }}
+                disabled={
+                  teachers.filter((t) => t.hasTeacherChanges).length === 0
+                }
+                className="flex items-center gap-3 h-16 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700 transition-all duration-300 group border-2 hover:shadow-lg"
+              >
+                <div className="p-2 bg-orange-100 rounded-lg group-hover:bg-orange-200 transition-colors">
+                  <FiAlertTriangle className="w-6 h-6 text-orange-600" />
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold text-lg">
+                    View Teacher Changes
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {teachers.filter((t) => t.hasTeacherChanges).length}{" "}
+                    teachers with changes
                   </div>
                 </div>
               </Button>

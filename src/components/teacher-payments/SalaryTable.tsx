@@ -303,7 +303,10 @@ export default function SalaryTable({
             value={teacherChangeFilter}
             onValueChange={setTeacherChangeFilter}
           >
-            <SelectTrigger className="w-full sm:w-48">
+            <SelectTrigger
+              className="w-full sm:w-48"
+              data-teacher-change-filter
+            >
               <SelectValue placeholder="Teacher Changes" />
             </SelectTrigger>
             <SelectContent>

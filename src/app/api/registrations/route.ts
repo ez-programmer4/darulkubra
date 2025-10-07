@@ -826,16 +826,13 @@ export async function PUT(request: NextRequest) {
         const monthlyRate = Number(packageSalary?.salaryPerStudent || 0);
         const dailyRate = monthlyRate / 30; // Approximate daily rate
 
-        // End current assignment if exists
+        // Delete current assignment if exists to free up the old teacher's occupied time
         if (currentOccupiedTime) {
-          await tx.wpos_ustaz_occupied_times.updateMany({
+          await tx.wpos_ustaz_occupied_times.deleteMany({
             where: {
               student_id: parseInt(id),
               ustaz_id: currentOccupiedTime.ustaz_id,
               end_at: null,
-            },
-            data: {
-              end_at: new Date(),
             },
           });
         }
