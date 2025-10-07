@@ -96,6 +96,53 @@ export default function StudentList({
   // Toggle payment debug logs
   const DEBUG_PAYMENTS = true;
 
+  // Debug function to log payment filtering results
+  const debugPaymentFiltering = (student: Student, filterValue: string) => {
+    if (!DEBUG_PAYMENTS) return;
+
+    const paymentStatus = student.paymentStatus;
+    const isActiveStudent = ["active", "not yet", "fresh"].includes(
+      student.status.toLowerCase()
+    );
+    const hasPaymentHistory =
+      paymentStatus?.paymentHistory && paymentStatus.paymentHistory.length > 0;
+    const currentMonthUnpaid = paymentStatus?.currentMonthPaid === false;
+
+    console.debug("[PAYMENT FILTER DEBUG]", {
+      studentId: student.id,
+      studentName: student.name,
+      studentStatus: student.status,
+      filterValue,
+      paymentStatus: {
+        currentMonthPaid: paymentStatus?.currentMonthPaid,
+        hasOverdue: paymentStatus?.hasOverdue,
+        paymentHistoryCount: paymentStatus?.paymentHistory?.length || 0,
+      },
+      filterLogic: {
+        isActiveStudent,
+        hasPaymentHistory,
+        currentMonthUnpaid,
+      },
+      wouldMatch: {
+        paid: Boolean(
+          paymentStatus?.currentMonthPaid === true &&
+            paymentStatus?.paymentHistory &&
+            paymentStatus.paymentHistory.length > 0
+        ),
+        unpaid: Boolean(
+          paymentStatus &&
+            currentMonthUnpaid &&
+            (isActiveStudent || hasPaymentHistory)
+        ),
+        overdue: Boolean(
+          paymentStatus?.hasOverdue === true &&
+            paymentStatus?.paymentHistory &&
+            paymentStatus.paymentHistory.length > 0
+        ),
+      },
+    });
+  };
+
   const safeParseISO = (dateStr: string | null | undefined): Date | null => {
     if (!dateStr || dateStr === "") return null;
     try {
@@ -277,27 +324,77 @@ export default function StudentList({
                 const monthPayments = paymentHistory.filter(
                   (p) => String(p.month).slice(0, 7) === monthKey
                 );
+
+                // No payments for this month
                 if (monthPayments.length === 0) return false;
-                // Free month
+
+                // Free month - completely covered
                 if (monthPayments.some((p) => p.payment_type === "free"))
                   return true;
-                // prizepartial + any payment
+
+                // Prize partial + any other payment - covered
                 const hasPrizePartial = monthPayments.some(
                   (p) => p.payment_type === "prizepartial"
                 );
                 const hasPaid = monthPayments.some(
                   (p) =>
-                    p.payment_type === "partial" || p.payment_type === "full"
+                    p.payment_type === "partial" ||
+                    p.payment_type === "full" ||
+                    p.payment_type === "monthly"
                 );
                 if (hasPrizePartial && hasPaid) return true;
-                // Sum of paid amounts
+
+                // Calculate total paid amount for this month
                 const totalPaid = monthPayments.reduce(
                   (sum, p) => sum + Number(p.paid_amount || 0),
                   0
                 );
+
+                // Calculate expected amount for this month
                 const expected = calculateExpectedAmount(monthKey);
-                return totalPaid >= expected;
+
+                // Consider it paid if total paid >= expected (with small tolerance for rounding)
+                const tolerance = 1; // 1 ETB tolerance for rounding differences
+                return totalPaid >= expected - tolerance;
               };
+
+              // Check for overdue payments: any month before current that is not fully covered
+              const uniqueMonths = Array.from(
+                new Set(
+                  paymentHistory
+                    .map((p) => String(p.month).slice(0, 7))
+                    .filter(Boolean)
+                )
+              ).sort();
+
+              // Generate all months from student start date to current month
+              const studentStartDate = safeParseISO(student.startdate);
+              const allMonthsSinceStart: string[] = [];
+
+              if (studentStartDate) {
+                const startYear = studentStartDate.getFullYear();
+                const startMonth = studentStartDate.getMonth();
+                const currentYear = new Date().getFullYear();
+                const currentMonth = new Date().getMonth();
+
+                for (let year = startYear; year <= currentYear; year++) {
+                  const monthStart = year === startYear ? startMonth : 0;
+                  const monthEnd = year === currentYear ? currentMonth : 11;
+
+                  for (let month = monthStart; month <= monthEnd; month++) {
+                    const monthStr = `${year}-${String(month + 1).padStart(
+                      2,
+                      "0"
+                    )}`;
+                    allMonthsSinceStart.push(monthStr);
+                  }
+                }
+              }
+
+              // Check if any month before current month is not fully covered
+              const hasOverdue = allMonthsSinceStart.some(
+                (month) => month < currentMonth && !isMonthFullyCovered(month)
+              );
 
               const currentMonthPaid = isMonthFullyCovered(currentMonth);
 
@@ -311,15 +408,29 @@ export default function StudentList({
                   .map((p) => ({
                     month: p.month,
                     payment_status: p.payment_status,
+                    payment_type: p.payment_type,
                     paid_amount: p.paid_amount,
                   }));
+
+                // Calculate expected amount for debugging
+                const expectedAmount = calculateExpectedAmount(currentMonth);
+                const totalPaidThisMonth = sample.reduce(
+                  (sum, p) => sum + Number(p.paid_amount || 0),
+                  0
+                );
+
                 console.debug("[PAYMENTS] classification", {
                   studentId,
                   studentName: student.name,
+                  studentStatus: student.status,
                   currentMonth,
                   currentMonthPaid,
+                  expectedAmount,
+                  totalPaidThisMonth,
                   monthMatchesCount: sample.length,
                   sample,
+                  hasOverdue,
+                  allMonthsSinceStart: allMonthsSinceStart.slice(0, 5), // Show first 5 months
                 });
               }
 
@@ -335,18 +446,6 @@ export default function StudentList({
                       return dateB.getTime() - dateA.getTime();
                     })[0]
                   : undefined;
-
-              // Check for overdue payments: any month before current that is not fully covered
-              const uniqueMonths = Array.from(
-                new Set(
-                  paymentHistory
-                    .map((p) => String(p.month).slice(0, 7))
-                    .filter(Boolean)
-                )
-              ).sort();
-              const hasOverdue = uniqueMonths.some(
-                (m) => m < currentMonth && !isMonthFullyCovered(m)
-              );
 
               return {
                 ...student,
@@ -500,24 +599,41 @@ export default function StudentList({
       const paymentStatus = student.paymentStatus;
       let matchesPaymentStatus = true;
 
+      // More reliable payment status filtering
       if (paymentStatusFilter === "Paid") {
-        // Student has paid for current month
+        // Student has paid for current month - be more strict about this
         matchesPaymentStatus = Boolean(
-          paymentStatus?.currentMonthPaid === true
+          paymentStatus?.currentMonthPaid === true &&
+            paymentStatus?.paymentHistory &&
+            paymentStatus.paymentHistory.length > 0
         );
+        debugPaymentFiltering(student, "Paid");
       } else if (paymentStatusFilter === "unpaid") {
-        // Student has NOT paid for current month (but exclude students with no payment history if they're inactive)
+        // Student has NOT paid for current month
+        // Include students who are active/not yet and haven't paid
+        // Also include students with payment history but current month unpaid
+        const isActiveStudent = ["active", "not yet", "fresh"].includes(
+          student.status.toLowerCase()
+        );
+        const hasPaymentHistory =
+          paymentStatus?.paymentHistory &&
+          paymentStatus.paymentHistory.length > 0;
+        const currentMonthUnpaid = paymentStatus?.currentMonthPaid === false;
+
         matchesPaymentStatus = Boolean(
           paymentStatus &&
-            paymentStatus.currentMonthPaid === false &&
-            (student.status.toLowerCase() === "active" ||
-              student.status.toLowerCase() === "not yet" ||
-              (paymentStatus?.paymentHistory &&
-                paymentStatus.paymentHistory.length > 0))
+            currentMonthUnpaid &&
+            (isActiveStudent || hasPaymentHistory)
         );
+        debugPaymentFiltering(student, "unpaid");
       } else if (paymentStatusFilter === "overdue") {
-        // Student has overdue payments
-        matchesPaymentStatus = Boolean(paymentStatus?.hasOverdue === true);
+        // Student has overdue payments - be more specific
+        matchesPaymentStatus = Boolean(
+          paymentStatus?.hasOverdue === true &&
+            paymentStatus?.paymentHistory &&
+            paymentStatus.paymentHistory.length > 0
+        );
+        debugPaymentFiltering(student, "overdue");
       }
       // For "all", matchesPaymentStatus remains true
 

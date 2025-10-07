@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
           where: {
             package: studentPackage.name,
             status: {
-              not: "exit",
+              in: ["Active", "Not yet"],
             },
           },
         });

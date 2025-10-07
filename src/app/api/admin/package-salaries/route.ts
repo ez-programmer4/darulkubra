@@ -28,7 +28,7 @@ export async function GET() {
           where: {
             package: studentPackage.name,
             status: {
-              not: "exit",
+              in: ["Active", "Not yet"],
             },
           },
         });

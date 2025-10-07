@@ -412,7 +412,7 @@ export async function POST(request: NextRequest) {
 
           // Clear salary cache for the teacher to ensure dynamic updates
           SalaryCalculator.clearGlobalTeacherCache(ustaz);
-          
+
           // Clear the calculator cache to force fresh data
           clearCalculatorCache();
         } catch (occupiedError) {
@@ -543,34 +543,43 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!ustaz || ustaz.trim() === "") {
-      return NextResponse.json(
-        { message: "Teacher ID is required" },
-        { status: 400 }
-      );
+    // Only require teacher and time for non-"On Progress" status
+    if (status !== "On Progress") {
+      if (!ustaz || ustaz.trim() === "") {
+        return NextResponse.json(
+          { message: "Teacher ID is required" },
+          { status: 400 }
+        );
+      }
+      if (!selectedTime || selectedTime.trim() === "") {
+        return NextResponse.json(
+          { message: "Selected time is required" },
+          { status: 400 }
+        );
+      }
     }
+
     if (!selectedDayPackage || selectedDayPackage.trim() === "") {
       return NextResponse.json(
         { message: "Day package is required" },
         { status: 400 }
       );
     }
-    if (!selectedTime || selectedTime.trim() === "") {
-      return NextResponse.json(
-        { message: "Selected time is required" },
-        { status: 400 }
-      );
-    }
 
-    if (!validateTime(selectedTime)) {
+    // Only validate time format if time is provided and status is not "On Progress"
+    if (
+      selectedTime &&
+      status !== "On Progress" &&
+      !validateTime(selectedTime)
+    ) {
       return NextResponse.json(
         { message: `Invalid time format: ${selectedTime}` },
         { status: 400 }
       );
     }
 
-    const timeToMatch = to24Hour(selectedTime);
-    const timeSlot = to12Hour(timeToMatch);
+    const timeToMatch = selectedTime ? to24Hour(selectedTime) : null;
+    const timeSlot = selectedTime && timeToMatch ? to12Hour(timeToMatch) : null;
 
     // Get current active assignment
     const currentOccupiedTime =
@@ -596,8 +605,14 @@ export async function PUT(request: NextRequest) {
     const hasTeacherChanged = existingRegistration.ustaz !== ustaz;
     const hasDayPackageChanged =
       existingRegistration.daypackages !== selectedDayPackage;
+
+    // For "On Progress" status, only consider it a change if we're actually assigning a teacher/time
     const hasAnyTimeTeacherChange =
-      hasTimeChanged || hasTeacherChanged || hasDayPackageChanged;
+      status === "On Progress"
+        ? ustaz &&
+          selectedTime &&
+          (hasTimeChanged || hasTeacherChanged || hasDayPackageChanged)
+        : hasTimeChanged || hasTeacherChanged || hasDayPackageChanged;
 
     // Prevent unnecessary updates
     if (
@@ -630,7 +645,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (hasAnyTimeTeacherChange) {
+    if (hasAnyTimeTeacherChange && ustaz && timeToMatch) {
       const availability = await checkTeacherAvailability(
         timeToMatch,
         selectedDayPackage,
@@ -818,7 +833,12 @@ export async function PUT(request: NextRequest) {
             end_at: null,
           },
         });
-      } else if (hasAnyTimeTeacherChange && !shouldFreeTimeSlot) {
+      } else if (
+        hasAnyTimeTeacherChange &&
+        !shouldFreeTimeSlot &&
+        ustaz &&
+        timeSlot
+      ) {
         // Get student and package information for teacher change history
         const student = await tx.wpos_wpdatatable_23.findUnique({
           where: { wdt_ID: parseInt(id) },
@@ -889,7 +909,7 @@ export async function PUT(request: NextRequest) {
           );
         }
         SalaryCalculator.clearGlobalTeacherCache(ustaz);
-        
+
         // Clear the calculator cache to force fresh data
         clearCalculatorCache();
       } else if (!shouldFreeTimeSlot && !hasAnyTimeTeacherChange) {
@@ -898,7 +918,9 @@ export async function PUT(request: NextRequest) {
           activeStatuses.includes(newStatus.toLowerCase()) &&
           (!currentRecord?.status ||
             !["Active", "Not yet", "Fresh"].includes(currentRecord.status)) &&
-          !currentOccupiedTime
+          !currentOccupiedTime &&
+          ustaz &&
+          selectedTime
         ) {
           await tx.wpos_ustaz_occupied_times.create({
             data: {

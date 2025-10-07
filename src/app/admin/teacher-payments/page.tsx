@@ -344,9 +344,12 @@ export default function TeacherPaymentsPage() {
             <Button
               onClick={async () => {
                 try {
-                  const response = await fetch("/api/admin/clear-salary-cache", {
-                    method: "POST",
-                  });
+                  const response = await fetch(
+                    "/api/admin/clear-salary-cache",
+                    {
+                      method: "POST",
+                    }
+                  );
                   if (response.ok) {
                     toast({
                       title: "Success",
