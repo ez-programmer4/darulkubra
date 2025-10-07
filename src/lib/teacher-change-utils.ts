@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
+import { SalaryCalculator } from "./salary-calculator";
 
 export interface TeacherChangeData {
   studentId: number;
@@ -50,6 +51,12 @@ export async function recordTeacherChange(
         created_by: data.createdBy,
       },
     });
+
+    // Clear salary cache for both old and new teachers to ensure dynamic updates
+    if (data.oldTeacherId) {
+      SalaryCalculator.clearGlobalTeacherCache(data.oldTeacherId);
+    }
+    SalaryCalculator.clearGlobalTeacherCache(data.newTeacherId);
 
     console.log(
       `✅ Teacher change recorded: Student ${data.studentId} changed from ${
@@ -399,6 +406,12 @@ export async function processTeacherChange(
         },
       });
     });
+
+    // Clear salary cache for both old and new teachers to ensure dynamic updates
+    if (oldTeacherId) {
+      SalaryCalculator.clearGlobalTeacherCache(oldTeacherId);
+    }
+    SalaryCalculator.clearGlobalTeacherCache(newTeacherId);
 
     return {
       success: true,

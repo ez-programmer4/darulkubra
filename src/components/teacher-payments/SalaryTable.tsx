@@ -746,12 +746,13 @@ export default function SalaryTable({
                 {selectedTeacher.breakdown?.studentBreakdown && (
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-lg font-semibold text-gray-900">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                         Student Breakdown
                         {selectedTeacher.hasTeacherChanges && (
-                          <span className="ml-2 text-sm text-orange-600 font-normal">
-                            (Includes teacher change periods)
-                          </span>
+                          <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 rounded-full text-xs font-medium text-orange-700">
+                            <FiAlertTriangle className="w-3 h-3" />
+                            Teacher Changes
+                          </div>
                         )}
                       </h3>
                       <div className="text-sm text-gray-600">
@@ -832,7 +833,8 @@ export default function SalaryTable({
                       (s) => s.teacherChanges && s.periods
                     ) && (
                       <div className="mt-6">
-                        <h4 className="text-md font-semibold text-gray-900 mb-3">
+                        <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <FiAlertTriangle className="w-4 h-4 text-orange-600" />
                           Teacher Change Periods
                         </h4>
                         <div className="space-y-4">
@@ -843,53 +845,71 @@ export default function SalaryTable({
                                 key={studentIndex}
                                 className="bg-orange-50 border border-orange-200 rounded-lg p-4"
                               >
-                                <h5 className="font-medium text-orange-900 mb-2">
-                                  {student.studentName}
-                                </h5>
-                                <div className="overflow-x-auto">
-                                  <table className="min-w-full">
-                                    <thead>
-                                      <tr className="text-xs text-orange-700">
-                                        <th className="px-2 py-1 text-left">
-                                          Period
-                                        </th>
-                                        <th className="px-2 py-1 text-left">
-                                          Days Worked
-                                        </th>
-                                        <th className="px-2 py-1 text-left">
-                                          Daily Rate
-                                        </th>
-                                        <th className="px-2 py-1 text-left">
-                                          Period Earnings
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {student.periods?.map(
-                                        (period, periodIndex) => (
-                                          <tr
-                                            key={periodIndex}
-                                            className="text-xs"
-                                          >
-                                            <td className="px-2 py-1 text-gray-700">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h5 className="font-medium text-orange-900">
+                                    {student.studentName}
+                                  </h5>
+                                  <div className="text-sm text-orange-700">
+                                    Total: {formatCurrency(student.totalEarned)}
+                                  </div>
+                                </div>
+                                <div className="text-xs text-orange-700 mb-3">
+                                  This student had a teacher change during this
+                                  period
+                                </div>
+                                <div className="space-y-2">
+                                  {student.periods?.map(
+                                    (period, periodIndex) => (
+                                      <div
+                                        key={periodIndex}
+                                        className="p-3 bg-white rounded-lg border border-orange-200"
+                                      >
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <div
+                                              className={`px-2 py-1 rounded text-xs font-medium ${
+                                                period.teacherRole ===
+                                                "old_teacher"
+                                                  ? "bg-red-100 text-red-700"
+                                                  : "bg-green-100 text-green-700"
+                                              }`}
+                                            >
+                                              {period.teacherRole ===
+                                              "old_teacher"
+                                                ? "Previous Teacher"
+                                                : "Current Teacher"}
+                                            </div>
+                                            <span className="text-sm font-medium text-gray-700">
                                               {period.period}
-                                            </td>
-                                            <td className="px-2 py-1 text-gray-700">
-                                              {period.daysWorked}
-                                            </td>
-                                            <td className="px-2 py-1 text-gray-700">
-                                              {formatCurrency(period.dailyRate)}
-                                            </td>
-                                            <td className="px-2 py-1 font-medium text-gray-900">
-                                              {formatCurrency(
-                                                period.periodEarnings
-                                              )}
-                                            </td>
-                                          </tr>
-                                        )
-                                      )}
-                                    </tbody>
-                                  </table>
+                                            </span>
+                                          </div>
+                                          <div className="text-sm font-bold text-gray-900">
+                                            {formatCurrency(
+                                              period.periodEarnings
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs text-gray-600">
+                                          <span>
+                                            {period.daysWorked} days ×{" "}
+                                            {formatCurrency(period.dailyRate)}
+                                            /day
+                                          </span>
+                                          <span>
+                                            {period.teacherRole ===
+                                            "old_teacher"
+                                              ? "Taught before the change"
+                                              : "Took over after the change"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                                <div className="mt-3 p-2 bg-orange-100 rounded text-xs text-orange-800">
+                                  <strong>Note:</strong> Teacher was paid for
+                                  both periods as the student had a teacher
+                                  change during this assignment.
                                 </div>
                               </div>
                             ))}

@@ -89,6 +89,7 @@ export interface TeacherSalaryData {
 export class SalaryCalculator {
   private config: SalaryCalculationConfig;
   private cache: Map<string, any> = new Map();
+  private static globalCache: Map<string, any> = new Map();
 
   constructor(config: SalaryCalculationConfig) {
     this.config = config;
@@ -1625,6 +1626,55 @@ export class SalaryCalculator {
    */
   clearCache() {
     this.cache.clear();
+  }
+
+  /**
+   * Clear cache for specific teacher
+   */
+  clearTeacherCache(teacherId: string): void {
+    const keysToDelete: string[] = [];
+    for (const key of this.cache.keys()) {
+      if (key.includes(`salary_${teacherId}_`)) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach((key) => this.cache.delete(key));
+  }
+
+  /**
+   * Clear cache for specific date range
+   */
+  clearDateRangeCache(fromDate: Date, toDate: Date): void {
+    const keysToDelete: string[] = [];
+    const fromDateStr = fromDate.toISOString();
+    const toDateStr = toDate.toISOString();
+
+    for (const key of this.cache.keys()) {
+      if (key.includes(fromDateStr) || key.includes(toDateStr)) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach((key) => this.cache.delete(key));
+  }
+
+  /**
+   * Static method to clear global cache
+   */
+  static clearGlobalCache(): void {
+    SalaryCalculator.globalCache.clear();
+  }
+
+  /**
+   * Static method to clear cache for specific teacher across all instances
+   */
+  static clearGlobalTeacherCache(teacherId: string): void {
+    const keysToDelete: string[] = [];
+    for (const key of SalaryCalculator.globalCache.keys()) {
+      if (key.includes(`salary_${teacherId}_`)) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach((key) => SalaryCalculator.globalCache.delete(key));
   }
 }
 

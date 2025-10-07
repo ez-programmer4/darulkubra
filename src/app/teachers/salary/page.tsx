@@ -786,8 +786,8 @@ export default function TeacherSalaryPage() {
                     Earnings breakdown by student
                     {salaryData.hasTeacherChanges && (
                       <span className="block mt-1 text-orange-600">
-                        Some students show multiple periods due to teacher
-                        changes
+                        Students with teacher changes show detailed period
+                        breakdown below
                       </span>
                     )}
                   </CardDescription>
@@ -813,16 +813,22 @@ export default function TeacherSalaryPage() {
                                   )}
                                 </h4>
                                 <p className="text-sm text-gray-600">
-                                  {student.package} • {student.daysWorked} days
-                                  worked
+                                  {student.package} • Total:{" "}
+                                  {student.daysWorked} days worked
                                 </p>
+                                {student.teacherChanges && (
+                                  <p className="text-xs text-orange-600 mt-1">
+                                    This student had a teacher change during
+                                    this period
+                                  </p>
+                                )}
                               </div>
                               <div className="text-right">
                                 <p className="font-semibold text-gray-900">
                                   {formatCurrency(student.totalEarned)}
                                 </p>
                                 <p className="text-sm text-gray-600">
-                                  {formatCurrency(student.dailyRate)}/day
+                                  Total earned
                                 </p>
                               </div>
                             </div>
@@ -830,59 +836,69 @@ export default function TeacherSalaryPage() {
                             {/* Show period breakdown if teacher changes occurred */}
                             {student.teacherChanges &&
                               student.periods &&
-                              student.periods.length > 1 && (
+                              student.periods.length > 0 && (
                                 <div className="mt-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
-                                  <h5 className="font-medium text-orange-900 mb-2 flex items-center gap-2">
+                                  <h5 className="font-medium text-orange-900 mb-3 flex items-center gap-2">
                                     <FiAlertTriangle className="w-4 h-4" />
-                                    Teaching Periods
+                                    Your Teaching Periods for This Student
                                   </h5>
-                                  <div className="space-y-2">
+                                  <div className="space-y-3">
                                     {student.periods.map(
                                       (period, periodIndex) => (
                                         <div
                                           key={periodIndex}
-                                          className="flex items-center justify-between p-2 bg-white rounded border"
+                                          className="p-3 bg-white rounded-lg border border-orange-200"
                                         >
-                                          <div className="flex items-center gap-3">
-                                            <div
-                                              className={`px-2 py-1 rounded text-xs font-medium ${
-                                                period.teacherRole ===
+                                          <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className={`px-2 py-1 rounded text-xs font-medium ${
+                                                  period.teacherRole ===
+                                                  "old_teacher"
+                                                    ? "bg-red-100 text-red-700"
+                                                    : "bg-green-100 text-green-700"
+                                                }`}
+                                              >
+                                                {period.teacherRole ===
                                                 "old_teacher"
-                                                  ? "bg-red-100 text-red-700"
-                                                  : "bg-green-100 text-green-700"
-                                              }`}
-                                            >
-                                              {period.teacherRole ===
-                                              "old_teacher"
-                                                ? "Previous Teacher"
-                                                : "Current Teacher"}
+                                                  ? "Previous Teacher"
+                                                  : "Current Teacher"}
+                                              </div>
+                                              <span className="text-sm font-medium text-gray-700">
+                                                {period.period}
+                                              </span>
                                             </div>
-                                            <span className="text-sm text-gray-700">
-                                              {period.period}
-                                            </span>
-                                            <span className="text-xs text-gray-500">
-                                              {period.daysWorked} days
-                                            </span>
+                                            <div className="text-right">
+                                              <div className="text-sm font-bold text-gray-900">
+                                                {formatCurrency(
+                                                  period.periodEarnings
+                                                )}
+                                              </div>
+                                            </div>
                                           </div>
-                                          <div className="text-right">
-                                            <div className="text-sm font-medium text-gray-900">
-                                              {formatCurrency(
-                                                period.periodEarnings
-                                              )}
-                                            </div>
-                                            <div className="text-xs text-gray-600">
+                                          <div className="flex items-center justify-between text-xs text-gray-600">
+                                            <span>
+                                              {period.daysWorked} days ×{" "}
                                               {formatCurrency(period.dailyRate)}
                                               /day
-                                            </div>
+                                            </span>
+                                            <span>
+                                              {period.teacherRole ===
+                                              "old_teacher"
+                                                ? "You taught before the change"
+                                                : "You took over after the change"}
+                                            </span>
                                           </div>
                                         </div>
                                       )
                                     )}
                                   </div>
-                                  <div className="mt-2 text-xs text-orange-700">
-                                    <strong>Note:</strong> You were paid for
-                                    both periods as the teacher changed during
-                                    this student's assignment.
+                                  <div className="mt-3 p-2 bg-orange-100 rounded text-xs text-orange-800">
+                                    <strong>Explanation:</strong> This student
+                                    had a teacher change during this period. You
+                                    were paid for the time you taught them,
+                                    whether as the previous teacher or the new
+                                    teacher.
                                   </div>
                                 </div>
                               )}

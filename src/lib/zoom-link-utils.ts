@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { SalaryCalculator } from "./salary-calculator";
 
 /**
  * Create zoom link with package rate tracking
@@ -11,7 +12,7 @@ export async function createZoomLinkWithPackage(
   // Get student's current package
   const student = await prisma.wpos_wpdatatable_23.findUnique({
     where: { wdt_ID: studentId },
-    select: { package: true }
+    select: { package: true },
   });
 
   if (!student?.package) {
@@ -20,7 +21,7 @@ export async function createZoomLinkWithPackage(
 
   // Get package rate
   const packageSalary = await prisma.packageSalary.findFirst({
-    where: { packageName: student.package }
+    where: { packageName: student.package },
   });
 
   if (!packageSalary) {
@@ -28,7 +29,7 @@ export async function createZoomLinkWithPackage(
   }
 
   // Create zoom link with package info
-  return await prisma.wpos_zoom_links.create({
+  const result = await prisma.wpos_zoom_links.create({
     data: {
       ustazid: teacherId,
       studentid: studentId,
@@ -36,9 +37,14 @@ export async function createZoomLinkWithPackage(
       tracking_token: `${teacherId}_${studentId}_${Date.now()}`,
       sent_time: new Date(),
       packageId: student.package,
-      packageRate: packageSalary.salaryPerStudent
-    }
+      packageRate: packageSalary.salaryPerStudent,
+    },
   });
+
+  // Clear salary cache for this teacher to ensure dynamic updates
+  SalaryCalculator.clearGlobalTeacherCache(teacherId);
+
+  return result;
 }
 
 /**
@@ -54,11 +60,11 @@ export async function getTeacherZoomLinks(
       ustazid: teacherId,
       sent_time: {
         gte: startDate,
-        lte: endDate
-      }
+        lte: endDate,
+      },
     },
     orderBy: {
-      sent_time: 'asc'
-    }
+      sent_time: "asc",
+    },
   });
 }

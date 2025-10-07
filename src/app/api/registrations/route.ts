@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { NextResponse, NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma as globalPrisma } from "@/lib/prisma";
+import { SalaryCalculator } from "@/lib/salary-calculator";
 import {
   to24Hour,
   to12Hour,
@@ -407,6 +408,9 @@ export async function POST(request: NextRequest) {
               registration.wdt_ID
             }) assigned to teacher ${ustaz} on ${new Date().toISOString()}`
           );
+
+          // Clear salary cache for the teacher to ensure dynamic updates
+          SalaryCalculator.clearGlobalTeacherCache(ustaz);
         } catch (occupiedError) {
           console.warn("Failed to create assignment record:", occupiedError);
         }
@@ -873,6 +877,14 @@ export async function PUT(request: NextRequest) {
             currentOccupiedTime?.ustaz_id || "none"
           } to ${ustaz} on ${new Date().toISOString()}`
         );
+
+        // Clear salary cache for both old and new teachers to ensure dynamic updates
+        if (currentOccupiedTime?.ustaz_id) {
+          SalaryCalculator.clearGlobalTeacherCache(
+            currentOccupiedTime.ustaz_id
+          );
+        }
+        SalaryCalculator.clearGlobalTeacherCache(ustaz);
       } else if (!shouldFreeTimeSlot && !hasAnyTimeTeacherChange) {
         const activeStatuses = ["active", "not yet", "fresh"];
         if (
