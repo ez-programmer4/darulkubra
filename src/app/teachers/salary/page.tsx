@@ -61,6 +61,7 @@ interface TeacherSalaryData {
   status: "Paid" | "Unpaid";
   numStudents: number;
   teachingDays: number;
+  hasTeacherChanges: boolean;
   breakdown: {
     dailyEarnings: Array<{ date: string; amount: number }>;
     studentBreakdown: Array<{
@@ -70,6 +71,16 @@ interface TeacherSalaryData {
       dailyRate: number;
       daysWorked: number;
       totalEarned: number;
+      periods?: Array<{
+        period: string;
+        daysWorked: number;
+        dailyRate: number;
+        periodEarnings: number;
+        teachingDates: string[];
+        teacherRole: "old_teacher" | "new_teacher";
+        changeDate?: string;
+      }>;
+      teacherChanges: boolean;
     }>;
     latenessBreakdown: Array<{
       date: string;
@@ -400,11 +411,25 @@ export default function TeacherSalaryPage() {
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">My Salary</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold">My Salary</h1>
+              {salaryData?.hasTeacherChanges && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-orange-500 rounded-full text-sm font-medium">
+                  <FiAlertTriangle className="w-4 h-4" />
+                  Teacher Changes
+                </div>
+              )}
+            </div>
             <p className="text-blue-100 mt-1">
               View your salary breakdown, deductions, bonuses, and payment
               status
             </p>
+            {salaryData?.hasTeacherChanges && (
+              <p className="text-orange-200 mt-1 text-sm">
+                Your salary includes periods as both old and new teacher for
+                some students
+              </p>
+            )}
             {lastUpdated && (
               <p className="text-sm text-blue-200 mt-1">
                 Last updated: {lastUpdated.toLocaleString()}
@@ -618,14 +643,77 @@ export default function TeacherSalaryPage() {
             </TabsList>
 
             <TabsContent value="breakdown" className="space-y-4">
+              {/* Teacher Change Summary */}
+              {salaryData.hasTeacherChanges && (
+                <Card className="border-orange-200 bg-orange-50">
+                  <CardHeader className="bg-orange-100">
+                    <CardTitle className="flex items-center gap-2 text-orange-900">
+                      <FiAlertTriangle className="w-5 h-5" />
+                      Teacher Change Summary
+                    </CardTitle>
+                    <CardDescription className="text-orange-700">
+                      Your salary includes earnings from teacher changes this
+                      period
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="space-y-3">
+                      <div className="text-sm text-orange-800">
+                        <strong>What this means:</strong> Some students had
+                        teacher changes during this period. You were paid for
+                        the periods when you were their teacher, whether as the
+                        previous teacher (before the change) or the new teacher
+                        (after the change).
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div className="p-3 bg-red-100 rounded-lg border border-red-200">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                            <span className="text-sm font-medium text-red-800">
+                              Previous Teacher Periods
+                            </span>
+                          </div>
+                          <div className="text-xs text-red-700">
+                            You taught these students before they were assigned
+                            to another teacher
+                          </div>
+                        </div>
+                        <div className="p-3 bg-green-100 rounded-lg border border-green-200">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span className="text-sm font-medium text-green-800">
+                              Current Teacher Periods
+                            </span>
+                          </div>
+                          <div className="text-xs text-green-700">
+                            You took over these students from another teacher
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FiDollarSign className="w-5 h-5" />
                     Salary Breakdown
+                    {salaryData.hasTeacherChanges && (
+                      <span className="ml-2 text-sm text-orange-600 font-normal">
+                        (Includes teacher change periods)
+                      </span>
+                    )}
                   </CardTitle>
                   <CardDescription>
                     Detailed breakdown of your salary components
+                    {salaryData.hasTeacherChanges && (
+                      <span className="block mt-1 text-orange-600">
+                        Your base salary includes earnings from all teaching
+                        periods
+                      </span>
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -638,6 +726,11 @@ export default function TeacherSalaryPage() {
                         <div className="text-xl font-bold text-green-700">
                           {formatCurrency(salaryData.baseSalary)}
                         </div>
+                        {salaryData.hasTeacherChanges && (
+                          <div className="text-xs text-green-600 mt-1">
+                            Includes all teaching periods
+                          </div>
+                        )}
                       </div>
                       <div className="p-4 bg-red-50 rounded-lg">
                         <div className="text-sm text-red-600">
@@ -665,6 +758,11 @@ export default function TeacherSalaryPage() {
                         <div className="text-xl font-bold text-gray-700">
                           {formatCurrency(salaryData.totalSalary)}
                         </div>
+                        {salaryData.hasTeacherChanges && (
+                          <div className="text-xs text-gray-600 mt-1">
+                            Final amount after all periods
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -678,24 +776,41 @@ export default function TeacherSalaryPage() {
                   <CardTitle className="flex items-center gap-2">
                     <FiUsers className="w-5 h-5" />
                     Student Breakdown
+                    {salaryData.hasTeacherChanges && (
+                      <span className="ml-2 text-sm text-orange-600 font-normal">
+                        (Includes teacher change periods)
+                      </span>
+                    )}
                   </CardTitle>
                   <CardDescription>
                     Earnings breakdown by student
+                    {salaryData.hasTeacherChanges && (
+                      <span className="block mt-1 text-orange-600">
+                        Some students show multiple periods due to teacher
+                        changes
+                      </span>
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {salaryData.breakdown.studentBreakdown.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {salaryData.breakdown.studentBreakdown.map(
                         (student, index) => (
                           <div
                             key={index}
                             className="p-4 bg-gray-50 rounded-lg border"
                           >
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between mb-3">
                               <div>
-                                <h4 className="font-medium text-gray-900">
+                                <h4 className="font-medium text-gray-900 flex items-center gap-2">
                                   {student.studentName}
+                                  {student.teacherChanges && (
+                                    <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 rounded-full text-xs font-medium text-orange-700">
+                                      <FiAlertTriangle className="w-3 h-3" />
+                                      Teacher Changed
+                                    </div>
+                                  )}
                                 </h4>
                                 <p className="text-sm text-gray-600">
                                   {student.package} • {student.daysWorked} days
@@ -711,6 +826,66 @@ export default function TeacherSalaryPage() {
                                 </p>
                               </div>
                             </div>
+
+                            {/* Show period breakdown if teacher changes occurred */}
+                            {student.teacherChanges &&
+                              student.periods &&
+                              student.periods.length > 1 && (
+                                <div className="mt-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                                  <h5 className="font-medium text-orange-900 mb-2 flex items-center gap-2">
+                                    <FiAlertTriangle className="w-4 h-4" />
+                                    Teaching Periods
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {student.periods.map(
+                                      (period, periodIndex) => (
+                                        <div
+                                          key={periodIndex}
+                                          className="flex items-center justify-between p-2 bg-white rounded border"
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <div
+                                              className={`px-2 py-1 rounded text-xs font-medium ${
+                                                period.teacherRole ===
+                                                "old_teacher"
+                                                  ? "bg-red-100 text-red-700"
+                                                  : "bg-green-100 text-green-700"
+                                              }`}
+                                            >
+                                              {period.teacherRole ===
+                                              "old_teacher"
+                                                ? "Previous Teacher"
+                                                : "Current Teacher"}
+                                            </div>
+                                            <span className="text-sm text-gray-700">
+                                              {period.period}
+                                            </span>
+                                            <span className="text-xs text-gray-500">
+                                              {period.daysWorked} days
+                                            </span>
+                                          </div>
+                                          <div className="text-right">
+                                            <div className="text-sm font-medium text-gray-900">
+                                              {formatCurrency(
+                                                period.periodEarnings
+                                              )}
+                                            </div>
+                                            <div className="text-xs text-gray-600">
+                                              {formatCurrency(period.dailyRate)}
+                                              /day
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                  <div className="mt-2 text-xs text-orange-700">
+                                    <strong>Note:</strong> You were paid for
+                                    both periods as the teacher changed during
+                                    this student's assignment.
+                                  </div>
+                                </div>
+                              )}
                           </div>
                         )
                       )}
