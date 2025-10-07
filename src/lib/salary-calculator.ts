@@ -54,6 +54,8 @@ export interface TeacherSalaryData {
         dailyRate: number;
         periodEarnings: number;
         teachingDates: string[];
+        teacherRole: "old_teacher" | "new_teacher";
+        changeDate?: string;
       }>;
       teacherChanges: boolean;
     }>;
@@ -119,26 +121,26 @@ export class SalaryCalculator {
         throw new Error(`Teacher not found: ${teacherId}`);
       }
 
-      // Get assignments (active + historical)
-      const assignments = await this.getTeacherAssignments(
-        teacherId,
-        fromDate,
-        toDate
-      );
-
-      // Get current students with their packages
+      // Get current students with their packages first
       const students = await this.getTeacherStudents(
         teacherId,
         fromDate,
         toDate
       );
 
-      // Calculate base salary with assignment periods
-      const baseSalaryData = await this.calculateBaseSalary(
-        students,
+      // Get teacher change periods from the new history system
+      const teacherChangePeriods = await getTeacherChangePeriods(
+        teacherId,
+        fromDate,
+        toDate
+      );
+
+      // Get assignments (active + historical)
+      const assignments = await this.getTeacherAssignments(
+        teacherId,
         fromDate,
         toDate,
-        assignments
+        students
       );
 
       // Calculate deductions
@@ -173,6 +175,16 @@ export class SalaryCalculator {
         where: { teacherId_period: { teacherId, period } },
         select: { status: true },
       });
+
+      // Calculate base salary with assignment periods and teacher change data
+      const baseSalaryData = await this.calculateBaseSalary(
+        students,
+        fromDate,
+        toDate,
+        assignments,
+        teacherChangePeriods,
+        teacherId
+      );
 
       const result: TeacherSalaryData = {
         id: teacherId,
@@ -273,10 +285,14 @@ export class SalaryCalculator {
     unmatchedZoomLinks?: any[];
     salaryData: TeacherSalaryData;
   }> {
+    // Get current students with their packages first
+    const students = await this.getTeacherStudents(teacherId, fromDate, toDate);
+
     const assignments = await this.getTeacherAssignments(
       teacherId,
       fromDate,
-      toDate
+      toDate,
+      students
     );
 
     // Calculate lateness records
@@ -368,7 +384,8 @@ export class SalaryCalculator {
   private async getTeacherAssignments(
     teacherId: string,
     fromDate: Date,
-    toDate: Date
+    toDate: Date,
+    students: any[]
   ) {
     // Get active assignments
     const activeAssignments = await prisma.wpos_ustaz_occupied_times.findMany({
@@ -636,7 +653,9 @@ export class SalaryCalculator {
     students: any[],
     fromDate: Date,
     toDate: Date,
-    assignments: any[] = []
+    assignments: any[] = [],
+    teacherChangePeriods: any[] = [],
+    teacherId: string
   ) {
     const packageSalaries = await prisma.packageSalary.findMany();
     const salaryMap: Record<string, number> = {};
@@ -800,6 +819,44 @@ export class SalaryCalculator {
         });
 
         if (teachingDates.size > 0) {
+          // Determine teacher role based on the period
+          let teacherRole: "old_teacher" | "new_teacher" = "new_teacher";
+          let changeDate: string | undefined;
+
+          // Check if this period corresponds to a teacher change
+          const teacherChangePeriod = teacherChangePeriods.find(
+            (tcp) =>
+              tcp.studentId === student.wdt_ID &&
+              tcp.startDate <= periodStart &&
+              tcp.endDate >= periodEnd
+          );
+
+          if (teacherChangePeriod) {
+            // Check if this teacher was the old teacher (before change) or new teacher (after change)
+            const changeHistory = await prisma.teacher_change_history.findFirst(
+              {
+                where: {
+                  student_id: student.wdt_ID,
+                  change_date: {
+                    gte: periodStart,
+                    lte: periodEnd,
+                  },
+                },
+                orderBy: { change_date: "asc" },
+              }
+            );
+
+            if (changeHistory) {
+              teacherRole =
+                changeHistory.old_teacher_id === teacherId
+                  ? "old_teacher"
+                  : "new_teacher";
+              changeDate = changeHistory.change_date
+                .toISOString()
+                .split("T")[0];
+            }
+          }
+
           periodBreakdown.push({
             period: `${periodStart.toISOString().split("T")[0]} to ${
               periodEnd.toISOString().split("T")[0]
@@ -808,6 +865,8 @@ export class SalaryCalculator {
             dailyRate: dailyRate,
             periodEarnings: periodEarnings,
             teachingDates: Array.from(teachingDates),
+            teacherRole: teacherRole,
+            changeDate: changeDate,
           });
         }
       }
