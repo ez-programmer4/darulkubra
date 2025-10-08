@@ -807,24 +807,27 @@ export async function PUT(request: NextRequest) {
           });
         }
 
-        await tx.teachersalarypayment.upsert({
-          where: {
-            teacherId_period: {
+        // Only create teacher salary payment record if ustaz is valid
+        if (ustaz && ustaz.trim() !== "") {
+          await tx.teachersalarypayment.upsert({
+            where: {
+              teacherId_period: {
+                teacherId: ustaz,
+                period: currentPeriod,
+              },
+            },
+            update: {},
+            create: {
               teacherId: ustaz,
               period: currentPeriod,
+              status: "Unpaid",
+              totalSalary: 0,
+              latenessDeduction: 0,
+              absenceDeduction: 0,
+              bonuses: 0,
             },
-          },
-          update: {},
-          create: {
-            teacherId: ustaz,
-            period: currentPeriod,
-            status: "Unpaid",
-            totalSalary: 0,
-            latenessDeduction: 0,
-            absenceDeduction: 0,
-            bonuses: 0,
-          },
-        });
+          });
+        }
       }
 
       if (shouldFreeTimeSlot && wasActiveStatus) {
