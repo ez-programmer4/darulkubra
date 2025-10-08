@@ -347,36 +347,42 @@ export async function POST(request: NextRequest) {
     }
 
     const newRegistration = await prismaClient.$transaction(async (tx) => {
+      const createData: any = {
+        name: fullName,
+        phoneno: phoneNumber,
+        classfee:
+          classfee !== undefined && classfee !== null
+            ? parseFloat(classfee)
+            : null,
+        startdate: startdate ? new Date(startdate) : null,
+        u_control,
+        status: status
+          ? status.toLowerCase() === "not yet"
+            ? "Not yet"
+            : status?.charAt(0)?.toUpperCase() +
+                status?.slice(1).toLowerCase() || "Not yet"
+          : "Not yet",
+        package: regionPackage || null,
+        subject: subject || null,
+        country: country || null,
+        rigistral,
+        daypackages: selectedDayPackage,
+        refer: refer || null,
+        registrationdate: registrationdate
+          ? new Date(registrationdate)
+          : new Date(),
+        userId: usStudentId ? usStudentId.toString() : null,
+        chatId: chatId || null,
+        reason: reason || null,
+      };
+
+      // Only set ustaz if it's provided and not empty
+      if (ustaz && ustaz.trim() !== "") {
+        createData.ustaz = ustaz;
+      }
+
       const registration = await tx.wpos_wpdatatable_23.create({
-        data: {
-          name: fullName,
-          phoneno: phoneNumber,
-          classfee:
-            classfee !== undefined && classfee !== null
-              ? parseFloat(classfee)
-              : null,
-          startdate: startdate ? new Date(startdate) : null,
-          u_control,
-          status: status
-            ? status.toLowerCase() === "not yet"
-              ? "Not yet"
-              : status?.charAt(0)?.toUpperCase() +
-                  status?.slice(1).toLowerCase() || "Not yet"
-            : "Not yet",
-          ustaz,
-          package: regionPackage || null,
-          subject: subject || null,
-          country: country || null,
-          rigistral,
-          daypackages: selectedDayPackage,
-          refer: refer || null,
-          registrationdate: registrationdate
-            ? new Date(registrationdate)
-            : new Date(),
-          userId: usStudentId ? usStudentId.toString() : null,
-          chatId: chatId || null,
-          reason: reason || null,
-        },
+        data: createData,
       });
 
       // Create assignment record only if we have both teacher and time
@@ -737,35 +743,41 @@ export async function PUT(request: NextRequest) {
         currentRecord?.status &&
         !["Leave", "Completed", "Not succeed"].includes(currentRecord.status);
 
+      const updateData: any = {
+        name: fullName,
+        phoneno: phoneNumber,
+        classfee:
+          classfee !== undefined && classfee !== null
+            ? parseFloat(classfee)
+            : null,
+        startdate: startdate ? new Date(startdate) : null,
+        u_control,
+        status: newStatus,
+        package: regionPackage || null,
+        subject: subject || null,
+        country: country || null,
+        rigistral:
+          session.role === "registral"
+            ? session.username
+            : existingRegistration.rigistral,
+        daypackages: selectedDayPackage,
+        refer: refer || null,
+        registrationdate: registrationdate
+          ? new Date(registrationdate)
+          : undefined,
+        chatId: chatId || null,
+        reason: reason || null,
+        ...(exitdate && { exitdate }),
+      };
+
+      // Only update ustaz if it's provided and not empty
+      if (ustaz && ustaz.trim() !== "") {
+        updateData.ustaz = ustaz;
+      }
+
       const registration = await tx.wpos_wpdatatable_23.update({
         where: { wdt_ID: parseInt(id) },
-        data: {
-          name: fullName,
-          phoneno: phoneNumber,
-          classfee:
-            classfee !== undefined && classfee !== null
-              ? parseFloat(classfee)
-              : null,
-          startdate: startdate ? new Date(startdate) : null,
-          u_control,
-          status: newStatus,
-          ustaz,
-          package: regionPackage || null,
-          subject: subject || null,
-          country: country || null,
-          rigistral:
-            session.role === "registral"
-              ? session.username
-              : existingRegistration.rigistral,
-          daypackages: selectedDayPackage,
-          refer: refer || null,
-          registrationdate: registrationdate
-            ? new Date(registrationdate)
-            : undefined,
-          chatId: chatId || null,
-          reason: reason || null,
-          ...(exitdate && { exitdate }),
-        },
+        data: updateData,
       });
 
       if (hasTeacherChanged && !shouldFreeTimeSlot) {
