@@ -9,8 +9,16 @@ export async function GET(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
 
-    if (!session || !["admin", "registral"].includes(session.role)) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Ensure user has admin or registral role
+    if (!["admin", "registral"].includes(session.role)) {
+      return NextResponse.json(
+        { error: "Forbidden - Admin or Registral role required" },
+        { status: 403 }
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -50,7 +58,7 @@ export async function GET(request: NextRequest) {
       const registrar = reg.rigistral;
 
       try {
-        // Get successful registrations (started + paid in same month)
+        // Get successful registrations (started + paid in same month, excluding referrals)
         const successQuery = `
           SELECT 
             s.wdt_ID,
@@ -72,14 +80,14 @@ export async function GET(request: NextRequest) {
           month
         )) as any[];
 
-        // Get total registrations in month (registered in month with valid statuses)
+        // Get total registrations in month (only Active and Not yet statuses, excluding referrals)
         const totalQuery = `
           SELECT COUNT(*) as count
           FROM wpos_wpdatatable_23 
           WHERE rigistral = ?
             AND (refer IS NULL OR refer = '')
             AND DATE_FORMAT(registrationdate, '%Y-%m') = ?
-            AND status IN ('Active', 'Not yet', 'Not Succeed')
+            AND status IN ('Active', 'Not yet')
         `;
 
         const totalResult = (await prisma.$queryRawUnsafe(
@@ -88,21 +96,9 @@ export async function GET(request: NextRequest) {
           month
         )) as any[];
 
-        // Get not success count (registered in month with Not Succeed status)
-        const notSuccessQuery = `
-          SELECT COUNT(*) as count
-          FROM wpos_wpdatatable_23 
-          WHERE rigistral = ?
-            AND (refer IS NULL OR refer = '')
-            AND DATE_FORMAT(registrationdate, '%Y-%m') = ?
-            AND status = 'Not Succeed'
-        `;
-
-        const notSuccessResult = (await prisma.$queryRawUnsafe(
-          notSuccessQuery,
-          registrar,
-          month
-        )) as any[];
+        // Calculate not success count (total registrations - successful registrations)
+        const notSuccessCount =
+          Number(totalResult[0]?.count || 0) - successResults.length;
 
         // Get all paid students for this registrar in this month (regardless of start date)
         const paidStudentsQuery = `
@@ -127,7 +123,7 @@ export async function GET(request: NextRequest) {
           successReg: successResults.length,
           reading: 0,
           hifz: 0,
-          notSuccess: Number(notSuccessResult[0]?.count || 0),
+          notSuccess: notSuccessCount,
           reward: 0,
           level: null as string | null,
           paidStudents: Number(paidStudentsResult[0]?.count || 0),
