@@ -187,6 +187,21 @@ export async function POST(request: NextRequest) {
         );
       }
     }
+
+    // If ustaz is provided, validate it exists in the teacher table
+    if (ustaz && ustaz.trim() !== "") {
+      const teacherExists = await prismaClient.wpos_wpdatatable_24.findUnique({
+        where: { ustazid: ustaz },
+        select: { ustazid: true },
+      });
+
+      if (!teacherExists) {
+        return NextResponse.json(
+          { message: `Teacher with ID ${ustaz} does not exist` },
+          { status: 400 }
+        );
+      }
+    }
     if (!selectedDayPackage || selectedDayPackage.trim() === "") {
       return NextResponse.json(
         { message: "Day package is required" },
@@ -554,6 +569,21 @@ export async function PUT(request: NextRequest) {
       if (!selectedTime || selectedTime.trim() === "") {
         return NextResponse.json(
           { message: "Selected time is required" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // If ustaz is provided, validate it exists in the teacher table
+    if (ustaz && ustaz.trim() !== "") {
+      const teacherExists = await prismaClient.wpos_wpdatatable_24.findUnique({
+        where: { ustazid: ustaz },
+        select: { ustazid: true },
+      });
+
+      if (!teacherExists) {
+        return NextResponse.json(
+          { message: `Teacher with ID ${ustaz} does not exist` },
           { status: 400 }
         );
       }
@@ -961,7 +991,7 @@ export async function PUT(request: NextRequest) {
       await prismaClient.auditlog.create({
         data: {
           actionType: "assignment_update_error",
-          adminId: null,
+          adminId: "system",
           targetId: null,
           details: truncatedError,
         },
