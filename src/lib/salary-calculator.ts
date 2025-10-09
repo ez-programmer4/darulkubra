@@ -617,6 +617,118 @@ export class SalaryCalculator {
   }
 
   /**
+   * Calculate expected teaching days based on student's daypackage
+   */
+  private calculateExpectedTeachingDays(
+    fromDate: Date,
+    toDate: Date,
+    daypackage: string
+  ): string[] {
+    const expectedDays: string[] = [];
+
+    if (!daypackage || daypackage.trim() === "") {
+      console.log(`       ❌ No daypackage specified, using all days`);
+      // If no daypackage, use all days (let Sunday setting decide)
+      const current = new Date(fromDate);
+      while (current <= toDate) {
+        const zonedDate = toZonedTime(current, TZ);
+        const isSunday = zonedDate.getDay() === 0;
+        const shouldInclude = this.config.includeSundays || !isSunday;
+
+        if (shouldInclude) {
+          const year = zonedDate.getFullYear();
+          const month = String(zonedDate.getMonth() + 1).padStart(2, "0");
+          const day = String(zonedDate.getDate()).padStart(2, "0");
+          expectedDays.push(`${year}-${month}-${day}`);
+        }
+
+        current.setUTCDate(current.getUTCDate() + 1);
+      }
+      return expectedDays;
+    }
+
+    // Parse daypackage to get expected days of week
+    const expectedDaysOfWeek = this.parseDaypackage(daypackage);
+    console.log(
+      `       📋 Expected days of week: [${expectedDaysOfWeek.join(", ")}]`
+    );
+
+    // Calculate all days in the period that match the daypackage
+    const current = new Date(fromDate);
+    while (current <= toDate) {
+      const zonedDate = toZonedTime(current, TZ);
+      const dayOfWeek = zonedDate.getDay();
+
+      // Check if this day matches the daypackage
+      if (expectedDaysOfWeek.includes(dayOfWeek)) {
+        const year = zonedDate.getFullYear();
+        const month = String(zonedDate.getMonth() + 1).padStart(2, "0");
+        const day = String(zonedDate.getDate()).padStart(2, "0");
+        expectedDays.push(`${year}-${month}-${day}`);
+      }
+
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    return expectedDays;
+  }
+
+  /**
+   * Parse daypackage string to get array of day numbers (0=Sunday, 1=Monday, etc.)
+   */
+  private parseDaypackage(daypackage: string): number[] {
+    if (!daypackage || daypackage.trim() === "") {
+      return [];
+    }
+
+    const dpTrimmed = daypackage.trim().toUpperCase();
+    console.log(`       🔍 Parsing daypackage: "${dpTrimmed}"`);
+
+    // Common patterns
+    if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
+      console.log(`       ✅ Matched "ALL DAYS" pattern`);
+      return [0, 1, 2, 3, 4, 5, 6]; // Sunday to Saturday
+    }
+    if (dpTrimmed === "MWF") {
+      console.log(`       ✅ Matched "MWF" pattern`);
+      return [1, 3, 5]; // Monday, Wednesday, Friday
+    }
+    if (dpTrimmed === "TTS" || dpTrimmed === "TTH") {
+      console.log(`       ✅ Matched "TTS/TTH" pattern`);
+      return [2, 4, 6]; // Tuesday, Thursday, Saturday
+    }
+
+    // Day mapping
+    const dayMap: Record<string, number> = {
+      MONDAY: 1,
+      TUESDAY: 2,
+      WEDNESDAY: 3,
+      THURSDAY: 4,
+      FRIDAY: 5,
+      SATURDAY: 6,
+      SUNDAY: 0,
+    };
+
+    // Try to parse individual days
+    const days: number[] = [];
+    const words = dpTrimmed.split(/\s+/);
+
+    for (const word of words) {
+      if (dayMap[word]) {
+        days.push(dayMap[word]);
+      }
+    }
+
+    if (days.length > 0) {
+      console.log(`       ✅ Parsed individual days: [${days.join(", ")}]`);
+      return days;
+    }
+
+    console.log(`       ❌ Could not parse daypackage: "${dpTrimmed}"`);
+    return [];
+  }
+
+  /**
    * Calculate working days in a period based on Sunday inclusion setting
    * Fixed: Properly handles month boundaries and avoids extra days
    */
@@ -834,9 +946,35 @@ export class SalaryCalculator {
           }
         });
 
-        dailyLinks.forEach((_, dateStr) => {
-          teachingDates.add(dateStr);
+        // Now consider daypackage to determine expected teaching days
+        const expectedTeachingDays = this.calculateExpectedTeachingDays(
+          periodStart,
+          periodEnd,
+          student.daypackages || ""
+        );
+
+        console.log(`📅 Student ${student.name} (${student.package}):`);
+        console.log(`   📊 Daypackage: "${student.daypackages}"`);
+        console.log(
+          `   📅 Period: ${periodStart.toISOString().split("T")[0]} to ${
+            periodEnd.toISOString().split("T")[0]
+          }`
+        );
+        console.log(`   🔗 Zoom links sent: ${dailyLinks.size} days`);
+        console.log(
+          `   📋 Expected teaching days: ${expectedTeachingDays.length} days`
+        );
+
+        // Use expected teaching days based on daypackage, but only count days with zoom links
+        expectedTeachingDays.forEach((dateStr) => {
+          if (dailyLinks.has(dateStr)) {
+            teachingDates.add(dateStr);
+          }
         });
+
+        console.log(
+          `   ✅ Actual teaching days counted: ${teachingDates.size} days`
+        );
 
         const periodEarnings = Number(
           (dailyRate * teachingDates.size).toFixed(2)
