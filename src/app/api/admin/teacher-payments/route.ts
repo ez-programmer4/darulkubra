@@ -89,6 +89,9 @@ export async function GET(req: NextRequest) {
 
     const calculator = await getSalaryCalculator();
 
+    // Clear cache to ensure fresh calculation with updated working days logic
+    calculator.clearCache();
+
     // Handle detailed view for a specific teacher
     if (details && teacherId) {
       const details = await calculator.getTeacherSalaryDetails(

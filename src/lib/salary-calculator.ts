@@ -633,23 +633,28 @@ export class SalaryCalculator {
       } to ${endDate.toISOString().split("T")[0]}`
     );
 
-    // Use a more reliable approach with date arithmetic
-    const startTime = startDate.getTime();
-    const endTime = endDate.getTime();
-    const dayInMs = 24 * 60 * 60 * 1000;
+    // Use a simple, reliable approach with proper date handling
+    const current = new Date(startDate);
+    const end = new Date(endDate);
 
-    for (let time = startTime; time <= endTime; time += dayInMs) {
-      const currentDate = new Date(time);
+    // Reset to start of day to avoid time issues
+    current.setUTCHours(0, 0, 0, 0);
+    end.setUTCHours(23, 59, 59, 999);
 
+    while (current <= end) {
       // Convert to UTC+3 timezone for day calculation
-      const zonedDate = toZonedTime(currentDate, TZ);
+      const zonedDate = toZonedTime(current, TZ);
 
       // Check if this day should be included based on Sunday setting
       const dayOfWeek = zonedDate.getDay();
       const isSunday = dayOfWeek === 0;
       const shouldInclude = this.config.includeSundays || !isSunday;
 
-      const dateStr = zonedDate.toISOString().split("T")[0];
+      // Format date properly
+      const year = zonedDate.getFullYear();
+      const month = String(zonedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(zonedDate.getDate()).padStart(2, "0");
+      const dateStr = `${year}-${month}-${day}`;
 
       if (shouldInclude) {
         workingDays++;
@@ -659,6 +664,9 @@ export class SalaryCalculator {
       } else {
         console.log(`  ❌ ${dateStr} (Sunday) - Excluded`);
       }
+
+      // Move to next day safely
+      current.setUTCDate(current.getUTCDate() + 1);
     }
 
     console.log(
