@@ -623,10 +623,7 @@ export class SalaryCalculator {
   private calculateWorkingDays(fromDate: Date, toDate: Date): number {
     let workingDays = 0;
 
-    // Create a copy of the start date to avoid mutating the original
-    const current = new Date(fromDate);
-
-    // Ensure we're working with the correct timezone
+    // Convert to UTC+3 timezone first
     const startDate = toZonedTime(fromDate, TZ);
     const endDate = toZonedTime(toDate, TZ);
 
@@ -636,30 +633,32 @@ export class SalaryCalculator {
       } to ${endDate.toISOString().split("T")[0]}`
     );
 
-    // Use a more precise day-by-day iteration
-    while (current <= toDate) {
-      // Convert to timezone-aware date for proper day calculation
-      const zonedDate = toZonedTime(current, TZ);
+    // Use a more reliable approach with date arithmetic
+    const startTime = startDate.getTime();
+    const endTime = endDate.getTime();
+    const dayInMs = 24 * 60 * 60 * 1000;
+
+    for (let time = startTime; time <= endTime; time += dayInMs) {
+      const currentDate = new Date(time);
+
+      // Convert to UTC+3 timezone for day calculation
+      const zonedDate = toZonedTime(currentDate, TZ);
 
       // Check if this day should be included based on Sunday setting
-      const isSunday = zonedDate.getDay() === 0;
+      const dayOfWeek = zonedDate.getDay();
+      const isSunday = dayOfWeek === 0;
       const shouldInclude = this.config.includeSundays || !isSunday;
+
+      const dateStr = zonedDate.toISOString().split("T")[0];
 
       if (shouldInclude) {
         workingDays++;
         console.log(
-          `  ✅ ${zonedDate.toISOString().split("T")[0]} (${
-            isSunday ? "Sunday" : "Weekday"
-          }) - Included`
+          `  ✅ ${dateStr} (${isSunday ? "Sunday" : "Weekday"}) - Included`
         );
       } else {
-        console.log(
-          `  ❌ ${zonedDate.toISOString().split("T")[0]} (Sunday) - Excluded`
-        );
+        console.log(`  ❌ ${dateStr} (Sunday) - Excluded`);
       }
-
-      // Move to next day using setDate to avoid month boundary issues
-      current.setDate(current.getDate() + 1);
     }
 
     console.log(
@@ -681,6 +680,11 @@ export class SalaryCalculator {
     packageSalaries.forEach((pkg) => {
       salaryMap[pkg.packageName] = Number(pkg.salaryPerStudent);
     });
+
+    // Debug: Log the input dates
+    console.log(
+      `🔍 Input dates - fromDate: ${fromDate.toISOString()}, toDate: ${toDate.toISOString()}`
+    );
 
     // Calculate working days using the helper function
     const workingDays = this.calculateWorkingDays(fromDate, toDate);

@@ -73,6 +73,13 @@ export async function GET(req: NextRequest) {
     const from = parseISO(startDate);
     const to = parseISO(endDate);
 
+    console.log(
+      `🔍 API Route - Parsed dates: from=${from.toISOString()}, to=${to.toISOString()}`
+    );
+    console.log(
+      `🔍 API Route - Input strings: startDate=${startDate}, endDate=${endDate}`
+    );
+
     if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) {
       return NextResponse.json(
         { error: "Invalid date range. Use UTC ISO format (YYYY-MM-DD)." },
