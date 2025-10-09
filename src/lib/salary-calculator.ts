@@ -191,15 +191,17 @@ export class SalaryCalculator {
         teacherId,
         name: teacher.ustazname || "Unknown Teacher",
         teacherName: teacher.ustazname || "Unknown Teacher",
-        baseSalary: Math.round(baseSalaryData.totalSalary),
-        latenessDeduction: Math.round(latenessData.totalDeduction),
-        absenceDeduction: Math.round(absenceData.totalDeduction),
-        bonuses: Math.round(bonuses),
-        totalSalary: Math.round(
-          baseSalaryData.totalSalary -
+        baseSalary: Number(baseSalaryData.totalSalary.toFixed(2)),
+        latenessDeduction: Number(latenessData.totalDeduction.toFixed(2)),
+        absenceDeduction: Number(absenceData.totalDeduction.toFixed(2)),
+        bonuses: Number(bonuses.toFixed(2)),
+        totalSalary: Number(
+          (
+            baseSalaryData.totalSalary -
             latenessData.totalDeduction -
             absenceData.totalDeduction +
             bonuses
+          ).toFixed(2)
         ),
         status: (payment?.status as "Paid" | "Unpaid") || "Unpaid",
         numStudents: students.length,
@@ -218,11 +220,13 @@ export class SalaryCalculator {
             averageDailyEarning: baseSalaryData.averageDailyEarning,
             totalDeductions:
               latenessData.totalDeduction + absenceData.totalDeduction,
-            netSalary: Math.round(
-              baseSalaryData.totalSalary -
+            netSalary: Number(
+              (
+                baseSalaryData.totalSalary -
                 latenessData.totalDeduction -
                 absenceData.totalDeduction +
                 bonuses
+              ).toFixed(2)
             ),
           },
         },
@@ -614,33 +618,48 @@ export class SalaryCalculator {
 
   /**
    * Calculate working days in a period based on Sunday inclusion setting
+   * Fixed: Properly handles month boundaries and avoids extra days
    */
   private calculateWorkingDays(fromDate: Date, toDate: Date): number {
     let workingDays = 0;
+
+    // Create a copy of the start date to avoid mutating the original
     const current = new Date(fromDate);
 
-    while (current <= toDate) {
-      // Validate the date to avoid invalid dates like Sept 31st
-      const year = current.getFullYear();
-      const month = current.getMonth();
-      const day = current.getDate();
+    // Ensure we're working with the correct timezone
+    const startDate = toZonedTime(fromDate, TZ);
+    const endDate = toZonedTime(toDate, TZ);
 
-      // Check if this is a valid date
-      const testDate = new Date(year, month, day);
-      if (
-        testDate.getFullYear() === year &&
-        testDate.getMonth() === month &&
-        testDate.getDate() === day
-      ) {
-        // Convert to timezone-aware date for proper day calculation
-        const zonedDate = toZonedTime(testDate, TZ);
-        if (this.config.includeSundays || zonedDate.getDay() !== 0) {
-          workingDays++;
-        }
+    console.log(
+      `📅 Calculating working days from ${
+        startDate.toISOString().split("T")[0]
+      } to ${endDate.toISOString().split("T")[0]}`
+    );
+
+    // Use a more precise day-by-day iteration
+    while (current <= toDate) {
+      // Convert to timezone-aware date for proper day calculation
+      const zonedDate = toZonedTime(current, TZ);
+
+      // Check if this day should be included based on Sunday setting
+      const isSunday = zonedDate.getDay() === 0;
+      const shouldInclude = this.config.includeSundays || !isSunday;
+
+      if (shouldInclude) {
+        workingDays++;
+        console.log(
+          `  ✅ ${zonedDate.toISOString().split("T")[0]} (${
+            isSunday ? "Sunday" : "Weekday"
+          }) - Included`
+        );
+      } else {
+        console.log(
+          `  ❌ ${zonedDate.toISOString().split("T")[0]} (Sunday) - Excluded`
+        );
       }
 
-      // Move to next day safely
-      current.setTime(current.getTime() + 24 * 60 * 60 * 1000);
+      // Move to next day using setDate to avoid month boundary issues
+      current.setDate(current.getDate() + 1);
     }
 
     console.log(
@@ -701,8 +720,8 @@ export class SalaryCalculator {
     for (const student of students) {
       if (!student.package || !salaryMap[student.package]) continue;
 
-      const monthlyPackageSalary = Math.round(salaryMap[student.package] || 0);
-      const dailyRate = Math.round(monthlyPackageSalary / workingDays);
+      const monthlyPackageSalary = Number(salaryMap[student.package] || 0);
+      const dailyRate = Number((monthlyPackageSalary / workingDays).toFixed(2));
 
       // Get teacher periods for this student
       const periods = teacherPeriods.get(student.wdt_ID.toString()) || [];
@@ -807,7 +826,9 @@ export class SalaryCalculator {
           teachingDates.add(dateStr);
         });
 
-        const periodEarnings = dailyRate * teachingDates.size;
+        const periodEarnings = Number(
+          (dailyRate * teachingDates.size).toFixed(2)
+        );
         totalEarned += periodEarnings;
 
         // Add to daily earnings
@@ -815,7 +836,10 @@ export class SalaryCalculator {
           if (!dailyEarnings.has(dateStr)) {
             dailyEarnings.set(dateStr, 0);
           }
-          dailyEarnings.set(dateStr, dailyEarnings.get(dateStr)! + dailyRate);
+          dailyEarnings.set(
+            dateStr,
+            Number((dailyEarnings.get(dateStr)! + dailyRate).toFixed(2))
+          );
         });
 
         if (teachingDates.size > 0) {
@@ -885,13 +909,14 @@ export class SalaryCalculator {
       }
     }
 
-    const totalSalary = Array.from(dailyEarnings.values()).reduce(
-      (sum, amount) => sum + amount,
-      0
+    const totalSalary = Number(
+      Array.from(dailyEarnings.values())
+        .reduce((sum, amount) => sum + amount, 0)
+        .toFixed(2)
     );
     const averageDailyEarning =
       studentBreakdown.length > 0
-        ? Math.round(totalSalary / studentBreakdown.length)
+        ? Number((totalSalary / studentBreakdown.length).toFixed(2))
         : 0;
 
     return {
@@ -1108,13 +1133,13 @@ export class SalaryCalculator {
           actualTime: firstLink.sent_time.toTimeString().split(" ")[0],
           latenessMinutes,
           tier: `Tier ${tier.tier}`,
-          deduction: Math.round(deduction),
+          deduction: Number(deduction.toFixed(2)),
         });
       }
     }
 
     return {
-      totalDeduction: Math.round(totalDeduction),
+      totalDeduction: Number(totalDeduction.toFixed(2)),
       breakdown,
     };
   }
@@ -1583,7 +1608,7 @@ export class SalaryCalculator {
               studentName: student.studentName,
               studentPackage: student.studentPackage,
               reason: "No zoom link sent",
-              deduction: Math.round(student.rate),
+              deduction: Number(student.rate.toFixed(2)),
               permitted: false,
               waived: false,
             });
@@ -1601,7 +1626,7 @@ export class SalaryCalculator {
       );
 
       return {
-        totalDeduction: Math.round(totalDeduction),
+        totalDeduction: Number(totalDeduction.toFixed(2)),
         breakdown,
       };
     } catch (error) {
@@ -1648,7 +1673,7 @@ export class SalaryCalculator {
       0
     );
 
-    return Math.round(totalQualityBonus + totalRecordBonus);
+    return Number((totalQualityBonus + totalRecordBonus).toFixed(2));
   }
 
   private async calculateDetailedLatenessRecords(
