@@ -846,14 +846,15 @@ export async function PUT(request: NextRequest) {
           const monthlyRate = Number(packageSalary?.salaryPerStudent || 0);
           const dailyRate = monthlyRate / 30;
 
-          // Record teacher change when student leaves/completes
+          // IMPORTANT: Record teacher assignment end BEFORE deleting occupied time
+          // This ensures the teacher's work is properly tracked for payment
           await tx.teacher_change_history.create({
             data: {
               student_id: parseInt(id),
               old_teacher_id: currentOccupiedTime.ustaz_id,
               new_teacher_id: currentOccupiedTime.ustaz_id, // Same teacher, but ending assignment
               change_date: new Date(),
-              change_reason: `Student status changed to ${newStatus}`,
+              change_reason: `Student status changed to ${newStatus} - teacher assignment ended`,
               time_slot: currentOccupiedTime.time_slot,
               daypackage: currentOccupiedTime.daypackage,
               student_package: student?.package || regionPackage || null,
@@ -868,10 +869,16 @@ export async function PUT(request: NextRequest) {
               id
             )}) status changed to ${newStatus}, ending assignment with teacher ${
               currentOccupiedTime.ustaz_id
-            }`
+            } on ${new Date().toISOString()}`
+          );
+
+          // Clear salary cache for the teacher to ensure dynamic updates
+          SalaryCalculator.clearGlobalTeacherCache(
+            currentOccupiedTime.ustaz_id
           );
         }
 
+        // Delete occupied times to free up teacher slots
         await tx.wpos_ustaz_occupied_times.deleteMany({
           where: {
             student_id: parseInt(id),
@@ -899,7 +906,36 @@ export async function PUT(request: NextRequest) {
         const monthlyRate = Number(packageSalary?.salaryPerStudent || 0);
         const dailyRate = monthlyRate / 30; // Approximate daily rate
 
-        // Delete current assignment if exists to free up the old teacher's occupied time
+        // IMPORTANT: Record teacher change in history BEFORE deleting occupied time
+        // This ensures the old teacher's work is properly tracked for payment
+        if (currentOccupiedTime?.ustaz_id) {
+          await tx.teacher_change_history.create({
+            data: {
+              student_id: parseInt(id),
+              old_teacher_id: currentOccupiedTime.ustaz_id,
+              new_teacher_id: ustaz,
+              change_date: new Date(),
+              change_reason:
+                "Student teacher change - old teacher assignment ended",
+              time_slot: currentOccupiedTime.time_slot,
+              daypackage: currentOccupiedTime.daypackage,
+              student_package: student?.package || regionPackage || null,
+              monthly_rate: monthlyRate,
+              daily_rate: dailyRate,
+              created_by: session?.email || "system",
+            },
+          });
+
+          console.log(
+            `✅ Old teacher assignment ended: Student ${
+              student?.name
+            } (${parseInt(id)}) ended assignment with teacher ${
+              currentOccupiedTime.ustaz_id
+            } on ${new Date().toISOString()}`
+          );
+        }
+
+        // Delete current assignment to free up the old teacher's occupied time
         if (currentOccupiedTime) {
           await tx.wpos_ustaz_occupied_times.deleteMany({
             where: {
@@ -910,7 +946,7 @@ export async function PUT(request: NextRequest) {
           });
         }
 
-        // Create new assignment
+        // Create new assignment for the new teacher
         await tx.wpos_ustaz_occupied_times.create({
           data: {
             ustaz_id: ustaz,
@@ -922,14 +958,15 @@ export async function PUT(request: NextRequest) {
           },
         });
 
-        // Record teacher change in history
+        // Record new teacher assignment in history
         await tx.teacher_change_history.create({
           data: {
             student_id: parseInt(id),
             old_teacher_id: currentOccupiedTime?.ustaz_id || null,
             new_teacher_id: ustaz,
             change_date: new Date(),
-            change_reason: "Student registration update",
+            change_reason:
+              "Student teacher change - new teacher assignment started",
             time_slot: toDbFormat(selectedTime),
             daypackage: selectedDayPackage,
             student_package: student?.package || regionPackage || null,
@@ -940,11 +977,11 @@ export async function PUT(request: NextRequest) {
         });
 
         console.log(
-          `✅ Teacher change recorded: Student ${student?.name} (${parseInt(
+          `✅ New teacher assignment started: Student ${
+            student?.name
+          } (${parseInt(
             id
-          )}) changed from ${
-            currentOccupiedTime?.ustaz_id || "none"
-          } to ${ustaz} on ${new Date().toISOString()}`
+          )}) assigned to new teacher ${ustaz} on ${new Date().toISOString()}`
         );
 
         // Clear salary cache for both old and new teachers to ensure dynamic updates
@@ -1467,14 +1504,19 @@ export async function PATCH(request: NextRequest) {
       await prismaClient.$transaction(async (tx) => {
         // Free up time slots for students changing to inactive status
         if (shouldFreeTimeSlot) {
-          // Get current statuses to check which students are changing from active to inactive
+          // Get current statuses and occupied times to check which students are changing from active to inactive
           const currentRecords = await tx.wpos_wpdatatable_23.findMany({
             where: {
               wdt_ID: { in: ids.map((id: string) => parseInt(id)) },
               u_control:
                 session.role === "controller" ? session.code : undefined,
             },
-            select: { wdt_ID: true, status: true },
+            select: {
+              wdt_ID: true,
+              status: true,
+              name: true,
+              package: true,
+            },
           });
 
           const studentsToFreeSlots = currentRecords
@@ -1486,11 +1528,65 @@ export async function PATCH(request: NextRequest) {
             .map((record) => record.wdt_ID);
 
           if (studentsToFreeSlots.length > 0) {
+            // Get occupied times for students that need to be freed
+            const occupiedTimes = await tx.wpos_ustaz_occupied_times.findMany({
+              where: {
+                student_id: { in: studentsToFreeSlots },
+                end_at: null,
+              },
+              select: {
+                student_id: true,
+                ustaz_id: true,
+                time_slot: true,
+                daypackage: true,
+              },
+            });
+
+            // Record teacher assignment ends BEFORE deleting occupied times
+            // This ensures teachers get paid for their work
+            for (const occupiedTime of occupiedTimes) {
+              const student = currentRecords.find(
+                (s) => s.wdt_ID === occupiedTime.student_id
+              );
+
+              const packageSalary = await tx.packageSalary.findFirst({
+                where: { packageName: student?.package || undefined },
+                select: { salaryPerStudent: true },
+              });
+
+              const monthlyRate = Number(packageSalary?.salaryPerStudent || 0);
+              const dailyRate = monthlyRate / 30;
+
+              await tx.teacher_change_history.create({
+                data: {
+                  student_id: occupiedTime.student_id,
+                  old_teacher_id: occupiedTime.ustaz_id,
+                  new_teacher_id: occupiedTime.ustaz_id, // Same teacher, but ending assignment
+                  change_date: new Date(),
+                  change_reason: `Bulk status change to ${newStatus} - teacher assignment ended`,
+                  time_slot: occupiedTime.time_slot,
+                  daypackage: occupiedTime.daypackage,
+                  student_package: student?.package || null,
+                  monthly_rate: monthlyRate,
+                  daily_rate: dailyRate,
+                  created_by: session?.email || "system",
+                },
+              });
+
+              // Clear salary cache for the teacher
+              SalaryCalculator.clearGlobalTeacherCache(occupiedTime.ustaz_id);
+            }
+
+            // Now delete the occupied times to free up teacher slots
             await tx.wpos_ustaz_occupied_times.deleteMany({
               where: {
                 student_id: { in: studentsToFreeSlots },
               },
             });
+
+            console.log(
+              `✅ Bulk teacher assignments ended: ${occupiedTimes.length} teacher assignments ended for students changing to ${newStatus}`
+            );
           }
         }
 
