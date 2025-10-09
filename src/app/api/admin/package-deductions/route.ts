@@ -13,11 +13,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get all student packages
-    const studentPackages = await prisma.studentPackage.findMany({
+    // Get all unique packages that students are actually using
+    const studentPackagesUsed = (await prisma.$queryRawUnsafe(`
+      SELECT DISTINCT package as name
+      FROM wpos_wpdatatable_23 
+      WHERE package IS NOT NULL 
+        AND package != '' 
+        AND package != 'null'
+      ORDER BY package ASC
+    `)) as { name: string }[];
+
+    // Get all packages from studentPackage table
+    const studentPackagesFromTable = await prisma.studentPackage.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
     });
+
+    // Combine both sources and remove duplicates
+    const allPackageNames = new Set<string>();
+
+    // Add packages from studentPackage table
+    studentPackagesFromTable.forEach((pkg) => allPackageNames.add(pkg.name));
+
+    // Add packages actually used by students
+    studentPackagesUsed.forEach((pkg) => allPackageNames.add(pkg.name));
 
     // Get all configured package deductions
     const packageDeductions = await prisma.packageDeduction.findMany();
@@ -27,15 +46,21 @@ export async function GET(req: NextRequest) {
       packageDeductions.map((deduction) => [deduction.packageName, deduction])
     );
 
-    // Combine student packages with their deduction configurations
+    // Create a map of student packages from table for metadata
+    const studentPackageMap = new Map(
+      studentPackagesFromTable.map((pkg) => [pkg.name, pkg])
+    );
+
+    // Combine all packages with their deduction configurations
     const packagesWithDeductions = await Promise.all(
-      studentPackages.map(async (studentPackage) => {
-        const deductionConfig = deductionMap.get(studentPackage.name);
+      Array.from(allPackageNames).map(async (packageName) => {
+        const deductionConfig = deductionMap.get(packageName);
+        const studentPackageInfo = studentPackageMap.get(packageName);
 
         // Count active students using this package
         const activeStudentCount = await prisma.wpos_wpdatatable_23.count({
           where: {
-            package: studentPackage.name,
+            package: packageName,
             status: {
               in: ["Active", "Not yet"],
             },
@@ -43,11 +68,11 @@ export async function GET(req: NextRequest) {
         });
 
         return {
-          id: studentPackage.id,
-          packageName: studentPackage.name,
-          isActive: studentPackage.isActive,
-          createdAt: studentPackage.createdAt,
-          updatedAt: studentPackage.updatedAt,
+          id: studentPackageInfo?.id || 0, // Use 0 if not in studentPackage table
+          packageName: packageName,
+          isActive: studentPackageInfo?.isActive ?? true, // Default to true if not in table
+          createdAt: studentPackageInfo?.createdAt || new Date(),
+          updatedAt: studentPackageInfo?.updatedAt || new Date(),
           activeStudentCount,
           deductionConfigured: !!deductionConfig,
           latenessBaseAmount: deductionConfig?.latenessBaseAmount || 0,
