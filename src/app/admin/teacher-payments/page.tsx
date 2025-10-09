@@ -192,19 +192,23 @@ export default function TeacherPaymentsPage() {
 
   // Get date range for the selected month/year
   const getDateRange = () => {
-    const startDate = dayjs(
+    // Ensure we get the correct first day of the month
+    const startDate = `${selectedYear}-${String(selectedMonth).padStart(
+      2,
+      "0"
+    )}-01`;
+
+    // Get the last day of the month by going to next month and subtracting 1 day
+    const lastDayOfMonth = dayjs(
       `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`
     )
-      .startOf("month")
-      .toISOString()
-      .split("T")[0];
-    const endDate = dayjs(
-      `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`
-    )
-      .endOf("month")
-      .toISOString()
-      .split("T")[0];
-    return { startDate, endDate };
+      .add(1, "month")
+      .subtract(1, "day")
+      .format("YYYY-MM-DD");
+
+    console.log(`🔍 Frontend Date Range: ${startDate} to ${lastDayOfMonth}`);
+
+    return { startDate, endDate: lastDayOfMonth };
   };
 
   const { startDate, endDate } = getDateRange();
