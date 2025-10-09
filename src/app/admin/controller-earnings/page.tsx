@@ -759,6 +759,7 @@ export default function AdminControllerEarningsPage() {
                             {earning.activeStudents}
                           </div>
                           <div className="text-sm text-gray-500">
+                            {earning.activePayingStudents} paying,{" "}
                             {earning.paidThisMonth} paid
                           </div>
                         </td>

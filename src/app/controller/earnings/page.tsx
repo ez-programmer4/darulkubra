@@ -68,17 +68,17 @@ export default function ControllerEarningsPage() {
       }
 
       const data = await response.json();
-      console.log('API Response:', data); // Debug log
-      
+      console.log("API Response:", data); // Debug log
+
       // Ensure we're setting the earnings object correctly
-      if (data.earnings && typeof data.earnings === 'object') {
+      if (data.earnings && typeof data.earnings === "object") {
         setEarnings(data.earnings);
       } else {
-        console.warn('Invalid earnings data structure:', data.earnings);
+        console.warn("Invalid earnings data structure:", data.earnings);
         setEarnings(null);
       }
     } catch (error) {
-      console.error('Fetch earnings error:', error);
+      console.error("Fetch earnings error:", error);
       toast.error("Failed to load earnings data");
       setEarnings(null);
     } finally {
@@ -118,7 +118,10 @@ export default function ControllerEarningsPage() {
       );
     }
 
-    if (earnings.leaveStudentsThisMonth && earnings.leaveStudentsThisMonth > 5) {
+    if (
+      earnings.leaveStudentsThisMonth &&
+      earnings.leaveStudentsThisMonth > 5
+    ) {
       tips.push("💡 Try to reduce student leaves to avoid penalty deductions");
     }
 
@@ -140,9 +143,12 @@ export default function ControllerEarningsPage() {
   const getAchievementBadges = () => {
     if (!earnings) return [];
 
-    const badges: Array<{name: string; icon: string; color: string}> = [];
+    const badges: Array<{ name: string; icon: string; color: string }> = [];
 
-    if (earnings.achievementPercentage && earnings.achievementPercentage >= 100) {
+    if (
+      earnings.achievementPercentage &&
+      earnings.achievementPercentage >= 100
+    ) {
       badges.push({
         name: "Target Achiever",
         icon: "🎯",
@@ -158,7 +164,10 @@ export default function ControllerEarningsPage() {
       });
     }
 
-    if (earnings.referencedActiveStudents && earnings.referencedActiveStudents > 0) {
+    if (
+      earnings.referencedActiveStudents &&
+      earnings.referencedActiveStudents > 0
+    ) {
       badges.push({
         name: "Referral Master",
         icon: "🎁",
@@ -166,7 +175,10 @@ export default function ControllerEarningsPage() {
       });
     }
 
-    if (earnings.unpaidActiveThisMonth !== undefined && earnings.unpaidActiveThisMonth === 0) {
+    if (
+      earnings.unpaidActiveThisMonth !== undefined &&
+      earnings.unpaidActiveThisMonth === 0
+    ) {
       badges.push({
         name: "Payment Perfect",
         icon: "✅",
@@ -174,7 +186,10 @@ export default function ControllerEarningsPage() {
       });
     }
 
-    if (earnings.leaveStudentsThisMonth !== undefined && earnings.leaveStudentsThisMonth === 0) {
+    if (
+      earnings.leaveStudentsThisMonth !== undefined &&
+      earnings.leaveStudentsThisMonth === 0
+    ) {
       badges.push({
         name: "Retention Expert",
         icon: "🤝",
@@ -394,7 +409,8 @@ export default function ControllerEarningsPage() {
                   {earnings.activeStudents}
                 </div>
                 <div className="text-xs sm:text-sm mt-2">
-                  {earnings.linkedStudents} linked to chat
+                  {earnings.activePayingStudents} paying,{" "}
+                  {earnings.linkedStudents} linked
                 </div>
               </CardContent>
             </Card>
@@ -513,7 +529,7 @@ export default function ControllerEarningsPage() {
                       Unpaid Penalty
                     </span>
                     <p className="text-xs text-gray-500">
-                      {earnings.unpaidActiveThisMonth} unpaid active students
+                      {earnings.unpaidActiveThisMonth} unpaid paying students
                     </p>
                   </div>
                   <span className="font-semibold text-red-600 text-sm sm:text-base flex-shrink-0">
@@ -549,7 +565,10 @@ export default function ControllerEarningsPage() {
                       {earnings.activeStudents}
                     </div>
                     <div className="text-xs sm:text-sm text-gray-600">
-                      Active
+                      Total Active
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      ({earnings.activePayingStudents} paying)
                     </div>
                   </div>
                   <div className="text-center p-2 sm:p-3 bg-yellow-50 rounded-lg">
@@ -584,7 +603,7 @@ export default function ControllerEarningsPage() {
                       Payment Status
                     </span>
                     <span className="text-xs sm:text-sm text-gray-500">
-                      {earnings.paidThisMonth}/{earnings.activeStudents}
+                      {earnings.paidThisMonth}/{earnings.activePayingStudents}
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -593,7 +612,7 @@ export default function ControllerEarningsPage() {
                       style={{
                         width: `${
                           (earnings.paidThisMonth /
-                            Math.max(earnings.activeStudents, 1)) *
+                            Math.max(earnings.activePayingStudents, 1)) *
                           100
                         }%`,
                       }}
@@ -705,7 +724,7 @@ export default function ControllerEarningsPage() {
                   </h4>
                   <p className="text-xs sm:text-sm">
                     You earn a base amount for each active student under your
-                    control.
+                    control (including 0 fee students).
                   </p>
                 </div>
                 <div>
@@ -729,7 +748,8 @@ export default function ControllerEarningsPage() {
                     ❌ Unpaid Penalty
                   </h4>
                   <p className="text-xs sm:text-sm">
-                    Penalty for active students who haven't paid this month.
+                    Penalty for active paying students who haven't paid this
+                    month (0 fee students are never considered unpaid).
                   </p>
                 </div>
               </div>

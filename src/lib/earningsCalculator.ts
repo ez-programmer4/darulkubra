@@ -1,5 +1,12 @@
 import { prisma } from "./prisma";
-import { startOfMonth, endOfMonth, isValid, subDays, addDays } from "date-fns";
+import {
+  startOfMonth,
+  endOfMonth,
+  isValid,
+  subDays,
+  addDays,
+  format,
+} from "date-fns";
 
 export interface ControllerEarnings {
   controllerId: string;
@@ -9,6 +16,7 @@ export interface ControllerEarnings {
   teamLeader: string;
   month: string;
   activeStudents: number;
+  activePayingStudents: number; // New field for clarity
   notYetStudents: number;
   leaveStudentsThisMonth: number;
   ramadanLeaveStudents: number;
@@ -93,7 +101,7 @@ export class EarningsCalculator {
     try {
       const config = await this.getEarningsConfig();
 
-      // Use raw SQL query with 0 fee exclusion
+      // Enhanced SQL query with proper 0 fee handling and referral logic
       const rawQuery = `
         SELECT
           'Default Team' AS Team_Name,
@@ -101,81 +109,124 @@ export class EarningsCalculator {
           'System' AS Team_Leader,
           uc_names.name AS U_Control_Name,
           a.u_control,
+          
+          -- Total active students (including 0 fee)
           COUNT(DISTINCT CASE 
-            WHEN a.status='Active'
+            WHEN a.status = 'Active'
             THEN a.wdt_ID 
           END) AS Active_Students,
+          
+          -- Active paying students (excluding 0 fee)
           COUNT(DISTINCT CASE 
-            WHEN a.status='Active' AND a.package != '0 Fee'
+            WHEN a.status = 'Active' 
+              AND (a.package IS NULL OR a.package != '0 Fee' OR TRIM(a.package) = '')
             THEN a.wdt_ID 
           END) AS Active_Paying_Students,
-          COUNT(DISTINCT CASE WHEN a.status='Not Yet' THEN a.wdt_ID END) AS Not_Yet_Students,
-          COUNT(DISTINCT CASE WHEN a.status='Leave' AND a.exitdate BETWEEN ? AND ? THEN a.wdt_ID END) AS Leave_Students_This_Month,
-          COUNT(DISTINCT CASE WHEN a.status='Ramadan Leave' THEN a.wdt_ID END) AS Ramadan_Leave,
+          
+          -- Not yet students
           COUNT(DISTINCT CASE 
-            WHEN a.status='Active' AND a.package != '0 Fee'
-            AND EXISTS(
-              SELECT 1 FROM months_table pm
-              WHERE pm.studentid = a.wdt_ID 
-                AND pm.month = ? 
-                AND (UPPER(pm.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR pm.is_free_month = 1)
-            )
+            WHEN a.status = 'Not Yet' 
+            THEN a.wdt_ID 
+          END) AS Not_Yet_Students,
+          
+          -- Leave students this month
+          COUNT(DISTINCT CASE 
+            WHEN a.status = 'Leave' 
+              AND a.exitdate IS NOT NULL
+              AND DATE(a.exitdate) BETWEEN ? AND ?
+            THEN a.wdt_ID 
+          END) AS Leave_Students_This_Month,
+          
+          -- Ramadan leave students
+          COUNT(DISTINCT CASE 
+            WHEN a.status = 'Ramadan Leave' 
+            THEN a.wdt_ID 
+          END) AS Ramadan_Leave,
+          
+          -- Paid students this month (only paying students, 0 fee students are considered "paid")
+          COUNT(DISTINCT CASE 
+            WHEN a.status = 'Active' 
+              AND (a.package IS NULL OR a.package != '0 Fee' OR TRIM(a.package) = '')
+              AND EXISTS(
+                SELECT 1 FROM months_table pm
+                WHERE pm.studentid = a.wdt_ID 
+                  AND pm.month = ? 
+                  AND (
+                    UPPER(pm.payment_status) IN ('PAID','COMPLETE','SUCCESS') 
+                    OR pm.is_free_month = 1
+                  )
+              )
             THEN a.wdt_ID 
           END) AS Paid_This_Month,
+          
+          -- Unpaid active students this month (only paying students, 0 fee students are never unpaid)
           COUNT(DISTINCT CASE 
-            WHEN a.status='Active' AND a.package != '0 Fee'
-            AND NOT EXISTS(
-              SELECT 1 FROM months_table sm
-              WHERE sm.studentid = a.wdt_ID 
-                AND sm.month = ? 
-                AND (UPPER(sm.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR sm.is_free_month = 1)
-            )
+            WHEN a.status = 'Active' 
+              AND (a.package IS NULL OR a.package != '0 Fee' OR TRIM(a.package) = '')
+              AND NOT EXISTS(
+                SELECT 1 FROM months_table sm
+                WHERE sm.studentid = a.wdt_ID 
+                  AND sm.month = ? 
+                  AND (
+                    UPPER(sm.payment_status) IN ('PAID','COMPLETE','SUCCESS') 
+                    OR sm.is_free_month = 1
+                  )
+              )
             THEN a.wdt_ID 
           END) AS Unpaid_Active_This_Month,
+          
+          -- Referenced active students (students referred by this controller who are active and paid)
+          -- Fixed logic: Check if student was referred by this controller, not when they registered
           (
             SELECT COUNT(DISTINCT b.wdt_ID)
             FROM wpos_wpdatatable_23 b
             WHERE b.status = 'Active'
               AND b.refer = a.u_control
               AND b.refer IS NOT NULL
-              AND b.refer != ''
-              AND DATE_FORMAT(b.registrationdate,'%Y-%m') = ?
+              AND TRIM(b.refer) != ''
+              AND (b.package IS NULL OR b.package != '0 Fee' OR TRIM(b.package) = '')
               AND EXISTS(
                 SELECT 1 FROM months_table pm
                 WHERE pm.studentid = b.wdt_ID 
                   AND pm.month = ? 
-                  AND (UPPER(pm.payment_status) IN ('PAID','COMPLETE','SUCCESS') OR pm.is_free_month = 1)
+                  AND (
+                    UPPER(pm.payment_status) IN ('PAID','COMPLETE','SUCCESS') 
+                    OR pm.is_free_month = 1
+                  )
               )
           ) AS Referenced_Active_Students,
+          
+          -- Linked students (students with chat_id)
           COUNT(DISTINCT CASE 
             WHEN a.status IN('Active','Not Yet')
-            AND a.chat_id IS NOT NULL
-            AND a.chat_id!=''
+              AND a.chat_id IS NOT NULL
+              AND TRIM(a.chat_id) != ''
             THEN a.wdt_ID 
           END) AS Linked_Students
+          
         FROM wpos_wpdatatable_23 a
-        LEFT JOIN months_table m ON a.wdt_ID = m.studentid
         LEFT JOIN wpos_wpdatatable_28 uc_names ON a.u_control = uc_names.code
-        WHERE a.u_control != '' AND a.u_control IS NOT NULL
+        WHERE a.u_control IS NOT NULL 
+          AND TRIM(a.u_control) != ''
         ${
           params.controllerId
             ? "AND TRIM(LOWER(a.u_control)) = TRIM(LOWER(?))"
             : ""
         }
         GROUP BY a.u_control, uc_names.name
+        ORDER BY uc_names.name
       `;
 
       const queryParams = [
-        // Leave students window
-        this.startDate.toISOString().split("T")[0], // start date for leave students
-        this.endDate.toISOString().split("T")[0], // end date for leave students
-        // Paid this month
-        this.yearMonth, // month for paid students
-        // Unpaid check month
-        this.yearMonth, // month for unpaid check
-        // Referenced students - registration month and payment month
-        this.yearMonth, // registration month for referenced students
-        this.yearMonth, // payment month for referenced students
+        // Leave students date range
+        format(this.startDate, "yyyy-MM-dd"),
+        format(this.endDate, "yyyy-MM-dd"),
+        // Paid this month check
+        this.yearMonth,
+        // Unpaid this month check
+        this.yearMonth,
+        // Referenced students payment check
+        this.yearMonth,
       ];
 
       if (params.controllerId) {
@@ -190,15 +241,15 @@ export class EarningsCalculator {
       const earnings = await Promise.all(
         results.map(async (row: any) => {
           const controllerId = row.u_control;
-          const activeStudents = Number(row.Active_Students);
-          const activePayingStudents = Number(row.Active_Paying_Students);
-          const leaveStudents = Number(row.Leave_Students_This_Month);
-          const unpaidActive = Number(row.Unpaid_Active_This_Month);
-          const referencedActive = Number(row.Referenced_Active_Students);
-          const paidThisMonth = Number(row.Paid_This_Month);
+          const activeStudents = Number(row.Active_Students) || 0;
+          const activePayingStudents = Number(row.Active_Paying_Students) || 0;
+          const leaveStudents = Number(row.Leave_Students_This_Month) || 0;
+          const unpaidActive = Number(row.Unpaid_Active_This_Month) || 0;
+          const referencedActive = Number(row.Referenced_Active_Students) || 0;
+          const paidThisMonth = Number(row.Paid_This_Month) || 0;
 
-          // Calculate earnings using paying students only (exclude 0 fee)
-          const baseEarnings = activePayingStudents * config.mainBaseRate;
+          // Calculate earnings using ALL active students (including 0 fee)
+          const baseEarnings = activeStudents * config.mainBaseRate;
           const leavePenalty =
             Math.max(leaveStudents - config.leaveThreshold, 0) *
             config.leavePenaltyMultiplier *
@@ -215,7 +266,7 @@ export class EarningsCalculator {
           // Get previous month earnings for growth calculation
           const previousMonth = new Date(this.startDate);
           previousMonth.setMonth(previousMonth.getMonth() - 1);
-          const previousMonthStr = previousMonth.toISOString().slice(0, 7);
+          const previousMonthStr = format(previousMonth, "yyyy-MM");
           const previousEarnings = await this.getPreviousMonthEarnings(
             controllerId,
             previousMonthStr
@@ -227,23 +278,26 @@ export class EarningsCalculator {
           const growthRate =
             previousEarnings > 0
               ? ((totalEarnings - previousEarnings) / previousEarnings) * 100
-              : 0;
+              : totalEarnings > 0
+              ? 100
+              : 0; // If no previous earnings but current > 0, show 100% growth
 
           return {
             controllerId,
             controllerName: row.U_Control_Name || controllerId,
-            teamId: Number(row.Team_ID),
-            teamName: row.Team_Name,
-            teamLeader: row.Team_Leader,
+            teamId: Number(row.Team_ID) || 1,
+            teamName: row.Team_Name || "Default Team",
+            teamLeader: row.Team_Leader || "System",
             month: this.yearMonth,
             activeStudents,
-            notYetStudents: Number(row.Not_Yet_Students),
+            activePayingStudents, // New field for clarity
+            notYetStudents: Number(row.Not_Yet_Students) || 0,
             leaveStudentsThisMonth: leaveStudents,
-            ramadanLeaveStudents: Number(row.Ramadan_Leave),
+            ramadanLeaveStudents: Number(row.Ramadan_Leave) || 0,
             paidThisMonth,
             unpaidActiveThisMonth: unpaidActive,
             referencedActiveStudents: referencedActive,
-            linkedStudents: Number(row.Linked_Students),
+            linkedStudents: Number(row.Linked_Students) || 0,
             baseEarnings,
             leavePenalty,
             unpaidPenalty,
@@ -251,7 +305,9 @@ export class EarningsCalculator {
             totalEarnings,
             targetEarnings: config.targetEarnings,
             achievementPercentage:
-              (totalEarnings / config.targetEarnings) * 100,
+              config.targetEarnings > 0
+                ? (totalEarnings / config.targetEarnings) * 100
+                : 0,
             growthRate,
             previousMonthEarnings: previousEarnings,
             yearToDateEarnings,
@@ -281,20 +337,32 @@ export class EarningsCalculator {
       const startDate = startOfMonth(new Date(`${month}-01`));
       const endDate = endOfMonth(new Date(`${month}-01`));
 
+      // Get all students for this controller
       const students = await prisma.wpos_wpdatatable_23.findMany({
-        where: { u_control: controllerId },
+        where: {
+          u_control: controllerId,
+        },
         select: {
           wdt_ID: true,
           status: true,
           exitdate: true,
-          package: true, // Added package field
+          package: true,
         },
       });
 
-      const activeStudentsArr = students.filter(
-        (s) => s.status === "Active" && s.package !== "0 Fee"
+      // Filter active students (including 0 fee for base earnings)
+      const activeStudents = students.filter((s) => s.status === "Active");
+
+      // Filter active paying students (exclude 0 fee for unpaid penalty)
+      const activePayingStudents = students.filter(
+        (s) =>
+          s.status === "Active" &&
+          (s.package === null ||
+            s.package !== "0 Fee" ||
+            s.package.trim() === "")
       );
-      const activeStudents = activeStudentsArr.length;
+
+      // Count leave students for this month
       const leaveStudents = students.filter(
         (s) =>
           s.status === "Leave" &&
@@ -303,9 +371,10 @@ export class EarningsCalculator {
           s.exitdate <= endDate
       ).length;
 
+      // Get payment records for active paying students
       const monthPayments = await prisma.months_table.findMany({
         where: {
-          studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
+          studentid: { in: activePayingStudents.map((s) => s.wdt_ID) },
           month,
           OR: [
             {
@@ -331,17 +400,20 @@ export class EarningsCalculator {
       });
 
       const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
-      const unpaidStudents = activeStudentsArr.filter(
+      const unpaidStudents = activePayingStudents.filter(
         (s) => !paidStudentIds.has(s.wdt_ID)
       ).length;
 
-      return (
-        activeStudents * config.mainBaseRate -
+      // Calculate earnings using ALL active students for base earnings
+      const baseEarnings = activeStudents.length * config.mainBaseRate;
+      const leavePenalty =
         Math.max(leaveStudents - config.leaveThreshold, 0) *
-          config.leavePenaltyMultiplier *
-          config.mainBaseRate -
-        unpaidStudents * config.unpaidPenaltyMultiplier * config.mainBaseRate
-      );
+        config.leavePenaltyMultiplier *
+        config.mainBaseRate;
+      const unpaidPenalty =
+        unpaidStudents * config.unpaidPenaltyMultiplier * config.mainBaseRate;
+
+      return baseEarnings - leavePenalty - unpaidPenalty;
     } catch (error) {
       console.error(
         `Failed to calculate previous month earnings for ${controllerId}:`,
@@ -358,6 +430,7 @@ export class EarningsCalculator {
       const startDate = new Date(`${currentYear}-01-01`);
       const endDate = new Date(`${currentYear + 1}-01-01`);
 
+      // Get all students for this controller
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: {
           u_control: controllerId,
@@ -371,10 +444,19 @@ export class EarningsCalculator {
         },
       });
 
-      const activeStudentsArr = students.filter(
-        (s) => s.status === "Active" && s.package !== "0 Fee"
+      // Filter active students (including 0 fee for base earnings)
+      const activeStudents = students.filter((s) => s.status === "Active");
+
+      // Filter active paying students (exclude 0 fee for unpaid penalty)
+      const activePayingStudents = students.filter(
+        (s) =>
+          s.status === "Active" &&
+          (s.package === null ||
+            s.package !== "0 Fee" ||
+            s.package.trim() === "")
       );
-      const activeStudents = activeStudentsArr.length;
+
+      // Count leave students for the year
       const leaveStudents = students.filter(
         (s) =>
           s.status === "Leave" &&
@@ -383,10 +465,10 @@ export class EarningsCalculator {
           s.exitdate <= endDate
       ).length;
 
-      // Get all payments for the year for active students only
-      const monthPayments = await prisma.months_table.findMany({
+      // Get all payments for the year for active paying students only
+      const yearPayments = await prisma.months_table.findMany({
         where: {
-          studentid: { in: activeStudentsArr.map((s) => s.wdt_ID) },
+          studentid: { in: activePayingStudents.map((s) => s.wdt_ID) },
           month: { startsWith: `${currentYear}-` },
           OR: [
             {
@@ -411,18 +493,21 @@ export class EarningsCalculator {
       });
 
       // Calculate unique paid students across all months
-      const paidStudentIds = new Set(monthPayments.map((p) => p.studentid));
-      const unpaidStudents = activeStudentsArr.filter(
+      const paidStudentIds = new Set(yearPayments.map((p) => p.studentid));
+      const unpaidStudents = activePayingStudents.filter(
         (s) => !paidStudentIds.has(s.wdt_ID)
       ).length;
 
-      return (
-        activeStudents * config.mainBaseRate -
+      // Calculate earnings using ALL active students for base earnings
+      const baseEarnings = activeStudents.length * config.mainBaseRate;
+      const leavePenalty =
         Math.max(leaveStudents - config.leaveThreshold, 0) *
-          config.leavePenaltyMultiplier *
-          config.mainBaseRate -
-        unpaidStudents * config.unpaidPenaltyMultiplier * config.mainBaseRate
-      );
+        config.leavePenaltyMultiplier *
+        config.mainBaseRate;
+      const unpaidPenalty =
+        unpaidStudents * config.unpaidPenaltyMultiplier * config.mainBaseRate;
+
+      return baseEarnings - leavePenalty - unpaidPenalty;
     } catch (error) {
       console.error(
         `Failed to calculate YTD earnings for ${controllerId}:`,
