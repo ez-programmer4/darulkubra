@@ -133,8 +133,8 @@ export default function TeacherPaymentsPage() {
             title: "Success",
             description: `Sunday inclusion ${include ? "enabled" : "disabled"}`,
           });
-          // Refresh data to reflect the change
-          await refresh();
+          // Refresh data with cache clear to reflect the change immediately
+          await refreshWithCacheClear();
         } else {
           throw new Error("Failed to update setting");
         }
@@ -176,6 +176,8 @@ export default function TeacherPaymentsPage() {
               show ? "enabled" : "disabled"
             }`,
           });
+          // Refresh data with cache clear to reflect the change immediately
+          await refreshWithCacheClear();
         } else {
           throw new Error("Failed to update setting");
         }
@@ -226,6 +228,7 @@ export default function TeacherPaymentsPage() {
     bulkUpdatePaymentStatus,
     exportData,
     refresh,
+    refreshWithCacheClear,
   } = useTeacherPayments({
     startDate,
     endDate,
@@ -335,7 +338,7 @@ export default function TeacherPaymentsPage() {
             </Button>
 
             <Button
-              onClick={refresh}
+              onClick={() => refresh()}
               disabled={loading}
               className="flex items-center gap-2 bg-black hover:bg-gray-800 text-white"
             >
@@ -348,22 +351,12 @@ export default function TeacherPaymentsPage() {
             <Button
               onClick={async () => {
                 try {
-                  const response = await fetch(
-                    "/api/admin/clear-salary-cache",
-                    {
-                      method: "POST",
-                    }
-                  );
-                  if (response.ok) {
-                    toast({
-                      title: "Success",
-                      description: "Salary cache cleared successfully",
-                    });
-                    // Refresh data after clearing cache
-                    await refresh();
-                  } else {
-                    throw new Error("Failed to clear cache");
-                  }
+                  // Use the new refreshWithCacheClear function
+                  await refreshWithCacheClear();
+                  toast({
+                    title: "Success",
+                    description: "Salary cache cleared and data refreshed",
+                  });
                 } catch (error) {
                   toast({
                     title: "Error",
@@ -522,54 +515,6 @@ export default function TeacherPaymentsPage() {
 
       {/* Enhanced Main Content */}
       <div className="space-y-6">
-        {/* Teacher Changes Summary */}
-        {teachers.filter((t) => t.hasTeacherChanges).length > 0 && (
-          <Card className="border border-orange-200 shadow-sm bg-orange-50">
-            <CardHeader className="bg-orange-100">
-              <CardTitle className="flex items-center gap-2 text-orange-900">
-                <FiAlertTriangle className="w-6 h-6" />
-                Teacher Changes Detected
-              </CardTitle>
-              <CardDescription className="text-orange-700">
-                {teachers.filter((t) => t.hasTeacherChanges).length} teacher(s)
-                have student assignments with teacher changes this period
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-3">
-                <div className="text-sm text-orange-800">
-                  <strong>Note:</strong> Teachers with student changes have been
-                  paid accurately based on their actual teaching periods. The
-                  salary calculations include both active assignments and
-                  historical periods from the teacher change history.
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {teachers
-                    .filter((t) => t.hasTeacherChanges)
-                    .map((teacher) => (
-                      <div
-                        key={teacher.id}
-                        className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 shadow-sm"
-                      >
-                        <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-medium text-orange-700">
-                            {teacher.name?.charAt(0)?.toUpperCase() || "?"}
-                          </span>
-                        </div>
-                        <span className="text-sm font-medium text-orange-900">
-                          {teacher.name}
-                        </span>
-                        <span className="text-xs text-orange-600">
-                          ({formatCurrency(teacher.totalSalary)})
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Quick Actions */}
         <Card className="border border-gray-200 shadow-sm">
           <CardHeader className="bg-gray-50">

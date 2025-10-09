@@ -89,8 +89,15 @@ export async function GET(req: NextRequest) {
 
     const calculator = await getSalaryCalculator();
 
-    // Clear cache to ensure fresh calculation with updated working days logic
-    calculator.clearCache();
+    // Smart cache clearing - only clear if explicitly requested
+    const shouldClearCache = url.searchParams.get("clearCache") === "true";
+
+    if (shouldClearCache) {
+      console.log("🧹 Clearing cache as requested");
+      calculator.clearCache();
+    } else {
+      console.log("💾 Using cached calculations for better performance");
+    }
 
     // Handle detailed view for a specific teacher
     if (details && teacherId) {

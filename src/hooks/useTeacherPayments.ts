@@ -103,49 +103,57 @@ export function useTeacherPayments({
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchData = useCallback(async () => {
-    if (!startDate || !endDate) return;
+  const fetchData = useCallback(
+    async (clearCache = false) => {
+      if (!startDate || !endDate) return;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      const params = new URLSearchParams({
-        startDate,
-        endDate,
-        _t: Date.now().toString(), // Cache busting parameter
-      });
+      try {
+        const params = new URLSearchParams({
+          startDate,
+          endDate,
+          _t: Date.now().toString(), // Cache busting parameter
+        });
 
-      if (teacherId) {
-        params.append("teacherId", teacherId);
+        if (teacherId) {
+          params.append("teacherId", teacherId);
+        }
+
+        // Add clearCache parameter if requested
+        if (clearCache) {
+          params.append("clearCache", "true");
+        }
+
+        const response = await fetch(`/api/admin/teacher-payments?${params}`);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to fetch data");
+        }
+
+        const result = await response.json();
+        setData(Array.isArray(result) ? result : [result]);
+        setLastUpdated(new Date());
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Unknown error occurred";
+        setError(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
-
-      const response = await fetch(`/api/admin/teacher-payments?${params}`);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to fetch data");
-      }
-
-      const result = await response.json();
-      setData(Array.isArray(result) ? result : [result]);
-      setLastUpdated(new Date());
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Unknown error occurred";
-      setError(errorMessage);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [startDate, endDate, teacherId]);
+    },
+    [startDate, endDate, teacherId]
+  );
 
   const fetchDetails = useCallback(
-    async (teacherId: string) => {
+    async (teacherId: string, clearCache = false) => {
       if (!startDate || !endDate) return;
 
       setLoading(true);
@@ -159,6 +167,11 @@ export function useTeacherPayments({
           details: "true",
           _t: Date.now().toString(), // Cache busting parameter
         });
+
+        // Add clearCache parameter if requested
+        if (clearCache) {
+          params.append("clearCache", "true");
+        }
 
         const response = await fetch(`/api/admin/teacher-payments?${params}`);
 
@@ -361,10 +374,17 @@ export function useTeacherPayments({
     [startDate, endDate]
   );
 
-  const refresh = useCallback(async () => {
-    await fetchData();
-    await fetchStatistics();
-  }, [fetchData, fetchStatistics]);
+  const refresh = useCallback(
+    async (clearCache = false) => {
+      await fetchData(clearCache);
+      await fetchStatistics();
+    },
+    [fetchData, fetchStatistics]
+  );
+
+  const refreshWithCacheClear = useCallback(async () => {
+    await refresh(true);
+  }, [refresh]);
 
   // Auto-refresh effect - reduced frequency to prevent excessive API calls
   useEffect(() => {
@@ -416,5 +436,6 @@ export function useTeacherPayments({
     bulkUpdatePaymentStatus,
     exportData,
     refresh,
+    refreshWithCacheClear,
   };
 }
