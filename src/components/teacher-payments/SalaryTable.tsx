@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   FiChevronDown,
   FiChevronUp,
@@ -16,6 +16,7 @@ import {
   FiRefreshCw,
   FiX,
   FiEye,
+  FiDownload,
 } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/teacher-payment-utils";
+import { toast } from "@/components/ui/use-toast";
 
 interface TeacherSalaryData {
   id: string;
@@ -96,6 +98,8 @@ interface SalaryTableProps {
   onRefresh: () => void;
   onTeacherSelect: (teacher: TeacherSalaryData) => void;
   onBulkAction: (action: string, teacherIds: string[]) => void;
+  startDate?: string;
+  endDate?: string;
 }
 
 type SortKey = keyof TeacherSalaryData | "status";
@@ -120,6 +124,8 @@ export default function SalaryTable({
   onRefresh,
   onTeacherSelect,
   onBulkAction,
+  startDate,
+  endDate,
 }: SalaryTableProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -214,39 +220,93 @@ export default function SalaryTable({
     sortDir,
   ]);
 
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  };
+  // Export functionality
+  const handleExport = useCallback(async () => {
+    try {
+      const exportData = filteredData.map((teacher) => ({
+        Teacher: teacher.name,
+        "Base Salary": teacher.baseSalary,
+        "Lateness Deduction": teacher.latenessDeduction,
+        "Absence Deduction": teacher.absenceDeduction,
+        Bonuses: teacher.bonuses,
+        "Total Salary": teacher.totalSalary,
+        Status: teacher.status,
+        "Number of Students": teacher.numStudents,
+        "Teaching Days": teacher.teachingDays,
+        "Has Teacher Changes": teacher.hasTeacherChanges ? "Yes" : "No",
+      }));
 
-  const handleSelectTeacher = (teacherId: string) => {
-    const newSelected = new Set(selectedTeachers);
-    if (newSelected.has(teacherId)) {
-      newSelected.delete(teacherId);
-    } else {
-      newSelected.add(teacherId);
-    }
-    setSelectedTeachers(newSelected);
-  };
+      const csvContent = [
+        Object.keys(exportData[0]).join(","),
+        ...exportData.map((row) => Object.values(row).join(",")),
+      ].join("\n");
 
-  const handleSelectAll = () => {
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `teacher-payments-${startDate}-to-${endDate}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "Teacher payments exported successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export teacher payments",
+        variant: "destructive",
+      });
+    }
+  }, [filteredData, startDate, endDate]);
+
+  const handleSort = useCallback(
+    (key: SortKey) => {
+      if (sortKey === key) {
+        setSortDir(sortDir === "asc" ? "desc" : "asc");
+      } else {
+        setSortKey(key);
+        setSortDir("asc");
+      }
+    },
+    [sortKey, sortDir]
+  );
+
+  const handleSelectTeacher = useCallback(
+    (teacherId: string) => {
+      const newSelected = new Set(selectedTeachers);
+      if (newSelected.has(teacherId)) {
+        newSelected.delete(teacherId);
+      } else {
+        newSelected.add(teacherId);
+      }
+      setSelectedTeachers(newSelected);
+    },
+    [selectedTeachers]
+  );
+
+  const handleSelectAll = useCallback(() => {
     if (selectedTeachers.size === filteredData.length) {
       setSelectedTeachers(new Set());
     } else {
       setSelectedTeachers(new Set(filteredData.map((t) => t.id)));
     }
-  };
+  }, [selectedTeachers.size, filteredData]);
 
-  const handleBulkAction = (action: string) => {
-    if (selectedTeachers.size === 0) return;
-    onBulkAction(action, Array.from(selectedTeachers));
-  };
+  const handleBulkAction = useCallback(
+    (action: string) => {
+      if (selectedTeachers.size === 0) return;
+      onBulkAction(action, Array.from(selectedTeachers));
+      setSelectedTeachers(new Set()); // Clear selection after action
+    },
+    [selectedTeachers, onBulkAction]
+  );
 
-  const getStatusBadge = (status: "Paid" | "Unpaid") => {
+  const getStatusBadge = useCallback((status: "Paid" | "Unpaid") => {
     return (
       <Badge
         variant={status === "Paid" ? "default" : "secondary"}
@@ -264,16 +324,19 @@ export default function SalaryTable({
         {status}
       </Badge>
     );
-  };
+  }, []);
 
-  const getSortIcon = (key: SortKey) => {
-    if (sortKey !== key) return null;
-    return sortDir === "asc" ? (
-      <FiChevronUp className="w-4 h-4" />
-    ) : (
-      <FiChevronDown className="w-4 h-4" />
-    );
-  };
+  const getSortIcon = useCallback(
+    (key: SortKey) => {
+      if (sortKey !== key) return null;
+      return sortDir === "asc" ? (
+        <FiChevronUp className="w-4 h-4" />
+      ) : (
+        <FiChevronDown className="w-4 h-4" />
+      );
+    },
+    [sortKey, sortDir]
+  );
 
   return (
     <div className="space-y-4">
@@ -329,6 +392,15 @@ export default function SalaryTable({
         </div>
 
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={loading || filteredData.length === 0}
+            className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50"
+          >
+            <FiDownload className="w-4 h-4" />
+            Export CSV
+          </Button>
           <Button
             variant="outline"
             onClick={onRefresh}
