@@ -97,11 +97,24 @@ export default function PackageDeductionsPage() {
 
     setLoading(true);
     try {
-      const url = editingDeduction
+      // If editingDeduction exists AND has a valid deductionId, update; otherwise create new
+      const hasExistingDeduction =
+        editingDeduction && editingDeduction.deductionId;
+
+      const url = hasExistingDeduction
         ? `/api/admin/package-deductions/${editingDeduction.deductionId}`
         : "/api/admin/package-deductions";
 
-      const method = editingDeduction ? "PUT" : "POST";
+      const method = hasExistingDeduction ? "PUT" : "POST";
+
+      console.log("Frontend sending:", {
+        url,
+        method,
+        hasExistingDeduction,
+        editingDeduction,
+        deductionId: editingDeduction?.deductionId,
+        formData,
+      });
 
       const response = await fetch(url, {
         method,
@@ -112,7 +125,7 @@ export default function PackageDeductionsPage() {
       if (response.ok) {
         toast({
           title: "Success",
-          description: editingDeduction
+          description: hasExistingDeduction
             ? "Package deduction updated successfully"
             : "Package deduction created successfully",
         });
