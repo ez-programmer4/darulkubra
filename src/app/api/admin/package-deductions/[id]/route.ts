@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getToken({
       req,
@@ -13,10 +16,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Extract ID from URL path
-    const url = new URL(req.url);
-    const pathSegments = url.pathname.split("/");
-    const id = pathSegments[pathSegments.length - 1];
+    const { id } = params;
 
     if (!id) {
       return NextResponse.json(
@@ -64,7 +64,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function PUT(req: NextRequest) {
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getToken({
       req,
@@ -75,10 +78,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Extract ID from URL path
-    const url = new URL(req.url);
-    const pathSegments = url.pathname.split("/");
-    const id = pathSegments[pathSegments.length - 1];
+    const { id } = params;
 
     if (!id) {
       return NextResponse.json(
@@ -166,7 +166,10 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getToken({
       req,
@@ -177,10 +180,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Extract ID from URL path
-    const url = new URL(req.url);
-    const pathSegments = url.pathname.split("/");
-    const id = pathSegments[pathSegments.length - 1];
+    const { id } = params;
 
     if (!id) {
       return NextResponse.json(

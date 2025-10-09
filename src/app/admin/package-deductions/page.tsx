@@ -98,7 +98,7 @@ export default function PackageDeductionsPage() {
     setLoading(true);
     try {
       const url = editingDeduction
-        ? `/api/admin/package-deductions/${editingDeduction.id}`
+        ? `/api/admin/package-deductions/${editingDeduction.deductionId}`
         : "/api/admin/package-deductions";
 
       const method = editingDeduction ? "PUT" : "POST";
@@ -125,12 +125,15 @@ export default function PackageDeductionsPage() {
           absenceBaseAmount: 25,
         });
       } else {
-        throw new Error("Failed to save deduction");
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || errorData.error || "Failed to save deduction"
+        );
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to save package deduction",
+        description: error.message || "Failed to save package deduction",
         variant: "destructive",
       });
     } finally {
@@ -170,12 +173,15 @@ export default function PackageDeductionsPage() {
         });
         fetchDeductions();
       } else {
-        throw new Error("Failed to delete deduction");
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || errorData.error || "Failed to delete deduction"
+        );
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to delete package deduction",
+        description: error.message || "Failed to delete package deduction",
         variant: "destructive",
       });
     } finally {
