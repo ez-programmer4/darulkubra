@@ -242,19 +242,21 @@ export async function POST(
     const host = req.headers.get("host");
     const proto = req.headers.get("x-forwarded-proto") ?? "http";
     const baseUrl = `${proto}://${host}`;
-    const trackURL = `${baseUrl}/api/zoom/track?token=${encodeURIComponent(
-      tokenToUse
-    )}`;
+
+    // Use new wrapper page for session tracking
+    const wrapperURL = `${baseUrl}/join-session/${tokenToUse}`;
 
     // Check if we're in development mode
     const isDevelopment =
       host?.includes("localhost") || host?.includes("127.0.0.1");
 
-    // For development, we need to handle Telegram's localhost URL restriction
-    // Send the actual Zoom link as button, but include tracking URL in message text
-    const finalURL = isDevelopment ? link : trackURL;
-    const trackingInfo = isDevelopment
-      ? `\n\n🔍 **Development Mode:**\nTo test session tracking, manually visit:\n${trackURL}`
+    // In development, send direct Zoom link (Telegram doesn't allow localhost URLs)
+    // In production, use wrapper URL for tracking
+    const finalURL = isDevelopment ? link : wrapperURL;
+
+    // Add development note with wrapper URL for manual testing
+    const devNote = isDevelopment
+      ? `\n\n🔧 **Development Mode:**\nTelegram doesn't allow localhost URLs, so we sent the direct Zoom link.\nTo test the wrapper page, manually visit:\n${wrapperURL}`
       : "";
 
     let notificationSent = false;
@@ -296,7 +298,7 @@ export async function POST(
 • **Platform:** Zoom Meeting
 
 🔗 **Join Instructions:**
-Click the button below to join your online class session.${trackingInfo}
+Click the button below to join your online class session.${devNote}
 
 ⏰ **Please join on time**
 📖 **Have your materials ready**
