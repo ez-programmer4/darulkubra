@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
 
     const where: any = {
-      clicked_at: { not: null }
+      clicked_at: { not: null },
     };
 
     if (teacherId) {
@@ -17,13 +17,22 @@ export async function GET(request: NextRequest) {
     }
 
     if (date) {
-      const startDate = new Date(date);
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 1);
-      
+      // Parse date and handle timezone properly
+      const startDate = new Date(date + "T00:00:00");
+      const endDate = new Date(date + "T23:59:59");
+
+      console.log("📅 Date filter:", { date, startDate, endDate });
+
       where.clicked_at = {
         gte: startDate,
-        lt: endDate
+        lte: endDate,
+      };
+    } else {
+      // If no date specified, show all sessions from last 7 days
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      where.clicked_at = {
+        gte: sevenDaysAgo,
       };
     }
 
@@ -31,24 +40,28 @@ export async function GET(request: NextRequest) {
       where.session_status = status;
     }
 
+    console.log("🔍 Query filters:", JSON.stringify(where, null, 2));
+
     const sessions = await prisma.wpos_zoom_links.findMany({
       where,
       include: {
         wpos_wpdatatable_23: {
           select: {
             name: true,
-            wdt_ID: true
-          }
+            wdt_ID: true,
+          },
         },
         wpos_wpdatatable_24: {
           select: {
-            ustazname: true
-          }
-        }
+            ustazname: true,
+          },
+        },
       },
       orderBy: { clicked_at: "desc" },
-      take: 100
+      take: 100,
     });
+
+    console.log(`📊 Found ${sessions.length} sessions`);
 
     // Calculate statistics
     const stats = await prisma.wpos_zoom_links.aggregate({
@@ -58,19 +71,19 @@ export async function GET(request: NextRequest) {
         ...(date && {
           clicked_at: {
             gte: new Date(date),
-            lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000)
-          }
-        })
+            lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000),
+          },
+        }),
       },
       _count: {
-        id: true
+        id: true,
       },
       _avg: {
-        session_duration_minutes: true
+        session_duration_minutes: true,
       },
       _sum: {
-        session_duration_minutes: true
-      }
+        session_duration_minutes: true,
+      },
     });
 
     const statusCounts = await prisma.wpos_zoom_links.groupBy({
@@ -81,17 +94,17 @@ export async function GET(request: NextRequest) {
         ...(date && {
           clicked_at: {
             gte: new Date(date),
-            lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000)
-          }
-        })
+            lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000),
+          },
+        }),
       },
       _count: {
-        session_status: true
-      }
+        session_status: true,
+      },
     });
 
     return NextResponse.json({
-      sessions: sessions.map(session => ({
+      sessions: sessions.map((session) => ({
         id: session.id,
         teacherName: session.wpos_wpdatatable_24?.ustazname || "Unknown",
         studentName: session.wpos_wpdatatable_23?.name || "Unknown",
@@ -99,7 +112,7 @@ export async function GET(request: NextRequest) {
         endTime: session.session_ended_at,
         duration: session.session_duration_minutes,
         status: session.session_status,
-        lastActivity: session.last_activity_at
+        lastActivity: session.last_activity_at,
       })),
       statistics: {
         totalSessions: stats._count.id || 0,
@@ -108,11 +121,14 @@ export async function GET(request: NextRequest) {
         statusBreakdown: statusCounts.reduce((acc, item) => {
           acc[item.session_status] = item._count.session_status;
           return acc;
-        }, {} as Record<string, number>)
-      }
+        }, {} as Record<string, number>),
+      },
     });
   } catch (error) {
     console.error("Error fetching teacher sessions:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
