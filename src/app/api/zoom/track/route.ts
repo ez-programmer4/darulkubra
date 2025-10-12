@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
         let redirectTimeout;
         let countdownInterval;
         let isSessionEnded = false;
+        let hasRedirected = false;
         let countdown = 5;
         
         // Enhanced heartbeat function with retry logic
@@ -157,10 +158,17 @@ export async function GET(request: NextRequest) {
         // Countdown display
         function updateCountdown() {
             const countdownEl = document.getElementById('countdown');
-            if (countdownEl) {
-                countdownEl.textContent = \`Redirecting in \${countdown} seconds...\`;
+            if (countdown > 0) {
+                if (countdownEl) {
+                    countdownEl.textContent = \`Redirecting in \${countdown} seconds...\`;
+                }
+                countdown--;
+            } else {
+                if (countdownEl) {
+                    countdownEl.textContent = 'Redirecting now...';
+                }
+                clearInterval(countdownInterval);
             }
-            countdown--;
         }
         
         // Start countdown
@@ -170,6 +178,7 @@ export async function GET(request: NextRequest) {
         redirectTimeout = setTimeout(() => {
             if (!isSessionEnded) {
                 console.log('Redirecting to Zoom...');
+                hasRedirected = true;
                 window.location.href = zoomUrl;
             }
         }, 5000);
@@ -178,19 +187,31 @@ export async function GET(request: NextRequest) {
         startHeartbeat();
         
         // Enhanced event listeners for better mobile compatibility
-        window.addEventListener("beforeunload", () => endSession('beforeunload'));
-        window.addEventListener("unload", () => endSession('unload'));
-        window.addEventListener("pagehide", () => endSession('pagehide'));
+        // Only end session if user manually closes (not when redirecting to Zoom)
+        window.addEventListener("beforeunload", () => {
+            if (!hasRedirected) {
+                endSession('beforeunload');
+            }
+        });
+        window.addEventListener("unload", () => {
+            if (!hasRedirected) {
+                endSession('unload');
+            }
+        });
+        window.addEventListener("pagehide", () => {
+            if (!hasRedirected) {
+                endSession('pagehide');
+            }
+        });
         
         // Handle visibility change (mobile app switching)
+        // DON'T end session on visibility change - user is likely just opening Zoom
         document.addEventListener("visibilitychange", () => {
             if (document.hidden) {
-                console.log('Page hidden, will end session if hidden for 10 seconds');
-                setTimeout(() => {
-                    if (document.hidden && !isSessionEnded) {
-                        endSession('visibility_hidden');
-                    }
-                }, 10000);
+                console.log('Page hidden - user likely opened Zoom or switched apps');
+                // Don't end session automatically - let it stay active until user manually closes
+            } else {
+                console.log('Page visible again');
             }
         });
         
