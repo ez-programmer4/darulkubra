@@ -293,7 +293,7 @@ export async function POST(
 • **Platform:** Zoom Meeting
 
 🔗 **Join Instructions:**
-Click the button below to join your online class session.${devNote}
+Click the button below to join your online class session.
 
 ⏰ **Please join on time**
 📖 **Have your materials ready**
