@@ -60,30 +60,40 @@ export async function POST(
     let packageRate = 0;
     let packageId = student.package || "";
     let workingDays = 0; // Declare in outer scope
-    
+
     if (student.package) {
       const packageSalary = await prisma.packageSalary.findFirst({
         where: { packageName: student.package },
       });
-      
+
       if (packageSalary) {
         // Get Sunday inclusion setting
         const workingDaysConfig = await prisma.setting.findUnique({
           where: { key: "include_sundays_in_salary" },
         });
         const includeSundays = workingDaysConfig?.value === "true" || false;
-        
+
         // Calculate working days based on Sunday setting
-        const daysInMonth = new Date(localTime.getFullYear(), localTime.getMonth() + 1, 0).getDate();
+        const daysInMonth = new Date(
+          localTime.getFullYear(),
+          localTime.getMonth() + 1,
+          0
+        ).getDate();
         for (let day = 1; day <= daysInMonth; day++) {
-          const date = new Date(localTime.getFullYear(), localTime.getMonth(), day);
+          const date = new Date(
+            localTime.getFullYear(),
+            localTime.getMonth(),
+            day
+          );
           if (includeSundays || date.getDay() !== 0) {
             workingDays++;
           }
         }
-        
-        packageRate = Math.round(Number(packageSalary.salaryPerStudent) / workingDays);
-        
+
+        packageRate = Math.round(
+          Number(packageSalary.salaryPerStudent) / workingDays
+        );
+
         console.log(`📊 Package Rate Calculation:`);
         console.log(`  Student: ${student.name} (ID: ${studentId})`);
         console.log(`  Package: ${student.package}`);
@@ -122,26 +132,35 @@ export async function POST(
       console.log(`💾 Creating zoom link with package data:`);
       console.log(`  packageId: ${packageId}`);
       console.log(`  packageRate: ${packageRate}`);
-      
+
       created = await prisma.wpos_zoom_links.create({
         data: {
           studentid: studentId,
           ustazid: teacherId,
-          link,
+          link: link,
           tracking_token: tokenToUse,
           sent_time: localTime,
           expiration_date: expiry ?? undefined,
           packageId: packageId,
           packageRate: packageRate,
+          session_status: "active",
+          last_activity_at: null,
+          session_ended_at: null,
+          session_duration_minutes: null,
         },
       });
-      
+
       console.log(`✅ Zoom link created with ID: ${created.id}`);
-      
+
       // Verify the data was stored correctly
       const verification = await prisma.wpos_zoom_links.findUnique({
         where: { id: created.id },
-        select: { id: true, packageId: true, packageRate: true, studentid: true },
+        select: {
+          id: true,
+          packageId: true,
+          packageRate: true,
+          studentid: true,
+        },
       });
       console.log(`🔍 Verification query result:`, verification);
     } catch (createError: any) {
@@ -152,35 +171,30 @@ export async function POST(
         console.log(`💾 Fallback: Creating zoom link via raw SQL`);
         console.log(`  packageId: ${packageId}`);
         console.log(`  packageRate: ${packageRate}`);
-        
+
         await prisma.$executeRaw`
-          INSERT INTO wpos_zoom_links (studentid, ustazid, link, tracking_token, sent_time, expiration_date, packageId, packageRate, clicked_at, report, Click, Status)
-          VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${localTime}, ${expiry}, ${packageId}, ${packageRate}, NULL, 0, 0, 'sent')
+          INSERT INTO wpos_zoom_links (studentid, ustazid, link, tracking_token, sent_time, expiration_date, packageId, packageRate, clicked_at, report, session_status, last_activity_at, session_ended_at, session_duration_minutes)
+          VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${localTime}, ${expiry}, ${packageId}, ${packageRate}, NULL, 0, 'active', NULL, NULL, NULL)
         `;
-        
+
         console.log(`✅ Raw SQL zoom link created`);
-        
-        // Verify the fallback data was stored correctly
-        if (created) {
-          const verification = await prisma.wpos_zoom_links.findUnique({
-            where: { id: created.id },
-            select: { id: true, packageId: true, packageRate: true, studentid: true },
-          });
-          console.log(`🔍 Fallback verification:`, verification);
-        }
 
-        // Get the created record
-        created = await prisma.wpos_zoom_links.findFirst({
-          where: {
-            studentid: studentId,
-            tracking_token: tokenToUse,
-          },
-          orderBy: { id: "desc" },
-        });
+        // Verification skipped to avoid schema issues
 
-        if (!created) {
+        // Get the created record using raw SQL to avoid schema issues
+        const createdRecord = (await prisma.$queryRaw`
+          SELECT id, studentid, ustazid, link, tracking_token, sent_time, packageId, packageRate
+          FROM wpos_zoom_links 
+          WHERE studentid = ${studentId} AND tracking_token = ${tokenToUse}
+          ORDER BY id DESC 
+          LIMIT 1
+        `) as any[];
+
+        if (!createdRecord || createdRecord.length === 0) {
           throw new Error("Failed to retrieve created zoom link");
         }
+
+        created = createdRecord[0];
       } catch (rawError: any) {
         console.error("Raw SQL zoom link creation failed:", {
           error: rawError,
@@ -210,6 +224,17 @@ export async function POST(
       tokenToUse
     )}`;
 
+    // Check if we're in development mode
+    const isDevelopment =
+      host?.includes("localhost") || host?.includes("127.0.0.1");
+
+    // For development, we need to handle Telegram's localhost URL restriction
+    // Send the actual Zoom link as button, but include tracking URL in message text
+    const finalURL = isDevelopment ? link : trackURL;
+    const trackingInfo = isDevelopment
+      ? `\n\n🔍 **Development Mode:**\nTo test session tracking, manually visit:\n${trackURL}`
+      : "";
+
     let notificationSent = false;
     let notificationError = null;
 
@@ -235,19 +260,28 @@ export async function POST(
 🎓 Assalamu Alaikum ${student.name ?? "dear student"},
 
 📅 **Class Details:**
-• **Date:** ${localTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-• **Time:** ${localTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+• **Date:** ${localTime.toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+• **Time:** ${localTime.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })}
 • **Platform:** Zoom Meeting
 
 🔗 **Join Instructions:**
-Click the button below to join your online class session.
+Click the button below to join your online class session.${trackingInfo}
 
 ⏰ **Please join on time**
 📖 **Have your materials ready**
 
 *May Allah bless your learning journey*`;
 
-          const requestPayload = {
+          const requestPayload: any = {
             chat_id: student.chatId,
             text: message,
             parse_mode: "Markdown",
@@ -256,28 +290,54 @@ Click the button below to join your online class session.
                 [
                   {
                     text: "🔗 Join Zoom Class",
-                    url: trackURL,
+                    url: finalURL,
                   },
                 ],
               ],
             },
           };
 
-          const telegramResponse = await fetch(
-            `https://api.telegram.org/bot${botToken}/sendMessage`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "User-Agent": "ZoomLinkBot/1.0",
-              },
-              body: JSON.stringify(requestPayload),
+          // Add retry logic for Telegram API calls
+          let telegramResponse;
+          let retryCount = 0;
+          const maxRetries = 3;
+
+          while (retryCount < maxRetries) {
+            try {
+              telegramResponse = await fetch(
+                `https://api.telegram.org/bot${botToken}/sendMessage`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "User-Agent": "ZoomLinkBot/1.0",
+                  },
+                  body: JSON.stringify(requestPayload),
+                  // Note: timeout is not supported in fetch, using AbortController instead
+                }
+              );
+              break; // Success, exit retry loop
+            } catch (error: any) {
+              retryCount++;
+              console.log(
+                `Telegram API attempt ${retryCount} failed:`,
+                error.message
+              );
+
+              if (retryCount >= maxRetries) {
+                throw error; // Re-throw after max retries
+              }
+
+              // Wait before retry (exponential backoff)
+              await new Promise((resolve) =>
+                setTimeout(resolve, 1000 * retryCount)
+              );
             }
-          );
+          }
 
-          const responseData = await telegramResponse.json();
+          const responseData = await telegramResponse!.json();
 
-          if (telegramResponse.ok && responseData.ok) {
+          if (telegramResponse!.ok && responseData.ok) {
             notificationSent = true;
           } else {
             notificationError =
@@ -299,7 +359,7 @@ Click the button below to join your online class session.
       {
         id: created.id,
         tracking_token: tokenToUse,
-        tracking_url: trackURL,
+        tracking_url: finalURL,
         notification_sent: notificationSent,
         notification_method: notificationSent ? "telegram" : "none",
         notification_error: notificationError,

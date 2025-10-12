@@ -217,23 +217,35 @@ model student_attendance_progress {
 }
 
 model wpos_zoom_links {
-    id                  Int                  @id @default(autoincrement())
-    studentid           Int
-    ustazid             String?              @db.VarChar(255)
-    link                String               @db.VarChar(255)
-    tracking_token      String               @db.VarChar(32)
-    clicked_at          DateTime?            @db.DateTime(0)
-    sent_time           DateTime?            @db.DateTime(0)
-    report              Int?                 @default(0)
-    expiration_date     DateTime?            @db.DateTime(0)
-    packageId           String?              @db.VarChar(191)
-    packageRate         Decimal?             @db.Decimal(10, 2)
-    wpos_wpdatatable_23 wpos_wpdatatable_23  @relation(fields: [studentid], references: [wdt_ID])
-    wpos_wpdatatable_24 wpos_wpdatatable_24? @relation(fields: [ustazid], references: [ustazid])
+    id                       Int                  @id @default(autoincrement())
+    studentid                Int
+    ustazid                  String?              @db.VarChar(255)
+    link                     String               @db.VarChar(255)
+    tracking_token           String               @db.VarChar(32)
+    clicked_at               DateTime?            @db.DateTime(0)
+    sent_time                DateTime?            @db.DateTime(0)
+    report                   Int?                 @default(0)
+    expiration_date          DateTime?            @db.DateTime(0)
+    packageId                String?              @db.VarChar(191)
+    packageRate              Decimal?             @db.Decimal(10, 2)
+    session_ended_at         DateTime?            @db.DateTime(0)
+    session_duration_minutes Int?
+    session_status           SessionStatus        @default(active)
+    last_activity_at         DateTime?            @db.DateTime(0)
+    wpos_wpdatatable_23      wpos_wpdatatable_23  @relation(fields: [studentid], references: [wdt_ID])
+    wpos_wpdatatable_24      wpos_wpdatatable_24? @relation(fields: [ustazid], references: [ustazid])
 
     @@index([studentid], map: "idx_studentid")
     @@index([ustazid], map: "idx_ustazid")
     @@index([sent_time], map: "idx_sent_time")
+    @@index([session_status], map: "idx_session_status")
+    @@index([last_activity_at], map: "idx_last_activity")
+}
+
+enum SessionStatus {
+    active
+    ended
+    timeout
 }
 
 model test {

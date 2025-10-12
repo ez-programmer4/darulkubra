@@ -1,28 +1,33 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user || (session.user as { role: string }).role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
-
+export async function GET(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || (session.user as any).role !== "admin") {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const teachers = await prisma.wpos_wpdatatable_24.findMany({
-      select: { ustazid: true, ustazname: true },
-      orderBy: { ustazname: 'asc' }
+      select: {
+        ustazid: true,
+        ustazname: true,
+      },
+      orderBy: {
+        ustazname: "asc",
+      },
     });
 
-    const formattedTeachers = teachers.map(teacher => ({
-      id: teacher.ustazid,
-      name: teacher.ustazname || 'Unknown Teacher'
-    }));
-
-    return NextResponse.json(formattedTeachers);
+    return Response.json({
+      teachers: teachers.map((teacher) => ({
+        id: teacher.ustazid,
+        name: teacher.ustazname,
+      })),
+    });
   } catch (error) {
-    console.error("Failed to fetch teachers:", error);
-    return NextResponse.json({ error: "Failed to fetch teachers" }, { status: 500 });
+    console.error("Teachers API error:", error);
+    return Response.json({ error: "Internal error" }, { status: 500 });
   }
 }
