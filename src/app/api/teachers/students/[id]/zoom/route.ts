@@ -126,6 +126,9 @@ export async function POST(
       (tracking_token && String(tracking_token)) ||
       crypto.randomBytes(16).toString("hex").toUpperCase();
 
+    // We need to create the record first to get the ID for leave_url
+    // Then update the link with the leave_url parameter
+
     // Persist record
     let created;
     try {
@@ -151,6 +154,25 @@ export async function POST(
       });
 
       console.log(`✅ Zoom link created with ID: ${created.id}`);
+
+      // Add leave_url to Zoom link for automatic teacher leave detection
+      const host = req.headers.get("host");
+      const proto = req.headers.get("x-forwarded-proto") ?? "http";
+      const baseUrl = `${proto}://${host}`;
+      const leaveUrl = `${baseUrl}/api/zoom/teacher-left?session=${created.id}`;
+
+      // Append leave_url to the Zoom link
+      const enhancedZoomLink = link.includes("?")
+        ? `${link}&leave_url=${encodeURIComponent(leaveUrl)}`
+        : `${link}?leave_url=${encodeURIComponent(leaveUrl)}`;
+
+      // Update the link with leave_url parameter
+      await prisma.wpos_zoom_links.update({
+        where: { id: created.id },
+        data: { link: enhancedZoomLink },
+      });
+
+      console.log(`🔗 Enhanced Zoom link with teacher leave tracking`);
 
       // Verify the data was stored correctly
       const verification = await prisma.wpos_zoom_links.findUnique({

@@ -407,6 +407,82 @@ export default function AssignedStudents() {
     []
   );
 
+  // State for active sessions
+  const [activeSessions, setActiveSessions] = useState<
+    Array<{
+      id: number;
+      studentId: number;
+      studentName: string;
+      clickedAt: string;
+    }>
+  >([]);
+
+  // Fetch active sessions for this teacher
+  const fetchActiveSessions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/teachers/active-sessions", {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveSessions(data.sessions || []);
+      }
+    } catch (error) {
+      console.error("Error fetching active sessions:", error);
+    }
+  }, []);
+
+  // End a session
+  const handleEndSession = async (studentId: number, studentName: string) => {
+    const duration = activeSessions.find((s) => s.studentId === studentId);
+    if (!duration) return;
+
+    const startTime = new Date(duration.clickedAt);
+    const durationMins = Math.round(
+      (new Date().getTime() - startTime.getTime()) / 60000
+    );
+
+    if (
+      !confirm(
+        `End session with ${studentName}?\n\nDuration: ${durationMins} minutes`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/teachers/end-zoom-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId }),
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        toast({
+          title: "Success",
+          description: `Session ended (${durationMins} minutes)`,
+        });
+        fetchActiveSessions(); // Refresh
+      } else {
+        throw new Error("Failed to end session");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to end session",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Fetch active sessions on mount and periodically
+  useEffect(() => {
+    fetchActiveSessions();
+    const interval = setInterval(fetchActiveSessions, 30000); // Every 30 seconds
+    return () => clearInterval(interval);
+  }, [fetchActiveSessions]);
+
   async function sendZoom(studentId: number) {
     try {
       const form = forms[studentId];
@@ -457,6 +533,9 @@ export default function AssignedStudents() {
       }
 
       const responseData = await res.json();
+
+      // Refresh active sessions after sending link
+      fetchActiveSessions();
 
       const studentName =
         groups.flatMap((g) => g.students).find((s) => s.id === studentId)
@@ -672,6 +751,56 @@ export default function AssignedStudents() {
             />
           </div>
         </div>
+
+        {/* Active Sessions Widget */}
+        {activeSessions.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border-2 border-green-200">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 bg-green-500 rounded-lg">
+                <FiActivity className="h-4 w-4 text-white" />
+              </div>
+              <h3 className="font-bold text-green-900">
+                🔴 Active Sessions ({activeSessions.length})
+              </h3>
+            </div>
+            <div className="space-y-2">
+              {activeSessions.map((session) => {
+                const duration = Math.floor(
+                  (new Date().getTime() -
+                    new Date(session.clickedAt).getTime()) /
+                    60000
+                );
+                return (
+                  <div
+                    key={session.id}
+                    className="bg-white rounded-lg p-3 flex items-center justify-between border border-green-200"
+                  >
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900">
+                        {session.studentName}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Duration:{" "}
+                        <span className="font-bold text-green-600">
+                          {duration} min
+                        </span>
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() =>
+                        handleEndSession(session.studentId, session.studentName)
+                      }
+                      size="sm"
+                      className="bg-red-500 hover:bg-red-600 text-white"
+                    >
+                      🛑 End
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div className="space-y-3">
