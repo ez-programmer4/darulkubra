@@ -407,38 +407,6 @@ export default function AssignedStudents() {
     []
   );
 
-  // State for active sessions
-  const [activeSessions, setActiveSessions] = useState<
-    Array<{
-      id: number;
-      studentId: number;
-      studentName: string;
-      clickedAt: string;
-    }>
-  >([]);
-
-  // Fetch active sessions for this teacher
-  const fetchActiveSessions = useCallback(async () => {
-    try {
-      const res = await fetch("/api/teachers/active-sessions", {
-        credentials: "include",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setActiveSessions(data.sessions || []);
-      }
-    } catch (error) {
-      console.error("Error fetching active sessions:", error);
-    }
-  }, []);
-
-  // Fetch active sessions on mount and periodically
-  useEffect(() => {
-    fetchActiveSessions();
-    const interval = setInterval(fetchActiveSessions, 30000); // Every 30 seconds
-    return () => clearInterval(interval);
-  }, [fetchActiveSessions]);
-
   async function sendZoom(studentId: number) {
     try {
       const form = forms[studentId];
@@ -489,9 +457,6 @@ export default function AssignedStudents() {
       }
 
       const responseData = await res.json();
-
-      // Refresh active sessions after sending link
-      fetchActiveSessions();
 
       const studentName =
         groups.flatMap((g) => g.students).find((s) => s.id === studentId)
@@ -707,48 +672,6 @@ export default function AssignedStudents() {
             />
           </div>
         </div>
-
-        {/* Active Sessions Widget */}
-        {activeSessions.length > 0 && (
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border-2 border-green-200">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 bg-green-500 rounded-lg">
-                <FiActivity className="h-4 w-4 text-white" />
-              </div>
-              <h3 className="font-bold text-green-900">
-                🔴 Active Sessions ({activeSessions.length})
-              </h3>
-            </div>
-            <div className="space-y-2">
-              {activeSessions.map((session) => {
-                const duration = Math.floor(
-                  (new Date().getTime() -
-                    new Date(session.clickedAt).getTime()) /
-                    60000
-                );
-                return (
-                  <div
-                    key={session.id}
-                    className="bg-white rounded-lg p-3 border border-green-200"
-                  >
-                    <p className="font-semibold text-gray-900">
-                      {session.studentName}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Duration:{" "}
-                      <span className="font-bold text-green-600">
-                        {duration} min
-                      </span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Auto-ends after package duration
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {loading && (
           <div className="space-y-3">
