@@ -14,10 +14,9 @@
 
 2. **Automatic background checking**
 
-   - Every minute, system checks if Zoom link is still valid
-   - Tries to access the Zoom meeting URL
-   - **If valid** → Session stays "active", shows live duration
-   - **If invalid/ended** → Automatically ends session, records duration
+   - Every minute, system checks session duration
+   - **If under 2 hours** → Session stays "active", shows live duration
+   - **If 2+ hours** → Automatically ends session, records duration
 
 3. **Admin dashboard**
    - Shows live duration for active sessions: "25 (ongoing)"
@@ -54,20 +53,20 @@ Use cron-job.org or easycron.com:
 
 ---
 
-## How Zoom Checking Works
+## How Auto-End Works
 
 ```javascript
-// System tries to access Zoom link
-fetch(zoomLink, { method: "HEAD" });
-
-// If link returns OK or redirects → Meeting still active
-// If link returns error or 404 → Meeting ended
+// Simple time-based check
+if (sessionDuration >= 120 minutes) {
+  // End session - meetings don't last longer than 2 hours
+  endSession();
+}
 ```
 
-When meeting ends:
+Auto-ends when:
 
-- Zoom link becomes invalid
-- System detects this
+- Session has been active for 2+ hours
+- Assumes meeting has ended
 - Records duration automatically
 - Status changes to "ended"
 

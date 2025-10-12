@@ -5,20 +5,16 @@ import { prisma } from "@/lib/prisma";
  * If link/token is invalid or meeting ended, mark session as ended
  */
 
-async function checkZoomMeetingStatus(link: string): Promise<boolean> {
-  try {
-    // Try to access the Zoom link
-    const response = await fetch(link, {
-      method: "HEAD",
-      redirect: "manual",
-    });
+// Simplified: Auto-end sessions after 2 hours max
+// Zoom meetings typically don't last longer than this
+async function isSessionStillActive(clickedAt: Date): Promise<boolean> {
+  const now = new Date();
+  const minutesSinceStart = Math.floor(
+    (now.getTime() - clickedAt.getTime()) / 60000
+  );
 
-    // If Zoom link is valid, it returns 200 or redirects (3xx)
-    return response.ok || (response.status >= 300 && response.status < 400);
-  } catch (error) {
-    // Network error or invalid link
-    return false;
-  }
+  // If session has been active for more than 2 hours (120 min), consider it ended
+  return minutesSinceStart < 120;
 }
 
 export async function checkAllActiveSessions() {
@@ -51,11 +47,11 @@ export async function checkAllActiveSessions() {
       try {
         checkedCount++;
 
-        // Check if Zoom meeting is still valid
-        const isValid = await checkZoomMeetingStatus(session.link);
+        // Check if session should still be active (under 2 hours)
+        const stillActive = await isSessionStillActive(session.clicked_at!);
 
-        if (!isValid) {
-          // Meeting has ended - calculate duration and mark as ended
+        if (!stillActive) {
+          // Session exceeded max duration - mark as ended
           const endTime = new Date();
           const duration = Math.round(
             (endTime.getTime() - session.clicked_at!.getTime()) / 60000
@@ -72,11 +68,14 @@ export async function checkAllActiveSessions() {
 
           endedCount++;
           console.log(
-            `✅ Auto-ended session ${session.id}: ${duration} min (Zoom meeting ended - Student: ${session.studentid}, Teacher: ${session.ustazid})`
+            `✅ Auto-ended session ${session.id}: ${duration} min (exceeded max duration - Student: ${session.studentid}, Teacher: ${session.ustazid})`
           );
         } else {
+          const minutesActive = Math.floor(
+            (Date.now() - session.clicked_at!.getTime()) / 60000
+          );
           console.log(
-            `🟢 Session ${session.id} still active (Zoom meeting valid)`
+            `🟢 Session ${session.id} still active (${minutesActive} min)`
           );
         }
       } catch (error) {

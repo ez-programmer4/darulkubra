@@ -95,15 +95,24 @@ export default function TeacherMonitoringPage() {
             Teacher Session Durations
           </h1>
           <p className="text-gray-600 mt-2">
-            Last updated: {lastUpdate.toLocaleTimeString()}
+            Last updated: {lastUpdate.toLocaleTimeString()} • Auto-refreshes
+            every 30s
           </p>
         </div>
-        <button
-          onClick={checkSessions}
-          className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 font-semibold transition-colors"
-        >
-          Check & Update Sessions
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => fetchSessions()}
+            className="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 font-semibold transition-colors"
+          >
+            🔄 Refresh Now
+          </button>
+          <button
+            onClick={checkSessions}
+            className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 font-semibold transition-colors"
+          >
+            ⏰ Check & End Old Sessions
+          </button>
+        </div>
       </div>
 
       {/* Search and Filter */}
