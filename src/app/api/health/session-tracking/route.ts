@@ -30,7 +30,7 @@ export async function GET() {
       where: {
         session_status: "active",
         clicked_at: {
-          lt: new Date(Date.now() - 2 * 60 * 60 * 1000), // Older than 2 hours
+          lt: new Date(Date.now() - 2 * 60 * 1000), // Older than 5 minutes
         },
       },
     });
@@ -54,7 +54,7 @@ export async function GET() {
     // Add warnings for potential issues
     if (staleSessions > 0) {
       health.warnings.push(
-        `${staleSessions} stale sessions detected (older than 2 hours)`
+        `${staleSessions} stale sessions detected (older than 5 minutes)`
       );
     }
 

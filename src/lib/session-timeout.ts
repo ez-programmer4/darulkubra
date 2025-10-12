@@ -16,8 +16,9 @@ export async function autoTimeoutSessions() {
   try {
     console.log("🕐 Starting auto-timeout process...");
 
-    // Find sessions inactive for more than 2 hours
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    // Find sessions inactive for more than 5 minutes (no heartbeat)
+    // This means student likely left Zoom meeting
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
     // Enhanced query with better performance and error handling
     const inactiveSessions = await prisma.wpos_zoom_links.findMany({
@@ -25,10 +26,10 @@ export async function autoTimeoutSessions() {
         session_status: "active",
         clicked_at: { not: null },
         OR: [
-          { last_activity_at: { lt: twoHoursAgo } },
+          { last_activity_at: { lt: fiveMinutesAgo } },
           {
             last_activity_at: null,
-            clicked_at: { lt: twoHoursAgo },
+            clicked_at: { lt: fiveMinutesAgo },
           },
         ],
       },
@@ -62,8 +63,8 @@ export async function autoTimeoutSessions() {
               (endTime.getTime() - startTime.getTime()) / 60000
             );
 
-            // Only timeout if session is actually inactive (more than 2 hours)
-            const isActuallyInactive = endTime < twoHoursAgo;
+            // Only timeout if session is actually inactive (more than 5 minutes)
+            const isActuallyInactive = endTime < fiveMinutesAgo;
 
             if (isActuallyInactive) {
               await prisma.wpos_zoom_links.update({

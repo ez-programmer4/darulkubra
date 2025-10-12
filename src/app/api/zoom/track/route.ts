@@ -193,14 +193,95 @@ export async function GET(request: NextRequest) {
         // Start countdown
         countdownInterval = setInterval(updateCountdown, 1000);
         
-        // Redirect directly to Zoom after 5 seconds
+        // Open Zoom in new tab/window after 5 seconds
+        // KEEP this tracking page open for accurate duration tracking
         redirectTimeout = setTimeout(() => {
             if (!isSessionEnded) {
-                console.log('Redirecting to Zoom...');
+                console.log('Opening Zoom in new window...');
                 hasRedirected = true;
-                window.location.href = zoomUrl;
+                
+                // Try to open Zoom in new window
+                const zoomWindow = window.open(zoomUrl, '_blank', 'noopener,noreferrer');
+                
+                if (zoomWindow) {
+                    console.log('✅ Zoom opened in new window');
+                    
+                    // Update UI to show session is active
+                    document.querySelector('.container').innerHTML = \`
+                        <div style="text-align: center;">
+                            <h2 style="color: #10b981; font-size: 28px; margin-bottom: 15px;">
+                                ✅ Session Active
+                            </h2>
+                            <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; margin: 20px 0;">
+                                <p style="font-size: 16px; margin-bottom: 15px;">
+                                    📹 Your Zoom session is being tracked
+                                </p>
+                                <div style="background: rgba(255,255,255,0.3); padding: 20px; border-radius: 10px; margin: 15px 0;">
+                                    <p style="font-size: 14px; margin-bottom: 8px; opacity: 0.9;">Session Duration:</p>
+                                    <p id="live-duration" style="font-size: 36px; font-weight: bold; margin: 0;">0:00</p>
+                                </div>
+                                <div style="border-top: 1px solid rgba(255,255,255,0.3); padding-top: 15px; margin-top: 15px;">
+                                    <p style="font-size: 14px; font-weight: bold; color: #fbbf24; margin-bottom: 8px;">
+                                        ⚠️ IMPORTANT: Keep this page open!
+                                    </p>
+                                    <p style="font-size: 13px; opacity: 0.8; margin-bottom: 15px;">
+                                        This page tracks your session duration.<br/>
+                                        Close it only after you finish your Zoom meeting.
+                                    </p>
+                                </div>
+                            </div>
+                            <button onclick="endSessionManually()" style="
+                                padding: 12px 30px;
+                                background: #ef4444;
+                                color: white;
+                                border: none;
+                                border-radius: 10px;
+                                font-size: 16px;
+                                font-weight: bold;
+                                cursor: pointer;
+                                box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+                                transition: all 0.2s;
+                            " onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+                                🛑 End Session Now
+                            </button>
+                            <p style="font-size: 12px; opacity: 0.7; margin-top: 15px;">
+                                Or simply close this page when your meeting ends
+                            </p>
+                        </div>
+                    \`;
+                    
+                    // Start live duration counter
+                    setInterval(() => {
+                        const durationEl = document.getElementById('live-duration');
+                        if (durationEl && !isSessionEnded) {
+                            const totalSeconds = Math.floor((new Date() - sessionStartTime) / 1000);
+                            const hours = Math.floor(totalSeconds / 3600);
+                            const minutes = Math.floor((totalSeconds % 3600) / 60);
+                            const seconds = totalSeconds % 60;
+                            
+                            if (hours > 0) {
+                                durationEl.textContent = hours + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+                            } else {
+                                durationEl.textContent = minutes + ':' + String(seconds).padStart(2, '0');
+                            }
+                        }
+                    }, 1000);
+                } else {
+                    // Popup blocked - fallback to redirect
+                    console.log('⚠️ Popup blocked - redirecting instead');
+                    alert('⚠️ Please allow popups to track your session accurately.\\n\\nRedirecting to Zoom...');
+                    window.location.href = zoomUrl;
+                }
             }
         }, 5000);
+        
+        // Function to manually end session
+        window.endSessionManually = function() {
+            const duration = Math.round((new Date() - sessionStartTime) / 60000);
+            if (confirm('End this session?\\n\\nDuration: ' + duration + ' minutes')) {
+                endSession('manual_end');
+            }
+        };
         
         // Start heartbeat
         startHeartbeat();
