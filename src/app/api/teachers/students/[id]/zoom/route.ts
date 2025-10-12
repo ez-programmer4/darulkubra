@@ -242,16 +242,14 @@ export async function POST(
     const host = req.headers.get("host");
     const proto = req.headers.get("x-forwarded-proto") ?? "http";
     const baseUrl = `${proto}://${host}`;
-
-    // Use simple track endpoint (works on mobile!)
     const trackURL = `${baseUrl}/api/zoom/track?token=${tokenToUse}`;
 
     // Check if we're in development mode
     const isDevelopment =
       host?.includes("localhost") || host?.includes("127.0.0.1");
 
-    // In development, send direct Zoom link (Telegram doesn't allow localhost URLs)
-    // In production, use track URL
+    // Use direct link in development (Telegram doesn't allow localhost)
+    // Use tracking URL in production
     const finalURL = isDevelopment ? link : trackURL;
 
     let notificationSent = false;
