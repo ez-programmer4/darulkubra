@@ -1,18 +1,34 @@
 import { prisma } from "@/lib/prisma";
 
 /**
- * Check if Zoom meetings are still active
- * Auto-end sessions when meeting has ended
+ * Check if Zoom meeting is still valid/active
+ * If link/token is invalid or meeting ended, mark session as ended
  */
 
-export async function checkZoomMeetingStatus() {
+async function checkZoomMeetingStatus(link: string): Promise<boolean> {
+  try {
+    // Try to access the Zoom link
+    const response = await fetch(link, {
+      method: "HEAD",
+      redirect: "manual",
+    });
+
+    // If Zoom link is valid, it returns 200 or redirects (3xx)
+    return response.ok || (response.status >= 300 && response.status < 400);
+  } catch (error) {
+    // Network error or invalid link
+    return false;
+  }
+}
+
+export async function checkAllActiveSessions() {
   const startTime = Date.now();
   let endedCount = 0;
+  let checkedCount = 0;
 
   try {
     console.log("🔍 Checking Zoom meeting status...");
 
-    // Get all active sessions
     const activeSessions = await prisma.wpos_zoom_links.findMany({
       where: {
         session_status: "active",
@@ -24,7 +40,7 @@ export async function checkZoomMeetingStatus() {
         ustazid: true,
         link: true,
         clicked_at: true,
-        packageId: true,
+        tracking_token: true,
       },
       take: 100,
     });
@@ -33,54 +49,34 @@ export async function checkZoomMeetingStatus() {
 
     for (const session of activeSessions) {
       try {
-        // Extract meeting ID from Zoom link
-        const meetingIdMatch = session.link.match(/\/j\/(\d+)/);
-        if (!meetingIdMatch) {
-          console.log(`⚠️ No meeting ID found in link for session ${session.id}`);
-          continue;
-        }
+        checkedCount++;
 
-        const meetingId = meetingIdMatch[1];
-        
-        // Calculate how long session has been active
-        const startTime = session.clicked_at!;
-        const currentDuration = Math.round(
-          (Date.now() - startTime.getTime()) / 60000
-        );
+        // Check if Zoom meeting is still valid
+        const isValid = await checkZoomMeetingStatus(session.link);
 
-        // Get expected duration from package
-        let expectedDuration = 60; // Default 1 hour
-        
-        if (session.packageId) {
-          const packageDurations: Record<string, number> = {
-            Europe: 60,
-            USA: 60,
-            Canada: 60,
-            "0 Fee": 30,
-            Free: 30,
-          };
-          expectedDuration = packageDurations[session.packageId] || 60;
-        }
-
-        // Auto-end if current duration exceeds expected + 10 min buffer
-        const maxDuration = expectedDuration + 10;
-
-        if (currentDuration >= maxDuration) {
-          // Meeting has likely ended - auto-end session
+        if (!isValid) {
+          // Meeting has ended - calculate duration and mark as ended
           const endTime = new Date();
+          const duration = Math.round(
+            (endTime.getTime() - session.clicked_at!.getTime()) / 60000
+          );
 
           await prisma.wpos_zoom_links.update({
             where: { id: session.id },
             data: {
               session_ended_at: endTime,
-              session_duration_minutes: currentDuration,
+              session_duration_minutes: duration,
               session_status: "ended",
             },
           });
 
           endedCount++;
           console.log(
-            `✅ Auto-ended session ${session.id}: ${currentDuration} min (expected ${expectedDuration}, package: ${session.packageId})`
+            `✅ Auto-ended session ${session.id}: ${duration} min (Zoom meeting ended - Student: ${session.studentid}, Teacher: ${session.ustazid})`
+          );
+        } else {
+          console.log(
+            `🟢 Session ${session.id} still active (Zoom meeting valid)`
           );
         }
       } catch (error) {
@@ -90,17 +86,17 @@ export async function checkZoomMeetingStatus() {
 
     const processingTime = Date.now() - startTime;
     console.log(
-      `✅ Zoom status check complete: Ended ${endedCount} sessions in ${processingTime}ms`
+      `✅ Check complete: Checked ${checkedCount} sessions, ended ${endedCount} in ${processingTime}ms`
     );
 
     return {
       success: true,
-      sessionsChecked: activeSessions.length,
+      sessionsChecked: checkedCount,
       sessionsEnded: endedCount,
       processingTimeMs: processingTime,
     };
   } catch (error) {
-    console.error("❌ Error checking Zoom status:", error);
+    console.error("❌ Error checking sessions:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -109,4 +105,3 @@ export async function checkZoomMeetingStatus() {
     };
   }
 }
-

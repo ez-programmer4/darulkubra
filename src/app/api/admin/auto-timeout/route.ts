@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
-import { checkZoomMeetingStatus } from "@/lib/check-zoom-status";
+import { checkAllActiveSessions } from "@/lib/check-zoom-status";
 
 export async function POST() {
   try {
-    console.log("🔧 Manual check triggered");
-    const result = await checkZoomMeetingStatus();
+    console.log("🔧 Checking all active Zoom sessions");
+    const result = await checkAllActiveSessions();
 
     return NextResponse.json({
       success: result.success,
       sessionsChecked: result.sessionsChecked,
       sessionsEnded: result.sessionsEnded,
       processingTimeMs: result.processingTimeMs,
-      message: `Checked ${result.sessionsChecked} sessions, ended ${result.sessionsEnded} sessions`,
+      message: `Checked ${result.sessionsChecked} sessions, ended ${result.sessionsEnded}`,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("❌ Error in manual check:", error);
+    console.error("❌ Error checking sessions:", error);
     return NextResponse.json(
       {
         success: false,
@@ -26,4 +26,9 @@ export async function POST() {
       { status: 500 }
     );
   }
+}
+
+export async function GET() {
+  // Allow GET requests for cron jobs
+  return POST();
 }

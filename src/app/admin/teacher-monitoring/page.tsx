@@ -27,6 +27,22 @@ export default function TeacherMonitoringPage() {
     }
   };
 
+  const checkSessions = async () => {
+    try {
+      const response = await fetch("/api/admin/auto-timeout", {
+        method: "POST",
+      });
+      const data = await response.json();
+      alert(
+        `✅ Checked ${data.sessionsChecked} sessions, ended ${data.sessionsEnded}`
+      );
+      fetchSessions();
+    } catch (error) {
+      console.error("Error:", error);
+      alert("❌ Error checking sessions");
+    }
+  };
+
   useEffect(() => {
     fetchSessions();
     // Auto-refresh every minute
@@ -45,13 +61,21 @@ export default function TeacherMonitoringPage() {
   return (
     <div className="p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Teacher Session Durations
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Automatic tracking - updates every minute
-        </p>
+      <div className="mb-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Teacher Session Durations
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Automatic tracking - updates every minute
+          </p>
+        </div>
+        <button
+          onClick={checkSessions}
+          className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 font-semibold"
+        >
+          Check & Update Sessions
+        </button>
       </div>
 
       {/* Simple Table */}
