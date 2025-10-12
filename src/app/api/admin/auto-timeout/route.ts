@@ -1,23 +1,21 @@
 import { NextResponse } from "next/server";
-import { autoTimeoutSessions } from "@/lib/session-timeout";
+import { checkZoomMeetingStatus } from "@/lib/check-zoom-status";
 
 export async function POST() {
   try {
-    console.log("🔧 Manual auto-timeout triggered");
-    const result = await autoTimeoutSessions();
+    console.log("🔧 Manual check triggered");
+    const result = await checkZoomMeetingStatus();
 
     return NextResponse.json({
       success: result.success,
-      sessionsEnded: result.timeoutCount,
-      totalChecked: result.totalChecked,
+      sessionsChecked: result.sessionsChecked,
+      sessionsEnded: result.sessionsEnded,
       processingTimeMs: result.processingTimeMs,
-      details: result.details,
-      message: `Checked ${result.totalChecked} sessions, ended ${result.timeoutCount} inactive sessions in ${result.processingTimeMs}ms`,
-      error: result.error,
+      message: `Checked ${result.sessionsChecked} sessions, ended ${result.sessionsEnded} sessions`,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("❌ Error in manual auto-timeout:", error);
+    console.error("❌ Error in manual check:", error);
     return NextResponse.json(
       {
         success: false,
