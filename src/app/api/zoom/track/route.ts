@@ -174,14 +174,61 @@ export async function GET(request: NextRequest) {
         // Start countdown
         countdownInterval = setInterval(updateCountdown, 1000);
         
-        // Redirect to Zoom after 5 seconds (increased from 3 to give more time)
+        // Open Zoom in new tab after 5 seconds, keep this page open for tracking
         redirectTimeout = setTimeout(() => {
             if (!isSessionEnded) {
-                console.log('Redirecting to Zoom...');
+                console.log('Opening Zoom in new tab...');
                 hasRedirected = true;
-                window.location.href = zoomUrl;
+                
+                // Open Zoom in new tab/window
+                window.open(zoomUrl, '_blank');
+                
+                // Update UI to show session is active
+                document.querySelector('.container').innerHTML = \`
+                    <h2>✅ Session Active</h2>
+                    <div style="margin: 20px 0;">
+                        <p style="font-size: 18px; margin-bottom: 10px;">Your Zoom session is being tracked.</p>
+                        <p style="font-size: 14px; opacity: 0.8;">
+                            <strong>Please keep this page open</strong> until your meeting ends.
+                        </p>
+                        <p style="font-size: 14px; opacity: 0.8; margin-top: 10px;">
+                            When you finish your meeting, close this page to end the session.
+                        </p>
+                        <div style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.2); border-radius: 10px;">
+                            <p style="font-size: 16px; font-weight: bold;">Session Time: <span id="duration">0:00</span></p>
+                        </div>
+                        <button onclick="endSessionManually()" style="
+                            margin-top: 20px;
+                            padding: 10px 20px;
+                            background: #ef4444;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            font-size: 16px;
+                            cursor: pointer;
+                            font-weight: bold;
+                        ">End Session</button>
+                    </div>
+                \`;
+                
+                // Start duration display
+                setInterval(() => {
+                    const durationEl = document.getElementById('duration');
+                    if (durationEl) {
+                        const minutes = Math.floor((new Date() - sessionStartTime) / 60000);
+                        const seconds = Math.floor(((new Date() - sessionStartTime) % 60000) / 1000);
+                        durationEl.textContent = minutes + ':' + String(seconds).padStart(2, '0');
+                    }
+                }, 1000);
             }
         }, 5000);
+        
+        // Function to end session manually
+        window.endSessionManually = function() {
+            if (confirm('Are you sure you want to end this session?')) {
+                endSession('manual_end');
+            }
+        };
         
         // Start heartbeat
         startHeartbeat();
@@ -235,22 +282,8 @@ export async function GET(request: NextRequest) {
             console.log('App resumed');
         }, false);
         
-        // Fallback: End session after 2 hours of inactivity
-        setTimeout(() => {
-            if (!isSessionEnded) {
-                endSession('timeout_2hours');
-            }
-        }, 2 * 60 * 60 * 1000);
-        
-        // For very short sessions, end them after 2 minutes to prevent stuck sessions
-        setTimeout(() => {
-            if (!isSessionEnded) {
-                const currentDuration = Math.round((new Date() - sessionStartTime) / 60000);
-                if (currentDuration >= 2) {
-                    endSession('timeout_2minutes');
-                }
-            }
-        }, 2 * 60 * 1000);
+        // No automatic timeouts - user must close page or click "End Session" button
+        // This ensures accurate duration tracking from click to actual end
         
         console.log('Session tracking initialized for token:', token);
     </script>
