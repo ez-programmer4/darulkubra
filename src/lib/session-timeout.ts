@@ -16,18 +16,14 @@ export async function autoTimeoutSessions() {
   try {
     console.log("🕐 Starting auto-timeout process...");
 
-    // Find sessions older than 90 minutes (typical max session length)
-    // Use package duration for trustworthy, tamper-proof tracking
-    const ninetyMinutesAgo = new Date(Date.now() - 90 * 60 * 1000);
+    // Find ALL active sessions and check their age
+    // Auto-end sessions based on typical meeting duration
+    const now = new Date();
 
-    // Enhanced query with better performance and error handling
-    const oldSessions = await prisma.wpos_zoom_links.findMany({
+    const activeSessions = await prisma.wpos_zoom_links.findMany({
       where: {
         session_status: "active",
-        clicked_at: {
-          not: null,
-          lt: ninetyMinutesAgo,
-        },
+        clicked_at: { not: null },
       },
       select: {
         id: true,
@@ -44,23 +40,25 @@ export async function autoTimeoutSessions() {
       take: 1000,
     });
 
-    totalChecked = oldSessions.length;
-    console.log(`🔍 Found ${totalChecked} old sessions to process`);
+    totalChecked = activeSessions.length;
+    console.log(`🔍 Found ${totalChecked} active sessions to check`);
 
     // Process sessions in batches for better performance
     const batchSize = 50;
-    for (let i = 0; i < oldSessions.length; i += batchSize) {
-      const batch = oldSessions.slice(i, i + batchSize);
+    for (let i = 0; i < activeSessions.length; i += batchSize) {
+      const batch = activeSessions.slice(i, i + batchSize);
 
       await Promise.all(
         batch.map(async (session) => {
           try {
             const startTime = session.clicked_at!;
+            const sessionAgeMinutes = Math.round(
+              (now.getTime() - startTime.getTime()) / 60000
+            );
 
-            // Estimate duration based on package (trustworthy - uses agreed package time)
-            let estimatedDuration = 60; // Default 1 hour
+            // Get expected duration from package
+            let expectedDuration = 60; // Default 1 hour
 
-            // Try to extract duration from package name
             if (session.packageId) {
               const packageMatch = session.packageId.match(
                 /(\d+)\s*(min|hour|hr|h)/i
@@ -68,9 +66,8 @@ export async function autoTimeoutSessions() {
               if (packageMatch) {
                 const num = parseInt(packageMatch[1]);
                 const unit = packageMatch[2].toLowerCase();
-                estimatedDuration = unit.startsWith("h") ? num * 60 : num;
+                expectedDuration = unit.startsWith("h") ? num * 60 : num;
               } else {
-                // Common package names mapping
                 const packageDurations: Record<string, number> = {
                   Europe: 60,
                   USA: 60,
@@ -78,43 +75,46 @@ export async function autoTimeoutSessions() {
                   "0 Fee": 30,
                   Free: 30,
                 };
-                estimatedDuration = packageDurations[session.packageId] || 60;
+                expectedDuration = packageDurations[session.packageId] || 60;
               }
             }
 
-            // Calculate end time based on package duration (TRUSTWORTHY - can't be manipulated)
-            const endTime = new Date(
-              startTime.getTime() + estimatedDuration * 60 * 1000
-            );
+            // Auto-end if session age >= expected duration + 10 min buffer
+            const maxDuration = expectedDuration + 10;
 
-            await prisma.wpos_zoom_links.update({
-              where: { id: session.id },
-              data: {
-                session_ended_at: endTime,
-                session_duration_minutes: estimatedDuration,
-                session_status: "timeout",
-              },
-            });
+            if (sessionAgeMinutes >= maxDuration) {
+              // Use actual elapsed time as duration
+              const actualDuration = sessionAgeMinutes;
+              const endTime = now;
 
-            timeoutCount++;
-            timeoutDetails.push({
-              sessionId: session.id,
-              studentId: session.studentid,
-              teacherId: session.ustazid,
-              duration: estimatedDuration,
-              token: session.tracking_token,
-              sentTime: session.sent_time,
-            });
+              await prisma.wpos_zoom_links.update({
+                where: { id: session.id },
+                data: {
+                  session_ended_at: endTime,
+                  session_duration_minutes: actualDuration,
+                  session_status: "timeout",
+                },
+              });
 
-            console.log(
-              `⏰ Ended session ${session.id} (${estimatedDuration}min from package '${session.packageId}'): Student ${session.studentid}, Teacher ${session.ustazid}`
-            );
+              timeoutCount++;
+              timeoutDetails.push({
+                sessionId: session.id,
+                studentId: session.studentid,
+                teacherId: session.ustazid,
+                duration: actualDuration,
+                token: session.tracking_token,
+                sentTime: session.sent_time,
+              });
+
+              console.log(
+                `⏰ Auto-ended session ${session.id} after ${actualDuration}min (expected ${expectedDuration}min, package: '${session.packageId}'): Student ${session.studentid}, Teacher ${session.ustazid}`
+              );
+            }
           } catch (sessionError) {
             console.error(
               `❌ Error processing session ${session.id}:`,
               sessionError
             );
-            // Continue processing other sessions even if one fails
           }
         })
       );

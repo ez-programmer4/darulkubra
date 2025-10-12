@@ -432,50 +432,6 @@ export default function AssignedStudents() {
     }
   }, []);
 
-  // End a session
-  const handleEndSession = async (studentId: number, studentName: string) => {
-    const duration = activeSessions.find((s) => s.studentId === studentId);
-    if (!duration) return;
-
-    const startTime = new Date(duration.clickedAt);
-    const durationMins = Math.round(
-      (new Date().getTime() - startTime.getTime()) / 60000
-    );
-
-    if (
-      !confirm(
-        `End session with ${studentName}?\n\nDuration: ${durationMins} minutes`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/teachers/end-zoom-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId }),
-        credentials: "include",
-      });
-
-      if (res.ok) {
-        toast({
-          title: "Success",
-          description: `Session ended (${durationMins} minutes)`,
-        });
-        fetchActiveSessions(); // Refresh
-      } else {
-        throw new Error("Failed to end session");
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to end session",
-        variant: "destructive",
-      });
-    }
-  };
-
   // Fetch active sessions on mount and periodically
   useEffect(() => {
     fetchActiveSessions();
@@ -773,28 +729,20 @@ export default function AssignedStudents() {
                 return (
                   <div
                     key={session.id}
-                    className="bg-white rounded-lg p-3 flex items-center justify-between border border-green-200"
+                    className="bg-white rounded-lg p-3 border border-green-200"
                   >
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">
-                        {session.studentName}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Duration:{" "}
-                        <span className="font-bold text-green-600">
-                          {duration} min
-                        </span>
-                      </p>
-                    </div>
-                    <Button
-                      onClick={() =>
-                        handleEndSession(session.studentId, session.studentName)
-                      }
-                      size="sm"
-                      className="bg-red-500 hover:bg-red-600 text-white"
-                    >
-                      🛑 End
-                    </Button>
+                    <p className="font-semibold text-gray-900">
+                      {session.studentName}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Duration:{" "}
+                      <span className="font-bold text-green-600">
+                        {duration} min
+                      </span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Auto-ends after package duration
+                    </p>
                   </div>
                 );
               })}

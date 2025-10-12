@@ -48,7 +48,16 @@ export async function GET(request: NextRequest) {
       )}...`
     );
 
-    // Tracking page with invisible iframe for continuous heartbeat
+    // Extract meeting ID from Zoom URL for app deep linking
+    const meetingIdMatch = zoomUrl.match(/\/j\/(\d+)/);
+    const meetingId = meetingIdMatch ? meetingIdMatch[1] : null;
+
+    // Create Zoom app protocol URL for mobile (zoomus://)
+    const zoomAppUrl = meetingId
+      ? `zoomus://zoom.us/join?confno=${meetingId}`
+      : zoomUrl;
+
+    // Tracking page that tries Zoom app first, then falls back to web
     const trackingPage = `
 <!DOCTYPE html>
 <html>
@@ -66,6 +75,7 @@ export async function GET(request: NextRequest) {
             display: flex;
             align-items: center;
             justify-content: center;
+            margin: 0;
         }
         .message {
             background: rgba(255, 255, 255, 0.15);
@@ -93,14 +103,39 @@ export async function GET(request: NextRequest) {
 </head>
 <body>
     <div class="message">
-        <h1>🔗 Redirecting to Zoom...</h1>
+        <h1>🔗 Opening Zoom...</h1>
         <div class="spinner"></div>
-        <p>Please wait...</p>
+        <p>Connecting to your session...</p>
+        <p style="font-size: 14px; margin-top: 15px; opacity: 0.8;">
+          If Zoom doesn't open automatically, <a href="${zoomUrl.replace(
+            /"/g,
+            "&quot;"
+          )}" style="color: #fbbf24; text-decoration: underline;">click here</a>
+        </p>
     </div>
     
     <script>
-        // Immediate redirect to Zoom - no delays
-        window.location.href = "${zoomUrl.replace(/"/g, '\\"')}";
+        // Try to open Zoom app first (for mobile)
+        const appUrl = "${zoomAppUrl.replace(/"/g, '\\"')}";
+        const webUrl = "${zoomUrl.replace(/"/g, '\\"')}";
+        
+        // Detect mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            // On mobile, try app protocol first
+            console.log('Mobile detected - trying Zoom app...');
+            window.location.href = appUrl;
+            
+            // Fallback to web URL after 2 seconds if app doesn't open
+            setTimeout(() => {
+                window.location.href = webUrl;
+            }, 2000);
+        } else {
+            // On desktop, go directly to web URL
+            console.log('Desktop detected - opening Zoom web...');
+            window.location.href = webUrl;
+        }
     </script>
 </body>
 </html>`;
