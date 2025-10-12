@@ -20,9 +20,12 @@ export async function POST(
     if (session.session_status === "active" && session.clicked_at) {
       const exitTime = new Date();
       const joinTime = session.clicked_at;
-      const durationMinutes = Math.round(
-        (exitTime.getTime() - joinTime.getTime()) / 60000
+      const durationSeconds = Math.floor(
+        (exitTime.getTime() - joinTime.getTime()) / 1000
       );
+
+      // Convert to minutes, minimum 1 minute
+      const durationMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
 
       await prisma.wpos_zoom_links.update({
         where: { id: session.id },
@@ -34,12 +37,13 @@ export async function POST(
       });
 
       console.log(
-        `✅ Student exited session ${session.id} - Duration: ${durationMinutes} minutes`
+        `✅ Student exited session ${session.id} - Duration: ${durationMinutes} minutes (${durationSeconds} seconds)`
       );
 
       return NextResponse.json({
         success: true,
         duration: durationMinutes,
+        durationSeconds: durationSeconds,
       });
     }
 

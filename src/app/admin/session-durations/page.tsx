@@ -1,4 +1,7 @@
-"use client";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+("use client");
 
 import { useState, useEffect } from "react";
 
@@ -19,7 +22,11 @@ export default function SessionDurationsPage() {
 
   const fetchSessions = async () => {
     try {
-      const response = await fetch("/api/admin/session-durations");
+      // Add timestamp to prevent caching
+      const response = await fetch(
+        `/api/admin/session-durations?t=${Date.now()}`,
+        { cache: "no-store" }
+      );
       const data = await response.json();
       setSessions(data.sessions || []);
     } catch (error) {
