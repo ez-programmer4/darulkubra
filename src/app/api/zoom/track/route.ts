@@ -29,6 +29,25 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Add leave URL to Zoom link so it redirects back when meeting ends
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      request.headers.get("origin") ||
+      "http://localhost:3000";
+    const leaveUrl = `${baseUrl}/api/zoom/session-complete?token=${token}`;
+
+    // Append leave_url parameter to Zoom link
+    const zoomUrl = zoomLink.link.includes("?")
+      ? `${zoomLink.link}&leave_url=${encodeURIComponent(leaveUrl)}`
+      : `${zoomLink.link}?leave_url=${encodeURIComponent(leaveUrl)}`;
+
+    console.log(
+      `🔗 Enhanced Zoom URL with leave redirect: ${zoomUrl.substring(
+        0,
+        100
+      )}...`
+    );
+
     // Return enhanced tracking page with mobile compatibility
     const trackingPage = `
 <!DOCTYPE html>
@@ -86,7 +105,7 @@ export async function GET(request: NextRequest) {
     
     <script>
         const token = "${token}";
-        const zoomUrl = "${zoomLink.link}";
+        const zoomUrl = "${zoomUrl.replace(/"/g, '\\"')}";
         let sessionStartTime = new Date();
         let heartbeatInterval;
         let redirectTimeout;
@@ -174,61 +193,14 @@ export async function GET(request: NextRequest) {
         // Start countdown
         countdownInterval = setInterval(updateCountdown, 1000);
         
-        // Open Zoom in new tab after 5 seconds, keep this page open for tracking
+        // Redirect directly to Zoom after 5 seconds
         redirectTimeout = setTimeout(() => {
             if (!isSessionEnded) {
-                console.log('Opening Zoom in new tab...');
+                console.log('Redirecting to Zoom...');
                 hasRedirected = true;
-                
-                // Open Zoom in new tab/window
-                window.open(zoomUrl, '_blank');
-                
-                // Update UI to show session is active
-                document.querySelector('.container').innerHTML = \`
-                    <h2>✅ Session Active</h2>
-                    <div style="margin: 20px 0;">
-                        <p style="font-size: 18px; margin-bottom: 10px;">Your Zoom session is being tracked.</p>
-                        <p style="font-size: 14px; opacity: 0.8;">
-                            <strong>Please keep this page open</strong> until your meeting ends.
-                        </p>
-                        <p style="font-size: 14px; opacity: 0.8; margin-top: 10px;">
-                            When you finish your meeting, close this page to end the session.
-                        </p>
-                        <div style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.2); border-radius: 10px;">
-                            <p style="font-size: 16px; font-weight: bold;">Session Time: <span id="duration">0:00</span></p>
-                        </div>
-                        <button onclick="endSessionManually()" style="
-                            margin-top: 20px;
-                            padding: 10px 20px;
-                            background: #ef4444;
-                            color: white;
-                            border: none;
-                            border-radius: 8px;
-                            font-size: 16px;
-                            cursor: pointer;
-                            font-weight: bold;
-                        ">End Session</button>
-                    </div>
-                \`;
-                
-                // Start duration display
-                setInterval(() => {
-                    const durationEl = document.getElementById('duration');
-                    if (durationEl) {
-                        const minutes = Math.floor((new Date() - sessionStartTime) / 60000);
-                        const seconds = Math.floor(((new Date() - sessionStartTime) % 60000) / 1000);
-                        durationEl.textContent = minutes + ':' + String(seconds).padStart(2, '0');
-                    }
-                }, 1000);
+                window.location.href = zoomUrl;
             }
         }, 5000);
-        
-        // Function to end session manually
-        window.endSessionManually = function() {
-            if (confirm('Are you sure you want to end this session?')) {
-                endSession('manual_end');
-            }
-        };
         
         // Start heartbeat
         startHeartbeat();
