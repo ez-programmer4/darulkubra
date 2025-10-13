@@ -116,10 +116,10 @@ export class EarningsCalculator {
             THEN a.wdt_ID 
           END) AS Active_Students,
           
-          -- Active paying students (excluding 0 fee)
+          -- Active paying students (excluding 0 Fee, 0 Fee 6 days, 0 Fee 3 days)
           COUNT(DISTINCT CASE 
             WHEN a.status = 'Active' 
-              AND (a.package IS NULL OR a.package != '0 Fee' OR TRIM(a.package) = '')
+              AND (a.package IS NULL OR a.package NOT IN ('0 Fee', '0 Fee 6 days', '0 Fee 3 days'))
             THEN a.wdt_ID 
           END) AS Active_Paying_Students,
           
@@ -143,10 +143,10 @@ export class EarningsCalculator {
             THEN a.wdt_ID 
           END) AS Ramadan_Leave,
           
-          -- Paid students this month (only paying students, 0 fee students are considered "paid")
+          -- Paid students this month (excluding 0 Fee, 0 Fee 6 days, 0 Fee 3 days)
           COUNT(DISTINCT CASE 
             WHEN a.status = 'Active' 
-              AND (a.package IS NULL OR a.package != '0 Fee' OR TRIM(a.package) = '')
+              AND (a.package IS NULL OR a.package NOT IN ('0 Fee', '0 Fee 6 days', '0 Fee 3 days'))
               AND EXISTS(
                 SELECT 1 FROM months_table pm
                 WHERE pm.studentid = a.wdt_ID 
@@ -159,10 +159,10 @@ export class EarningsCalculator {
             THEN a.wdt_ID 
           END) AS Paid_This_Month,
           
-          -- Unpaid active students this month (only paying students, 0 fee students are never unpaid)
+          -- Unpaid active students this month (excluding 0 Fee, 0 Fee 6 days, 0 Fee 3 days)
           COUNT(DISTINCT CASE 
             WHEN a.status = 'Active' 
-              AND (a.package IS NULL OR a.package != '0 Fee' OR TRIM(a.package) = '')
+              AND (a.package IS NULL OR a.package NOT IN ('0 Fee', '0 Fee 6 days', '0 Fee 3 days'))
               AND NOT EXISTS(
                 SELECT 1 FROM months_table sm
                 WHERE sm.studentid = a.wdt_ID 
@@ -176,7 +176,7 @@ export class EarningsCalculator {
           END) AS Unpaid_Active_This_Month,
           
           -- Referenced active students (students referred by this controller who registered in current month)
-          -- Only count students who registered THIS month, are active, and have paid
+          -- Only count students who registered THIS month, are active, and have paid (excluding 0 Fee variants)
           (
             SELECT COUNT(DISTINCT b.wdt_ID)
             FROM wpos_wpdatatable_23 b
@@ -184,7 +184,7 @@ export class EarningsCalculator {
               AND b.refer = a.u_control
               AND b.refer IS NOT NULL
               AND TRIM(b.refer) != ''
-              AND (b.package IS NULL OR b.package != '0 Fee' OR TRIM(b.package) = '')
+              AND (b.package IS NULL OR b.package NOT IN ('0 Fee', '0 Fee 6 days', '0 Fee 3 days'))
               AND b.registrationdate IS NOT NULL
               AND DATE(b.registrationdate) BETWEEN ? AND ?
               AND EXISTS(
@@ -358,13 +358,13 @@ export class EarningsCalculator {
       // Filter active students (including 0 fee for base earnings)
       const activeStudents = students.filter((s) => s.status === "Active");
 
-      // Filter active paying students (exclude 0 fee for unpaid penalty)
+      // Filter active paying students (exclude 0 Fee, 0 Fee 6 days, 0 Fee 3 days from unpaid penalty)
       const activePayingStudents = students.filter(
         (s) =>
           s.status === "Active" &&
-          (s.package === null ||
-            s.package !== "0 Fee" ||
-            s.package.trim() === "")
+          s.package !== "0 Fee" &&
+          s.package !== "0 Fee 6 days" &&
+          s.package !== "0 Fee 3 days"
       );
 
       // Count leave students for this month
@@ -452,13 +452,13 @@ export class EarningsCalculator {
       // Filter active students (including 0 fee for base earnings)
       const activeStudents = students.filter((s) => s.status === "Active");
 
-      // Filter active paying students (exclude 0 fee for unpaid penalty)
+      // Filter active paying students (exclude 0 Fee, 0 Fee 6 days, 0 Fee 3 days from unpaid penalty)
       const activePayingStudents = students.filter(
         (s) =>
           s.status === "Active" &&
-          (s.package === null ||
-            s.package !== "0 Fee" ||
-            s.package.trim() === "")
+          s.package !== "0 Fee" &&
+          s.package !== "0 Fee 6 days" &&
+          s.package !== "0 Fee 3 days"
       );
 
       // Count leave students for the year

@@ -53,7 +53,7 @@ export default function DeductionAdjustmentsPage() {
         const teachersArray = Array.isArray(data) ? data : [];
         setTeachers(teachersArray);
         setFilteredTeachers(teachersArray);
-        
+
         if (teachersArray.length === 0) {
           toast({
             title: "No Teachers Found",
