@@ -283,21 +283,22 @@ export async function POST(req: NextRequest) {
           }
 
           if (dailyDeduction > 0) {
-            records.push({
-              id: `absence_computed_${teacherId}_${dateStr}`,
-              teacherId,
-              teacherName: teacher.ustazname,
-              date: new Date(d),
-              type: "Absence",
-              deduction: dailyDeduction,
-              permitted: false,
-              source: "computed",
-              affectedStudents,
-              details: `Computed absence: ${
-                affectedStudents.length
-              } students, packages: ${affectedStudents
-                .map((s) => s.package)
-                .join(", ")}`,
+            // Add individual records for each affected student for better detail
+            affectedStudents.forEach((affStudent) => {
+              records.push({
+                id: `absence_computed_${teacherId}_${dateStr}_${affStudent.name}`,
+                teacherId,
+                teacherName: teacher.ustazname,
+                studentName: affStudent.name,
+                studentPackage: affStudent.package,
+                date: new Date(d),
+                type: "Absence",
+                deduction: affStudent.rate,
+                permitted: false,
+                source: "computed",
+                affectedStudents: [affStudent], // Single student for this record
+                details: `${affStudent.name} (${affStudent.package}): No zoom link sent - ${affStudent.rate} ETB`,
+              });
             });
             totalAmount += dailyDeduction;
           }

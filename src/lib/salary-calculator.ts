@@ -1180,47 +1180,32 @@ export class SalaryCalculator {
       },
     });
 
-    // Get zoom links for the period to calculate lateness
-    // Only include zoom links for students who have actual assignment records
-    const zoomLinks = await prisma.wpos_zoom_links.findMany({
-      where: {
-        ustazid: teacherId,
-        sent_time: {
-          gte: fromDate,
-          lte: toDate,
-        },
-        wpos_wpdatatable_23: {
-          occupiedTimes: {
-            some: {
-              ustaz_id: teacherId,
-              occupied_at: { lte: toDate },
-              OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
-            },
+    // Get ALL students for this teacher (fetch upfront like preview API)
+    const allStudents = await prisma.wpos_wpdatatable_23.findMany({
+      where: { ustaz: teacherId },
+      select: {
+        wdt_ID: true,
+        name: true,
+        package: true,
+        zoom_links: {
+          where: {
+            ustazid: teacherId,
+            sent_time: { gte: fromDate, lte: toDate },
           },
         },
-      },
-      include: {
-        wpos_wpdatatable_23: {
+        occupiedTimes: {
+          where: {
+            ustaz_id: teacherId,
+            occupied_at: { lte: toDate },
+            OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+          },
           select: {
-            wdt_ID: true,
-            name: true,
-            package: true,
-            occupiedTimes: {
-              where: {
-                ustaz_id: teacherId,
-                occupied_at: { lte: toDate },
-                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
-              },
-              select: {
-                time_slot: true,
-                occupied_at: true,
-                end_at: true,
-              },
-            },
+            time_slot: true,
+            occupied_at: true,
+            end_at: true,
           },
         },
       },
-      orderBy: { sent_time: "asc" },
     });
 
     // Get package deduction rates
@@ -1264,23 +1249,33 @@ export class SalaryCalculator {
     let totalDeduction = 0;
     const breakdown: any[] = [];
 
-    // Group zoom links by date
-    const linksByDate = new Map<string, any[]>();
-    zoomLinks.forEach((link) => {
-      if (link.sent_time) {
-        const dateStr = link.sent_time.toISOString().split("T")[0];
-        if (!linksByDate.has(dateStr)) {
-          linksByDate.set(dateStr, []);
+    // Group zoom links by date (same as preview API)
+    const dailyZoomLinks = new Map<string, any[]>();
+
+    for (const student of allStudents) {
+      student.zoom_links.forEach((link: any) => {
+        if (link.sent_time) {
+          const dateStr = format(link.sent_time, "yyyy-MM-dd");
+          if (!dailyZoomLinks.has(dateStr)) {
+            dailyZoomLinks.set(dateStr, []);
+          }
+          dailyZoomLinks.get(dateStr)!.push({
+            ...link,
+            studentId: student.wdt_ID,
+            studentName: student.name,
+            studentPackage: student.package,
+            timeSlot: student.occupiedTimes?.[0]?.time_slot,
+          });
         }
-        linksByDate.get(dateStr)!.push(link);
-      }
-    });
+      });
+    }
 
-    // Process each day
-    for (const [dateStr, dayLinks] of linksByDate) {
-      if (dayLinks.length === 0) continue;
+    // Calculate lateness for each day (EXACT same logic as preview API)
+    for (const [dateStr, links] of dailyZoomLinks.entries()) {
+      const date = new Date(dateStr);
+      if (date < fromDate || date > toDate) continue;
 
-      // Check if there's a lateness waiver for this date (check once per day)
+      // Check if there's a lateness waiver for this date
       const hasLatenessWaiver = latenessWaivers.some(
         (waiver) => waiver.deductionDate.toISOString().split("T")[0] === dateStr
       );
@@ -1289,58 +1284,27 @@ export class SalaryCalculator {
         if (isDebugMode) {
           console.log(`⏭️  Skipping ${dateStr}: Lateness waived for this date`);
         }
-        continue; // Skip deduction if waiver exists
+        continue;
       }
 
       // Group by student and take earliest link per student per day
       const studentLinks = new Map<number, any>();
-      dayLinks.forEach((link) => {
-        const student = link.wpos_wpdatatable_23;
-        if (!student) return;
-
-        const studentId = student.wdt_ID;
+      links.forEach((link: any) => {
+        const key = link.studentId;
         if (
-          !studentLinks.has(studentId) ||
-          link.sent_time < studentLinks.get(studentId).sent_time
+          !studentLinks.has(key) ||
+          link.sent_time < studentLinks.get(key).sent_time
         ) {
-          studentLinks.set(studentId, {
-            ...link,
-            student: student,
-          });
+          studentLinks.set(key, link);
         }
       });
 
       // Calculate lateness for each student's earliest link
-      for (const linkData of studentLinks.values()) {
-        const student = linkData.student;
-        if (!student || !linkData.sent_time) continue;
+      for (const link of studentLinks.values()) {
+        if (!link.timeSlot) continue;
 
-        const linkDate = new Date(linkData.sent_time);
-
-        // Check if teacher was actually assigned to this student on this date
-        // considering teacher changes
-        const isAssigned = this.isTeacherAssignedOnDate(
-          teacherId,
-          student.wdt_ID,
-          linkDate,
-          teacherChanges,
-          student.occupiedTimes || []
-        );
-
-        if (!isAssigned) {
-          if (isDebugMode) {
-            console.log(
-              `⏭️  Skipping ${student.name} on ${dateStr}: Teacher not assigned on this date (teacher change)`
-            );
-          }
-          continue;
-        }
-
-        const timeSlot = student.occupiedTimes?.[0]?.time_slot;
-        if (!timeSlot) continue;
-
-        // Calculate lateness - use proper 24-hour conversion
-        const convertTo24Hour = (timeStr: string): string => {
+        // Convert time to 24-hour format (same function as preview API)
+        function convertTo24Hour(timeStr: string): string {
           if (!timeStr) return "00:00";
 
           if (timeStr.includes("AM") || timeStr.includes("PM")) {
@@ -1360,67 +1324,59 @@ export class SalaryCalculator {
           return timeStr.includes(":")
             ? timeStr.split(":").slice(0, 2).join(":")
             : "00:00";
-        };
+        }
 
-        const time24 = convertTo24Hour(timeSlot);
+        const time24 = convertTo24Hour(link.timeSlot);
         const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
 
         const latenessMinutes = Math.max(
           0,
           Math.round(
-            (linkData.sent_time.getTime() - scheduledTime.getTime()) / 60000
+            (link.sent_time.getTime() - scheduledTime.getTime()) / 60000
           )
         );
 
-        // Skip if early (negative lateness) - teachers who send zoom links early should not be penalized
-        if (latenessMinutes < 0) {
-          if (isDebugMode) {
-            console.log(
-              `🚀 ${student.name}: Sent zoom link ${Math.abs(
-                latenessMinutes
-              )} minutes early - No late penalty`
-            );
+        if (latenessMinutes > excusedThreshold) {
+          let deduction = 0;
+          let tier = "No Tier";
+
+          // Get student's package for package-specific deduction
+          const student = allStudents.find((s) => s.wdt_ID === link.studentId);
+          const studentPackage = student?.package || "";
+          const baseDeductionAmount = packageMap[studentPackage] || 30;
+
+          // Find appropriate tier
+          for (const [i, t] of latenessConfigs.entries()) {
+            if (
+              latenessMinutes >= t.startMinute &&
+              latenessMinutes <= t.endMinute
+            ) {
+              deduction = Math.round(
+                baseDeductionAmount * ((t.deductionPercent || 0) / 100)
+              );
+              tier = `Tier ${i + 1} (${t.deductionPercent}%)`;
+              break;
+            }
           }
-          continue;
-        }
 
-        // Skip if within excused threshold (no lateness or minor lateness)
-        if (latenessMinutes <= excusedThreshold) {
-          if (isDebugMode) {
-            console.log(
-              `✅ ${student.name}: Within excused threshold (${latenessMinutes} min) - No deduction`
-            );
-          }
-          continue;
-        }
+          if (deduction > 0) {
+            totalDeduction += deduction;
 
-        // Find appropriate tier
-        const tier = latenessConfigs.find(
-          (config) =>
-            latenessMinutes >= config.startMinute &&
-            latenessMinutes <= config.endMinute
-        );
+            breakdown.push({
+              date: dateStr,
+              studentName: link.studentName || "Unknown Student",
+              scheduledTime: link.timeSlot,
+              actualTime: link.sent_time.toTimeString().split(" ")[0],
+              latenessMinutes,
+              tier,
+              deduction: Number(deduction.toFixed(2)),
+            });
 
-        if (tier) {
-          const packageRate = packageMap[student.package] || 30;
-          const deduction = packageRate * ((tier.deductionPercent || 0) / 100);
-
-          totalDeduction += deduction;
-
-          breakdown.push({
-            date: dateStr,
-            studentName: student.name || "Unknown Student",
-            scheduledTime: timeSlot,
-            actualTime: linkData.sent_time.toTimeString().split(" ")[0],
-            latenessMinutes,
-            tier: `Tier ${tier.tier}`,
-            deduction: Number(deduction.toFixed(2)),
-          });
-
-          if (isDebugMode) {
-            console.log(
-              `💰 ${student.name}: ${latenessMinutes} min late, Tier ${tier.tier}, ${deduction} ETB deduction`
-            );
+            if (isDebugMode) {
+              console.log(
+                `💰 ${link.studentName}: ${latenessMinutes} min late, ${tier}, ${deduction} ETB deduction`
+              );
+            }
           }
         }
       }

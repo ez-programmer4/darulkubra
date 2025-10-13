@@ -185,7 +185,14 @@ export async function POST(req: NextRequest) {
           });
           const includeSundays = workingDaysConfig?.value === "true" || false;
 
-          const computedAbsenceWaivers = [];
+          const computedAbsenceWaivers: Array<{
+            teacherId: string;
+            deductionType: "absence";
+            deductionDate: Date;
+            originalAmount: number;
+            reason: string;
+            adminId: string;
+          }> = [];
 
           // Helper to parse daypackage (same as salary calculator and preview)
           const parseDaypackage = (dp: string): number[] => {
@@ -311,17 +318,16 @@ export async function POST(req: NextRequest) {
             }
 
             if (dailyDeduction > 0) {
-              computedAbsenceWaivers.push({
-                teacherId,
-                deductionType: "absence" as const,
-                deductionDate: new Date(d),
-                originalAmount: dailyDeduction,
-                reason: `${reason} | Per-schedule absence: ${
-                  affectedStudents.length
-                } students affected - ${affectedStudents
-                  .map((s) => `${s.name}(${s.package}): ${s.rate}ETB`)
-                  .join(", ")}`,
-                adminId,
+              // Create individual waiver records for each affected student for better tracking
+              affectedStudents.forEach((affStudent) => {
+                computedAbsenceWaivers.push({
+                  teacherId,
+                  deductionType: "absence" as const,
+                  deductionDate: new Date(d),
+                  originalAmount: affStudent.rate,
+                  reason: `${reason} | ${affStudent.name} (${affStudent.package}): Scheduled but no zoom link sent - ${affStudent.rate} ETB`,
+                  adminId,
+                });
               });
               totalAmountWaived += dailyDeduction;
             }

@@ -727,13 +727,20 @@ export default function DeductionAdjustmentsPage() {
                                   ) : (
                                     <div>
                                       <div className="font-semibold text-gray-900">
-                                        {record.source === "computed"
-                                          ? "Auto-detected"
-                                          : "Database Record"}
+                                        {record.studentName ||
+                                          (record.source === "computed"
+                                            ? "Auto-detected"
+                                            : "Database Record")}
                                       </div>
                                       <div className="text-gray-600">
-                                        {record.affectedStudents?.length || 0}{" "}
-                                        students affected
+                                        {record.studentName
+                                          ? `Package: ${
+                                              record.studentPackage || "Unknown"
+                                            }`
+                                          : `${
+                                              record.affectedStudents?.length ||
+                                              0
+                                            } students affected`}
                                       </div>
                                     </div>
                                   )}
@@ -775,17 +782,13 @@ export default function DeductionAdjustmentsPage() {
                                   ) : (
                                     <div>
                                       <div className="font-semibold text-blue-600">
-                                        {record.source === "computed"
-                                          ? "Mixed Packages"
-                                          : "Various"}
+                                        {record.studentPackage ||
+                                          (record.source === "computed"
+                                            ? "Computed"
+                                            : "Various")}
                                       </div>
-                                      <div className="text-gray-600">
-                                        {record.affectedStudents &&
-                                        Array.isArray(record.affectedStudents)
-                                          ? record.affectedStudents
-                                              .map((s: any) => s.package)
-                                              .join(", ")
-                                          : record.details || "N/A"}
+                                      <div className="text-gray-600 text-xs">
+                                        {record.details || "Absence deduction"}
                                       </div>
                                     </div>
                                   )}
