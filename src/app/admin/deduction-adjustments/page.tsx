@@ -366,28 +366,29 @@ export default function DeductionAdjustmentsPage() {
                     </label>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {timeSlots.map((slot) => (
-                      <label
-                        key={slot}
-                        className="flex items-center gap-3 p-2 hover:bg-orange-50 rounded-lg transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedTimeSlots.includes(slot)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedTimeSlots((prev) => [...prev, slot]);
-                            } else {
-                              setSelectedTimeSlots((prev) =>
-                                prev.filter((s) => s !== slot)
-                              );
-                            }
-                          }}
-                          className="w-5 h-5 rounded border-2 border-gray-300 text-orange-600 focus:ring-orange-500"
-                        />
-                        <span className="text-sm font-medium">{slot}</span>
-                      </label>
-                    ))}
+                    {Array.isArray(timeSlots) &&
+                      timeSlots.map((slot) => (
+                        <label
+                          key={slot}
+                          className="flex items-center gap-3 p-2 hover:bg-orange-50 rounded-lg transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedTimeSlots.includes(slot)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedTimeSlots((prev) => [...prev, slot]);
+                              } else {
+                                setSelectedTimeSlots((prev) =>
+                                  prev.filter((s) => s !== slot)
+                                );
+                              }
+                            }}
+                            className="w-5 h-5 rounded border-2 border-gray-300 text-orange-600 focus:ring-orange-500"
+                          />
+                          <span className="text-sm font-medium">{slot}</span>
+                        </label>
+                      ))}
                   </div>
                 </div>
                 <p className="text-sm text-gray-600 mt-3 font-medium">
@@ -461,36 +462,38 @@ export default function DeductionAdjustmentsPage() {
 
                 <div className="max-h-80 overflow-y-auto bg-gradient-to-b from-white to-gray-50 rounded-xl border-2 border-gray-100">
                   <div className="space-y-2 p-3">
-                    {filteredTeachers.map((teacher) => (
-                      <label
-                        key={teacher.id}
-                        className="flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl cursor-pointer transition-all duration-300 border border-transparent hover:border-blue-200"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedTeachers.includes(teacher.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedTeachers((prev) => [
-                                ...prev,
-                                teacher.id,
-                              ]);
-                            } else {
-                              setSelectedTeachers((prev) =>
-                                prev.filter((id) => id !== teacher.id)
-                              );
-                            }
-                          }}
-                          className="w-5 h-5 rounded border-2 border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span className="text-base font-semibold">
-                          {teacher.name}
-                        </span>
-                      </label>
-                    ))}
+                    {Array.isArray(filteredTeachers) &&
+                      filteredTeachers.map((teacher) => (
+                        <label
+                          key={teacher.id}
+                          className="flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl cursor-pointer transition-all duration-300 border border-transparent hover:border-blue-200"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedTeachers.includes(teacher.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedTeachers((prev) => [
+                                  ...prev,
+                                  teacher.id,
+                                ]);
+                              } else {
+                                setSelectedTeachers((prev) =>
+                                  prev.filter((id) => id !== teacher.id)
+                                );
+                              }
+                            }}
+                            className="w-5 h-5 rounded border-2 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-base font-semibold">
+                            {teacher.name}
+                          </span>
+                        </label>
+                      ))}
                   </div>
 
-                  {filteredTeachers.length === 0 && (
+                  {(!Array.isArray(filteredTeachers) ||
+                    filteredTeachers.length === 0) && (
                     <div className="text-center text-gray-600 py-12 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border-2 border-dashed border-gray-300">
                       <div className="text-4xl mb-3">🔍</div>
                       <div className="font-semibold">
@@ -644,109 +647,110 @@ export default function DeductionAdjustmentsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {previewData.map((record, index) => (
-                            <tr
-                              key={index}
-                              className="border-b border-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-300"
-                            >
-                              <td className="p-4 font-semibold text-gray-900">
-                                {record.teacherName}
-                              </td>
-                              <td className="p-4 text-gray-700">
-                                {new Date(record.date).toLocaleDateString()}
-                              </td>
-                              <td className="p-4">
-                                <span
-                                  className={`px-3 py-2 rounded-xl text-sm font-bold ${
-                                    record.type === "Lateness"
-                                      ? "bg-orange-100 text-orange-800 border border-orange-200"
-                                      : "bg-red-100 text-red-800 border border-red-200"
-                                  }`}
-                                >
-                                  {record.type}
-                                </span>
-                              </td>
-                              <td className="p-4 text-sm">
-                                {record.type === "Lateness" ? (
-                                  <div>
-                                    <div className="font-semibold text-gray-900">
-                                      {record.studentName}
+                          {Array.isArray(previewData) &&
+                            previewData.map((record, index) => (
+                              <tr
+                                key={index}
+                                className="border-b border-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-300"
+                              >
+                                <td className="p-4 font-semibold text-gray-900">
+                                  {record.teacherName}
+                                </td>
+                                <td className="p-4 text-gray-700">
+                                  {new Date(record.date).toLocaleDateString()}
+                                </td>
+                                <td className="p-4">
+                                  <span
+                                    className={`px-3 py-2 rounded-xl text-sm font-bold ${
+                                      record.type === "Lateness"
+                                        ? "bg-orange-100 text-orange-800 border border-orange-200"
+                                        : "bg-red-100 text-red-800 border border-red-200"
+                                    }`}
+                                  >
+                                    {record.type}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-sm">
+                                  {record.type === "Lateness" ? (
+                                    <div>
+                                      <div className="font-semibold text-gray-900">
+                                        {record.studentName}
+                                      </div>
+                                      <div className="text-gray-600">
+                                        Student ID: {record.studentId || "N/A"}
+                                      </div>
                                     </div>
-                                    <div className="text-gray-600">
-                                      Student ID: {record.studentId || "N/A"}
+                                  ) : (
+                                    <div>
+                                      <div className="font-semibold text-gray-900">
+                                        {record.source === "computed"
+                                          ? "Auto-detected"
+                                          : "Database Record"}
+                                      </div>
+                                      <div className="text-gray-600">
+                                        {record.affectedStudents?.length || 0}{" "}
+                                        students affected
+                                      </div>
                                     </div>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <div className="font-semibold text-gray-900">
-                                      {record.source === "computed"
-                                        ? "Auto-detected"
-                                        : "Database Record"}
+                                  )}
+                                </td>
+                                <td className="p-4 text-sm">
+                                  {record.type === "Lateness" ? (
+                                    <div>
+                                      <div className="font-semibold text-red-600">
+                                        {record.latenessMinutes} min late
+                                      </div>
+                                      <div className="text-gray-600">
+                                        Scheduled: {record.timeSlot}
+                                      </div>
                                     </div>
-                                    <div className="text-gray-600">
-                                      {record.affectedStudents?.length || 0}{" "}
-                                      students affected
+                                  ) : (
+                                    <div>
+                                      <div className="font-semibold text-red-600">
+                                        Full Day
+                                      </div>
+                                      <div className="text-gray-600">
+                                        {record.permitted
+                                          ? "Permitted"
+                                          : "Unpermitted"}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="p-4 text-sm">
-                                {record.type === "Lateness" ? (
-                                  <div>
-                                    <div className="font-semibold text-red-600">
-                                      {record.latenessMinutes} min late
+                                  )}
+                                </td>
+                                <td className="p-4 text-sm">
+                                  {record.type === "Lateness" ? (
+                                    <div>
+                                      <div className="font-semibold text-blue-600">
+                                        {record.studentPackage || "Unknown"}
+                                      </div>
+                                      <div className="text-gray-600">
+                                        {record.tier?.split(" - ")[0] ||
+                                          "No Tier"}
+                                      </div>
                                     </div>
-                                    <div className="text-gray-600">
-                                      Scheduled: {record.timeSlot}
+                                  ) : (
+                                    <div>
+                                      <div className="font-semibold text-blue-600">
+                                        {record.source === "computed"
+                                          ? "Mixed Packages"
+                                          : "Various"}
+                                      </div>
+                                      <div className="text-gray-600">
+                                        {record.affectedStudents &&
+                                        Array.isArray(record.affectedStudents)
+                                          ? record.affectedStudents
+                                              .map((s: any) => s.package)
+                                              .join(", ")
+                                          : record.details || "N/A"}
+                                      </div>
                                     </div>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <div className="font-semibold text-red-600">
-                                      Full Day
-                                    </div>
-                                    <div className="text-gray-600">
-                                      {record.permitted
-                                        ? "Permitted"
-                                        : "Unpermitted"}
-                                    </div>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="p-4 text-sm">
-                                {record.type === "Lateness" ? (
-                                  <div>
-                                    <div className="font-semibold text-blue-600">
-                                      {record.studentPackage || "Unknown"}
-                                    </div>
-                                    <div className="text-gray-600">
-                                      {record.tier?.split(" - ")[0] ||
-                                        "No Tier"}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <div className="font-semibold text-blue-600">
-                                      {record.source === "computed"
-                                        ? "Mixed Packages"
-                                        : "Various"}
-                                    </div>
-                                    <div className="text-gray-600">
-                                      {record.affectedStudents &&
-                                      Array.isArray(record.affectedStudents)
-                                        ? record.affectedStudents
-                                            .map((s: any) => s.package)
-                                            .join(", ")
-                                        : record.details || "N/A"}
-                                    </div>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="p-4 text-right font-mono font-bold text-green-600 text-lg">
-                                +{record.deduction}
-                              </td>
-                            </tr>
-                          ))}
+                                  )}
+                                </td>
+                                <td className="p-4 text-right font-mono font-bold text-green-600 text-lg">
+                                  +{record.deduction}
+                                </td>
+                              </tr>
+                            ))}
                         </tbody>
                       </table>
                     </div>
@@ -754,6 +758,7 @@ export default function DeductionAdjustmentsPage() {
 
                   {/* Enhanced Teacher Breakdown */}
                   {previewSummary.teacherBreakdown &&
+                    Array.isArray(previewSummary.teacherBreakdown) &&
                     previewSummary.teacherBreakdown.length > 0 && (
                       <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border-0">
                         <h4 className="font-bold text-gray-800 mb-6 text-xl flex items-center gap-2">
@@ -860,93 +865,94 @@ export default function DeductionAdjustmentsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {waiverHistory.map((waiver, index) => (
-                          <tr
-                            key={index}
-                            className="border-b border-gray-200 hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50 transition-all duration-300"
-                          >
-                            <td className="p-4">
-                              <div className="text-sm">
-                                <div className="font-semibold text-gray-900">
-                                  {new Date(
-                                    waiver.createdAt
-                                  ).toLocaleDateString()}
-                                </div>
-                                <div className="text-gray-600">
-                                  {new Date(
-                                    waiver.createdAt
-                                  ).toLocaleTimeString()}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <div className="text-sm">
-                                <div className="font-semibold text-gray-900">
-                                  {waiver.teacherName}
-                                </div>
-                                <div className="text-gray-600">
-                                  ID: {waiver.teacherId}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <span
-                                className={`px-3 py-2 rounded-xl text-sm font-bold ${
-                                  waiver.deductionType === "lateness"
-                                    ? "bg-orange-100 text-orange-800 border border-orange-200"
-                                    : "bg-red-100 text-red-800 border border-red-200"
-                                }`}
-                              >
-                                {waiver.deductionType === "lateness"
-                                  ? "⏰ Lateness"
-                                  : "❌ Absence"}
-                              </span>
-                            </td>
-                            <td className="p-4">
-                              <div className="text-sm">
-                                <div className="font-semibold text-gray-900">
-                                  {new Date(
-                                    waiver.deductionDate
-                                  ).toLocaleDateString()}
-                                </div>
-                                <div className="text-gray-600">
-                                  {new Date(
-                                    waiver.deductionDate
-                                  ).toLocaleDateString("en-US", {
-                                    weekday: "short",
-                                  })}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-4 text-right">
-                              <div className="text-sm">
-                                <div className="font-mono font-bold text-green-600 text-lg">
-                                  +{waiver.originalAmount}
-                                </div>
-                                <div className="text-gray-600">ETB</div>
-                              </div>
-                            </td>
-                            <td className="p-4 text-sm">
-                              <div className="font-semibold text-blue-600">
-                                {waiver.adminId}
-                              </div>
-                              <div className="text-gray-600">Admin</div>
-                            </td>
-                            <td className="p-4 text-sm max-w-sm">
-                              <div className="space-y-2">
-                                <div className="font-semibold text-gray-900 line-clamp-2">
-                                  {waiver.reason.split("|")[0]?.trim() ||
-                                    waiver.reason}
-                                </div>
-                                {waiver.reason.includes("|") && (
-                                  <div className="text-gray-600 text-xs bg-gray-50 p-2 rounded-lg border border-gray-200">
-                                    {waiver.reason.split("|")[1]?.trim()}
+                        {Array.isArray(waiverHistory) &&
+                          waiverHistory.map((waiver, index) => (
+                            <tr
+                              key={index}
+                              className="border-b border-gray-200 hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50 transition-all duration-300"
+                            >
+                              <td className="p-4">
+                                <div className="text-sm">
+                                  <div className="font-semibold text-gray-900">
+                                    {new Date(
+                                      waiver.createdAt
+                                    ).toLocaleDateString()}
                                   </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                                  <div className="text-gray-600">
+                                    {new Date(
+                                      waiver.createdAt
+                                    ).toLocaleTimeString()}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <div className="text-sm">
+                                  <div className="font-semibold text-gray-900">
+                                    {waiver.teacherName}
+                                  </div>
+                                  <div className="text-gray-600">
+                                    ID: {waiver.teacherId}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <span
+                                  className={`px-3 py-2 rounded-xl text-sm font-bold ${
+                                    waiver.deductionType === "lateness"
+                                      ? "bg-orange-100 text-orange-800 border border-orange-200"
+                                      : "bg-red-100 text-red-800 border border-red-200"
+                                  }`}
+                                >
+                                  {waiver.deductionType === "lateness"
+                                    ? "⏰ Lateness"
+                                    : "❌ Absence"}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <div className="text-sm">
+                                  <div className="font-semibold text-gray-900">
+                                    {new Date(
+                                      waiver.deductionDate
+                                    ).toLocaleDateString()}
+                                  </div>
+                                  <div className="text-gray-600">
+                                    {new Date(
+                                      waiver.deductionDate
+                                    ).toLocaleDateString("en-US", {
+                                      weekday: "short",
+                                    })}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4 text-right">
+                                <div className="text-sm">
+                                  <div className="font-mono font-bold text-green-600 text-lg">
+                                    +{waiver.originalAmount}
+                                  </div>
+                                  <div className="text-gray-600">ETB</div>
+                                </div>
+                              </td>
+                              <td className="p-4 text-sm">
+                                <div className="font-semibold text-blue-600">
+                                  {waiver.adminId}
+                                </div>
+                                <div className="text-gray-600">Admin</div>
+                              </td>
+                              <td className="p-4 text-sm max-w-sm">
+                                <div className="space-y-2">
+                                  <div className="font-semibold text-gray-900 line-clamp-2">
+                                    {waiver.reason.split("|")[0]?.trim() ||
+                                      waiver.reason}
+                                  </div>
+                                  {waiver.reason.includes("|") && (
+                                    <div className="text-gray-600 text-xs bg-gray-50 p-2 rounded-lg border border-gray-200">
+                                      {waiver.reason.split("|")[1]?.trim()}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
                       </tbody>
                     </table>
                   </div>
