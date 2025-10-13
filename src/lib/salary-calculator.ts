@@ -518,17 +518,35 @@ export class SalaryCalculator {
     // This includes both current assignments and historical assignments
 
     // First, get current students assigned to this teacher
-    // Include students regardless of current status if they were taught during the period
+    // Include active and "not yet" students who were taught during the period
+    // Use OR to catch both current assignments AND historical assignments (teacher changes)
     const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
       where: {
-        ustaz: teacherId,
-        occupiedTimes: {
-          some: {
-            ustaz_id: teacherId,
-            occupied_at: { lte: toDate },
-            OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+        OR: [
+          // Current assignment (active or not yet)
+          {
+            ustaz: teacherId,
+            status: { in: ["active", "Active", "Not yet", "not yet"] },
+            occupiedTimes: {
+              some: {
+                ustaz_id: teacherId,
+                occupied_at: { lte: toDate },
+                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+              },
+            },
           },
-        },
+          // Historical assignment via occupiedTimes (catches teacher changes)
+          {
+            status: { in: ["active", "Active", "Not yet", "not yet"] },
+            occupiedTimes: {
+              some: {
+                ustaz_id: teacherId,
+                occupied_at: { lte: toDate },
+                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+              },
+            },
+          },
+        ],
       },
       select: {
         wdt_ID: true,
@@ -574,12 +592,13 @@ export class SalaryCalculator {
     });
 
     // Get historical students who were assigned to this teacher
-    // Include regardless of current status
+    // Include only active and "not yet" students
     const historicalStudents =
       historicalStudentIds.size > 0
         ? await prisma.wpos_wpdatatable_23.findMany({
             where: {
               wdt_ID: { in: Array.from(historicalStudentIds) },
+              status: { in: ["active", "Active", "Not yet", "not yet"] },
             },
             select: {
               wdt_ID: true,
@@ -1181,8 +1200,27 @@ export class SalaryCalculator {
     });
 
     // Get ALL students for this teacher (EXACT same as preview API)
+    // Use OR to catch both current assignments AND historical assignments (teacher changes)
+    // Filter by active and "not yet" status
     const allStudents = await prisma.wpos_wpdatatable_23.findMany({
-      where: { ustaz: teacherId },
+      where: {
+        OR: [
+          // Current assignment (active or not yet)
+          {
+            ustaz: teacherId,
+            status: { in: ["active", "Active", "Not yet", "not yet"] },
+          },
+          // Historical assignment via occupiedTimes (catches teacher changes)
+          {
+            status: { in: ["active", "Active", "Not yet", "not yet"] },
+            occupiedTimes: {
+              some: {
+                ustaz_id: teacherId,
+              },
+            },
+          },
+        ],
+      },
       select: {
         wdt_ID: true,
         name: true,

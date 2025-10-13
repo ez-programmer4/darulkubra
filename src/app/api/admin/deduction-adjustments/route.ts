@@ -125,13 +125,21 @@ export async function POST(req: NextRequest) {
           const currentStudents = await tx.wpos_wpdatatable_23.findMany({
             where: {
               OR: [
-                // Current assignment
+                // Current assignment (active or not yet)
                 {
                   ustaz: teacherId,
                   status: { in: ["active", "Active", "Not yet", "not yet"] },
+                  occupiedTimes: {
+                    some: {
+                      ustaz_id: teacherId,
+                      occupied_at: { lte: endDate },
+                      OR: [{ end_at: null }, { end_at: { gte: startDate } }],
+                    },
+                  },
                 },
                 // Historical assignment via occupiedTimes (catches teacher changes)
                 {
+                  status: { in: ["active", "Active", "Not yet", "not yet"] },
                   occupiedTimes: {
                     some: {
                       ustaz_id: teacherId,
