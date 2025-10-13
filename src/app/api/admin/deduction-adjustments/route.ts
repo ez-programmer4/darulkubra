@@ -120,15 +120,28 @@ export async function POST(req: NextRequest) {
             };
           });
 
-          // Get current students
+          // Get current students with occupied times for proper daypackage checking
           const currentStudents = await tx.wpos_wpdatatable_23.findMany({
             where: { ustaz: teacherId, status: { in: ["active", "Active"] } },
-            select: {
-              wdt_ID: true,
-              name: true,
-              package: true,
+            include: {
+              occupiedTimes: {
+                where: {
+                  ustaz_id: teacherId,
+                  occupied_at: { lte: endDate },
+                  OR: [{ end_at: null }, { end_at: { gte: startDate } }],
+                },
+                select: {
+                  time_slot: true,
+                  daypackage: true,
+                  occupied_at: true,
+                  end_at: true,
+                },
+              },
               zoom_links: {
-                where: { sent_time: { gte: startDate, lte: endDate } },
+                where: {
+                  ustazid: teacherId,
+                  sent_time: { gte: startDate, lte: endDate },
+                },
                 select: { sent_time: true },
               },
             },
@@ -174,42 +187,115 @@ export async function POST(req: NextRequest) {
 
           const computedAbsenceWaivers = [];
 
+          // Helper to parse daypackage (same as salary calculator and preview)
+          const parseDaypackage = (dp: string): number[] => {
+            if (!dp || dp.trim() === "") return [];
+
+            const dpTrimmed = dp.trim().toUpperCase();
+
+            if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
+              return [0, 1, 2, 3, 4, 5, 6];
+            }
+            if (dpTrimmed === "MWF") {
+              return [1, 3, 5];
+            }
+            if (dpTrimmed === "TTS" || dpTrimmed === "TTH") {
+              return [2, 4, 6];
+            }
+
+            const dayMap: Record<string, number> = {
+              MONDAY: 1,
+              MON: 1,
+              TUESDAY: 2,
+              TUE: 2,
+              WEDNESDAY: 3,
+              WED: 3,
+              THURSDAY: 4,
+              THU: 4,
+              FRIDAY: 5,
+              FRI: 5,
+              SATURDAY: 6,
+              SAT: 6,
+              SUNDAY: 0,
+              SUN: 0,
+            };
+
+            if (dayMap[dpTrimmed] !== undefined) {
+              return [dayMap[dpTrimmed]];
+            }
+
+            return [];
+          };
+
           for (
             let d = new Date(startDate);
             d <= endDate;
             d.setDate(d.getDate() + 1)
           ) {
             if (d > today) continue;
-            if (!includeSundays && d.getDay() === 0) continue;
 
+            const dayOfWeek = d.getDay();
             const dateStr = d.toISOString().split("T")[0];
+
+            if (!includeSundays && dayOfWeek === 0) continue;
 
             // Skip if already have database record or waiver
             if (existingAbsenceDates.has(dateStr) || waivedDates.has(dateStr))
               continue;
 
-            // Check if teacher sent zoom links
-            const dayHasZoomLinks = currentStudents.some((student) =>
-              student.zoom_links.some((link) => {
-                if (!link.sent_time) return false;
-                const linkDate = link.sent_time.toISOString().split("T")[0];
-                return linkDate === dateStr;
-              })
-            );
-
-            // NEW: Check per-schedule absences instead of whole-day
+            // Check EACH student individually (per-student logic like salary calculator)
             let dailyDeduction = 0;
             const affectedStudents = [];
 
             for (const student of currentStudents) {
-              // Check if teacher sent zoom link specifically for this student
-              const studentHasZoomLink = student.zoom_links.some((link) => {
-                if (!link.sent_time) return false;
-                const linkDate = link.sent_time.toISOString().split("T")[0];
-                return linkDate === dateStr;
-              });
+              // Get relevant occupied times for this date
+              const relevantOccupiedTimes = student.occupiedTimes.filter(
+                (ot: any) => {
+                  const assignmentStart = ot.occupied_at
+                    ? new Date(ot.occupied_at)
+                    : null;
+                  const assignmentEnd = ot.end_at ? new Date(ot.end_at) : null;
 
-              // If no zoom link for this specific student, deduct for this student's schedule
+                  if (assignmentStart && d < assignmentStart) return false;
+                  if (assignmentEnd && d > assignmentEnd) return false;
+                  return true;
+                }
+              );
+
+              if (relevantOccupiedTimes.length === 0) continue;
+
+              // Check if student is scheduled on this day of week
+              let isScheduled = false;
+              for (const ot of relevantOccupiedTimes) {
+                const scheduledDays = parseDaypackage(ot.daypackage || "");
+                if (scheduledDays.includes(dayOfWeek)) {
+                  isScheduled = true;
+                  break;
+                }
+                // Fallback: if no daypackage and has zoom links, assume weekdays
+                if (
+                  scheduledDays.length === 0 &&
+                  student.zoom_links?.length > 0 &&
+                  dayOfWeek >= 1 &&
+                  dayOfWeek <= 5
+                ) {
+                  isScheduled = true;
+                  break;
+                }
+              }
+
+              if (!isScheduled) continue;
+
+              // Check if student has zoom link for this date
+              const studentHasZoomLink = student.zoom_links.some(
+                (link: any) => {
+                  if (!link.sent_time) return false;
+                  const linkDate = link.sent_time.toISOString().split("T")[0];
+                  return linkDate === dateStr;
+                }
+              );
+
+              // If scheduled but no zoom link = absence
               if (!studentHasZoomLink) {
                 const packageRate = student.package
                   ? packageDeductionMap[student.package]?.absence || 25

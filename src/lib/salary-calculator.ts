@@ -1280,96 +1280,149 @@ export class SalaryCalculator {
     for (const [dateStr, dayLinks] of linksByDate) {
       if (dayLinks.length === 0) continue;
 
-      const firstLink = dayLinks[0];
-      const student = firstLink.wpos_wpdatatable_23;
-      if (!student || !firstLink.sent_time) continue;
-
-      const linkDate = new Date(firstLink.sent_time);
-
-      // Check if teacher was actually assigned to this student on this date
-      // considering teacher changes
-      const isAssigned = this.isTeacherAssignedOnDate(
-        teacherId,
-        student.wdt_ID,
-        linkDate,
-        teacherChanges,
-        student.occupiedTimes || []
-      );
-
-      if (!isAssigned) {
-        if (isDebugMode) {
-          console.log(
-            `⏭️  Skipping ${student.name} on ${dateStr}: Teacher not assigned on this date (teacher change)`
-          );
-        }
-        continue;
-      }
-
-      const timeSlot = student.occupiedTimes?.[0]?.time_slot;
-      if (!timeSlot) continue;
-
-      // Calculate lateness
-      const parseTime = (timeStr: string) => {
-        const [hours, minutes] = timeStr.split(":").map(Number);
-        return hours * 60 + minutes;
-      };
-
-      const scheduledMinutes = parseTime(timeSlot);
-      const actualMinutes =
-        firstLink.sent_time.getHours() * 60 + firstLink.sent_time.getMinutes();
-      const latenessMinutes = actualMinutes - scheduledMinutes;
-
-      // Skip if early (negative lateness) - teachers who send zoom links early should not be penalized
-      if (latenessMinutes < 0) {
-        if (isDebugMode) {
-          console.log(
-            `🚀 ${student.name}: Sent zoom link ${Math.abs(
-              latenessMinutes
-            )} minutes early - No late penalty`
-          );
-        }
-        continue;
-      }
-
-      // Skip if within excused threshold (no lateness or minor lateness)
-      if (latenessMinutes <= excusedThreshold) {
-        if (isDebugMode) {
-          console.log(
-            `✅ ${student.name}: Within excused threshold (${latenessMinutes} min) - No deduction`
-          );
-        }
-        continue;
-      }
-
-      // Check if there's a lateness waiver for this date
+      // Check if there's a lateness waiver for this date (check once per day)
       const hasLatenessWaiver = latenessWaivers.some(
         (waiver) => waiver.deductionDate.toISOString().split("T")[0] === dateStr
       );
 
-      if (hasLatenessWaiver) continue; // Skip deduction if waiver exists
+      if (hasLatenessWaiver) {
+        if (isDebugMode) {
+          console.log(`⏭️  Skipping ${dateStr}: Lateness waived for this date`);
+        }
+        continue; // Skip deduction if waiver exists
+      }
 
-      // Find appropriate tier
-      const tier = latenessConfigs.find(
-        (config) =>
-          latenessMinutes >= config.startMinute &&
-          latenessMinutes <= config.endMinute
-      );
+      // Group by student and take earliest link per student per day
+      const studentLinks = new Map<number, any>();
+      dayLinks.forEach((link) => {
+        const student = link.wpos_wpdatatable_23;
+        if (!student) return;
 
-      if (tier) {
-        const packageRate = packageMap[student.package] || 30;
-        const deduction = packageRate * ((tier.deductionPercent || 0) / 100);
+        const studentId = student.wdt_ID;
+        if (
+          !studentLinks.has(studentId) ||
+          link.sent_time < studentLinks.get(studentId).sent_time
+        ) {
+          studentLinks.set(studentId, {
+            ...link,
+            student: student,
+          });
+        }
+      });
 
-        totalDeduction += deduction;
+      // Calculate lateness for each student's earliest link
+      for (const linkData of studentLinks.values()) {
+        const student = linkData.student;
+        if (!student || !linkData.sent_time) continue;
 
-        breakdown.push({
-          date: dateStr,
-          studentName: student.name || "Unknown Student",
-          scheduledTime: timeSlot,
-          actualTime: firstLink.sent_time.toTimeString().split(" ")[0],
-          latenessMinutes,
-          tier: `Tier ${tier.tier}`,
-          deduction: Number(deduction.toFixed(2)),
-        });
+        const linkDate = new Date(linkData.sent_time);
+
+        // Check if teacher was actually assigned to this student on this date
+        // considering teacher changes
+        const isAssigned = this.isTeacherAssignedOnDate(
+          teacherId,
+          student.wdt_ID,
+          linkDate,
+          teacherChanges,
+          student.occupiedTimes || []
+        );
+
+        if (!isAssigned) {
+          if (isDebugMode) {
+            console.log(
+              `⏭️  Skipping ${student.name} on ${dateStr}: Teacher not assigned on this date (teacher change)`
+            );
+          }
+          continue;
+        }
+
+        const timeSlot = student.occupiedTimes?.[0]?.time_slot;
+        if (!timeSlot) continue;
+
+        // Calculate lateness - use proper 24-hour conversion
+        const convertTo24Hour = (timeStr: string): string => {
+          if (!timeStr) return "00:00";
+
+          if (timeStr.includes("AM") || timeStr.includes("PM")) {
+            const match = timeStr.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+            if (match) {
+              let hour = parseInt(match[1]);
+              const minute = match[2];
+              const period = match[3].toUpperCase();
+
+              if (period === "PM" && hour !== 12) hour += 12;
+              if (period === "AM" && hour === 12) hour = 0;
+
+              return `${hour.toString().padStart(2, "0")}:${minute}`;
+            }
+          }
+
+          return timeStr.includes(":")
+            ? timeStr.split(":").slice(0, 2).join(":")
+            : "00:00";
+        };
+
+        const time24 = convertTo24Hour(timeSlot);
+        const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
+
+        const latenessMinutes = Math.max(
+          0,
+          Math.round(
+            (linkData.sent_time.getTime() - scheduledTime.getTime()) / 60000
+          )
+        );
+
+        // Skip if early (negative lateness) - teachers who send zoom links early should not be penalized
+        if (latenessMinutes < 0) {
+          if (isDebugMode) {
+            console.log(
+              `🚀 ${student.name}: Sent zoom link ${Math.abs(
+                latenessMinutes
+              )} minutes early - No late penalty`
+            );
+          }
+          continue;
+        }
+
+        // Skip if within excused threshold (no lateness or minor lateness)
+        if (latenessMinutes <= excusedThreshold) {
+          if (isDebugMode) {
+            console.log(
+              `✅ ${student.name}: Within excused threshold (${latenessMinutes} min) - No deduction`
+            );
+          }
+          continue;
+        }
+
+        // Find appropriate tier
+        const tier = latenessConfigs.find(
+          (config) =>
+            latenessMinutes >= config.startMinute &&
+            latenessMinutes <= config.endMinute
+        );
+
+        if (tier) {
+          const packageRate = packageMap[student.package] || 30;
+          const deduction = packageRate * ((tier.deductionPercent || 0) / 100);
+
+          totalDeduction += deduction;
+
+          breakdown.push({
+            date: dateStr,
+            studentName: student.name || "Unknown Student",
+            scheduledTime: timeSlot,
+            actualTime: linkData.sent_time.toTimeString().split(" ")[0],
+            latenessMinutes,
+            tier: `Tier ${tier.tier}`,
+            deduction: Number(deduction.toFixed(2)),
+          });
+
+          if (isDebugMode) {
+            console.log(
+              `💰 ${student.name}: ${latenessMinutes} min late, Tier ${tier.tier}, ${deduction} ETB deduction`
+            );
+          }
+        }
       }
     }
 

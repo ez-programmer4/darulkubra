@@ -22,8 +22,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Ensure teacherIds are strings to match database schema
-    const teacherIdsArray = Array.isArray(teacherIds) 
-      ? teacherIds.map(id => String(id)) 
+    const teacherIdsArray = Array.isArray(teacherIds)
+      ? teacherIds.map((id) => String(id))
       : [String(teacherIds)];
 
     const startDate = new Date(dateRange.startDate);
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Check for additional computed absences (same logic as teacher payments)
+        // Check for additional computed absences (per-student logic like salary calculator)
         const today = new Date();
         today.setHours(23, 59, 59, 999);
 
@@ -130,6 +130,74 @@ export async function POST(req: NextRequest) {
         });
         const includeSundays = workingDaysConfig?.value === "true" || false;
 
+        // Get students with their occupied times for proper daypackage checking
+        const studentsWithOccupiedTimes =
+          await prisma.wpos_wpdatatable_23.findMany({
+            where: { ustaz: teacherId, status: { in: ["active", "Active"] } },
+            include: {
+              occupiedTimes: {
+                where: {
+                  ustaz_id: teacherId,
+                  occupied_at: { lte: endDate },
+                  OR: [{ end_at: null }, { end_at: { gte: startDate } }],
+                },
+                select: {
+                  time_slot: true,
+                  daypackage: true,
+                  occupied_at: true,
+                  end_at: true,
+                },
+              },
+              zoom_links: {
+                where: {
+                  ustazid: teacherId,
+                  sent_time: { gte: startDate, lte: endDate },
+                },
+                select: { sent_time: true },
+              },
+            },
+          });
+
+        // Helper to parse daypackage
+        const parseDaypackage = (dp: string): number[] => {
+          if (!dp || dp.trim() === "") return [];
+
+          const dpTrimmed = dp.trim().toUpperCase();
+
+          if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
+            return [0, 1, 2, 3, 4, 5, 6];
+          }
+          if (dpTrimmed === "MWF") {
+            return [1, 3, 5];
+          }
+          if (dpTrimmed === "TTS" || dpTrimmed === "TTH") {
+            return [2, 4, 6];
+          }
+
+          const dayMap: Record<string, number> = {
+            MONDAY: 1,
+            MON: 1,
+            TUESDAY: 2,
+            TUE: 2,
+            WEDNESDAY: 3,
+            WED: 3,
+            THURSDAY: 4,
+            THU: 4,
+            FRIDAY: 5,
+            FRI: 5,
+            SATURDAY: 6,
+            SAT: 6,
+            SUNDAY: 0,
+            SUN: 0,
+          };
+
+          if (dayMap[dpTrimmed] !== undefined) {
+            return [dayMap[dpTrimmed]];
+          }
+
+          return [];
+        };
+
         for (
           let d = new Date(startDate);
           d <= endDate;
@@ -138,10 +206,11 @@ export async function POST(req: NextRequest) {
           // Skip future dates
           if (d > today) continue;
 
-          // Skip Sundays if not included
-          if (!includeSundays && d.getDay() === 0) continue;
-
+          const dayOfWeek = d.getDay();
           const dateStr = format(d, "yyyy-MM-dd");
+
+          // Skip Sundays if not included
+          if (!includeSundays && dayOfWeek === 0) continue;
 
           // Skip if we already have a database record for this date
           if (existingAbsenceDates.has(dateStr)) continue;
@@ -149,22 +218,58 @@ export async function POST(req: NextRequest) {
           // Skip if already waived
           if (waivedDates.has(dateStr)) continue;
 
-          // Check if teacher sent any zoom links on this day
-          const dayHasZoomLinks = currentStudents.some((student) =>
-            student.zoom_links.some((link) => {
+          // Check EACH student individually (per-student logic)
+          let dailyDeduction = 0;
+          const affectedStudents = [];
+
+          for (const student of studentsWithOccupiedTimes) {
+            // Get relevant occupied times for this date
+            const relevantOccupiedTimes = student.occupiedTimes.filter(
+              (ot: any) => {
+                const assignmentStart = ot.occupied_at
+                  ? new Date(ot.occupied_at)
+                  : null;
+                const assignmentEnd = ot.end_at ? new Date(ot.end_at) : null;
+
+                if (assignmentStart && d < assignmentStart) return false;
+                if (assignmentEnd && d > assignmentEnd) return false;
+                return true;
+              }
+            );
+
+            if (relevantOccupiedTimes.length === 0) continue;
+
+            // Check if student is scheduled on this day of week
+            let isScheduled = false;
+            for (const ot of relevantOccupiedTimes) {
+              const scheduledDays = parseDaypackage(ot.daypackage || "");
+              if (scheduledDays.includes(dayOfWeek)) {
+                isScheduled = true;
+                break;
+              }
+              // Fallback: if no daypackage and has zoom links, assume weekdays
+              if (
+                scheduledDays.length === 0 &&
+                student.zoom_links?.length > 0 &&
+                dayOfWeek >= 1 &&
+                dayOfWeek <= 5
+              ) {
+                isScheduled = true;
+                break;
+              }
+            }
+
+            if (!isScheduled) continue;
+
+            // Check if student has zoom link for this date
+            const hasZoomLink = student.zoom_links?.some((link: any) => {
               if (!link.sent_time) return false;
-              const linkDate = format(link.sent_time, "yyyy-MM-dd");
+              const linkDate = format(new Date(link.sent_time), "yyyy-MM-dd");
               return linkDate === dateStr;
-            })
-          );
+            });
 
-          // If no zoom links were sent and teacher has students, it's a computed absence
-          if (!dayHasZoomLinks && currentStudents.length > 0) {
-            // Calculate package-based deduction for this absence
-            let dailyDeduction = 0;
-            const affectedStudents = [];
-
-            for (const student of currentStudents) {
+            // If scheduled but no zoom link = absence
+            if (!hasZoomLink) {
               const packageRate = student.package
                 ? packageDeductionMap[student.package]?.absence || 25
                 : 25;
@@ -175,26 +280,26 @@ export async function POST(req: NextRequest) {
                 rate: packageRate,
               });
             }
+          }
 
-            if (dailyDeduction > 0) {
-              records.push({
-                id: `absence_computed_${teacherId}_${dateStr}`,
-                teacherId,
-                teacherName: teacher.ustazname,
-                date: new Date(d),
-                type: "Absence",
-                deduction: dailyDeduction,
-                permitted: false,
-                source: "computed",
-                affectedStudents,
-                details: `Computed absence: ${
-                  affectedStudents.length
-                } students, packages: ${affectedStudents
-                  .map((s) => s.package)
-                  .join(", ")}`,
-              });
-              totalAmount += dailyDeduction;
-            }
+          if (dailyDeduction > 0) {
+            records.push({
+              id: `absence_computed_${teacherId}_${dateStr}`,
+              teacherId,
+              teacherName: teacher.ustazname,
+              date: new Date(d),
+              type: "Absence",
+              deduction: dailyDeduction,
+              permitted: false,
+              source: "computed",
+              affectedStudents,
+              details: `Computed absence: ${
+                affectedStudents.length
+              } students, packages: ${affectedStudents
+                .map((s) => s.package)
+                .join(", ")}`,
+            });
+            totalAmount += dailyDeduction;
           }
         }
       }
