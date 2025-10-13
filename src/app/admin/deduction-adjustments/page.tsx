@@ -53,12 +53,31 @@ export default function DeductionAdjustmentsPage() {
         const teachersArray = Array.isArray(data) ? data : [];
         setTeachers(teachersArray);
         setFilteredTeachers(teachersArray);
+        
+        if (teachersArray.length === 0) {
+          toast({
+            title: "No Teachers Found",
+            description: "No teachers available in the system",
+            variant: "destructive",
+          });
+        }
       } else {
+        const errorData = await res.json();
+        toast({
+          title: "Failed to Load Teachers",
+          description: errorData.error || "Could not fetch teachers list",
+          variant: "destructive",
+        });
         setTeachers([]);
         setFilteredTeachers([]);
       }
     } catch (error) {
-      console.error("Failed to fetch teachers");
+      console.error("Failed to fetch teachers:", error);
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
       setTeachers([]);
       setFilteredTeachers([]);
     }

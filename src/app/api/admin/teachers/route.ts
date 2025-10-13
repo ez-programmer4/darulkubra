@@ -20,12 +20,13 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return Response.json({
-      teachers: teachers.map((teacher) => ({
+    // Return array directly for deduction-adjustments page
+    return Response.json(
+      teachers.map((teacher) => ({
         id: teacher.ustazid,
         name: teacher.ustazname,
-      })),
-    });
+      }))
+    );
   } catch (error) {
     console.error("Teachers API error:", error);
     return Response.json({ error: "Internal error" }, { status: 500 });
