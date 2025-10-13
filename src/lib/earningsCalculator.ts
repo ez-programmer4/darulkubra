@@ -175,8 +175,8 @@ export class EarningsCalculator {
             THEN a.wdt_ID 
           END) AS Unpaid_Active_This_Month,
           
-          -- Referenced active students (students referred by this controller who are active and paid)
-          -- Fixed logic: Check if student was referred by this controller, not when they registered
+          -- Referenced active students (students referred by this controller who registered in current month)
+          -- Only count students who registered THIS month, are active, and have paid
           (
             SELECT COUNT(DISTINCT b.wdt_ID)
             FROM wpos_wpdatatable_23 b
@@ -185,6 +185,8 @@ export class EarningsCalculator {
               AND b.refer IS NOT NULL
               AND TRIM(b.refer) != ''
               AND (b.package IS NULL OR b.package != '0 Fee' OR TRIM(b.package) = '')
+              AND b.registrationdate IS NOT NULL
+              AND DATE(b.registrationdate) BETWEEN ? AND ?
               AND EXISTS(
                 SELECT 1 FROM months_table pm
                 WHERE pm.studentid = b.wdt_ID 
@@ -225,6 +227,9 @@ export class EarningsCalculator {
         this.yearMonth,
         // Unpaid this month check
         this.yearMonth,
+        // Referenced students registration date range (current month only)
+        format(this.startDate, "yyyy-MM-dd"),
+        format(this.endDate, "yyyy-MM-dd"),
         // Referenced students payment check
         this.yearMonth,
       ];

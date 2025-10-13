@@ -318,7 +318,7 @@ export default function TeacherPermissions() {
       console.log("📊 Full Response:", responseData);
 
       setSubmitted(true);
-      
+
       // Build notification message with debug info
       let description = "";
       if (responseData.notifications?.sms_sent > 0) {
@@ -326,9 +326,11 @@ export default function TeacherPermissions() {
       } else if (responseData.debug?.warning) {
         description = responseData.debug.warning;
       } else if (responseData.notifications?.total_admins === 0) {
-        description = "⚠️ No admin phone numbers configured. Request saved but not sent via SMS.";
+        description =
+          "⚠️ No admin phone numbers configured. Request saved but not sent via SMS.";
       } else {
-        description = "📧 Request submitted successfully. Admin team will be notified.";
+        description =
+          "📧 Request submitted successfully. Admin team will be notified.";
       }
 
       toast({
@@ -380,7 +382,8 @@ export default function TeacherPermissions() {
     (acc, perm) => {
       acc.total++;
       if (perm.status === "Approved") acc.approved++;
-      else if (perm.status === "Rejected" || perm.status === "Declined") acc.rejected++;
+      else if (perm.status === "Rejected" || perm.status === "Declined")
+        acc.rejected++;
       else acc.pending++;
       return acc;
     },
@@ -771,7 +774,8 @@ export default function TeacherPermissions() {
                         <span className="inline-block px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
                           Approved
                         </span>
-                      ) : perm.status === "Rejected" || perm.status === "Declined" ? (
+                      ) : perm.status === "Rejected" ||
+                        perm.status === "Declined" ? (
                         <span className="inline-block px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-medium">
                           {perm.status === "Declined" ? "Declined" : "Rejected"}
                         </span>

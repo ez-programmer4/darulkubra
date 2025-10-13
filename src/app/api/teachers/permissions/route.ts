@@ -39,15 +39,21 @@ async function sendSMS(
   message: string
 ): Promise<{ success: boolean; error?: string; details?: any }> {
   console.log(`\n🔧 sendSMS function called with phone: "${phone}"`);
-  
+
   const apiToken = process.env.AFROMSG_API_TOKEN;
   const senderUid = process.env.AFROMSG_SENDER_UID;
   const senderName = process.env.AFROMSG_SENDER_NAME;
 
   console.log(`🔑 Environment check:`);
-  console.log(`   API Token: ${apiToken ? '✅ SET (length: ' + apiToken.length + ')' : '❌ NOT SET'}`);
-  console.log(`   Sender UID: ${senderUid ? '✅ ' + senderUid : '❌ NOT SET'}`);
-  console.log(`   Sender Name: ${senderName ? '✅ ' + senderName : '❌ NOT SET'}`);
+  console.log(
+    `   API Token: ${
+      apiToken ? "✅ SET (length: " + apiToken.length + ")" : "❌ NOT SET"
+    }`
+  );
+  console.log(`   Sender UID: ${senderUid ? "✅ " + senderUid : "❌ NOT SET"}`);
+  console.log(
+    `   Sender Name: ${senderName ? "✅ " + senderName : "❌ NOT SET"}`
+  );
 
   // Debug: Check environment variables
   if (!apiToken || !senderUid || !senderName) {
@@ -280,9 +286,11 @@ export async function POST(req: NextRequest) {
     console.error(
       `📊 (STDERR) Found ${adminsWithPhone.length} admins with phone numbers`
     );
-    
+
     adminsWithPhone.forEach((admin, idx) => {
-      const logMsg = `  ${idx + 1}. ${admin.name || "Unnamed"} - Phone: "${admin.phoneno}"`;
+      const logMsg = `  ${idx + 1}. ${admin.name || "Unnamed"} - Phone: "${
+        admin.phoneno
+      }"`;
       console.log(logMsg);
       console.error(logMsg);
     });
@@ -361,9 +369,9 @@ export async function POST(req: NextRequest) {
 
     // Also check environment variables for debug response
     const envCheck = {
-      api_token: process.env.AFROMSG_API_TOKEN ? '✅ SET' : '❌ MISSING',
-      sender_uid: process.env.AFROMSG_SENDER_UID || '❌ MISSING',
-      sender_name: process.env.AFROMSG_SENDER_NAME || '❌ MISSING',
+      api_token: process.env.AFROMSG_API_TOKEN ? "✅ SET" : "❌ MISSING",
+      sender_uid: process.env.AFROMSG_SENDER_UID || "❌ MISSING",
+      sender_name: process.env.AFROMSG_SENDER_NAME || "❌ MISSING",
     };
 
     return NextResponse.json(
@@ -390,11 +398,12 @@ export async function POST(req: NextRequest) {
             phone: a.phoneno,
           })),
           environment: envCheck,
-          warning: adminsWithPhone.length === 0 
-            ? "⚠️ No admins with phone numbers found in database"
-            : smsCount === 0 && adminsWithPhone.length > 0
-            ? "⚠️ SMS failed for all admins - check environment variables and server logs"
-            : null,
+          warning:
+            adminsWithPhone.length === 0
+              ? "⚠️ No admins with phone numbers found in database"
+              : smsCount === 0 && adminsWithPhone.length > 0
+              ? "⚠️ SMS failed for all admins - check environment variables and server logs"
+              : null,
         },
       },
       { status: 201 }
