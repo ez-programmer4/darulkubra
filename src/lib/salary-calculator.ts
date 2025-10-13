@@ -355,6 +355,70 @@ export class SalaryCalculator {
     });
   }
 
+  /**
+   * Helper method to check if a teacher was assigned to a student on a specific date
+   * considering teacher changes
+   */
+  private isTeacherAssignedOnDate(
+    teacherId: string,
+    studentId: number,
+    date: Date,
+    teacherChanges: Array<{
+      student_id: number;
+      old_teacher_id: string | null;
+      new_teacher_id: string;
+      change_date: Date;
+    }>,
+    occupiedTimes: Array<{
+      occupied_at: Date | null;
+      end_at: Date | null;
+    }>
+  ): boolean {
+    // Get all teacher changes for this student, sorted by date
+    const studentChanges = teacherChanges
+      .filter((tc) => tc.student_id === studentId)
+      .sort((a, b) => a.change_date.getTime() - b.change_date.getTime());
+
+    if (studentChanges.length > 0) {
+      // Find the most recent change before or on this date
+      let currentTeacherOnDate: string | null = null;
+
+      for (const change of studentChanges) {
+        const changeDate = new Date(change.change_date);
+        changeDate.setHours(0, 0, 0, 0);
+        const checkDate = new Date(date);
+        checkDate.setHours(0, 0, 0, 0);
+
+        if (checkDate < changeDate) {
+          // This change hasn't happened yet on checkDate
+          // Use the old teacher if this is the first change
+          if (studentChanges[0] === change && change.old_teacher_id) {
+            currentTeacherOnDate = change.old_teacher_id;
+          }
+          break;
+        } else {
+          // This change has happened by checkDate
+          currentTeacherOnDate = change.new_teacher_id;
+        }
+      }
+
+      return currentTeacherOnDate === teacherId;
+    }
+
+    // No teacher changes, check regular assignment period
+    for (const ot of occupiedTimes) {
+      const assignmentStart = ot.occupied_at ? new Date(ot.occupied_at) : null;
+      const assignmentEnd = ot.end_at ? new Date(ot.end_at) : null;
+
+      if (assignmentStart && date < assignmentStart) continue;
+      if (assignmentEnd && date > assignmentEnd) continue;
+
+      return true;
+    }
+
+    return false;
+  }
+
   private async getStudentForClassDate(teacherId: string, classDate: Date) {
     // This is a simplified implementation - in reality you'd need to match
     // the specific student based on the class schedule and time
@@ -1100,6 +1164,24 @@ export class SalaryCalculator {
         }`
       );
     }
+
+    // Get teacher change history for this teacher
+    const teacherChanges = await prisma.teacher_change_history.findMany({
+      where: {
+        OR: [{ old_teacher_id: teacherId }, { new_teacher_id: teacherId }],
+        change_date: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      select: {
+        student_id: true,
+        old_teacher_id: true,
+        new_teacher_id: true,
+        change_date: true,
+      },
+    });
+
     // Get zoom links for the period to calculate lateness
     // Only include zoom links for students who have actual assignment records
     const zoomLinks = await prisma.wpos_zoom_links.findMany({
@@ -1204,20 +1286,25 @@ export class SalaryCalculator {
       const student = firstLink.wpos_wpdatatable_23;
       if (!student || !firstLink.sent_time) continue;
 
-      // Check if student was assigned to teacher on this date
-      const assignment = student.occupiedTimes?.[0];
-      if (assignment) {
-        const assignmentStart = assignment.occupied_at
-          ? new Date(assignment.occupied_at)
-          : null;
-        const assignmentEnd = assignment.end_at
-          ? new Date(assignment.end_at)
-          : null;
-        const linkDate = new Date(firstLink.sent_time);
+      const linkDate = new Date(firstLink.sent_time);
 
-        // Skip if student was not assigned to teacher on this date
-        if (assignmentStart && linkDate < assignmentStart) continue;
-        if (assignmentEnd && linkDate > assignmentEnd) continue;
+      // Check if teacher was actually assigned to this student on this date
+      // considering teacher changes
+      const isAssigned = this.isTeacherAssignedOnDate(
+        teacherId,
+        student.wdt_ID,
+        linkDate,
+        teacherChanges,
+        student.occupiedTimes || []
+      );
+
+      if (!isAssigned) {
+        if (isDebugMode) {
+          console.log(
+            `⏭️  Skipping ${student.name} on ${dateStr}: Teacher not assigned on this date (teacher change)`
+          );
+        }
+        continue;
       }
 
       const timeSlot = student.occupiedTimes?.[0]?.time_slot;
@@ -1307,6 +1394,23 @@ export class SalaryCalculator {
       const today = new Date();
       today.setHours(23, 59, 59, 999);
       const effectiveToDate = toDate > today ? today : toDate;
+
+      // Get teacher change history for this teacher
+      const teacherChanges = await prisma.teacher_change_history.findMany({
+        where: {
+          OR: [{ old_teacher_id: teacherId }, { new_teacher_id: teacherId }],
+          change_date: {
+            gte: fromDate,
+            lte: effectiveToDate,
+          },
+        },
+        select: {
+          student_id: true,
+          old_teacher_id: true,
+          new_teacher_id: true,
+          change_date: true,
+        },
+      });
 
       // Get package deduction rates
       const packageDeductions = await prisma.packageDeduction.findMany();
@@ -1639,7 +1743,24 @@ export class SalaryCalculator {
             `     👤 Checking student: ${student.name} (${student.wdt_ID})`
           );
 
-          // Check if student has any occupied times with this teacher
+          // Check if teacher was actually assigned to this student on this date
+          // considering teacher changes
+          const isAssigned = this.isTeacherAssignedOnDate(
+            teacherId,
+            student.wdt_ID,
+            d,
+            teacherChanges,
+            student.occupiedTimes || []
+          );
+
+          if (!isAssigned) {
+            console.log(
+              `       ⏭️  Skipping: Teacher not assigned on this date (teacher change)`
+            );
+            continue;
+          }
+
+          // Get relevant occupied times for daypackage checking
           const relevantOccupiedTimes = student.occupiedTimes.filter(
             (ot: any) => {
               const assignmentStart = ot.occupied_at
