@@ -1249,6 +1249,22 @@ export class SalaryCalculator {
     let totalDeduction = 0;
     const breakdown: any[] = [];
 
+    if (isDebugMode) {
+      console.log(
+        `\n📊 Lateness Calculation - Found ${allStudents.length} students`
+      );
+      allStudents.forEach((student, idx) => {
+        console.log(
+          `  Student ${idx + 1}: ${student.name} (${student.wdt_ID})`
+        );
+        console.log(`    Package: ${student.package}`);
+        console.log(`    Zoom links: ${student.zoom_links?.length || 0}`);
+        console.log(
+          `    Time slot: ${student.occupiedTimes?.[0]?.time_slot || "N/A"}`
+        );
+      });
+    }
+
     // Group zoom links by date (same as preview API)
     const dailyZoomLinks = new Map<string, any[]>();
 
@@ -1268,6 +1284,18 @@ export class SalaryCalculator {
           });
         }
       });
+    }
+
+    if (isDebugMode) {
+      console.log(`\n📅 Grouped zoom links by date:`);
+      for (const [date, links] of dailyZoomLinks.entries()) {
+        console.log(`  ${date}: ${links.length} links`);
+        links.forEach((link) => {
+          console.log(
+            `    - ${link.studentName}: ${link.sent_time.toISOString()}`
+          );
+        });
+      }
     }
 
     // Calculate lateness for each day (EXACT same logic as preview API)
@@ -1300,10 +1328,21 @@ export class SalaryCalculator {
       });
 
       // Calculate lateness for each student's earliest link
-      for (const link of studentLinks.values()) {
-        if (!link.timeSlot) continue;
+      if (isDebugMode) {
+        console.log(
+          `\n  Processing ${studentLinks.size} students on ${dateStr}:`
+        );
+      }
 
-        // Convert time to 24-hour format (same function as preview API)
+      for (const link of studentLinks.values()) {
+        if (!link.timeSlot) {
+          if (isDebugMode) {
+            console.log(`    ❌ ${link.studentName}: No time slot`);
+          }
+          continue;
+        }
+
+        // Convert time to 24-hour format
         function convertTo24Hour(timeStr: string): string {
           if (!timeStr) return "00:00";
 
@@ -1327,14 +1366,37 @@ export class SalaryCalculator {
         }
 
         const time24 = convertTo24Hour(link.timeSlot);
-        const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
+        const [schedHours, schedMinutes] = time24.split(":").map(Number);
 
-        const latenessMinutes = Math.max(
-          0,
-          Math.round(
-            (link.sent_time.getTime() - scheduledTime.getTime()) / 60000
-          )
+        // Create scheduled time on the same day as sent_time
+        // Both should be in the same timezone for accurate comparison
+        const scheduledTime = new Date(link.sent_time);
+        scheduledTime.setHours(schedHours, schedMinutes, 0, 0);
+
+        // Calculate lateness in minutes
+        const latenessMinutes = Math.round(
+          (link.sent_time.getTime() - scheduledTime.getTime()) / 60000
         );
+
+        if (isDebugMode) {
+          console.log(`    🔍 ${link.studentName}:`);
+          console.log(`       Scheduled: ${link.timeSlot} (${time24})`);
+          console.log(`       Sent: ${link.sent_time.toISOString()}`);
+          console.log(`       Scheduled Date: ${scheduledTime.toISOString()}`);
+          console.log(`       Lateness: ${latenessMinutes} minutes`);
+        }
+
+        // Skip if early (negative lateness)
+        if (latenessMinutes < 0) {
+          if (isDebugMode) {
+            console.log(
+              `       🚀 Sent ${Math.abs(
+                latenessMinutes
+              )} min early - No penalty`
+            );
+          }
+          continue;
+        }
 
         if (latenessMinutes > excusedThreshold) {
           let deduction = 0;
@@ -1374,12 +1436,26 @@ export class SalaryCalculator {
 
             if (isDebugMode) {
               console.log(
-                `💰 ${link.studentName}: ${latenessMinutes} min late, ${tier}, ${deduction} ETB deduction`
+                `       ✅ DEDUCTION APPLIED: ${deduction} ETB (${tier})`
               );
             }
+          } else if (isDebugMode) {
+            console.log(
+              `       ❌ No deduction (no matching tier or 0 amount)`
+            );
           }
+        } else if (isDebugMode) {
+          console.log(
+            `       ✅ Within excused threshold (${latenessMinutes} ≤ ${excusedThreshold}) - No deduction`
+          );
         }
       }
+    }
+
+    if (isDebugMode) {
+      console.log(
+        `\n💰 Total Lateness Deduction: ${totalDeduction} ETB from ${breakdown.length} records\n`
+      );
     }
 
     return {

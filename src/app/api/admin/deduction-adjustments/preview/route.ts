@@ -424,7 +424,7 @@ export async function POST(req: NextRequest) {
                 continue;
               }
 
-              // Convert time to 24-hour format (same function as teacher payments)
+              // Convert time to 24-hour format
               function convertTo24Hour(timeStr: string): string {
                 if (!timeStr) return "00:00";
 
@@ -448,14 +448,20 @@ export async function POST(req: NextRequest) {
               }
 
               const time24 = convertTo24Hour(link.timeSlot);
-              const scheduledTime = new Date(`${dateStr}T${time24}:00.000Z`);
+              const [schedHours, schedMinutes] = time24.split(":").map(Number);
 
-              const latenessMinutes = Math.max(
-                0,
-                Math.round(
-                  (link.sent_time.getTime() - scheduledTime.getTime()) / 60000
-                )
+              // Create scheduled time on the same day as sent_time
+              // sent_time is stored as Ethiopia local time, so use same timezone
+              const scheduledTime = new Date(link.sent_time);
+              scheduledTime.setHours(schedHours, schedMinutes, 0, 0);
+
+              // Calculate lateness in minutes
+              const latenessMinutes = Math.round(
+                (link.sent_time.getTime() - scheduledTime.getTime()) / 60000
               );
+
+              // Skip if early (negative lateness)
+              if (latenessMinutes < 0) continue;
 
               if (latenessMinutes > excusedThreshold) {
                 let deduction = 0;

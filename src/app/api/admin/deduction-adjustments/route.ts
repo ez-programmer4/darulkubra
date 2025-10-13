@@ -468,19 +468,22 @@ export async function POST(req: NextRequest) {
                 };
 
                 const scheduled = parseTime(link.timeSlot);
-                const scheduledTime = new Date(dateStr);
+                // Create scheduled time on the same day as sent_time (preserves timezone)
+                const scheduledTime = new Date(link.sent_time);
                 scheduledTime.setHours(
                   scheduled.hours,
                   scheduled.minutes,
                   0,
                   0
                 );
-                const latenessMinutes = Math.max(
-                  0,
-                  Math.round(
-                    (link.sent_time.getTime() - scheduledTime.getTime()) / 60000
-                  )
+
+                // Calculate lateness in minutes
+                const latenessMinutes = Math.round(
+                  (link.sent_time.getTime() - scheduledTime.getTime()) / 60000
                 );
+
+                // Skip if early (negative lateness)
+                if (latenessMinutes < 0) continue;
 
                 if (latenessMinutes > excusedThreshold) {
                   const student = allStudents.find(
@@ -665,15 +668,17 @@ async function calculateLatenessDeduction(
     };
 
     const scheduled = parseTime(timeSlot);
-    const scheduledTime = new Date(date);
+    // Create scheduled time on the same day as sent_time (preserves timezone)
+    const scheduledTime = new Date(firstLink.sent_time);
     scheduledTime.setHours(scheduled.hours, scheduled.minutes, 0, 0);
 
-    const latenessMinutes = Math.max(
-      0,
-      Math.round(
-        (firstLink.sent_time.getTime() - scheduledTime.getTime()) / 60000
-      )
+    // Calculate lateness in minutes
+    const latenessMinutes = Math.round(
+      (firstLink.sent_time.getTime() - scheduledTime.getTime()) / 60000
     );
+
+    // Skip if early (negative lateness)
+    if (latenessMinutes < 0) return 0;
 
     if (latenessMinutes <= excusedThreshold) return 0;
 
