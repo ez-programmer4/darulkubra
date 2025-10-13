@@ -1180,31 +1180,15 @@ export class SalaryCalculator {
       },
     });
 
-    // Get ALL students for this teacher (fetch upfront like preview API)
+    // Get ALL students for this teacher (EXACT same as preview API)
     const allStudents = await prisma.wpos_wpdatatable_23.findMany({
       where: { ustaz: teacherId },
       select: {
         wdt_ID: true,
         name: true,
         package: true,
-        zoom_links: {
-          where: {
-            ustazid: teacherId,
-            sent_time: { gte: fromDate, lte: toDate },
-          },
-        },
-        occupiedTimes: {
-          where: {
-            ustaz_id: teacherId,
-            occupied_at: { lte: toDate },
-            OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
-          },
-          select: {
-            time_slot: true,
-            occupied_at: true,
-            end_at: true,
-          },
-        },
+        zoom_links: true, // Get ALL zoom links (filter later)
+        occupiedTimes: { select: { time_slot: true } },
       },
     });
 
@@ -1265,11 +1249,11 @@ export class SalaryCalculator {
       });
     }
 
-    // Group zoom links by date (same as preview API)
+    // Group zoom links by date (EXACT same logic as preview API)
     const dailyZoomLinks = new Map<string, any[]>();
 
     for (const student of allStudents) {
-      student.zoom_links.forEach((link: any) => {
+      student.zoom_links?.forEach((link: any) => {
         if (link.sent_time) {
           const dateStr = format(link.sent_time, "yyyy-MM-dd");
           if (!dailyZoomLinks.has(dateStr)) {
