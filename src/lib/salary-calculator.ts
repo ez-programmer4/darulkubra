@@ -518,11 +518,10 @@ export class SalaryCalculator {
     // This includes both current assignments and historical assignments
 
     // First, get current students assigned to this teacher
-    // Only include students who have actual assignment records in wpos_ustaz_occupied_times
+    // Include students regardless of current status if they were taught during the period
     const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         ustaz: teacherId,
-        status: { in: ["active", "Active", "Not yet"] },
         occupiedTimes: {
           some: {
             ustaz_id: teacherId,
@@ -535,6 +534,7 @@ export class SalaryCalculator {
         wdt_ID: true,
         name: true,
         package: true,
+        status: true,
         zoom_links: {
           where: {
             ustazid: teacherId, // Only zoom links sent by this teacher
@@ -574,17 +574,18 @@ export class SalaryCalculator {
     });
 
     // Get historical students who were assigned to this teacher
+    // Include regardless of current status
     const historicalStudents =
       historicalStudentIds.size > 0
         ? await prisma.wpos_wpdatatable_23.findMany({
             where: {
               wdt_ID: { in: Array.from(historicalStudentIds) },
-              status: { in: ["active", "Active", "Not yet"] },
             },
             select: {
               wdt_ID: true,
               name: true,
               package: true,
+              status: true,
               zoom_links: {
                 where: {
                   ustazid: teacherId, // Only zoom links sent by this teacher
@@ -628,16 +629,12 @@ export class SalaryCalculator {
     });
 
     // Add students found through zoom links
+    // Include regardless of status - if teacher sent zoom links, they should be paid
     const existingStudentIds = new Set(allStudents.map((s) => s.wdt_ID));
 
     for (const zoomLink of zoomLinkStudents) {
       const student = zoomLink.wpos_wpdatatable_23;
-      if (
-        student &&
-        !existingStudentIds.has(student.wdt_ID) &&
-        student.status &&
-        ["active", "Active", "Not yet"].includes(student.status)
-      ) {
+      if (student && !existingStudentIds.has(student.wdt_ID)) {
         // Get zoom links for this student
         const studentZoomLinks = await prisma.wpos_zoom_links.findMany({
           where: {
@@ -652,6 +649,7 @@ export class SalaryCalculator {
           wdt_ID: student.wdt_ID,
           name: student.name,
           package: student.package,
+          status: student.status,
           zoom_links: studentZoomLinks,
         });
       }
@@ -1455,9 +1453,9 @@ export class SalaryCalculator {
       );
 
       // Get all students assigned to this teacher during the period
+      // Include regardless of current status - if teacher taught them, they should be evaluated
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: {
-          status: { in: ["active", "Active", "Not yet"] },
           OR: [
             // Current assignments
             {
