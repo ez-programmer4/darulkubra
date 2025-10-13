@@ -35,6 +35,10 @@ export default function DeductionAdjustmentsPage() {
   }, []);
 
   useEffect(() => {
+    if (!Array.isArray(teachers)) {
+      setFilteredTeachers([]);
+      return;
+    }
     const filtered = teachers.filter((teacher) =>
       teacher.name.toLowerCase().includes(teacherSearch.toLowerCase())
     );
@@ -46,11 +50,17 @@ export default function DeductionAdjustmentsPage() {
       const res = await fetch("/api/admin/teachers");
       if (res.ok) {
         const data = await res.json();
-        setTeachers(data);
-        setFilteredTeachers(data);
+        const teachersArray = Array.isArray(data) ? data : [];
+        setTeachers(teachersArray);
+        setFilteredTeachers(teachersArray);
+      } else {
+        setTeachers([]);
+        setFilteredTeachers([]);
       }
     } catch (error) {
       console.error("Failed to fetch teachers");
+      setTeachers([]);
+      setFilteredTeachers([]);
     }
   };
 
@@ -59,10 +69,14 @@ export default function DeductionAdjustmentsPage() {
       const res = await fetch("/api/admin/time-slots");
       if (res.ok) {
         const data = await res.json();
-        setTimeSlots(data);
+        const slotsArray = Array.isArray(data) ? data : [];
+        setTimeSlots(slotsArray);
+      } else {
+        setTimeSlots([]);
       }
     } catch (error) {
       console.error("Failed to fetch time slots");
+      setTimeSlots([]);
     }
   };
 
@@ -73,11 +87,16 @@ export default function DeductionAdjustmentsPage() {
       );
       if (res.ok) {
         const data = await res.json();
-        setWaiverHistory(data.waivers || []);
+        const waivers = Array.isArray(data.waivers) ? data.waivers : [];
+        setWaiverHistory(waivers);
+        setShowHistory(true);
+      } else {
+        setWaiverHistory([]);
         setShowHistory(true);
       }
     } catch (error) {
       console.error("Failed to fetch waiver history");
+      setWaiverHistory([]);
     }
   };
 
@@ -445,12 +464,18 @@ export default function DeductionAdjustmentsPage() {
               <div className="border-2 border-gray-200 rounded-xl p-4 bg-white shadow-sm">
                 <div className="flex gap-3 mb-4">
                   <button
-                    onClick={() =>
-                      setSelectedTeachers(filteredTeachers.map((t) => t.id))
-                    }
+                    onClick={() => {
+                      if (Array.isArray(filteredTeachers)) {
+                        setSelectedTeachers(filteredTeachers.map((t) => t.id));
+                      }
+                    }}
                     className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl"
                   >
-                    Select All ({filteredTeachers.length})
+                    Select All (
+                    {Array.isArray(filteredTeachers)
+                      ? filteredTeachers.length
+                      : 0}
+                    )
                   </button>
                   <button
                     onClick={() => setSelectedTeachers([])}
