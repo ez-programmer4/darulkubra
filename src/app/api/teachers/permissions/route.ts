@@ -4,21 +4,83 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAdminNotification } from "@/lib/notifications";
 
-async function sendSMS(phone: string, message: string) {
+/**
+ * Normalize Ethiopian phone number to international format
+ * Accepts: 0911234567, 911234567, +251911234567, 251911234567
+ * Returns: +251911234567
+ */
+function normalizePhoneNumber(phone: string): string | null {
+  if (!phone) return null;
+
+  // Remove all spaces, dashes, and parentheses
+  let cleaned = phone.replace(/[\s\-()]/g, "");
+
+  // Handle different formats
+  if (cleaned.startsWith("+251")) {
+    // Already in correct format
+    return cleaned;
+  } else if (cleaned.startsWith("251")) {
+    // Add + prefix
+    return "+" + cleaned;
+  } else if (cleaned.startsWith("0")) {
+    // Ethiopian local format (0911234567) → +251911234567
+    return "+251" + cleaned.substring(1);
+  } else if (cleaned.startsWith("9") && cleaned.length === 9) {
+    // Missing country code and leading 0 (911234567) → +251911234567
+    return "+251" + cleaned;
+  }
+
+  // Invalid format
+  return null;
+}
+
+async function sendSMS(
+  phone: string,
+  message: string
+): Promise<{ success: boolean; error?: string; details?: any }> {
   const apiToken = process.env.AFROMSG_API_TOKEN;
   const senderUid = process.env.AFROMSG_SENDER_UID;
   const senderName = process.env.AFROMSG_SENDER_NAME;
 
+  // Debug: Check environment variables
   if (!apiToken || !senderUid || !senderName) {
-    return false;
+    const missing = [];
+    if (!apiToken) missing.push("AFROMSG_API_TOKEN");
+    if (!senderUid) missing.push("AFROMSG_SENDER_UID");
+    if (!senderName) missing.push("AFROMSG_SENDER_NAME");
+
+    console.error(
+      `❌ SMS Configuration Error: Missing environment variables: ${missing.join(
+        ", "
+      )}`
+    );
+    return {
+      success: false,
+      error: `SMS not configured. Missing: ${missing.join(", ")}`,
+    };
+  }
+
+  // Normalize phone number
+  const normalizedPhone = normalizePhoneNumber(phone);
+  if (!normalizedPhone) {
+    console.error(
+      `❌ Invalid phone number format: "${phone}". Expected Ethiopian format (e.g., 0911234567, +251911234567)`
+    );
+    return {
+      success: false,
+      error: `Invalid phone format: ${phone}`,
+    };
   }
 
   const payload = {
     from: senderUid,
     sender: senderName,
-    to: phone,
+    to: normalizedPhone,
     message,
   };
+
+  console.log(`📱 Sending SMS to ${normalizedPhone} (original: ${phone})`);
+  console.log(`📝 Message: ${message.substring(0, 50)}...`);
 
   try {
     const response = await fetch("https://api.afromessage.com/api/send", {
@@ -30,17 +92,42 @@ async function sendSMS(phone: string, message: string) {
       body: JSON.stringify(payload),
     });
 
-    const result = await response.text();
+    const resultText = await response.text();
+    let result: any;
 
-    if (!response.ok) {
-      console.error(`SMS failed for ${phone}: ${response.status} - ${result}`);
-      return false;
+    try {
+      result = JSON.parse(resultText);
+    } catch {
+      result = resultText;
     }
 
-    return true;
+    if (!response.ok) {
+      console.error(
+        `❌ SMS API Error for ${normalizedPhone}:`,
+        `\n  Status: ${response.status}`,
+        `\n  Response: ${JSON.stringify(result, null, 2)}`
+      );
+      return {
+        success: false,
+        error: `API returned ${response.status}`,
+        details: result,
+      };
+    }
+
+    console.log(
+      `✅ SMS sent successfully to ${normalizedPhone}:`,
+      JSON.stringify(result, null, 2)
+    );
+    return { success: true, details: result };
   } catch (error) {
-    console.error(`SMS error for ${phone}:`, error);
-    return false;
+    console.error(
+      `❌ SMS Network Error for ${normalizedPhone}:`,
+      error instanceof Error ? error.message : error
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Network error",
+    };
   }
 }
 
@@ -153,8 +240,29 @@ export async function POST(req: NextRequest) {
     const teacherName = teacher?.ustazname || user.id;
 
     // Send SMS notifications to admins with phone numbers
+    console.log("\n📞 === SMS NOTIFICATION DEBUG ===");
+
     const adminsWithPhone = await prisma.admin.findMany({
-      where: { phoneno: { not: null } },
+      where: {
+        phoneno: {
+          not: null,
+          notIn: ["", " "], // Exclude empty strings
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        phoneno: true,
+      },
+    });
+
+    console.log(
+      `📊 Found ${adminsWithPhone.length} admins with phone numbers:`
+    );
+    adminsWithPhone.forEach((admin, idx) => {
+      console.log(
+        `  ${idx + 1}. ${admin.name || "Unnamed"} - Phone: "${admin.phoneno}"`
+      );
     });
 
     // Format time slots for SMS
@@ -162,18 +270,52 @@ export async function POST(req: NextRequest) {
       ? "Whole Day"
       : timeSlots.join(", ");
 
-    const smsMessage = `New absence request from ${teacherName} for ${date} (${timeSlotText}). Reason: ${reason}. Please review in admin panel.`;
-    
+    const formattedDate = new Date(date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+
+    const smsMessage = `🔔 DarulKubra Alert: ${teacherName} requests permission for ${formattedDate} (${timeSlotText}). Reason: ${reason}. Please review.`;
+
+    console.log(`📝 SMS Message (${smsMessage.length} chars): "${smsMessage}"`);
+
     let smsCount = 0;
+    const smsResults: Array<{
+      admin: string;
+      phone: string;
+      success: boolean;
+      error?: string;
+    }> = [];
 
     for (const admin of adminsWithPhone) {
       if (admin.phoneno) {
-        const success = await sendSMS(admin.phoneno, smsMessage);
-        if (success) {
+        console.log(`\n📤 Attempting to send SMS to ${admin.name}...`);
+        const result = await sendSMS(admin.phoneno, smsMessage);
+
+        smsResults.push({
+          admin: admin.name || admin.id.toString(),
+          phone: admin.phoneno,
+          success: result.success,
+          error: result.error,
+        });
+
+        if (result.success) {
           smsCount++;
+          console.log(`✅ SMS sent successfully to ${admin.name}`);
+        } else {
+          console.log(
+            `❌ SMS failed for ${admin.name}: ${
+              result.error || "Unknown error"
+            }`
+          );
         }
       }
     }
+
+    console.log(
+      `\n📊 SMS Summary: ${smsCount}/${adminsWithPhone.length} sent successfully`
+    );
+    console.log("=== END SMS DEBUG ===\n");
 
     // Create system notifications for all admins
     let notificationCount = 0;
@@ -203,8 +345,21 @@ export async function POST(req: NextRequest) {
         permissionRequest,
         notifications: {
           sms_sent: smsCount,
+          sms_failed: adminsWithPhone.length - smsCount,
           system_notifications: notificationCount,
-          total_admins: adminsWithPhone.length
+          total_admins: adminsWithPhone.length,
+          sms_results: smsResults,
+        },
+        debug: {
+          sms_attempts: adminsWithPhone.length,
+          sms_success_rate:
+            adminsWithPhone.length > 0
+              ? `${Math.round((smsCount / adminsWithPhone.length) * 100)}%`
+              : "N/A",
+          admins_with_phone: adminsWithPhone.map((a) => ({
+            name: a.name,
+            phone: a.phoneno,
+          })),
         },
       },
       { status: 201 }
