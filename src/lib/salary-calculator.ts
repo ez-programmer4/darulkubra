@@ -1522,13 +1522,14 @@ export class SalaryCalculator {
       );
 
       // Get all students assigned to this teacher during the period
-      // Include regardless of current status - if teacher taught them, they should be evaluated
+      // Include active and "not yet" students - if teacher taught them, they should be evaluated
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: {
           OR: [
-            // Current assignments
+            // Current assignments (active or not yet)
             {
               ustaz: teacherId,
+              status: { in: ["active", "Active", "Not yet", "not yet"] },
               occupiedTimes: {
                 some: {
                   ustaz_id: teacherId,
@@ -1537,8 +1538,9 @@ export class SalaryCalculator {
                 },
               },
             },
-            // Historical assignments from audit logs
+            // Historical assignments from audit logs (active or not yet)
             {
+              status: { in: ["active", "Active", "Not yet", "not yet"] },
               occupiedTimes: {
                 some: {
                   ustaz_id: teacherId,

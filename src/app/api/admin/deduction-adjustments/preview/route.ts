@@ -131,9 +131,28 @@ export async function POST(req: NextRequest) {
         const includeSundays = workingDaysConfig?.value === "true" || false;
 
         // Get students with their occupied times for proper daypackage checking
+        // Use OR to catch both current assignments AND historical assignments (teacher changes)
         const studentsWithOccupiedTimes =
           await prisma.wpos_wpdatatable_23.findMany({
-            where: { ustaz: teacherId, status: { in: ["active", "Active"] } },
+            where: {
+              OR: [
+                // Current assignment
+                {
+                  ustaz: teacherId,
+                  status: { in: ["active", "Active", "Not yet", "not yet"] },
+                },
+                // Historical assignment via occupiedTimes (catches teacher changes)
+                {
+                  occupiedTimes: {
+                    some: {
+                      ustaz_id: teacherId,
+                      occupied_at: { lte: endDate },
+                      OR: [{ end_at: null }, { end_at: { gte: startDate } }],
+                    },
+                  },
+                },
+              ],
+            },
             include: {
               occupiedTimes: {
                 where: {
@@ -154,6 +173,15 @@ export async function POST(req: NextRequest) {
                   sent_time: { gte: startDate, lte: endDate },
                 },
                 select: { sent_time: true },
+              },
+              attendance_progress: {
+                where: {
+                  date: { gte: startDate, lte: endDate },
+                },
+                select: {
+                  date: true,
+                  attendance_status: true,
+                },
               },
             },
           });
@@ -268,18 +296,30 @@ export async function POST(req: NextRequest) {
               return linkDate === dateStr;
             });
 
-            // If scheduled but no zoom link = absence
-            if (!hasZoomLink) {
-              const packageRate = student.package
-                ? packageDeductionMap[student.package]?.absence || 25
-                : 25;
-              dailyDeduction += packageRate;
-              affectedStudents.push({
-                name: student.name,
-                package: student.package || "Unknown",
-                rate: packageRate,
-              });
+            if (hasZoomLink) continue;
+
+            // Check if student has attendance permission for this date
+            const attendanceRecord = student.attendance_progress?.find(
+              (att: any) => {
+                const attDate = format(new Date(att.date), "yyyy-MM-dd");
+                return attDate === dateStr;
+              }
+            );
+
+            if (attendanceRecord?.attendance_status === "Permission") {
+              continue; // Skip deduction if student has permission
             }
+
+            // If scheduled but no zoom link and no permission = absence
+            const packageRate = student.package
+              ? packageDeductionMap[student.package]?.absence || 25
+              : 25;
+            dailyDeduction += packageRate;
+            affectedStudents.push({
+              name: student.name,
+              package: student.package || "Unknown",
+              rate: packageRate,
+            });
           }
 
           if (dailyDeduction > 0) {
