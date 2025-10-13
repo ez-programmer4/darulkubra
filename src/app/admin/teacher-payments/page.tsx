@@ -20,6 +20,7 @@ interface TeacherPaymentsPageProps {
 interface PaymentStatistics {
   totalTeachers: number;
   totalSalary: number;
+  totalDeductions: number;
   paidTeachers: number;
   unpaidTeachers: number;
   averageSalary: number;
@@ -81,9 +82,15 @@ export default async function TeacherPaymentsPage({
 
     // Calculate statistics
     if (teachers.length > 0) {
+      const totalDeductions = teachers.reduce(
+        (sum, t) => sum + t.latenessDeduction + t.absenceDeduction,
+        0
+      );
+
       statistics = {
         totalTeachers: teachers.length,
         totalSalary: teachers.reduce((sum, t) => sum + t.totalSalary, 0),
+        totalDeductions,
         paidTeachers: teachers.filter((t) => t.status === "Paid").length,
         unpaidTeachers: teachers.filter((t) => t.status === "Unpaid").length,
         averageSalary:

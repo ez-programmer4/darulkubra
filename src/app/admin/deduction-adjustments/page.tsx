@@ -727,12 +727,17 @@ export default function DeductionAdjustmentsPage() {
                                 ) : (
                                   <div>
                                     <div className="font-semibold text-blue-600">
-                                      Mixed Packages
+                                      {record.source === "computed"
+                                        ? "Mixed Packages"
+                                        : "Various"}
                                     </div>
                                     <div className="text-gray-600">
-                                      {record.affectedStudents
-                                        ?.map((s: any) => s.package)
-                                        .join(", ") || "N/A"}
+                                      {record.affectedStudents &&
+                                      Array.isArray(record.affectedStudents)
+                                        ? record.affectedStudents
+                                            .map((s: any) => s.package)
+                                            .join(", ")
+                                        : record.details || "N/A"}
                                     </div>
                                   </div>
                                 )}

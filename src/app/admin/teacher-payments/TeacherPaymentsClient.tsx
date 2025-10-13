@@ -141,6 +141,7 @@ interface TeacherSalaryData {
 interface PaymentStatistics {
   totalTeachers: number;
   totalSalary: number;
+  totalDeductions: number;
   paidTeachers: number;
   unpaidTeachers: number;
   averageSalary: number;
@@ -579,7 +580,7 @@ export default function TeacherPaymentsClient({
       {statistics && (
         <Card className="border border-gray-200 shadow-sm">
           <CardContent className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
               <div className="text-center">
                 <div className="text-3xl font-bold mb-1 text-gray-900">
                   {statistics.totalTeachers}
@@ -591,6 +592,12 @@ export default function TeacherPaymentsClient({
                   {formatCurrency(statistics.totalSalary)}
                 </div>
                 <div className="text-gray-600 text-sm">Total Salary</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold mb-1 text-red-600">
+                  {formatCurrency(statistics.totalDeductions)}
+                </div>
+                <div className="text-gray-600 text-sm">Total Deductions</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold mb-1 text-green-600">
