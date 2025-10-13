@@ -1684,11 +1684,16 @@ export class SalaryCalculator {
             `       📅 Is scheduled on ${dayName} (${dayOfWeek}): ${isScheduled}`
           );
 
-          // Fallback: if no daypackage but has zoom links, assume weekdays
-          if (!isScheduled && student.zoom_links?.length > 0) {
+          // Fallback: if no daypackage at all but has zoom links, assume weekdays
+          // Only apply fallback if scheduledDays is empty (no daypackage defined)
+          if (
+            !isScheduled &&
+            scheduledDays.length === 0 &&
+            student.zoom_links?.length > 0
+          ) {
             isScheduled = dayOfWeek >= 1 && dayOfWeek <= 5;
             console.log(
-              `       🔄 Fallback: assuming weekdays due to zoom links: ${isScheduled}`
+              `       🔄 Fallback: No daypackage found, assuming weekdays due to zoom links: ${isScheduled}`
             );
           }
 
