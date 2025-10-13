@@ -313,15 +313,27 @@ export default function TeacherPermissions() {
 
       const responseData = await res.json();
 
+      // Log debug information to console
+      console.log("📱 SMS Debug Info:", responseData.debug);
+      console.log("📊 Full Response:", responseData);
+
       setSubmitted(true);
+      
+      // Build notification message with debug info
+      let description = "";
+      if (responseData.notifications?.sms_sent > 0) {
+        description = `📱 Admin team notified via SMS (${responseData.notifications.sms_sent}/${responseData.notifications.total_admins} messages sent)`;
+      } else if (responseData.debug?.warning) {
+        description = responseData.debug.warning;
+      } else if (responseData.notifications?.total_admins === 0) {
+        description = "⚠️ No admin phone numbers configured. Request saved but not sent via SMS.";
+      } else {
+        description = "📧 Request submitted successfully. Admin team will be notified.";
+      }
+
       toast({
         title: "✅ Request Submitted!",
-        description:
-          responseData.notifications?.sms_sent > 0
-            ? `📱 Admin team notified via SMS (${responseData.notifications.sms_sent} messages sent)`
-            : responseData.notifications?.debug?.sms_attempts > 0
-            ? "📧 Request submitted successfully. Admin team will be notified."
-            : "📧 Admin team has been notified and will review your request",
+        description: description,
       });
       setDate("");
       setSelectedTimeSlots([]);

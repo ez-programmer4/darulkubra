@@ -38,9 +38,16 @@ async function sendSMS(
   phone: string,
   message: string
 ): Promise<{ success: boolean; error?: string; details?: any }> {
+  console.log(`\n🔧 sendSMS function called with phone: "${phone}"`);
+  
   const apiToken = process.env.AFROMSG_API_TOKEN;
   const senderUid = process.env.AFROMSG_SENDER_UID;
   const senderName = process.env.AFROMSG_SENDER_NAME;
+
+  console.log(`🔑 Environment check:`);
+  console.log(`   API Token: ${apiToken ? '✅ SET (length: ' + apiToken.length + ')' : '❌ NOT SET'}`);
+  console.log(`   Sender UID: ${senderUid ? '✅ ' + senderUid : '❌ NOT SET'}`);
+  console.log(`   Sender Name: ${senderName ? '✅ ' + senderName : '❌ NOT SET'}`);
 
   // Debug: Check environment variables
   if (!apiToken || !senderUid || !senderName) {
@@ -133,6 +140,10 @@ async function sendSMS(
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("\n\n🚀 ======================================");
+    console.log("🚀 PERMISSION REQUEST API CALLED");
+    console.log("🚀 ======================================\n");
+
     const session = await getServerSession(authOptions);
 
     if (
@@ -144,6 +155,12 @@ export async function POST(req: NextRequest) {
     const user = session.user as { id: string; role: string };
     const body = await req.json();
     const { date, timeSlots, reason, details } = body;
+
+    console.log(`📋 Permission Request Details:`);
+    console.log(`   Teacher ID: ${user.id}`);
+    console.log(`   Date: ${date}`);
+    console.log(`   Time Slots: ${JSON.stringify(timeSlots)}`);
+    console.log(`   Reason: ${reason}`);
 
     if (!date || !timeSlots || !reason || !details) {
       return NextResponse.json(
@@ -241,6 +258,7 @@ export async function POST(req: NextRequest) {
 
     // Send SMS notifications to admins with phone numbers
     console.log("\n📞 === SMS NOTIFICATION DEBUG ===");
+    console.error("\n📞 === SMS NOTIFICATION DEBUG (STDERR) ==="); // Also to stderr
 
     const adminsWithPhone = await prisma.admin.findMany({
       where: {
@@ -259,10 +277,14 @@ export async function POST(req: NextRequest) {
     console.log(
       `📊 Found ${adminsWithPhone.length} admins with phone numbers:`
     );
+    console.error(
+      `📊 (STDERR) Found ${adminsWithPhone.length} admins with phone numbers`
+    );
+    
     adminsWithPhone.forEach((admin, idx) => {
-      console.log(
-        `  ${idx + 1}. ${admin.name || "Unnamed"} - Phone: "${admin.phoneno}"`
-      );
+      const logMsg = `  ${idx + 1}. ${admin.name || "Unnamed"} - Phone: "${admin.phoneno}"`;
+      console.log(logMsg);
+      console.error(logMsg);
     });
 
     // Format time slots for SMS
@@ -337,6 +359,13 @@ export async function POST(req: NextRequest) {
       console.error("Failed to create admin notifications:", error);
     }
 
+    // Also check environment variables for debug response
+    const envCheck = {
+      api_token: process.env.AFROMSG_API_TOKEN ? '✅ SET' : '❌ MISSING',
+      sender_uid: process.env.AFROMSG_SENDER_UID || '❌ MISSING',
+      sender_name: process.env.AFROMSG_SENDER_NAME || '❌ MISSING',
+    };
+
     return NextResponse.json(
       {
         success: true,
@@ -360,6 +389,12 @@ export async function POST(req: NextRequest) {
             name: a.name,
             phone: a.phoneno,
           })),
+          environment: envCheck,
+          warning: adminsWithPhone.length === 0 
+            ? "⚠️ No admins with phone numbers found in database"
+            : smsCount === 0 && adminsWithPhone.length > 0
+            ? "⚠️ SMS failed for all admins - check environment variables and server logs"
+            : null,
         },
       },
       { status: 201 }
