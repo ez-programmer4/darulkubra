@@ -953,6 +953,15 @@ export class SalaryCalculator {
 
     // Process each student with their teacher periods
     for (const student of students) {
+      // Debug flag for specific teacher and student
+      const isDebugStudent = student.name
+        ?.toLowerCase()
+        .includes("kassim kedir");
+
+      if (isDebugStudent) {
+        console.log(`\n🔍 ===== DEBUG MODE FOR ${student.name} =====`);
+      }
+
       console.log(
         `\n👤 Processing student: ${student.name} (ID: ${student.wdt_ID})`
       );
@@ -1037,31 +1046,35 @@ export class SalaryCalculator {
         const dailyLinks = new Map<string, Date>();
 
         // Get zoom links for this period
-        console.log(
-          `   🔍 Checking zoom links for period ${
-            periodStart.toISOString().split("T")[0]
-          } to ${periodEnd.toISOString().split("T")[0]}`
-        );
-        console.log(
-          `   📊 Total zoom links for student: ${
-            student.zoom_links?.length || 0
-          }`
-        );
-
         const periodZoomLinks =
           student.zoom_links?.filter((link: any) => {
             if (!link.sent_time) return false;
             const linkDate = new Date(link.sent_time);
-            const isInRange = linkDate >= periodStart && linkDate <= periodEnd;
-            console.log(
-              `   🔗 Zoom link: ${linkDate.toISOString().split("T")[0]} - ${
-                isInRange ? "✅ In range" : "❌ Out of range"
-              }`
-            );
-            return isInRange;
+            return linkDate >= periodStart && linkDate <= periodEnd;
           }) || [];
 
-        console.log(`   📊 Zoom links in period: ${periodZoomLinks.length}`);
+        if (isDebugStudent) {
+          console.log(
+            `\n🔍 DEBUG: Period ${periodStart.toISOString().split("T")[0]} to ${
+              periodEnd.toISOString().split("T")[0]
+            }`
+          );
+          console.log(
+            `🔍 DEBUG: Total zoom links for student: ${
+              student.zoom_links?.length || 0
+            }`
+          );
+          console.log(
+            `🔍 DEBUG: Zoom links in period: ${periodZoomLinks.length}`
+          );
+          periodZoomLinks.forEach((link: any) => {
+            console.log(
+              `🔍 DEBUG: Zoom link date: ${
+                new Date(link.sent_time).toISOString().split("T")[0]
+              }`
+            );
+          });
+        }
 
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
@@ -1160,6 +1173,27 @@ export class SalaryCalculator {
         console.log(
           `   📋 Teaching dates: [${Array.from(teachingDates).join(", ")}]`
         );
+
+        if (isDebugStudent) {
+          console.log(
+            `\n🔍 DEBUG: Expected teaching days (${expectedTeachingDays.length}):`
+          );
+          expectedTeachingDays.forEach((date) =>
+            console.log(`🔍 DEBUG:   - ${date}`)
+          );
+          console.log(
+            `🔍 DEBUG: Teaching dates counted (${teachingDates.size}):`
+          );
+          Array.from(teachingDates).forEach((date) =>
+            console.log(`🔍 DEBUG:   - ${date}`)
+          );
+          console.log(`🔍 DEBUG: Daily rate: ${dailyRate} ETB`);
+          console.log(
+            `🔍 DEBUG: Period earnings: ${(
+              dailyRate * teachingDates.size
+            ).toFixed(2)} ETB`
+          );
+        }
 
         const periodEarnings = Number(
           (dailyRate * teachingDates.size).toFixed(2)
