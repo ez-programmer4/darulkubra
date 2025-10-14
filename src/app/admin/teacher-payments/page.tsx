@@ -109,34 +109,20 @@ export default async function TeacherPaymentsPage({
         : "Failed to fetch teacher payment data";
   }
 
-  // Load settings server-side
+  // Load settings server-side using centralized configuration
   let includeSundays = false;
   let showTeacherSalary = true;
   let customMessage = "";
   let adminContact = "";
 
   try {
-    const { prisma } = await import("@/lib/prisma");
+    const { getSalaryConfig } = await import("@/lib/salary-config");
+    const config = await getSalaryConfig();
 
-    const [sundaySetting, salarySetting] = await Promise.all([
-      prisma.setting.findUnique({
-        where: { key: "include_sundays" },
-        select: { value: true },
-      }),
-      prisma.setting.findUnique({
-        where: { key: "teacher_salary_visibility" },
-        select: { value: true },
-      }),
-    ]);
-
-    includeSundays = sundaySetting?.value === "true";
-
-    if (salarySetting?.value) {
-      const salaryConfig = JSON.parse(salarySetting.value);
-      showTeacherSalary = salaryConfig.showTeacherSalary ?? true;
-      customMessage = salaryConfig.customMessage || "";
-      adminContact = salaryConfig.adminContact || "";
-    }
+    includeSundays = config.includeSundays;
+    showTeacherSalary = config.showTeacherSalary;
+    customMessage = config.customMessage;
+    adminContact = config.adminContact;
   } catch (err) {
     console.error("Error loading settings:", err);
   }

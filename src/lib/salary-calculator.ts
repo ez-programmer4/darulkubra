@@ -2245,53 +2245,25 @@ export class SalaryCalculator {
 
 /**
  * Factory function to create a configured salary calculator
+ * Uses centralized configuration for consistency
  */
 export async function createSalaryCalculator(): Promise<SalaryCalculator> {
-  // Load configuration from database
-  const [packageDeductions, latenessConfigs, workingDaysConfig] =
-    await Promise.all([
-      prisma.packageDeduction.findMany(),
-      prisma.latenessdeductionconfig.findMany({
-        orderBy: [{ tier: "asc" }, { startMinute: "asc" }],
-      }),
-      prisma.setting.findUnique({
-        where: { key: "include_sundays_in_salary" },
-      }),
-    ]);
+  // Import centralized config loader
+  const { getSalaryConfig } = await import("./salary-config");
 
-  const packageDeductionMap: Record<
-    string,
-    { lateness: number; absence: number }
-  > = {};
-  packageDeductions.forEach((pkg) => {
-    packageDeductionMap[pkg.packageName] = {
-      lateness: Number(pkg.latenessBaseAmount),
-      absence: Number(pkg.absenceBaseAmount),
-    };
-  });
-
-  const excusedThreshold =
-    latenessConfigs.length > 0
-      ? Math.min(...latenessConfigs.map((c) => c.excusedThreshold ?? 0))
-      : 3;
-
-  const latenessTiers = latenessConfigs.map((c) => ({
-    start: c.startMinute,
-    end: c.endMinute,
-    percent: c.deductionPercent,
-  }));
+  // Load configuration from centralized config
+  const salaryConfig = await getSalaryConfig();
 
   const config: SalaryCalculationConfig = {
-    includeSundays: workingDaysConfig?.value === "true" || false,
-    excusedThreshold,
-    latenessTiers,
-    packageDeductions: packageDeductionMap,
+    includeSundays: salaryConfig.includeSundays,
+    excusedThreshold: salaryConfig.latenessConfig.excusedThreshold,
+    latenessTiers: salaryConfig.latenessConfig.tiers,
+    packageDeductions: salaryConfig.packageDeductions,
   };
 
   // Debug: Log configuration
   console.log("🔧 Salary Calculator Configuration:", {
     includeSundays: config.includeSundays,
-    settingValue: workingDaysConfig?.value,
     excusedThreshold: config.excusedThreshold,
     latenessTiersCount: config.latenessTiers.length,
     packageDeductionsCount: Object.keys(config.packageDeductions).length,
