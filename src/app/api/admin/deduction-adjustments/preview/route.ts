@@ -216,6 +216,15 @@ export async function POST(req: NextRequest) {
           },
         });
 
+        console.log(
+          `📋 Teacher ${teacherId}: Found ${teacherChanges.length} teacher changes:`
+        );
+        teacherChanges.forEach((tc) => {
+          console.log(
+            `  Student ${tc.student_id}: ${tc.old_teacher_id} → ${tc.new_teacher_id} on ${tc.change_date.toISOString().split("T")[0]}`
+          );
+        });
+
         // Helper function to check if teacher is assigned to student on specific date
         const isTeacherAssignedOnDate = (
           studentId: number,
@@ -345,6 +354,9 @@ export async function POST(req: NextRequest) {
             );
 
             if (!isAssigned) {
+              console.log(
+                `  ⏭️  Skipping ${student.name} on ${dateStr}: Teacher not assigned (teacher change)`
+              );
               continue; // Teacher not assigned on this date due to teacher change
             }
 
