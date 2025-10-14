@@ -464,7 +464,12 @@ export class SalaryCalculator {
       },
       include: {
         student: {
-          select: { wdt_ID: true, name: true, package: true },
+          select: { 
+            wdt_ID: true, 
+            name: true, 
+            package: true,
+            daypackages: true, // ✅ ADDED: Include daypackages field
+          },
         },
       },
     });
@@ -554,6 +559,19 @@ export class SalaryCalculator {
         package: true,
         daypackages: true, // ✅ ADDED: Include daypackages field
         status: true,
+        occupiedTimes: {
+          where: {
+            ustaz_id: teacherId,
+            occupied_at: { lte: toDate },
+            OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+          },
+          select: {
+            time_slot: true,
+            daypackage: true, // ✅ ADDED: Include daypackage field
+            occupied_at: true,
+            end_at: true,
+          },
+        },
         zoom_links: {
           where: {
             ustazid: teacherId, // Only zoom links sent by this teacher
@@ -607,6 +625,19 @@ export class SalaryCalculator {
               package: true,
               daypackages: true, // ✅ ADDED: Include daypackages field
               status: true,
+              occupiedTimes: {
+                where: {
+                  ustaz_id: teacherId,
+                  occupied_at: { lte: toDate },
+                  OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+                },
+                select: {
+                  time_slot: true,
+                  daypackage: true, // ✅ ADDED: Include daypackage field
+                  occupied_at: true,
+                  end_at: true,
+                },
+              },
               zoom_links: {
                 where: {
                   ustazid: teacherId, // Only zoom links sent by this teacher
@@ -644,6 +675,19 @@ export class SalaryCalculator {
             package: true,
             daypackages: true, // ✅ ADDED: Include daypackages field
             status: true,
+            occupiedTimes: {
+              where: {
+                ustaz_id: teacherId,
+                occupied_at: { lte: toDate },
+                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+              },
+              select: {
+                time_slot: true,
+                daypackage: true, // ✅ ADDED: Include daypackage field
+                occupied_at: true,
+                end_at: true,
+              },
+            },
           },
         },
       },
@@ -673,6 +717,7 @@ export class SalaryCalculator {
           package: student.package,
           daypackages: student.daypackages, // ✅ ADDED: Include daypackages field
           status: student.status,
+          occupiedTimes: student.occupiedTimes || [], // ✅ ADDED: Include occupied_times
           zoom_links: studentZoomLinks,
         });
       }
@@ -1051,15 +1096,40 @@ export class SalaryCalculator {
           }
         });
 
+        // Get daypackage from occupied_times or student record
+        // Priority: occupied_times.daypackage > student.daypackages
+        let studentDaypackage = "";
+        
+        // Try to get daypackage from student's occupied_times
+        if (student.occupiedTimes && student.occupiedTimes.length > 0) {
+          const relevantOccupiedTimes = student.occupiedTimes.filter((ot: any) => {
+            const assignmentStart = ot.occupied_at ? new Date(ot.occupied_at) : null;
+            const assignmentEnd = ot.end_at ? new Date(ot.end_at) : null;
+            if (assignmentStart && periodStart < assignmentStart) return false;
+            if (assignmentEnd && periodEnd > assignmentEnd) return false;
+            return true;
+          });
+          
+          if (relevantOccupiedTimes.length > 0 && relevantOccupiedTimes[0].daypackage) {
+            studentDaypackage = relevantOccupiedTimes[0].daypackage;
+          }
+        }
+        
+        // Fallback to student record daypackages
+        if (!studentDaypackage && student.daypackages) {
+          studentDaypackage = student.daypackages;
+        }
+
         // Now consider daypackage to determine expected teaching days
         const expectedTeachingDays = this.calculateExpectedTeachingDays(
           periodStart,
           periodEnd,
-          student.daypackages || ""
+          studentDaypackage
         );
 
         console.log(`📅 Student ${student.name} (${student.package}):`);
-        console.log(`   📊 Daypackage: "${student.daypackages}"`);
+        console.log(`   📊 Daypackage: "${studentDaypackage}"`);
+        console.log(`   📊 Daypackage from student record: "${student.daypackages || 'N/A'}"`);
         console.log(
           `   📅 Period: ${periodStart.toISOString().split("T")[0]} to ${
             periodEnd.toISOString().split("T")[0]
@@ -1079,6 +1149,9 @@ export class SalaryCalculator {
 
         console.log(
           `   ✅ Actual teaching days counted: ${teachingDates.size} days`
+        );
+        console.log(
+          `   📋 Teaching dates: [${Array.from(teachingDates).join(", ")}]`
         );
 
         const periodEarnings = Number(
@@ -1278,7 +1351,12 @@ export class SalaryCalculator {
         package: true,
         daypackages: true, // ✅ ADDED: Include daypackages field
         zoom_links: true, // Get ALL zoom links (filter later)
-        occupiedTimes: { select: { time_slot: true } },
+        occupiedTimes: { 
+          select: { 
+            time_slot: true,
+            daypackage: true, // ✅ ADDED: Include daypackage field
+          } 
+        },
       },
     });
 

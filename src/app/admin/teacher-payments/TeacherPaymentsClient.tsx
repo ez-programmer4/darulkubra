@@ -218,14 +218,14 @@ export default function TeacherPaymentsClient({
   useEffect(() => {
     const month = searchParams.get("month");
     const year = searchParams.get("year");
-    
+
     if (month) {
       const monthNum = parseInt(month);
       if (monthNum !== selectedMonth) {
         setSelectedMonth(monthNum);
       }
     }
-    
+
     if (year) {
       const yearNum = parseInt(year);
       if (yearNum !== selectedYear) {
@@ -248,11 +248,11 @@ export default function TeacherPaymentsClient({
       if (!cacheResponse.ok) {
         throw new Error("Failed to clear cache");
       }
-      
+
       // Then refresh the page
       updateURL(selectedMonth, selectedYear, true);
       setLastUpdated(new Date());
-      
+
       toast({
         title: "Success",
         description: "Salary cache cleared and data refreshed",
@@ -300,7 +300,9 @@ export default function TeacherPaymentsClient({
           setIncludeSundays(include);
           toast({
             title: "Success",
-            description: `Sunday inclusion ${include ? "enabled" : "disabled"}. Refreshing calculations...`,
+            description: `Sunday inclusion ${
+              include ? "enabled" : "disabled"
+            }. Refreshing calculations...`,
           });
           // Clear cache and refresh data to reflect the change immediately
           await refreshWithCacheClear();
@@ -453,7 +455,7 @@ export default function TeacherPaymentsClient({
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              Teacher Payments
+              Teacher Payments sdfghjk
             </h1>
             <p className="text-gray-600 mt-1">
               Manage teacher salaries, deductions, bonuses, and payment status
