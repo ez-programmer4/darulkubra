@@ -230,6 +230,7 @@ export async function POST(req: NextRequest) {
           }> = [];
 
           // Get teacher change history for proper assignment validation
+          // Get ALL changes up to endDate to properly track who was assigned when
           const teacherChanges = await tx.teacher_change_history.findMany({
             where: {
               OR: [
@@ -237,7 +238,6 @@ export async function POST(req: NextRequest) {
                 { new_teacher_id: teacherId },
               ],
               change_date: {
-                gte: startDate,
                 lte: endDate,
               },
             },
