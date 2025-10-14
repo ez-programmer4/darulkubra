@@ -816,38 +816,29 @@ export class SalaryCalculator {
   private calculateWorkingDays(fromDate: Date, toDate: Date): number {
     let workingDays = 0;
 
-    // Convert to UTC+3 timezone first
-    const startDate = toZonedTime(fromDate, TZ);
-    const endDate = toZonedTime(toDate, TZ);
-
     console.log(
-      `📅 Calculating working days from ${
-        startDate.toISOString().split("T")[0]
-      } to ${endDate.toISOString().split("T")[0]}`
+      `📅 Calculating working days from ${format(
+        fromDate,
+        "yyyy-MM-dd"
+      )} to ${format(toDate, "yyyy-MM-dd")}`
     );
 
     // Use a simple, reliable approach with proper date handling
-    const current = new Date(startDate);
-    const end = new Date(endDate);
+    const current = new Date(fromDate);
+    const end = new Date(toDate);
 
     // Reset to start of day to avoid time issues
-    current.setUTCHours(0, 0, 0, 0);
-    end.setUTCHours(23, 59, 59, 999);
+    current.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
 
     while (current <= end) {
-      // Convert to UTC+3 timezone for day calculation
-      const zonedDate = toZonedTime(current, TZ);
-
-      // Check if this day should be included based on Sunday setting
-      const dayOfWeek = zonedDate.getDay();
+      // Get day of week (0 = Sunday, 1 = Monday, etc.)
+      const dayOfWeek = current.getDay();
       const isSunday = dayOfWeek === 0;
       const shouldInclude = this.config.includeSundays || !isSunday;
 
       // Format date properly
-      const year = zonedDate.getFullYear();
-      const month = String(zonedDate.getMonth() + 1).padStart(2, "0");
-      const day = String(zonedDate.getDate()).padStart(2, "0");
-      const dateStr = `${year}-${month}-${day}`;
+      const dateStr = format(current, "yyyy-MM-dd");
 
       if (shouldInclude) {
         workingDays++;
@@ -858,8 +849,8 @@ export class SalaryCalculator {
         console.log(`  ❌ ${dateStr} (Sunday) - Excluded`);
       }
 
-      // Move to next day safely
-      current.setUTCDate(current.getUTCDate() + 1);
+      // Move to next day safely using milliseconds
+      current.setTime(current.getTime() + 24 * 60 * 60 * 1000);
     }
 
     console.log(
@@ -876,15 +867,28 @@ export class SalaryCalculator {
     teacherChangePeriods: any[] = [],
     teacherId: string
   ) {
+    console.log(`\n💰 === CALCULATING BASE SALARY ===`);
+    console.log(`   Teacher ID: ${teacherId}`);
+    console.log(
+      `   Period: ${format(fromDate, "yyyy-MM-dd")} to ${format(
+        toDate,
+        "yyyy-MM-dd"
+      )}`
+    );
+    console.log(`   Number of students: ${students.length}`);
+    console.log(`   Number of assignments: ${assignments.length}`);
+    console.log(
+      `   Number of teacher change periods: ${teacherChangePeriods.length}`
+    );
+
     const packageSalaries = await prisma.packageSalary.findMany();
     const salaryMap: Record<string, number> = {};
     packageSalaries.forEach((pkg) => {
       salaryMap[pkg.packageName] = Number(pkg.salaryPerStudent);
     });
 
-    // Debug: Log the input dates
     console.log(
-      `🔍 Input dates - fromDate: ${fromDate.toISOString()}, toDate: ${toDate.toISOString()}`
+      `   Package salaries loaded: ${Object.keys(salaryMap).length} packages`
     );
 
     // Calculate working days using the helper function
@@ -923,10 +927,24 @@ export class SalaryCalculator {
 
     // Process each student with their teacher periods
     for (const student of students) {
-      if (!student.package || !salaryMap[student.package]) continue;
+      console.log(
+        `\n👤 Processing student: ${student.name} (ID: ${student.wdt_ID})`
+      );
+      console.log(`   Package: ${student.package || "None"}`);
+      console.log(`   Status: ${student.status || "Unknown"}`);
+
+      if (!student.package || !salaryMap[student.package]) {
+        console.log(
+          `   ❌ SKIPPED: No package or package not found in salary map`
+        );
+        continue;
+      }
 
       const monthlyPackageSalary = Number(salaryMap[student.package] || 0);
       const dailyRate = Number((monthlyPackageSalary / workingDays).toFixed(2));
+
+      console.log(`   Monthly package salary: ${monthlyPackageSalary} ETB`);
+      console.log(`   Daily rate: ${dailyRate} ETB`);
 
       // Get teacher periods for this student
       const periods = teacherPeriods.get(student.wdt_ID.toString()) || [];
@@ -1127,16 +1145,32 @@ export class SalaryCalculator {
       }
 
       if (totalEarned > 0) {
+        // Calculate actual days worked for this student
+        const studentTeachingDates = new Set<string>();
+        periodBreakdown.forEach((period: any) => {
+          period.teachingDates.forEach((date: string) => {
+            studentTeachingDates.add(date);
+          });
+        });
+
+        console.log(
+          `   ✅ Student earned: ${totalEarned} ETB over ${studentTeachingDates.size} days`
+        );
+
         studentBreakdown.push({
           studentName: student.name || "Unknown",
           package: student.package || "Unknown",
           monthlyRate: monthlyPackageSalary,
           dailyRate: dailyRate,
-          daysWorked: Array.from(dailyEarnings.keys()).length,
+          daysWorked: studentTeachingDates.size,
           totalEarned: totalEarned,
           periods: periodBreakdown,
           teacherChanges: periods.length > 1,
         });
+      } else {
+        console.log(
+          `   ❌ NO EARNINGS: Student has no teaching days with zoom links`
+        );
       }
     }
 
@@ -1145,14 +1179,25 @@ export class SalaryCalculator {
         .reduce((sum, amount) => sum + amount, 0)
         .toFixed(2)
     );
+
+    // Calculate actual teaching days (unique dates with earnings)
+    const actualTeachingDays = dailyEarnings.size;
+
     const averageDailyEarning =
-      studentBreakdown.length > 0
-        ? Number((totalSalary / studentBreakdown.length).toFixed(2))
+      actualTeachingDays > 0
+        ? Number((totalSalary / actualTeachingDays).toFixed(2))
         : 0;
+
+    console.log(`💰 Base Salary Summary:`);
+    console.log(`   Total Salary: ${totalSalary} ETB`);
+    console.log(`   Working Days: ${workingDays}`);
+    console.log(`   Actual Teaching Days: ${actualTeachingDays}`);
+    console.log(`   Number of Students: ${studentBreakdown.length}`);
+    console.log(`   Average Daily Earning: ${averageDailyEarning} ETB`);
 
     return {
       totalSalary,
-      teachingDays: studentBreakdown.length,
+      teachingDays: actualTeachingDays,
       workingDays,
       averageDailyEarning,
       dailyEarnings: Array.from(dailyEarnings.entries()).map(
