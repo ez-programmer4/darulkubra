@@ -1074,24 +1074,6 @@ export class SalaryCalculator {
             return linkDate >= periodStart && linkDate <= periodEnd;
           }) || [];
 
-        if (isDebugStudent && debugInfo) {
-          const periodDebugInfo = {
-            period: `${periodStart.toISOString().split("T")[0]} to ${
-              periodEnd.toISOString().split("T")[0]
-            }`,
-            zoomLinksInPeriod: periodZoomLinks.length,
-            zoomLinkDates: periodZoomLinks.map(
-              (link: any) =>
-                new Date(link.sent_time).toISOString().split("T")[0]
-            ),
-            expectedTeachingDays: expectedTeachingDays.length,
-            teachingDates: [],
-            dailyRate: dailyRate,
-            periodEarnings: 0,
-          };
-          debugInfo.periods.push(periodDebugInfo);
-        }
-
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
             const linkDate = new Date(link.sent_time);
@@ -1158,6 +1140,25 @@ export class SalaryCalculator {
           periodEnd,
           studentDaypackage
         );
+
+        // Create debug info for this period (after expectedTeachingDays is calculated)
+        if (isDebugStudent && debugInfo) {
+          const periodDebugInfo = {
+            period: `${periodStart.toISOString().split("T")[0]} to ${
+              periodEnd.toISOString().split("T")[0]
+            }`,
+            zoomLinksInPeriod: periodZoomLinks.length,
+            zoomLinkDates: periodZoomLinks.map(
+              (link: any) =>
+                new Date(link.sent_time).toISOString().split("T")[0]
+            ),
+            expectedTeachingDays: expectedTeachingDays.length,
+            teachingDates: [],
+            dailyRate: dailyRate,
+            periodEarnings: 0,
+          };
+          debugInfo.periods.push(periodDebugInfo);
+        }
 
         console.log(`📅 Student ${student.name} (${student.package}):`);
         console.log(`   📊 Daypackage: "${studentDaypackage}"`);
