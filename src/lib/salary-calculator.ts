@@ -205,7 +205,7 @@ export class SalaryCalculator {
           ).toFixed(2)
         ),
         status: (payment?.status as "Paid" | "Unpaid") || "Unpaid",
-        numStudents: students.length,
+        numStudents: baseSalaryData.numStudents, // Use count of students with earnings
         teachingDays: baseSalaryData.teachingDays,
         hasTeacherChanges: baseSalaryData.studentBreakdown.some(
           (s) => s.teacherChanges
@@ -1314,11 +1314,19 @@ export class SalaryCalculator {
         ? Number((totalSalary / actualTeachingDays).toFixed(2))
         : 0;
 
+    // Count only students who actually earned something for this teacher
+    // Exclude students who were transferred away and have no earnings
+    const activeStudentCount = studentBreakdown.filter(
+      (student) => student.totalEarned > 0
+    ).length;
+
     console.log(`💰 Base Salary Summary:`);
     console.log(`   Total Salary: ${totalSalary} ETB`);
     console.log(`   Working Days: ${workingDays}`);
     console.log(`   Actual Teaching Days: ${actualTeachingDays}`);
-    console.log(`   Number of Students: ${studentBreakdown.length}`);
+    console.log(
+      `   Number of Students: ${activeStudentCount} (${studentBreakdown.length} total)`
+    );
     console.log(`   Average Daily Earning: ${averageDailyEarning} ETB`);
 
     return {
@@ -1333,6 +1341,7 @@ export class SalaryCalculator {
         })
       ),
       studentBreakdown,
+      numStudents: activeStudentCount, // Return the count of students with earnings
     };
   }
 
