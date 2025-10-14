@@ -58,6 +58,7 @@ export interface TeacherSalaryData {
         changeDate?: string;
       }>;
       teacherChanges: boolean;
+      debugInfo?: any;
     }>;
     latenessBreakdown: Array<{
       date: string;
@@ -1031,6 +1032,26 @@ export class SalaryCalculator {
       let totalEarned = 0;
       const periodBreakdown = [];
 
+      // Debug info for specific student
+      const debugInfo: any = isDebugStudent
+        ? {
+            studentName: student.name,
+            studentId: student.wdt_ID,
+            package: student.package,
+            daypackage: student.daypackages,
+            zoomLinksTotal: student.zoom_links?.length || 0,
+            zoomLinkDates:
+              student.zoom_links
+                ?.map((link: any) =>
+                  link.sent_time
+                    ? new Date(link.sent_time).toISOString().split("T")[0]
+                    : null
+                )
+                .filter(Boolean) || [],
+            periods: [],
+          }
+        : null;
+
       for (const period of periods) {
         const periodStart = new Date(
           Math.max(period.start.getTime(), fromDate.getTime())
@@ -1053,27 +1074,22 @@ export class SalaryCalculator {
             return linkDate >= periodStart && linkDate <= periodEnd;
           }) || [];
 
-        if (isDebugStudent) {
-          console.log(
-            `\n🔍 DEBUG: Period ${periodStart.toISOString().split("T")[0]} to ${
+        if (isDebugStudent && debugInfo) {
+          const periodDebugInfo = {
+            period: `${periodStart.toISOString().split("T")[0]} to ${
               periodEnd.toISOString().split("T")[0]
-            }`
-          );
-          console.log(
-            `🔍 DEBUG: Total zoom links for student: ${
-              student.zoom_links?.length || 0
-            }`
-          );
-          console.log(
-            `🔍 DEBUG: Zoom links in period: ${periodZoomLinks.length}`
-          );
-          periodZoomLinks.forEach((link: any) => {
-            console.log(
-              `🔍 DEBUG: Zoom link date: ${
+            }`,
+            zoomLinksInPeriod: periodZoomLinks.length,
+            zoomLinkDates: periodZoomLinks.map(
+              (link: any) =>
                 new Date(link.sent_time).toISOString().split("T")[0]
-              }`
-            );
-          });
+            ),
+            expectedTeachingDays: expectedTeachingDays.length,
+            teachingDates: [],
+            dailyRate: dailyRate,
+            periodEarnings: 0,
+          };
+          debugInfo.periods.push(periodDebugInfo);
         }
 
         periodZoomLinks.forEach((link: any) => {
@@ -1174,24 +1190,12 @@ export class SalaryCalculator {
           `   📋 Teaching dates: [${Array.from(teachingDates).join(", ")}]`
         );
 
-        if (isDebugStudent) {
-          console.log(
-            `\n🔍 DEBUG: Expected teaching days (${expectedTeachingDays.length}):`
-          );
-          expectedTeachingDays.forEach((date) =>
-            console.log(`🔍 DEBUG:   - ${date}`)
-          );
-          console.log(
-            `🔍 DEBUG: Teaching dates counted (${teachingDates.size}):`
-          );
-          Array.from(teachingDates).forEach((date) =>
-            console.log(`🔍 DEBUG:   - ${date}`)
-          );
-          console.log(`🔍 DEBUG: Daily rate: ${dailyRate} ETB`);
-          console.log(
-            `🔍 DEBUG: Period earnings: ${(
-              dailyRate * teachingDates.size
-            ).toFixed(2)} ETB`
+        if (isDebugStudent && debugInfo && debugInfo.periods.length > 0) {
+          const currentPeriodDebug =
+            debugInfo.periods[debugInfo.periods.length - 1];
+          currentPeriodDebug.teachingDates = Array.from(teachingDates);
+          currentPeriodDebug.periodEarnings = Number(
+            (dailyRate * teachingDates.size).toFixed(2)
           );
         }
 
@@ -1286,6 +1290,7 @@ export class SalaryCalculator {
           totalEarned: totalEarned,
           periods: periodBreakdown,
           teacherChanges: periods.length > 1,
+          debugInfo: debugInfo, // Add debug info for UI display
         });
       } else {
         console.log(
