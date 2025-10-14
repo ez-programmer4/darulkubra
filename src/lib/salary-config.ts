@@ -154,10 +154,11 @@ export async function getConfigValue<T>(
  * Update a configuration value
  */
 export async function setConfigValue(key: string, value: any): Promise<void> {
+  const now = new Date();
   await prisma.setting.upsert({
     where: { key },
-    update: { value: JSON.stringify(value) },
-    create: { key, value: JSON.stringify(value) },
+    update: { value: JSON.stringify(value), updatedAt: now },
+    create: { key, value: JSON.stringify(value), updatedAt: now },
   });
 
   console.log(`✅ Configuration updated: ${key}`);
