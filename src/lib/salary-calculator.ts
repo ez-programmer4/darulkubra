@@ -552,6 +552,7 @@ export class SalaryCalculator {
         wdt_ID: true,
         name: true,
         package: true,
+        daypackages: true, // ✅ ADDED: Include daypackages field
         status: true,
         zoom_links: {
           where: {
@@ -604,6 +605,7 @@ export class SalaryCalculator {
               wdt_ID: true,
               name: true,
               package: true,
+              daypackages: true, // ✅ ADDED: Include daypackages field
               status: true,
               zoom_links: {
                 where: {
@@ -640,6 +642,7 @@ export class SalaryCalculator {
             wdt_ID: true,
             name: true,
             package: true,
+            daypackages: true, // ✅ ADDED: Include daypackages field
             status: true,
           },
         },
@@ -668,6 +671,7 @@ export class SalaryCalculator {
           wdt_ID: student.wdt_ID,
           name: student.name,
           package: student.package,
+          daypackages: student.daypackages, // ✅ ADDED: Include daypackages field
           status: student.status,
           zoom_links: studentZoomLinks,
         });
@@ -687,6 +691,8 @@ export class SalaryCalculator {
           select: {
             wdt_ID: true,
             name: true,
+            package: true,
+            daypackages: true, // ✅ ADDED: Include daypackages field
             ustaz: true,
           },
         },
@@ -1270,6 +1276,7 @@ export class SalaryCalculator {
         wdt_ID: true,
         name: true,
         package: true,
+        daypackages: true, // ✅ ADDED: Include daypackages field
         zoom_links: true, // Get ALL zoom links (filter later)
         occupiedTimes: { select: { time_slot: true } },
       },
