@@ -1327,7 +1327,7 @@ export class SalaryCalculator {
 
       // Check if there's a lateness waiver for this date
       const hasLatenessWaiver = latenessWaivers.some(
-        (waiver) => waiver.deductionDate.toISOString().split("T")[0] === dateStr
+        (waiver) => format(waiver.deductionDate, "yyyy-MM-dd") === dateStr
       );
 
       if (hasLatenessWaiver) {

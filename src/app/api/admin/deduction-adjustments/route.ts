@@ -424,9 +424,26 @@ export async function POST(req: NextRequest) {
               percent: c.deductionPercent,
             }));
 
-            // Get ALL students for this teacher
+            // Get ALL students for this teacher (EXACT same filter as salary calculator)
             const allStudents = await tx.wpos_wpdatatable_23.findMany({
-              where: { ustaz: teacherId },
+              where: {
+                OR: [
+                  // Current assignment (active or not yet)
+                  {
+                    ustaz: teacherId,
+                    status: { in: ["active", "Active", "Not yet", "not yet"] },
+                  },
+                  // Historical assignment via occupiedTimes (catches teacher changes)
+                  {
+                    status: { in: ["active", "Active", "Not yet", "not yet"] },
+                    occupiedTimes: {
+                      some: {
+                        ustaz_id: teacherId,
+                      },
+                    },
+                  },
+                ],
+              },
               select: {
                 wdt_ID: true,
                 name: true,
