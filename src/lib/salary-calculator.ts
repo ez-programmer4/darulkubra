@@ -464,9 +464,9 @@ export class SalaryCalculator {
       },
       include: {
         student: {
-          select: { 
-            wdt_ID: true, 
-            name: true, 
+          select: {
+            wdt_ID: true,
+            name: true,
             package: true,
             daypackages: true, // ✅ ADDED: Include daypackages field
           },
@@ -807,6 +807,7 @@ export class SalaryCalculator {
 
   /**
    * Parse daypackage string to get array of day numbers (0=Sunday, 1=Monday, etc.)
+   * Only handles: "All days", "MWF", "TTS"
    */
   private parseDaypackage(daypackage: string): number[] {
     if (!daypackage || daypackage.trim() === "") {
@@ -816,7 +817,7 @@ export class SalaryCalculator {
     const dpTrimmed = daypackage.trim().toUpperCase();
     console.log(`       🔍 Parsing daypackage: "${dpTrimmed}"`);
 
-    // Common patterns
+    // Only these three patterns are used in the system
     if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
       console.log(`       ✅ Matched "ALL DAYS" pattern`);
       return [0, 1, 2, 3, 4, 5, 6]; // Sunday to Saturday
@@ -828,32 +829,6 @@ export class SalaryCalculator {
     if (dpTrimmed === "TTS" || dpTrimmed === "TTH") {
       console.log(`       ✅ Matched "TTS/TTH" pattern`);
       return [2, 4, 6]; // Tuesday, Thursday, Saturday
-    }
-
-    // Day mapping
-    const dayMap: Record<string, number> = {
-      MONDAY: 1,
-      TUESDAY: 2,
-      WEDNESDAY: 3,
-      THURSDAY: 4,
-      FRIDAY: 5,
-      SATURDAY: 6,
-      SUNDAY: 0,
-    };
-
-    // Try to parse individual days
-    const days: number[] = [];
-    const words = dpTrimmed.split(/\s+/);
-
-    for (const word of words) {
-      if (dayMap[word]) {
-        days.push(dayMap[word]);
-      }
-    }
-
-    if (days.length > 0) {
-      console.log(`       ✅ Parsed individual days: [${days.join(", ")}]`);
-      return days;
     }
 
     console.log(`       ❌ Could not parse daypackage: "${dpTrimmed}"`);
@@ -982,20 +957,21 @@ export class SalaryCalculator {
         `\n👤 Processing student: ${student.name} (ID: ${student.wdt_ID})`
       );
       console.log(`   Package: ${student.package || "None"}`);
+      console.log(`   Daypackage: ${student.daypackages || "None"}`);
       console.log(`   Status: ${student.status || "Unknown"}`);
 
-      if (!student.package || !salaryMap[student.package]) {
-        console.log(
-          `   ❌ SKIPPED: No package or package not found in salary map`
-        );
-        continue;
-      }
-
-      const monthlyPackageSalary = Number(salaryMap[student.package] || 0);
+      // Get package salary (use 0 if no package configured)
+      const monthlyPackageSalary =
+        student.package && salaryMap[student.package]
+          ? Number(salaryMap[student.package])
+          : 0;
       const dailyRate = Number((monthlyPackageSalary / workingDays).toFixed(2));
 
       console.log(`   Monthly package salary: ${monthlyPackageSalary} ETB`);
       console.log(`   Daily rate: ${dailyRate} ETB`);
+
+      // Note: We still process students even without a package configured
+      // because daypackage determines expected teaching days, not package
 
       // Get teacher periods for this student
       const periods = teacherPeriods.get(student.wdt_ID.toString()) || [];
@@ -1099,22 +1075,30 @@ export class SalaryCalculator {
         // Get daypackage from occupied_times or student record
         // Priority: occupied_times.daypackage > student.daypackages
         let studentDaypackage = "";
-        
+
         // Try to get daypackage from student's occupied_times
         if (student.occupiedTimes && student.occupiedTimes.length > 0) {
-          const relevantOccupiedTimes = student.occupiedTimes.filter((ot: any) => {
-            const assignmentStart = ot.occupied_at ? new Date(ot.occupied_at) : null;
-            const assignmentEnd = ot.end_at ? new Date(ot.end_at) : null;
-            if (assignmentStart && periodStart < assignmentStart) return false;
-            if (assignmentEnd && periodEnd > assignmentEnd) return false;
-            return true;
-          });
-          
-          if (relevantOccupiedTimes.length > 0 && relevantOccupiedTimes[0].daypackage) {
+          const relevantOccupiedTimes = student.occupiedTimes.filter(
+            (ot: any) => {
+              const assignmentStart = ot.occupied_at
+                ? new Date(ot.occupied_at)
+                : null;
+              const assignmentEnd = ot.end_at ? new Date(ot.end_at) : null;
+              if (assignmentStart && periodStart < assignmentStart)
+                return false;
+              if (assignmentEnd && periodEnd > assignmentEnd) return false;
+              return true;
+            }
+          );
+
+          if (
+            relevantOccupiedTimes.length > 0 &&
+            relevantOccupiedTimes[0].daypackage
+          ) {
             studentDaypackage = relevantOccupiedTimes[0].daypackage;
           }
         }
-        
+
         // Fallback to student record daypackages
         if (!studentDaypackage && student.daypackages) {
           studentDaypackage = student.daypackages;
@@ -1129,7 +1113,11 @@ export class SalaryCalculator {
 
         console.log(`📅 Student ${student.name} (${student.package}):`);
         console.log(`   📊 Daypackage: "${studentDaypackage}"`);
-        console.log(`   📊 Daypackage from student record: "${student.daypackages || 'N/A'}"`);
+        console.log(
+          `   📊 Daypackage from student record: "${
+            student.daypackages || "N/A"
+          }"`
+        );
         console.log(
           `   📅 Period: ${periodStart.toISOString().split("T")[0]} to ${
             periodEnd.toISOString().split("T")[0]
@@ -1351,11 +1339,11 @@ export class SalaryCalculator {
         package: true,
         daypackages: true, // ✅ ADDED: Include daypackages field
         zoom_links: true, // Get ALL zoom links (filter later)
-        occupiedTimes: { 
-          select: { 
+        occupiedTimes: {
+          select: {
             time_slot: true,
             daypackage: true, // ✅ ADDED: Include daypackage field
-          } 
+          },
         },
       },
     });
