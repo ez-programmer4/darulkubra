@@ -1037,12 +1037,31 @@ export class SalaryCalculator {
         const dailyLinks = new Map<string, Date>();
 
         // Get zoom links for this period
+        console.log(
+          `   🔍 Checking zoom links for period ${
+            periodStart.toISOString().split("T")[0]
+          } to ${periodEnd.toISOString().split("T")[0]}`
+        );
+        console.log(
+          `   📊 Total zoom links for student: ${
+            student.zoom_links?.length || 0
+          }`
+        );
+
         const periodZoomLinks =
           student.zoom_links?.filter((link: any) => {
             if (!link.sent_time) return false;
             const linkDate = new Date(link.sent_time);
-            return linkDate >= periodStart && linkDate <= periodEnd;
+            const isInRange = linkDate >= periodStart && linkDate <= periodEnd;
+            console.log(
+              `   🔗 Zoom link: ${linkDate.toISOString().split("T")[0]} - ${
+                isInRange ? "✅ In range" : "❌ Out of range"
+              }`
+            );
+            return isInRange;
           }) || [];
+
+        console.log(`   📊 Zoom links in period: ${periodZoomLinks.length}`);
 
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
