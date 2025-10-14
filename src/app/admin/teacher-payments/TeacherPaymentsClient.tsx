@@ -214,11 +214,45 @@ export default function TeacherPaymentsClient({
     [router, searchParams]
   );
 
+  // Handle URL changes and update state accordingly
+  useEffect(() => {
+    const month = searchParams.get("month");
+    const year = searchParams.get("year");
+    
+    if (month) {
+      const monthNum = parseInt(month);
+      if (monthNum !== selectedMonth) {
+        setSelectedMonth(monthNum);
+      }
+    }
+    
+    if (year) {
+      const yearNum = parseInt(year);
+      if (yearNum !== selectedYear) {
+        setSelectedYear(yearNum);
+      }
+    }
+  }, [searchParams, selectedMonth, selectedYear]);
+
   // Refresh data by navigating to the same URL with clearCache
   const refreshWithCacheClear = useCallback(async () => {
     setLoading(true);
     try {
+      // Clear cache via API first
+      const cacheResponse = await fetch("/api/admin/clear-salary-cache", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear_all" }),
+      });
+
+      if (!cacheResponse.ok) {
+        throw new Error("Failed to clear cache");
+      }
+      
+      // Then refresh the page
       updateURL(selectedMonth, selectedYear, true);
+      setLastUpdated(new Date());
+      
       toast({
         title: "Success",
         description: "Salary cache cleared and data refreshed",
@@ -239,6 +273,7 @@ export default function TeacherPaymentsClient({
     setLoading(true);
     try {
       updateURL(selectedMonth, selectedYear, false);
+      setLastUpdated(new Date());
     } catch (error) {
       toast({
         title: "Error",
@@ -254,6 +289,7 @@ export default function TeacherPaymentsClient({
   const updateSundaySetting = useCallback(
     async (include: boolean) => {
       try {
+        setLoading(true);
         const response = await fetch("/api/admin/settings/include-sundays", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -264,10 +300,11 @@ export default function TeacherPaymentsClient({
           setIncludeSundays(include);
           toast({
             title: "Success",
-            description: `Sunday inclusion ${include ? "enabled" : "disabled"}`,
+            description: `Sunday inclusion ${include ? "enabled" : "disabled"}. Refreshing calculations...`,
           });
-          // Refresh data with cache clear to reflect the change immediately
+          // Clear cache and refresh data to reflect the change immediately
           await refreshWithCacheClear();
+          setLastUpdated(new Date());
         } else {
           throw new Error("Failed to update setting");
         }
@@ -277,6 +314,8 @@ export default function TeacherPaymentsClient({
           description: "Failed to update Sunday inclusion setting",
           variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
     },
     [refreshWithCacheClear]
@@ -286,6 +325,7 @@ export default function TeacherPaymentsClient({
   const updateShowTeacherSalarySetting = useCallback(
     async (show: boolean, message?: string, contact?: string) => {
       try {
+        setLoading(true);
         const response = await fetch(
           "/api/admin/settings/teacher-salary-visibility",
           {
@@ -311,6 +351,7 @@ export default function TeacherPaymentsClient({
           });
           // Refresh data with cache clear to reflect the change immediately
           await refreshWithCacheClear();
+          setLastUpdated(new Date());
         } else {
           throw new Error("Failed to update setting");
         }
@@ -320,6 +361,8 @@ export default function TeacherPaymentsClient({
           description: "Failed to update teacher salary visibility setting",
           variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
     },
     [customMessage, adminContact, refreshWithCacheClear]
@@ -367,6 +410,7 @@ export default function TeacherPaymentsClient({
   const handleBulkAction = useCallback(
     async (action: string, teacherIds?: string[]) => {
       try {
+        setLoading(true);
         const response = await fetch("/api/admin/teacher-payments", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -383,17 +427,20 @@ export default function TeacherPaymentsClient({
 
         toast({
           title: "Success",
-          description: `Bulk action completed successfully`,
+          description: `Bulk action completed successfully. Refreshing data...`,
         });
 
         // Refresh data to show updated status
         await refresh();
+        setLastUpdated(new Date());
       } catch (error) {
         toast({
           title: "Error",
           description: "Failed to perform bulk action",
           variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
     },
     [refresh]
