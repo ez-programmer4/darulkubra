@@ -1846,6 +1846,14 @@ export class SalaryCalculator {
 
       const datesToProcess = safeDateIterator(fromDate, effectiveToDate);
 
+      console.log(`\n📊 ABSENCE CALCULATION SUMMARY:`);
+      console.log(`   Total dates to process: ${datesToProcess.length}`);
+      console.log(`   Total students: ${students.length}`);
+      console.log(`   Working days: ${workingDays}`);
+      console.log(
+        `   Expected max absences: ${datesToProcess.length * students.length}`
+      );
+
       for (const d of datesToProcess) {
         // Convert to timezone-aware date for proper day calculation
         const zonedDate = toZonedTime(d, TZ);
@@ -1929,9 +1937,35 @@ export class SalaryCalculator {
           console.log(
             `       📅 Relevant occupied times: ${relevantOccupiedTimes.length}`
           );
+
+          // If no occupied times, check if student has zoom links during the period
+          // If yes, assume they should be taught and check their daypackage
           if (relevantOccupiedTimes.length === 0) {
-            console.log(`       ❌ No relevant occupied times for this date`);
-            continue;
+            // Check if student has any zoom links during the period
+            const hasZoomLinksInPeriod = student.zoom_links?.some(
+              (link: any) => {
+                if (!link.sent_time) return false;
+                const linkDate = new Date(link.sent_time);
+                return linkDate >= fromDate && linkDate <= effectiveToDate;
+              }
+            );
+
+            if (!hasZoomLinksInPeriod) {
+              console.log(
+                `       ❌ No relevant occupied times and no zoom links in period`
+              );
+              continue;
+            }
+
+            // Student has zoom links but no occupied times - use all occupied times
+            // This handles cases where occupied times might be missing
+            if (student.occupiedTimes.length > 0) {
+              relevantOccupiedTimes.push(...student.occupiedTimes);
+              console.log(`       ⚠️  Using all occupied times as fallback`);
+            } else {
+              console.log(`       ❌ No occupied times available at all`);
+              continue;
+            }
           }
 
           // Check if student is scheduled on this day
@@ -2046,11 +2080,23 @@ export class SalaryCalculator {
         }
       }
 
+      console.log(`\n💰 FINAL ABSENCE DEDUCTION SUMMARY:`);
+      console.log(`   Total absence deductions: ${breakdown.length}`);
+      console.log(`   Total deduction amount: ${totalDeduction} ETB`);
+      console.log(`   Dates processed: ${datesToProcess.length}`);
       console.log(
-        `💰 Final absence deduction: ${totalDeduction} ETB for ${breakdown.length} days`
+        `   Working days: ${workingDays} (includeSundays: ${this.config.includeSundays})`
       );
+      console.log(`   Students checked: ${students.length}`);
       console.log(
-        `📅 Total working days in period: ${workingDays} (includeSundays: ${this.config.includeSundays})`
+        `   Expected max absences: ${datesToProcess.length * students.length}`
+      );
+      console.log(`   Actual absences: ${breakdown.length}`);
+      console.log(
+        `   Coverage: ${(
+          (breakdown.length / (datesToProcess.length * students.length)) *
+          100
+        ).toFixed(2)}%`
       );
 
       return {
