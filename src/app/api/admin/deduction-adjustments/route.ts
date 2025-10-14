@@ -229,6 +229,84 @@ export async function POST(req: NextRequest) {
             adminId: string;
           }> = [];
 
+          // Get teacher change history for proper assignment validation
+          const teacherChanges = await tx.teacher_change_history.findMany({
+            where: {
+              OR: [
+                { old_teacher_id: teacherId },
+                { new_teacher_id: teacherId },
+              ],
+              change_date: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+            select: {
+              student_id: true,
+              old_teacher_id: true,
+              new_teacher_id: true,
+              change_date: true,
+            },
+          });
+
+          // Helper function to check if teacher is assigned to student on specific date
+          const isTeacherAssignedOnDate = (
+            studentId: number,
+            date: Date,
+            occupiedTimes: Array<{
+              occupied_at: Date | null;
+              end_at: Date | null;
+            }>
+          ): boolean => {
+            // Get all teacher changes for this student, sorted by date
+            const studentChanges = teacherChanges
+              .filter((tc) => tc.student_id === studentId)
+              .sort(
+                (a, b) => a.change_date.getTime() - b.change_date.getTime()
+              );
+
+            if (studentChanges.length > 0) {
+              // Find the most recent change before or on this date
+              let currentTeacherOnDate: string | null = null;
+
+              for (const change of studentChanges) {
+                const changeDate = new Date(change.change_date);
+                changeDate.setHours(0, 0, 0, 0);
+                const checkDate = new Date(date);
+                checkDate.setHours(0, 0, 0, 0);
+
+                if (checkDate < changeDate) {
+                  // This change hasn't happened yet on checkDate
+                  // Use the old teacher if this is the first change
+                  if (studentChanges[0] === change && change.old_teacher_id) {
+                    currentTeacherOnDate = change.old_teacher_id;
+                  }
+                  break;
+                } else {
+                  // This change has happened by checkDate
+                  currentTeacherOnDate = change.new_teacher_id;
+                }
+              }
+
+              return currentTeacherOnDate === teacherId;
+            }
+
+            // No teacher changes, check regular assignment period
+            for (const ot of occupiedTimes) {
+              const assignmentStart = ot.occupied_at
+                ? new Date(ot.occupied_at)
+                : null;
+              const assignmentEnd = ot.end_at ? new Date(ot.end_at) : null;
+
+              if (assignmentStart && date < assignmentStart) continue;
+              if (assignmentEnd && date > assignmentEnd) continue;
+
+              return true;
+            }
+
+            return false;
+          };
+
           // Helper to parse daypackage (same as salary calculator and preview)
           const parseDaypackage = (dp: string): number[] => {
             if (!dp || dp.trim() === "") return [];
@@ -290,6 +368,17 @@ export async function POST(req: NextRequest) {
             const affectedStudents = [];
 
             for (const student of currentStudents) {
+              // Check if teacher was actually assigned to this student on this date (considering teacher changes)
+              const isAssigned = isTeacherAssignedOnDate(
+                student.wdt_ID,
+                d,
+                student.occupiedTimes || []
+              );
+
+              if (!isAssigned) {
+                continue; // Teacher not assigned on this date due to teacher change
+              }
+
               // Get relevant occupied times for this date
               const relevantOccupiedTimes = student.occupiedTimes.filter(
                 (ot: any) => {

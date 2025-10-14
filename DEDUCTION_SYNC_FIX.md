@@ -72,25 +72,73 @@ const allStudents = await prisma.wpos_wpdatatable_23.findMany({
 
 **Fix Applied**: Updated both deduction-adjustments APIs to use the exact same student filter as the salary calculator.
 
+### 3. **Missing Teacher Change Validation**
+
+**Issue**: The deduction-adjustments API was not validating whether a teacher was still assigned to a student on a specific date when teacher changes occurred.
+
+**Salary Calculator (CORRECT)**:
+
+```typescript
+// Check if teacher was actually assigned to this student on this date
+// considering teacher changes
+const isAssigned = this.isTeacherAssignedOnDate(
+  teacherId,
+  student.wdt_ID,
+  date,
+  teacherChanges,
+  student.occupiedTimes || []
+);
+
+if (!isAssigned) {
+  continue; // Skip - teacher not assigned due to teacher change
+}
+```
+
+**Deduction Adjustments (BEFORE)**:
+
+```typescript
+// Missing this check entirely!
+// Would count absences even if teacher changed
+```
+
+**Impact**: If a student had a teacher change on or before a date:
+
+- ✅ Shows deduction in Deduction Adjustments (incorrectly counted for old teacher)
+- ❌ NOT shown in Teacher Payments (correctly excluded due to teacher change)
+
+**Example**: For teacher (H)FEDILA DIMA on 10/14/2025:
+
+- **Before Fix**: Showed 7 absences (including 4 students who changed teachers)
+- **After Fix**: Shows only 3 absences (students still assigned to this teacher)
+- **Missing students**: Fetya taju, maida hussen, Rewda Abdlkerim, Zufan (all had teacher changes)
+
+**Fix Applied**: Added `isTeacherAssignedOnDate` validation function and teacher change history lookup to both deduction-adjustments APIs.
+
 ## Files Modified
 
 ### 1. `src/app/api/admin/deduction-adjustments/preview/route.ts`
 
-✅ Fixed timezone inconsistency in waived date comparisons (lines 91-93, 394-396)
-✅ Fixed student status filter to match salary calculator (lines 420-446)
-✅ Added debug logging for waived dates (lines 95-98, 398-401)
+✅ Fixed timezone inconsistency in waived date comparisons
+✅ Fixed student status filter to match salary calculator  
+✅ Added teacher change validation logic (`isTeacherAssignedOnDate` helper)
+✅ Fetches teacher change history for proper assignment validation
+✅ Validates teacher assignment before processing each student's absence
+✅ Added debug logging for waived dates
 
 ### 2. `src/app/api/admin/deduction-adjustments/route.ts`
 
-✅ Added `format` import from `date-fns` (line 5)
+✅ Added `format` import from `date-fns`
 ✅ Fixed timezone inconsistency in multiple locations:
 
-- Waiver comparisons (lines 67-68, 197, 210)
-- Date loop comparisons (line 280)
-- Zoom link date comparisons (line 335)
-- Attendance record date comparisons (line 345)
-- Helper function date formatting (line 650)
-  ✅ Fixed student status filter to match salary calculator (lines 428-454)
+- Waiver comparisons
+- Date loop comparisons
+- Zoom link date comparisons
+- Attendance record date comparisons
+- Helper function date formatting
+  ✅ Fixed student status filter to match salary calculator
+  ✅ Added teacher change validation logic (`isTeacherAssignedOnDate` helper)
+  ✅ Fetches teacher change history for proper assignment validation
+  ✅ Validates teacher assignment before processing each student's absence
 
 ### 3. `src/lib/salary-calculator.ts`
 
@@ -169,6 +217,8 @@ After these fixes:
 - ✅ **Only active/not-yet students** included in both systems
 - ✅ **Timezone-safe** date comparisons throughout
 - ✅ **Consistent** deduction calculation logic
+- ✅ **Teacher changes properly validated** - students only counted for the teacher assigned on each specific date
+- ✅ **Absence deductions synchronized** - both systems exclude students who changed teachers
 
 ## Verification Steps
 
