@@ -880,114 +880,190 @@ export default function SalaryTable({
                                   <td className="px-4 py-2 text-sm text-gray-600">
                                     {student.package}
                                   </td>
-                                <td className="px-4 py-2 text-sm text-gray-600">
-                                  {formatCurrency(student.monthlyRate)}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-600">
-                                  {formatCurrency(student.dailyRate)}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-600">
-                                  {student.daysWorked}
-                                </td>
-                                <td className="px-4 py-2 text-sm font-medium text-gray-900">
-                                  {formatCurrency(student.totalEarned)}
-                                </td>
-                                <td className="px-4 py-2 text-sm">
-                                  {student.teacherChanges ? (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs bg-orange-50 text-orange-700 border-orange-200"
-                                    >
-                                      Yes
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-gray-500">No</span>
-                                  )}
-                                </td>
-                              </tr>
-                              
-                              {/* Debug Info Row */}
-                              {student.debugInfo && (
-                                <tr>
-                                  <td colSpan={7} className="px-4 py-4 bg-blue-50 border-b border-blue-200">
-                                    <div className="space-y-3">
-                                      <div className="font-semibold text-sm text-blue-900 mb-2">
-                                        🔍 Debug Information for {student.studentName}
-                                      </div>
-                                      
-                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                                        <div>
-                                          <span className="font-medium text-gray-700">Student ID:</span>
-                                          <div className="text-gray-900">{student.debugInfo.studentId}</div>
-                                        </div>
-                                        <div>
-                                          <span className="font-medium text-gray-700">Package:</span>
-                                          <div className="text-gray-900">{student.debugInfo.package || "None"}</div>
-                                        </div>
-                                        <div>
-                                          <span className="font-medium text-gray-700">Daypackage:</span>
-                                          <div className="text-gray-900">{student.debugInfo.daypackage || "None"}</div>
-                                        </div>
-                                        <div>
-                                          <span className="font-medium text-gray-700">Total Zoom Links:</span>
-                                          <div className="text-gray-900">{student.debugInfo.zoomLinksTotal}</div>
-                                        </div>
-                                      </div>
-
-                                      <div className="mt-2">
-                                        <span className="font-medium text-gray-700 text-xs">Zoom Link Dates:</span>
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                          {student.debugInfo.zoomLinkDates.map((date: string, idx: number) => (
-                                            <span key={idx} className="px-2 py-0.5 bg-white border border-gray-300 rounded text-xs">
-                                              {date}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      </div>
-
-                                      {student.debugInfo.periods && student.debugInfo.periods.length > 0 && (
-                                        <div className="mt-3 space-y-2">
-                                          <span className="font-medium text-gray-700 text-xs">Period Details:</span>
-                                          {student.debugInfo.periods.map((period: any, pIdx: number) => (
-                                            <div key={pIdx} className="bg-white border border-gray-200 rounded p-2 text-xs">
-                                              <div className="font-medium text-gray-900 mb-1">{period.period}</div>
-                                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                                                <div>
-                                                  <span className="text-gray-600">Zoom Links:</span>
-                                                  <div className="font-medium">{period.zoomLinksInPeriod}</div>
-                                                </div>
-                                                <div>
-                                                  <span className="text-gray-600">Expected Days:</span>
-                                                  <div className="font-medium">{period.expectedTeachingDays}</div>
-                                                </div>
-                                                <div>
-                                                  <span className="text-gray-600">Teaching Days:</span>
-                                                  <div className="font-medium">{period.teachingDates.length}</div>
-                                                </div>
-                                                <div>
-                                                  <span className="text-gray-600">Earnings:</span>
-                                                  <div className="font-medium">{formatCurrency(period.periodEarnings)}</div>
-                                                </div>
-                                              </div>
-                                              <div className="mt-1">
-                                                <span className="text-gray-600">Teaching Dates:</span>
-                                                <div className="flex flex-wrap gap-1 mt-0.5">
-                                                  {period.teachingDates.map((date: string, dIdx: number) => (
-                                                    <span key={dIdx} className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs">
-                                                      {date}
-                                                    </span>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
+                                  <td className="px-4 py-2 text-sm text-gray-600">
+                                    {formatCurrency(student.monthlyRate)}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm text-gray-600">
+                                    {formatCurrency(student.dailyRate)}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm text-gray-600">
+                                    {student.daysWorked}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                                    {formatCurrency(student.totalEarned)}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm">
+                                    {student.teacherChanges ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs bg-orange-50 text-orange-700 border-orange-200"
+                                      >
+                                        Yes
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-gray-500">No</span>
+                                    )}
                                   </td>
                                 </tr>
-                              )}
-                            </React.Fragment>
+
+                                {/* Debug Info Row */}
+                                {student.debugInfo && (
+                                  <tr>
+                                    <td
+                                      colSpan={7}
+                                      className="px-4 py-4 bg-blue-50 border-b border-blue-200"
+                                    >
+                                      <div className="space-y-3">
+                                        <div className="font-semibold text-sm text-blue-900 mb-2">
+                                          🔍 Debug Information for{" "}
+                                          {student.studentName}
+                                        </div>
+
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                          <div>
+                                            <span className="font-medium text-gray-700">
+                                              Student ID:
+                                            </span>
+                                            <div className="text-gray-900">
+                                              {student.debugInfo.studentId}
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <span className="font-medium text-gray-700">
+                                              Package:
+                                            </span>
+                                            <div className="text-gray-900">
+                                              {student.debugInfo.package ||
+                                                "None"}
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <span className="font-medium text-gray-700">
+                                              Daypackage:
+                                            </span>
+                                            <div className="text-gray-900">
+                                              {student.debugInfo.daypackage ||
+                                                "None"}
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <span className="font-medium text-gray-700">
+                                              Total Zoom Links:
+                                            </span>
+                                            <div className="text-gray-900">
+                                              {student.debugInfo.zoomLinksTotal}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="mt-2">
+                                          <span className="font-medium text-gray-700 text-xs">
+                                            Zoom Link Dates:
+                                          </span>
+                                          <div className="flex flex-wrap gap-1 mt-1">
+                                            {student.debugInfo.zoomLinkDates.map(
+                                              (date: string, idx: number) => (
+                                                <span
+                                                  key={idx}
+                                                  className="px-2 py-0.5 bg-white border border-gray-300 rounded text-xs"
+                                                >
+                                                  {date}
+                                                </span>
+                                              )
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {student.debugInfo.periods &&
+                                          student.debugInfo.periods.length >
+                                            0 && (
+                                            <div className="mt-3 space-y-2">
+                                              <span className="font-medium text-gray-700 text-xs">
+                                                Period Details:
+                                              </span>
+                                              {student.debugInfo.periods.map(
+                                                (period: any, pIdx: number) => (
+                                                  <div
+                                                    key={pIdx}
+                                                    className="bg-white border border-gray-200 rounded p-2 text-xs"
+                                                  >
+                                                    <div className="font-medium text-gray-900 mb-1">
+                                                      {period.period}
+                                                    </div>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                                      <div>
+                                                        <span className="text-gray-600">
+                                                          Zoom Links:
+                                                        </span>
+                                                        <div className="font-medium">
+                                                          {
+                                                            period.zoomLinksInPeriod
+                                                          }
+                                                        </div>
+                                                      </div>
+                                                      <div>
+                                                        <span className="text-gray-600">
+                                                          Expected Days:
+                                                        </span>
+                                                        <div className="font-medium">
+                                                          {
+                                                            period.expectedTeachingDays
+                                                          }
+                                                        </div>
+                                                      </div>
+                                                      <div>
+                                                        <span className="text-gray-600">
+                                                          Teaching Days:
+                                                        </span>
+                                                        <div className="font-medium">
+                                                          {
+                                                            period.teachingDates
+                                                              .length
+                                                          }
+                                                        </div>
+                                                      </div>
+                                                      <div>
+                                                        <span className="text-gray-600">
+                                                          Earnings:
+                                                        </span>
+                                                        <div className="font-medium">
+                                                          {formatCurrency(
+                                                            period.periodEarnings
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                    <div className="mt-1">
+                                                      <span className="text-gray-600">
+                                                        Teaching Dates:
+                                                      </span>
+                                                      <div className="flex flex-wrap gap-1 mt-0.5">
+                                                        {period.teachingDates.map(
+                                                          (
+                                                            date: string,
+                                                            dIdx: number
+                                                          ) => (
+                                                            <span
+                                                              key={dIdx}
+                                                              className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs"
+                                                            >
+                                                              {date}
+                                                            </span>
+                                                          )
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                )
+                                              )}
+                                            </div>
+                                          )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            )
                           )}
                         </tbody>
                       </table>
