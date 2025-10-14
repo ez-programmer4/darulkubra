@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { format } from "date-fns";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -63,8 +64,8 @@ export async function POST(req: NextRequest) {
               !existingWaivers.some(
                 (waiver) =>
                   waiver.teacherId === record.teacherId &&
-                  waiver.deductionDate.toISOString().split("T")[0] ===
-                    record.classDate.toISOString().split("T")[0]
+                  format(waiver.deductionDate, "yyyy-MM-dd") ===
+                    format(record.classDate, "yyyy-MM-dd")
               )
           );
 
@@ -193,9 +194,7 @@ export async function POST(req: NextRequest) {
           });
 
           const waivedDates = new Set(
-            existingWaivers.map(
-              (w) => w.deductionDate.toISOString().split("T")[0]
-            )
+            existingWaivers.map((w) => format(w.deductionDate, "yyyy-MM-dd"))
           );
 
           // Get existing absence records
@@ -207,8 +206,8 @@ export async function POST(req: NextRequest) {
           });
 
           const existingAbsenceDates = new Set(
-            existingAbsenceRecords.map(
-              (record) => record.classDate.toISOString().split("T")[0]
+            existingAbsenceRecords.map((record) =>
+              format(record.classDate, "yyyy-MM-dd")
             )
           );
 
@@ -278,7 +277,7 @@ export async function POST(req: NextRequest) {
             if (d > today) continue;
 
             const dayOfWeek = d.getDay();
-            const dateStr = d.toISOString().split("T")[0];
+            const dateStr = format(d, "yyyy-MM-dd");
 
             if (!includeSundays && dayOfWeek === 0) continue;
 
@@ -333,7 +332,7 @@ export async function POST(req: NextRequest) {
               const studentHasZoomLink = student.zoom_links.some(
                 (link: any) => {
                   if (!link.sent_time) return false;
-                  const linkDate = link.sent_time.toISOString().split("T")[0];
+                  const linkDate = format(link.sent_time, "yyyy-MM-dd");
                   return linkDate === dateStr;
                 }
               );
@@ -343,7 +342,7 @@ export async function POST(req: NextRequest) {
               // Check if student has attendance permission for this date
               const attendanceRecord = student.attendance_progress?.find(
                 (att: any) => {
-                  const attDate = att.date.toISOString().split("T")[0];
+                  const attDate = format(att.date, "yyyy-MM-dd");
                   return attDate === dateStr;
                 }
               );
@@ -648,7 +647,7 @@ async function calculateLatenessDeduction(
   date: Date
 ): Promise<number> {
   try {
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = format(date, "yyyy-MM-dd");
     const nextDay = new Date(date);
     nextDay.setDate(nextDay.getDate() + 1);
 

@@ -89,7 +89,12 @@ export async function POST(req: NextRequest) {
         });
 
         const waivedDates = new Set(
-          absenceWaivers.map((w) => w.deductionDate.toISOString().split("T")[0])
+          absenceWaivers.map((w) => format(w.deductionDate, "yyyy-MM-dd"))
+        );
+
+        console.log(
+          `📊 Preview - Teacher ${teacherId}: Found ${absenceWaivers.length} waived dates:`,
+          Array.from(waivedDates)
         );
 
         // Create a set of dates that already have absence records
@@ -387,10 +392,14 @@ export async function POST(req: NextRequest) {
         });
 
         const waivedLatenessDates = new Set(
-          latenessWaivers.map(
-            (w) => w.deductionDate.toISOString().split("T")[0]
-          )
+          latenessWaivers.map((w) => format(w.deductionDate, "yyyy-MM-dd"))
         );
+
+        console.log(
+          `📊 Preview Lateness - Teacher ${teacherId}: Found ${latenessWaivers.length} waived dates:`,
+          Array.from(waivedLatenessDates)
+        );
+
         const defaultBaseDeductionAmount = 30;
 
         const latenessConfigs = await prisma.latenessdeductionconfig.findMany({
