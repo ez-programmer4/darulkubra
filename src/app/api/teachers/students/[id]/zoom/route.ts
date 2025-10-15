@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
-import { ZoomService } from "@/lib/zoom-service";
 
 export async function POST(
   req: NextRequest,
@@ -118,69 +117,20 @@ export async function POST(
       (tracking_token && String(tracking_token)) ||
       crypto.randomBytes(16).toString("hex").toUpperCase();
 
-    // Check if teacher has Zoom connected and should create meeting via API
-    const isZoomConnected = await ZoomService.isZoomConnected(teacherId);
-    let zoomLink = link;
-    let meetingId: string | null = null;
-    let createdViaApi = false;
-
-    // Extract meeting ID from manual Zoom link
-    if (link && !create_via_api) {
-      // Zoom URLs: https://zoom.us/j/123456789 or https://us05web.zoom.us/j/123456789?pwd=...
-      const meetingIdMatch = link.match(/\/j\/(\d+)/);
-      if (meetingIdMatch) {
-        meetingId = meetingIdMatch[1];
-        console.log(`Extracted meeting ID from manual link: ${meetingId}`);
-      }
+    // Validate that link is provided
+    if (!link) {
+      return NextResponse.json({ error: "link is required" }, { status: 400 });
     }
 
-    // If teacher wants to use API and has Zoom connected
-    if (create_via_api && isZoomConnected) {
-      try {
-        // Determine meeting time (default to current time + 5 minutes)
-        const meetingTime = scheduled_time
-          ? new Date(scheduled_time)
-          : new Date(Date.now() + 5 * 60 * 1000);
+    let zoomLink = link;
+    let meetingId: string | null = null;
 
-        // Create meeting via Zoom API
-        const meeting = await ZoomService.createMeeting(teacherId, {
-          topic: `Class with ${student.name}`,
-          type: 2, // Scheduled meeting
-          start_time: meetingTime.toISOString(),
-          duration: 30, // 30 minutes
-          timezone: "Africa/Addis_Ababa",
-          settings: {
-            host_video: true,
-            participant_video: true,
-            join_before_host: true,
-            mute_upon_entry: false,
-            auto_recording: "none",
-          },
-        });
-
-        zoomLink = meeting.join_url;
-        meetingId = meeting.id;
-        createdViaApi = true;
-
-        console.log(
-          `Created Zoom meeting via API: ${meetingId} for teacher ${teacherId}`
-        );
-      } catch (error) {
-        console.error("Failed to create Zoom meeting via API:", error);
-        // Fall back to manual link if provided
-        if (!link) {
-          return NextResponse.json(
-            {
-              error:
-                "Failed to create Zoom meeting and no manual link provided",
-            },
-            { status: 500 }
-          );
-        }
-      }
-    } else if (!link) {
-      // No link provided and can't create via API
-      return NextResponse.json({ error: "link is required" }, { status: 400 });
+    // Extract meeting ID from manual Zoom link for webhook matching
+    // Zoom URLs: https://zoom.us/j/123456789 or https://us05web.zoom.us/j/123456789?pwd=...
+    const meetingIdMatch = link.match(/\/j\/(\d+)/);
+    if (meetingIdMatch) {
+      meetingId = meetingIdMatch[1];
+      console.log(`Extracted meeting ID from Zoom link: ${meetingId}`);
     }
 
     // Persist zoom link record to database
@@ -201,7 +151,7 @@ export async function POST(
           session_ended_at: null,
           session_duration_minutes: null,
           zoom_meeting_id: meetingId,
-          created_via_api: createdViaApi,
+          created_via_api: false,
         },
       });
 
