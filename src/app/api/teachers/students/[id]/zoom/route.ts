@@ -25,13 +25,10 @@ export async function POST(
         { status: 400 }
       );
     }
-    const {
-      link,
-      tracking_token,
-      expiration_date,
-      create_via_api,
-      scheduled_time,
-    } = await req.json();
+    const { link, tracking_token, expiration_date } = await req.json();
+    if (!link) {
+      return NextResponse.json({ error: "link is required" }, { status: 400 });
+    }
 
     // Verify ownership and collect student messaging info
     const student = await prisma.wpos_wpdatatable_23.findUnique({
@@ -96,7 +93,19 @@ export async function POST(
         packageRate = Math.round(
           Number(packageSalary.salaryPerStudent) / workingDays
         );
+
+        console.log(`📊 Package Rate Calculation:`);
+        console.log(`  Student: ${student.name} (ID: ${studentId})`);
+        console.log(`  Package: ${student.package}`);
+        console.log(`  Monthly Salary: ${packageSalary.salaryPerStudent}`);
+        console.log(`  Working Days: ${workingDays}`);
+        console.log(`  Daily Rate: ${packageRate}`);
+        console.log(`  Include Sundays: ${includeSundays}`);
+      } else {
+        console.log(`⚠️ Package salary not found for: ${student.package}`);
       }
+    } else {
+      console.log(`⚠️ Student has no package: ${student.name}`);
     }
     const expiry = expiration_date ? new Date(expiration_date) : null;
 
@@ -117,30 +126,21 @@ export async function POST(
       (tracking_token && String(tracking_token)) ||
       crypto.randomBytes(16).toString("hex").toUpperCase();
 
-    // Validate that link is provided
-    if (!link) {
-      return NextResponse.json({ error: "link is required" }, { status: 400 });
-    }
+    // We need to create the record first to get the ID for leave_url
+    // Then update the link with the leave_url parameter
 
-    let zoomLink = link;
-    let meetingId: string | null = null;
-
-    // Extract meeting ID from manual Zoom link for webhook matching
-    // Zoom URLs: https://zoom.us/j/123456789 or https://us05web.zoom.us/j/123456789?pwd=...
-    const meetingIdMatch = link.match(/\/j\/(\d+)/);
-    if (meetingIdMatch) {
-      meetingId = meetingIdMatch[1];
-      console.log(`Extracted meeting ID from Zoom link: ${meetingId}`);
-    }
-
-    // Persist zoom link record to database
+    // Persist record
     let created;
     try {
+      console.log(`💾 Creating zoom link with package data:`);
+      console.log(`  packageId: ${packageId}`);
+      console.log(`  packageRate: ${packageRate}`);
+
       created = await prisma.wpos_zoom_links.create({
         data: {
           studentid: studentId,
           ustazid: teacherId,
-          link: zoomLink,
+          link: link,
           tracking_token: tokenToUse,
           sent_time: localTime,
           expiration_date: expiry ?? undefined,
@@ -150,13 +150,10 @@ export async function POST(
           last_activity_at: null,
           session_ended_at: null,
           session_duration_minutes: null,
-          zoom_meeting_id: meetingId,
-          created_via_api: false,
         },
       });
 
-      // Store the clean Zoom link without any tracking parameters
-      // This ensures students can join directly to Zoom app
+      console.log(`✅ Zoom link created with ID: ${created.id}`);
 
       // Verify the data was stored correctly
       const verification = await prisma.wpos_zoom_links.findUnique({
@@ -168,15 +165,22 @@ export async function POST(
           studentid: true,
         },
       });
+      console.log(`🔍 Verification query result:`, verification);
     } catch (createError: any) {
       console.error("Zoom link creation error:", createError);
 
       // Try raw SQL as fallback
       try {
+        console.log(`💾 Fallback: Creating zoom link via raw SQL`);
+        console.log(`  packageId: ${packageId}`);
+        console.log(`  packageRate: ${packageRate}`);
+
         await prisma.$executeRaw`
           INSERT INTO wpos_zoom_links (studentid, ustazid, link, tracking_token, sent_time, expiration_date, packageId, packageRate, clicked_at, report, session_status, last_activity_at, session_ended_at, session_duration_minutes)
           VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${localTime}, ${expiry}, ${packageId}, ${packageRate}, NULL, 0, 'active', NULL, NULL, NULL)
         `;
+
+        console.log(`✅ Raw SQL zoom link created`);
 
         // Verification skipped to avoid schema issues
 
@@ -215,9 +219,9 @@ export async function POST(
       }
     }
 
-    // Use the direct Zoom link (no tracking redirect)
-    // This allows students to join directly via Zoom app
-    const finalURL = zoomLink;
+    // Use direct Zoom link (NO TRACKING REDIRECT)
+    // Students click and join Zoom immediately
+    const finalURL = link;
 
     let notificationSent = false;
     let notificationError = null;
@@ -234,6 +238,7 @@ export async function POST(
 
       if (!botToken) {
         notificationError = "Telegram bot token not configured";
+        console.error("TELEGRAM_BOT_TOKEN environment variable is missing");
       } else if (!student.chatId) {
         notificationError = "Student has no Telegram chat ID";
       } else {
@@ -302,6 +307,10 @@ Click the button below to join your online class session.
               break; // Success, exit retry loop
             } catch (error: any) {
               retryCount++;
+              console.log(
+                `Telegram API attempt ${retryCount} failed:`,
+                error.message
+              );
 
               if (retryCount >= maxRetries) {
                 throw error; // Re-throw after max retries
