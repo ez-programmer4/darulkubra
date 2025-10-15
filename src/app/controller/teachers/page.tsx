@@ -80,7 +80,7 @@ export default function ControllerTeachers() {
       }
 
       const data = await response.json();
-      console.log('Teachers API Response:', data);
+   
       
       // Handle both array and object responses
       const teachersArray = Array.isArray(data) ? data : (data.teachers || []);

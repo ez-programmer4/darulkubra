@@ -46,7 +46,7 @@ export default function ControllerQualityPage() {
         const res = await fetch("/api/controller/teachers");
         if (!res.ok) throw new Error("Failed to fetch teachers");
         const data = await res.json();
-        console.log('Teachers API Response:', data);
+        
         
         // Handle both array and object responses
         const teachersArray = Array.isArray(data) ? data : (data.teachers || []);

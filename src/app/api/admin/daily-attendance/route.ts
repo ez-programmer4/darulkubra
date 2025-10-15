@@ -114,9 +114,7 @@ export async function GET(req: NextRequest) {
               minutes || "00"
             }`;
             scheduledAt = `${date}T${time24}:00.000Z`;
-          } catch (e) {
-            console.log(`Failed to parse 12-hour time: ${scheduledTime}`);
-          }
+          } 
         } else if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(scheduledTime)) {
           // Handle 24-hour format like "14:30", "4:00", or "13:00:00"
           const timeParts = scheduledTime.split(":");
@@ -124,9 +122,7 @@ export async function GET(req: NextRequest) {
           const minutes = timeParts[1] || "00";
           const time24 = `${hours}:${minutes}`;
           scheduledAt = `${date}T${time24}:00.000Z`;
-        } else {
-          console.log(`Unknown time format: ${scheduledTime}`);
-        }
+        } 
       }
 
       const linksForDay = (record.zoom_links || []).map((zl: any) => ({

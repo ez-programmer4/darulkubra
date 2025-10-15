@@ -93,19 +93,7 @@ export async function POST(
         packageRate = Math.round(
           Number(packageSalary.salaryPerStudent) / workingDays
         );
-
-        console.log(`📊 Package Rate Calculation:`);
-        console.log(`  Student: ${student.name} (ID: ${studentId})`);
-        console.log(`  Package: ${student.package}`);
-        console.log(`  Monthly Salary: ${packageSalary.salaryPerStudent}`);
-        console.log(`  Working Days: ${workingDays}`);
-        console.log(`  Daily Rate: ${packageRate}`);
-        console.log(`  Include Sundays: ${includeSundays}`);
-      } else {
-        console.log(`⚠️ Package salary not found for: ${student.package}`);
       }
-    } else {
-      console.log(`⚠️ Student has no package: ${student.name}`);
     }
     const expiry = expiration_date ? new Date(expiration_date) : null;
 
@@ -132,10 +120,6 @@ export async function POST(
     // Persist record
     let created;
     try {
-      console.log(`💾 Creating zoom link with package data:`);
-      console.log(`  packageId: ${packageId}`);
-      console.log(`  packageRate: ${packageRate}`);
-
       created = await prisma.wpos_zoom_links.create({
         data: {
           studentid: studentId,
@@ -152,8 +136,6 @@ export async function POST(
           session_duration_minutes: null,
         },
       });
-
-      console.log(`✅ Zoom link created with ID: ${created.id}`);
 
       // Add leave_url to Zoom link for automatic teacher leave detection
       const host = req.headers.get("host");
@@ -172,8 +154,6 @@ export async function POST(
         data: { link: enhancedZoomLink },
       });
 
-      console.log(`🔗 Enhanced Zoom link with teacher leave tracking`);
-
       // Verify the data was stored correctly
       const verification = await prisma.wpos_zoom_links.findUnique({
         where: { id: created.id },
@@ -184,22 +164,15 @@ export async function POST(
           studentid: true,
         },
       });
-      console.log(`🔍 Verification query result:`, verification);
     } catch (createError: any) {
       console.error("Zoom link creation error:", createError);
 
       // Try raw SQL as fallback
       try {
-        console.log(`💾 Fallback: Creating zoom link via raw SQL`);
-        console.log(`  packageId: ${packageId}`);
-        console.log(`  packageRate: ${packageRate}`);
-
         await prisma.$executeRaw`
           INSERT INTO wpos_zoom_links (studentid, ustazid, link, tracking_token, sent_time, expiration_date, packageId, packageRate, clicked_at, report, session_status, last_activity_at, session_ended_at, session_duration_minutes)
           VALUES (${studentId}, ${teacherId}, ${link}, ${tokenToUse}, ${localTime}, ${expiry}, ${packageId}, ${packageRate}, NULL, 0, 'active', NULL, NULL, NULL)
         `;
-
-        console.log(`✅ Raw SQL zoom link created`);
 
         // Verification skipped to avoid schema issues
 
@@ -267,7 +240,6 @@ export async function POST(
 
       if (!botToken) {
         notificationError = "Telegram bot token not configured";
-        console.error("TELEGRAM_BOT_TOKEN environment variable is missing");
       } else if (!student.chatId) {
         notificationError = "Student has no Telegram chat ID";
       } else {
@@ -336,10 +308,6 @@ Click the button below to join your online class session.
               break; // Success, exit retry loop
             } catch (error: any) {
               retryCount++;
-              console.log(
-                `Telegram API attempt ${retryCount} failed:`,
-                error.message
-              );
 
               if (retryCount >= maxRetries) {
                 throw error; // Re-throw after max retries

@@ -58,15 +58,9 @@ export async function recordTeacherChange(
       SalaryCalculator.clearGlobalTeacherCache(data.oldTeacherId);
     }
     SalaryCalculator.clearGlobalTeacherCache(data.newTeacherId);
-    
+
     // Clear the calculator cache to force fresh data
     clearCalculatorCache();
-
-    console.log(
-      `✅ Teacher change recorded: Student ${data.studentId} changed from ${
-        data.oldTeacherId || "none"
-      } to ${data.newTeacherId} on ${format(data.changeDate, "yyyy-MM-dd")}`
-    );
   } catch (error) {
     console.error("❌ Failed to record teacher change:", error);
     throw new Error("Failed to record teacher change");
@@ -416,7 +410,7 @@ export async function processTeacherChange(
       SalaryCalculator.clearGlobalTeacherCache(oldTeacherId);
     }
     SalaryCalculator.clearGlobalTeacherCache(newTeacherId);
-    
+
     // Clear the calculator cache to force fresh data
     clearCalculatorCache();
 

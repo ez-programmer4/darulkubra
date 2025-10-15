@@ -38,22 +38,9 @@ async function sendSMS(
   phone: string,
   message: string
 ): Promise<{ success: boolean; error?: string; details?: any }> {
-  console.log(`\n🔧 sendSMS function called with phone: "${phone}"`);
-
   const apiToken = process.env.AFROMSG_API_TOKEN;
   const senderUid = process.env.AFROMSG_SENDER_UID;
   const senderName = process.env.AFROMSG_SENDER_NAME;
-
-  console.log(`🔑 Environment check:`);
-  console.log(
-    `   API Token: ${
-      apiToken ? "✅ SET (length: " + apiToken.length + ")" : "❌ NOT SET"
-    }`
-  );
-  console.log(`   Sender UID: ${senderUid ? "✅ " + senderUid : "❌ NOT SET"}`);
-  console.log(
-    `   Sender Name: ${senderName ? "✅ " + senderName : "❌ NOT SET"}`
-  );
 
   // Debug: Check environment variables
   if (!apiToken || !senderUid || !senderName) {
@@ -92,9 +79,6 @@ async function sendSMS(
     message,
   };
 
-  console.log(`📱 Sending SMS to ${normalizedPhone} (original: ${phone})`);
-  console.log(`📝 Message: ${message.substring(0, 50)}...`);
-
   try {
     const response = await fetch("https://api.afromessage.com/api/send", {
       method: "POST",
@@ -127,10 +111,6 @@ async function sendSMS(
       };
     }
 
-    console.log(
-      `✅ SMS sent successfully to ${normalizedPhone}:`,
-      JSON.stringify(result, null, 2)
-    );
     return { success: true, details: result };
   } catch (error) {
     console.error(
@@ -146,10 +126,6 @@ async function sendSMS(
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("\n\n🚀 ======================================");
-    console.log("🚀 PERMISSION REQUEST API CALLED");
-    console.log("🚀 ======================================\n");
-
     const session = await getServerSession(authOptions);
 
     if (
@@ -161,12 +137,6 @@ export async function POST(req: NextRequest) {
     const user = session.user as { id: string; role: string };
     const body = await req.json();
     const { date, timeSlots, reason, details } = body;
-
-    console.log(`📋 Permission Request Details:`);
-    console.log(`   Teacher ID: ${user.id}`);
-    console.log(`   Date: ${date}`);
-    console.log(`   Time Slots: ${JSON.stringify(timeSlots)}`);
-    console.log(`   Reason: ${reason}`);
 
     if (!date || !timeSlots || !reason || !details) {
       return NextResponse.json(
@@ -262,10 +232,6 @@ export async function POST(req: NextRequest) {
     });
     const teacherName = teacher?.ustazname || user.id;
 
-    // Send SMS notifications to admins with phone numbers
-    console.log("\n📞 === SMS NOTIFICATION DEBUG ===");
-    console.error("\n📞 === SMS NOTIFICATION DEBUG (STDERR) ==="); // Also to stderr
-
     const adminsWithPhone = await prisma.admin.findMany({
       where: {
         phoneno: {
@@ -280,18 +246,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log(
-      `📊 Found ${adminsWithPhone.length} admins with phone numbers:`
-    );
-    console.error(
-      `📊 (STDERR) Found ${adminsWithPhone.length} admins with phone numbers`
-    );
-
     adminsWithPhone.forEach((admin, idx) => {
       const logMsg = `  ${idx + 1}. ${admin.name || "Unnamed"} - Phone: "${
         admin.phoneno
       }"`;
-      console.log(logMsg);
+
       console.error(logMsg);
     });
 
@@ -307,8 +266,6 @@ export async function POST(req: NextRequest) {
 
     const smsMessage = `🔔 DarulKubra Alert: ${teacherName} requests permission for ${formattedDate} (${timeSlotText}). Reason: ${reason}. Please review.`;
 
-    console.log(`📝 SMS Message (${smsMessage.length} chars): "${smsMessage}"`);
-
     let smsCount = 0;
     const smsResults: Array<{
       admin: string;
@@ -319,7 +276,6 @@ export async function POST(req: NextRequest) {
 
     for (const admin of adminsWithPhone) {
       if (admin.phoneno) {
-        console.log(`\n📤 Attempting to send SMS to ${admin.name}...`);
         const result = await sendSMS(admin.phoneno, smsMessage);
 
         smsResults.push({
@@ -331,21 +287,9 @@ export async function POST(req: NextRequest) {
 
         if (result.success) {
           smsCount++;
-          console.log(`✅ SMS sent successfully to ${admin.name}`);
-        } else {
-          console.log(
-            `❌ SMS failed for ${admin.name}: ${
-              result.error || "Unknown error"
-            }`
-          );
         }
       }
     }
-
-    console.log(
-      `\n📊 SMS Summary: ${smsCount}/${adminsWithPhone.length} sent successfully`
-    );
-    console.log("=== END SMS DEBUG ===\n");
 
     // Create system notifications for all admins
     let notificationCount = 0;

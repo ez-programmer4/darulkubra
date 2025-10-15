@@ -760,7 +760,6 @@ export class SalaryCalculator {
     const expectedDays: string[] = [];
 
     if (!daypackage || daypackage.trim() === "") {
-      console.log(`       ❌ No daypackage specified, using all days`);
       // If no daypackage, use all days (let Sunday setting decide)
       const current = new Date(fromDate);
       while (current <= toDate) {
@@ -782,9 +781,6 @@ export class SalaryCalculator {
 
     // Parse daypackage to get expected days of week
     const expectedDaysOfWeek = this.parseDaypackage(daypackage);
-    console.log(
-      `       📋 Expected days of week: [${expectedDaysOfWeek.join(", ")}]`
-    );
 
     // Calculate all days in the period that match the daypackage
     const current = new Date(fromDate);
@@ -816,23 +812,18 @@ export class SalaryCalculator {
     }
 
     const dpTrimmed = daypackage.trim().toUpperCase();
-    console.log(`       🔍 Parsing daypackage: "${dpTrimmed}"`);
 
     // Only these three patterns are used in the system
     if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
-      console.log(`       ✅ Matched "ALL DAYS" pattern`);
       return [0, 1, 2, 3, 4, 5, 6]; // Sunday to Saturday
     }
     if (dpTrimmed === "MWF") {
-      console.log(`       ✅ Matched "MWF" pattern`);
       return [1, 3, 5]; // Monday, Wednesday, Friday
     }
     if (dpTrimmed === "TTS" || dpTrimmed === "TTH") {
-      console.log(`       ✅ Matched "TTS/TTH" pattern`);
       return [2, 4, 6]; // Tuesday, Thursday, Saturday
     }
 
-    console.log(`       ❌ Could not parse daypackage: "${dpTrimmed}"`);
     return [];
   }
 
@@ -842,13 +833,6 @@ export class SalaryCalculator {
    */
   private calculateWorkingDays(fromDate: Date, toDate: Date): number {
     let workingDays = 0;
-
-    console.log(
-      `📅 Calculating working days from ${format(
-        fromDate,
-        "yyyy-MM-dd"
-      )} to ${format(toDate, "yyyy-MM-dd")}`
-    );
 
     // Use a simple, reliable approach with proper date handling
     const current = new Date(fromDate);
@@ -869,20 +853,12 @@ export class SalaryCalculator {
 
       if (shouldInclude) {
         workingDays++;
-        console.log(
-          `  ✅ ${dateStr} (${isSunday ? "Sunday" : "Weekday"}) - Included`
-        );
-      } else {
-        console.log(`  ❌ ${dateStr} (Sunday) - Excluded`);
       }
 
       // Move to next day safely using milliseconds
       current.setTime(current.getTime() + 24 * 60 * 60 * 1000);
     }
 
-    console.log(
-      `📅 Working days calculation: ${workingDays} days (includeSundays: ${this.config.includeSundays})`
-    );
     return workingDays;
   }
 
@@ -894,29 +870,11 @@ export class SalaryCalculator {
     teacherChangePeriods: any[] = [],
     teacherId: string
   ) {
-    console.log(`\n💰 === CALCULATING BASE SALARY ===`);
-    console.log(`   Teacher ID: ${teacherId}`);
-    console.log(
-      `   Period: ${format(fromDate, "yyyy-MM-dd")} to ${format(
-        toDate,
-        "yyyy-MM-dd"
-      )}`
-    );
-    console.log(`   Number of students: ${students.length}`);
-    console.log(`   Number of assignments: ${assignments.length}`);
-    console.log(
-      `   Number of teacher change periods: ${teacherChangePeriods.length}`
-    );
-
     const packageSalaries = await prisma.packageSalary.findMany();
     const salaryMap: Record<string, number> = {};
     packageSalaries.forEach((pkg) => {
       salaryMap[pkg.packageName] = Number(pkg.salaryPerStudent);
     });
-
-    console.log(
-      `   Package salaries loaded: ${Object.keys(salaryMap).length} packages`
-    );
 
     // Calculate working days using the helper function
     const workingDays = this.calculateWorkingDays(fromDate, toDate);
@@ -959,26 +917,12 @@ export class SalaryCalculator {
         ?.toLowerCase()
         .includes("kassim kedir");
 
-      if (isDebugStudent) {
-        console.log(`\n🔍 ===== DEBUG MODE FOR ${student.name} =====`);
-      }
-
-      console.log(
-        `\n👤 Processing student: ${student.name} (ID: ${student.wdt_ID})`
-      );
-      console.log(`   Package: ${student.package || "None"}`);
-      console.log(`   Daypackage: ${student.daypackages || "None"}`);
-      console.log(`   Status: ${student.status || "Unknown"}`);
-
       // Get package salary (use 0 if no package configured)
       const monthlyPackageSalary =
         student.package && salaryMap[student.package]
           ? Number(salaryMap[student.package])
           : 0;
       const dailyRate = Number((monthlyPackageSalary / workingDays).toFixed(2));
-
-      console.log(`   Monthly package salary: ${monthlyPackageSalary} ETB`);
-      console.log(`   Daily rate: ${dailyRate} ETB`);
 
       // Note: We still process students even without a package configured
       // because daypackage determines expected teaching days, not package
@@ -1160,36 +1104,12 @@ export class SalaryCalculator {
           debugInfo.periods.push(periodDebugInfo);
         }
 
-        console.log(`📅 Student ${student.name} (${student.package}):`);
-        console.log(`   📊 Daypackage: "${studentDaypackage}"`);
-        console.log(
-          `   📊 Daypackage from student record: "${
-            student.daypackages || "N/A"
-          }"`
-        );
-        console.log(
-          `   📅 Period: ${periodStart.toISOString().split("T")[0]} to ${
-            periodEnd.toISOString().split("T")[0]
-          }`
-        );
-        console.log(`   🔗 Zoom links sent: ${dailyLinks.size} days`);
-        console.log(
-          `   📋 Expected teaching days: ${expectedTeachingDays.length} days`
-        );
-
         // Use expected teaching days based on daypackage, but only count days with zoom links
         expectedTeachingDays.forEach((dateStr) => {
           if (dailyLinks.has(dateStr)) {
             teachingDates.add(dateStr);
           }
         });
-
-        console.log(
-          `   ✅ Actual teaching days counted: ${teachingDates.size} days`
-        );
-        console.log(
-          `   📋 Teaching dates: [${Array.from(teachingDates).join(", ")}]`
-        );
 
         if (isDebugStudent && debugInfo && debugInfo.periods.length > 0) {
           const currentPeriodDebug =
@@ -1278,10 +1198,6 @@ export class SalaryCalculator {
           });
         });
 
-        console.log(
-          `   ✅ Student earned: ${totalEarned} ETB over ${studentTeachingDates.size} days`
-        );
-
         studentBreakdown.push({
           studentName: student.name || "Unknown",
           package: student.package || "Unknown",
@@ -1293,10 +1209,6 @@ export class SalaryCalculator {
           teacherChanges: periods.length > 1,
           debugInfo: debugInfo, // Add debug info for UI display
         });
-      } else {
-        console.log(
-          `   ❌ NO EARNINGS: Student has no teaching days with zoom links`
-        );
       }
     }
 
@@ -1319,15 +1231,6 @@ export class SalaryCalculator {
     const activeStudentCount = studentBreakdown.filter(
       (student) => student.totalEarned > 0
     ).length;
-
-    console.log(`💰 Base Salary Summary:`);
-    console.log(`   Total Salary: ${totalSalary} ETB`);
-    console.log(`   Working Days: ${workingDays}`);
-    console.log(`   Actual Teaching Days: ${actualTeachingDays}`);
-    console.log(
-      `   Number of Students: ${activeStudentCount} (${studentBreakdown.length} total)`
-    );
-    console.log(`   Average Daily Earning: ${averageDailyEarning} ETB`);
 
     return {
       totalSalary,
@@ -1352,16 +1255,6 @@ export class SalaryCalculator {
     toDate: Date,
     isDebugMode: boolean = false
   ) {
-    if (isDebugMode) {
-      console.log(`\n🚨 === LATENESS DEDUCTION DEBUG ===`);
-      console.log(`Teacher ID: ${teacherId}`);
-      console.log(
-        `Period: ${fromDate.toISOString().split("T")[0]} to ${
-          toDate.toISOString().split("T")[0]
-        }`
-      );
-    }
-
     // Get teacher change history for this teacher
     const teacherChanges = await prisma.teacher_change_history.findMany({
       where: {
@@ -1457,22 +1350,6 @@ export class SalaryCalculator {
     let totalDeduction = 0;
     const breakdown: any[] = [];
 
-    if (isDebugMode) {
-      console.log(
-        `\n📊 Lateness Calculation - Found ${allStudents.length} students`
-      );
-      allStudents.forEach((student, idx) => {
-        console.log(
-          `  Student ${idx + 1}: ${student.name} (${student.wdt_ID})`
-        );
-        console.log(`    Package: ${student.package}`);
-        console.log(`    Zoom links: ${student.zoom_links?.length || 0}`);
-        console.log(
-          `    Time slot: ${student.occupiedTimes?.[0]?.time_slot || "N/A"}`
-        );
-      });
-    }
-
     // Group zoom links by date (EXACT same logic as preview API)
     const dailyZoomLinks = new Map<string, any[]>();
 
@@ -1494,18 +1371,6 @@ export class SalaryCalculator {
       });
     }
 
-    if (isDebugMode) {
-      console.log(`\n📅 Grouped zoom links by date:`);
-      for (const [date, links] of dailyZoomLinks.entries()) {
-        console.log(`  ${date}: ${links.length} links`);
-        links.forEach((link) => {
-          console.log(
-            `    - ${link.studentName}: ${link.sent_time.toISOString()}`
-          );
-        });
-      }
-    }
-
     // Calculate lateness for each day (EXACT same logic as preview API)
     for (const [dateStr, links] of dailyZoomLinks.entries()) {
       const date = new Date(dateStr);
@@ -1517,9 +1382,6 @@ export class SalaryCalculator {
       );
 
       if (hasLatenessWaiver) {
-        if (isDebugMode) {
-          console.log(`⏭️  Skipping ${dateStr}: Lateness waived for this date`);
-        }
         continue;
       }
 
@@ -1536,17 +1398,8 @@ export class SalaryCalculator {
       });
 
       // Calculate lateness for each student's earliest link
-      if (isDebugMode) {
-        console.log(
-          `\n  Processing ${studentLinks.size} students on ${dateStr}:`
-        );
-      }
-
       for (const link of studentLinks.values()) {
         if (!link.timeSlot) {
-          if (isDebugMode) {
-            console.log(`    ❌ ${link.studentName}: No time slot`);
-          }
           continue;
         }
 
@@ -1586,23 +1439,8 @@ export class SalaryCalculator {
           (link.sent_time.getTime() - scheduledTime.getTime()) / 60000
         );
 
-        if (isDebugMode) {
-          console.log(`    🔍 ${link.studentName}:`);
-          console.log(`       Scheduled: ${link.timeSlot} (${time24})`);
-          console.log(`       Sent: ${link.sent_time.toISOString()}`);
-          console.log(`       Scheduled Date: ${scheduledTime.toISOString()}`);
-          console.log(`       Lateness: ${latenessMinutes} minutes`);
-        }
-
         // Skip if early (negative lateness)
         if (latenessMinutes < 0) {
-          if (isDebugMode) {
-            console.log(
-              `       🚀 Sent ${Math.abs(
-                latenessMinutes
-              )} min early - No penalty`
-            );
-          }
           continue;
         }
 
@@ -1641,29 +1479,9 @@ export class SalaryCalculator {
               tier,
               deduction: Number(deduction.toFixed(2)),
             });
-
-            if (isDebugMode) {
-              console.log(
-                `       ✅ DEDUCTION APPLIED: ${deduction} ETB (${tier})`
-              );
-            }
-          } else if (isDebugMode) {
-            console.log(
-              `       ❌ No deduction (no matching tier or 0 amount)`
-            );
           }
-        } else if (isDebugMode) {
-          console.log(
-            `       ✅ Within excused threshold (${latenessMinutes} ≤ ${excusedThreshold}) - No deduction`
-          );
         }
       }
-    }
-
-    if (isDebugMode) {
-      console.log(
-        `\n💰 Total Lateness Deduction: ${totalDeduction} ETB from ${breakdown.length} records\n`
-      );
     }
 
     return {
@@ -1679,8 +1497,6 @@ export class SalaryCalculator {
     toDate: Date
   ) {
     try {
-      console.log(`🔍 Calculating absence deductions for teacher ${teacherId}`);
-
       // Don't process future dates
       const today = new Date();
       today.setHours(23, 59, 59, 999);
@@ -1811,77 +1627,26 @@ export class SalaryCalculator {
         },
       });
 
-      console.log(
-        `📊 Processing ${students.length} students for absence deductions`
-      );
-
-      // Debug: Log all students being processed
-      students.forEach((student, index) => {
-        console.log(
-          `👤 Student ${index + 1}: ${student.name} (ID: ${student.wdt_ID})`
-        );
-        console.log(`   Package: ${student.package}`);
-        console.log(`   Occupied Times: ${student.occupiedTimes?.length || 0}`);
-        console.log(`   Zoom Links: ${student.zoom_links?.length || 0}`);
-        console.log(
-          `   Attendance Records: ${student.attendance_progress?.length || 0}`
-        );
-
-        if (student.occupiedTimes?.length > 0) {
-          student.occupiedTimes.forEach((ot: any, otIndex: number) => {
-            console.log(`   Occupied Time ${otIndex + 1}:`);
-            console.log(`     Daypackage: "${ot.daypackage}"`);
-            console.log(`     Start: ${ot.occupied_at}`);
-            console.log(`     End: ${ot.end_at}`);
-          });
-        }
-      });
-
       let totalDeduction = 0;
       const breakdown: any[] = [];
 
       // Helper function to parse daypackage
       const parseDaypackage = (dp: string): number[] => {
-        console.log(
-          `       🔍 Parsing daypackage: "${dp}" (length: ${dp?.length || 0})`
-        );
         if (!dp || dp.trim() === "") {
-          console.log(`       ❌ Empty daypackage`);
           return [];
         }
 
         const dpTrimmed = dp.trim().toUpperCase();
-        console.log(`       📝 Trimmed daypackage: "${dpTrimmed}"`);
 
         // Common patterns
         if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
-          console.log(`       ✅ Matched "ALL DAYS" pattern`);
-          console.log(
-            `       🔍 Exact comparison: "${dpTrimmed}" === "ALL DAYS": ${
-              dpTrimmed === "ALL DAYS"
-            }`
-          );
-          console.log(
-            `       🔍 Exact comparison: "${dpTrimmed}" === "ALLDAYS": ${
-              dpTrimmed === "ALLDAYS"
-            }`
-          );
-          // ALL DAYS should include all days, then let configuration decide
-          const result = [0, 1, 2, 3, 4, 5, 6]; // Sunday to Saturday
-          console.log(`       📤 Returning: [${result.join(", ")}]`);
-          return result;
+          return [0, 1, 2, 3, 4, 5, 6]; // Sunday to Saturday
         }
         if (dpTrimmed === "MWF") {
-          console.log(`       ✅ Matched "MWF" pattern`);
-          const result = [1, 3, 5]; // Monday, Wednesday, Friday
-          console.log(`       📤 Returning: [${result.join(", ")}]`);
-          return result;
+          return [1, 3, 5]; // Monday, Wednesday, Friday
         }
         if (dpTrimmed === "TTS" || dpTrimmed === "TTH") {
-          console.log(`       ✅ Matched "TTS/TTH" pattern`);
-          const result = [2, 4, 6]; // Tuesday, Thursday, Saturday
-          console.log(`       📤 Returning: [${result.join(", ")}]`);
-          return result;
+          return [2, 4, 6]; // Tuesday, Thursday, Saturday
         }
 
         // Day mapping
@@ -1904,9 +1669,6 @@ export class SalaryCalculator {
 
         // Check for exact day match
         if (dayMap[dpTrimmed] !== undefined) {
-          console.log(
-            `       ✅ Matched single day: ${dpTrimmed} -> ${dayMap[dpTrimmed]}`
-          );
           return [dayMap[dpTrimmed]];
         }
 
@@ -1914,9 +1676,6 @@ export class SalaryCalculator {
         const numericMatch = dpTrimmed.match(/\d+/g);
         if (numericMatch) {
           const days = numericMatch.map(Number).filter((d) => d >= 0 && d <= 6);
-          console.log(
-            `       ✅ Matched numeric pattern: [${days.join(", ")}]`
-          );
           return days;
         }
 
@@ -1930,32 +1689,14 @@ export class SalaryCalculator {
               days.push(day);
             }
           }
-          console.log(
-            `       ✅ Matched comma-separated pattern: [${days.join(", ")}]`
-          );
           return days;
         }
 
-        console.log(`       ❌ No pattern matched for "${dpTrimmed}"`);
         return [];
       };
 
       // Calculate working days for this period
       const workingDays = this.calculateWorkingDays(fromDate, effectiveToDate);
-
-      // Process each day in the period
-      console.log(
-        `📅 Processing period: ${format(fromDate, "yyyy-MM-dd")} to ${format(
-          effectiveToDate,
-          "yyyy-MM-dd"
-        )}`
-      );
-      console.log(
-        `🚫 Waived dates: ${Array.from(waivedDates).join(", ") || "None"}`
-      );
-      console.log(
-        `✅ Permitted dates: ${Array.from(permittedDates).join(", ") || "None"}`
-      );
 
       // Safe date iteration to avoid invalid dates like Sept 31st
       const safeDateIterator = (startDate: Date, endDate: Date) => {
@@ -1987,63 +1728,29 @@ export class SalaryCalculator {
 
       const datesToProcess = safeDateIterator(fromDate, effectiveToDate);
 
-      console.log(`\n📊 ABSENCE CALCULATION SUMMARY:`);
-      console.log(`   Total dates to process: ${datesToProcess.length}`);
-      console.log(`   Total students: ${students.length}`);
-      console.log(`   Working days: ${workingDays}`);
-      console.log(
-        `   Expected max absences: ${datesToProcess.length * students.length}`
-      );
-
       for (const d of datesToProcess) {
         // Convert to timezone-aware date for proper day calculation
         const zonedDate = toZonedTime(d, TZ);
         const dateStr = format(zonedDate, "yyyy-MM-dd");
         const dayOfWeek = zonedDate.getDay();
-        const dayName = [
-          "Sunday",
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday",
-          "Saturday",
-        ][dayOfWeek];
-
-        console.log(
-          `\n📅 Processing ${dateStr} (${dayName}, dayOfWeek: ${dayOfWeek})`
-        );
-
         // Skip Sunday unless configured to include
         if (dayOfWeek === 0 && !this.config.includeSundays) {
-          console.log(
-            `   ⏭️  Skipping Sunday (includeSundays: ${this.config.includeSundays})`
-          );
           continue;
         }
 
         // Skip if waived or permitted
         if (waivedDates.has(dateStr)) {
-          console.log(`   ⏭️  Skipping waived date`);
           continue;
         }
         if (permittedDates.has(dateStr)) {
-          console.log(`   ⏭️  Skipping permitted date`);
           continue;
         }
 
         let dailyDeduction = 0;
         const affectedStudents: any[] = [];
-        console.log(
-          `   🔍 Checking ${students.length} students for this day...`
-        );
 
         // Check each student
         for (const student of students) {
-          console.log(
-            `     👤 Checking student: ${student.name} (${student.wdt_ID})`
-          );
-
           // Check if teacher was actually assigned to this student on this date
           // considering teacher changes
           const isAssigned = this.isTeacherAssignedOnDate(
@@ -2055,9 +1762,6 @@ export class SalaryCalculator {
           );
 
           if (!isAssigned) {
-            console.log(
-              `       ⏭️  Skipping: Teacher not assigned on this date (teacher change)`
-            );
             continue;
           }
 
@@ -2075,10 +1779,6 @@ export class SalaryCalculator {
             }
           );
 
-          console.log(
-            `       📅 Relevant occupied times: ${relevantOccupiedTimes.length}`
-          );
-
           // If no occupied times, check if student has zoom links during the period
           // If yes, assume they should be taught and check their daypackage
           if (relevantOccupiedTimes.length === 0) {
@@ -2092,9 +1792,6 @@ export class SalaryCalculator {
             );
 
             if (!hasZoomLinksInPeriod) {
-              console.log(
-                `       ❌ No relevant occupied times and no zoom links in period`
-              );
               continue;
             }
 
@@ -2102,9 +1799,7 @@ export class SalaryCalculator {
             // This handles cases where occupied times might be missing
             if (student.occupiedTimes.length > 0) {
               relevantOccupiedTimes.push(...student.occupiedTimes);
-              console.log(`       ⚠️  Using all occupied times as fallback`);
             } else {
-              console.log(`       ❌ No occupied times available at all`);
               continue;
             }
           }
@@ -2115,22 +1810,11 @@ export class SalaryCalculator {
           for (const ot of relevantOccupiedTimes) {
             const parsedDays = parseDaypackage(ot.daypackage || "");
             scheduledDays = [...new Set([...scheduledDays, ...parsedDays])];
-            console.log(
-              `       📋 Daypackage "${
-                ot.daypackage
-              }" parsed to: [${parsedDays.join(", ")}]`
-            );
+
             if (parsedDays.includes(dayOfWeek)) {
               isScheduled = true;
             }
           }
-
-          console.log(
-            `       📅 All scheduled days: [${scheduledDays.join(", ")}]`
-          );
-          console.log(
-            `       📅 Is scheduled on ${dayName} (${dayOfWeek}): ${isScheduled}`
-          );
 
           // Fallback: if no daypackage at all but has zoom links, assume weekdays
           // Only apply fallback if scheduledDays is empty (no daypackage defined)
@@ -2140,13 +1824,9 @@ export class SalaryCalculator {
             student.zoom_links?.length > 0
           ) {
             isScheduled = dayOfWeek >= 1 && dayOfWeek <= 5;
-            console.log(
-              `       🔄 Fallback: No daypackage found, assuming weekdays due to zoom links: ${isScheduled}`
-            );
           }
 
           if (!isScheduled) {
-            console.log(`       ❌ Student not scheduled on this day`);
             continue;
           }
 
@@ -2157,9 +1837,7 @@ export class SalaryCalculator {
             return linkDate === dateStr;
           });
 
-          console.log(`       🔗 Has zoom link for ${dateStr}: ${hasZoomLink}`);
           if (hasZoomLink) {
-            console.log(`       ✅ Student has zoom link, no deduction`);
             continue;
           }
 
@@ -2171,22 +1849,13 @@ export class SalaryCalculator {
             }
           );
 
-          console.log(
-            `       📋 Attendance record: ${
-              attendanceRecord ? attendanceRecord.attendance_status : "None"
-            }`
-          );
           if (attendanceRecord?.attendance_status === "Permission") {
-            console.log(`       ✅ Student has permission, no deduction`);
             continue;
           }
 
           // Apply deduction
           const packageRate = packageMap[student.package || ""] || 25;
           dailyDeduction += packageRate;
-          console.log(
-            `       💰 APPLYING DEDUCTION: ${packageRate} ETB (package: ${student.package})`
-          );
 
           affectedStudents.push({
             studentId: student.wdt_ID,
@@ -2199,9 +1868,6 @@ export class SalaryCalculator {
 
         if (dailyDeduction > 0) {
           totalDeduction += dailyDeduction;
-          console.log(
-            `   💰 DAILY DEDUCTION APPLIED: ${dailyDeduction} ETB for ${affectedStudents.length} students`
-          );
 
           // Add individual student entries to breakdown for detailed view
           affectedStudents.forEach((student) => {
@@ -2216,29 +1882,8 @@ export class SalaryCalculator {
               waived: false,
             });
           });
-        } else {
-          console.log(`   ✅ No deductions for this day`);
         }
       }
-
-      console.log(`\n💰 FINAL ABSENCE DEDUCTION SUMMARY:`);
-      console.log(`   Total absence deductions: ${breakdown.length}`);
-      console.log(`   Total deduction amount: ${totalDeduction} ETB`);
-      console.log(`   Dates processed: ${datesToProcess.length}`);
-      console.log(
-        `   Working days: ${workingDays} (includeSundays: ${this.config.includeSundays})`
-      );
-      console.log(`   Students checked: ${students.length}`);
-      console.log(
-        `   Expected max absences: ${datesToProcess.length * students.length}`
-      );
-      console.log(`   Actual absences: ${breakdown.length}`);
-      console.log(
-        `   Coverage: ${(
-          (breakdown.length / (datesToProcess.length * students.length)) *
-          100
-        ).toFixed(2)}%`
-      );
 
       return {
         totalDeduction: Number(totalDeduction.toFixed(2)),
@@ -2394,14 +2039,6 @@ export async function createSalaryCalculator(): Promise<SalaryCalculator> {
     latenessTiers: salaryConfig.latenessConfig.tiers,
     packageDeductions: salaryConfig.packageDeductions,
   };
-
-  // Debug: Log configuration
-  console.log("🔧 Salary Calculator Configuration:", {
-    includeSundays: config.includeSundays,
-    excusedThreshold: config.excusedThreshold,
-    latenessTiersCount: config.latenessTiers.length,
-    packageDeductionsCount: Object.keys(config.packageDeductions).length,
-  });
 
   return new SalaryCalculator(config);
 }

@@ -58,9 +58,6 @@ export async function POST(req: NextRequest) {
       );
       const calculator = await createSalaryCalculator();
       calculator.clearCache();
-      console.log(
-        "✅ Salary calculator cache cleared after Sunday setting change"
-      );
     } catch (error) {
       console.warn("⚠️ Failed to clear salary calculator cache:", error);
     }
@@ -69,9 +66,6 @@ export async function POST(req: NextRequest) {
     try {
       const { clearCalculatorCache } = await import("@/lib/calculator-cache");
       clearCalculatorCache();
-      console.log(
-        "✅ Teacher payments calculator cache cleared after Sunday setting change"
-      );
     } catch (error) {
       console.warn(
         "⚠️ Failed to clear teacher payments calculator cache:",

@@ -179,9 +179,7 @@ export default function TeacherPermissions() {
                   return;
                 }
               }
-            } catch (error) {
-              console.log("Failed to seed reasons, using fallback");
-            }
+            } 
 
             setPermissionReasons([
               "Sick Leave",
@@ -313,9 +311,7 @@ export default function TeacherPermissions() {
 
       const responseData = await res.json();
 
-      // Log debug information to console
-      console.log("📱 SMS Debug Info:", responseData.debug);
-      console.log("📊 Full Response:", responseData);
+      
 
       setSubmitted(true);
 

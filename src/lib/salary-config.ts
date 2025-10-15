@@ -23,8 +23,6 @@ export interface SalaryConfig {
  * This is called dynamically to ensure fresh configuration
  */
 export async function getSalaryConfig(): Promise<SalaryConfig> {
-  console.log("🔧 Loading salary configuration...");
-
   // Load all configuration in parallel for better performance
   const [
     sundaySetting,
@@ -110,14 +108,6 @@ export async function getSalaryConfig(): Promise<SalaryConfig> {
     packageSalaries: packageSalaryMap,
   };
 
-  console.log("✅ Salary configuration loaded:", {
-    includeSundays: config.includeSundays,
-    showTeacherSalary: config.showTeacherSalary,
-    packageDeductionsCount: Object.keys(config.packageDeductions).length,
-    latenessTiersCount: config.latenessConfig.tiers.length,
-    packageSalariesCount: Object.keys(config.packageSalaries).length,
-  });
-
   return config;
 }
 
@@ -160,8 +150,6 @@ export async function setConfigValue(key: string, value: any): Promise<void> {
     update: { value: JSON.stringify(value), updatedAt: now },
     create: { key, value: JSON.stringify(value), updatedAt: now },
   });
-
-  console.log(`✅ Configuration updated: ${key}`);
 }
 
 /**
@@ -169,7 +157,6 @@ export async function setConfigValue(key: string, value: any): Promise<void> {
  * This should be called when configuration is updated
  */
 export function clearConfigCache(): void {
-  console.log("🧹 Configuration cache cleared");
   // If you implement caching, clear it here
 }
 

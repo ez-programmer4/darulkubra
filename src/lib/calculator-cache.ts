@@ -18,10 +18,8 @@ export function setCachedCalculator(
 
 export function clearCalculatorCache(): void {
   calculatorCache.clear();
-  console.log("🧹 All calculator caches cleared");
 }
 
 export function clearSpecificCache(cacheKey: string): void {
   calculatorCache.delete(cacheKey);
-  console.log(`🧹 Calculator cache cleared for key: ${cacheKey}`);
 }

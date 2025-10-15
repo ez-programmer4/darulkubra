@@ -107,15 +107,6 @@ export default function PackageDeductionsPage() {
 
       const method = hasExistingDeduction ? "PUT" : "POST";
 
-      console.log("Frontend sending:", {
-        url,
-        method,
-        hasExistingDeduction,
-        editingDeduction,
-        deductionId: editingDeduction?.deductionId,
-        formData,
-      });
-
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },

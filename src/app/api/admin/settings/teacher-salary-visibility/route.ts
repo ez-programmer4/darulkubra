@@ -10,20 +10,7 @@ export async function GET(req: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
 
-    console.log("🔐 Teacher salary visibility GET - Token:", {
-      hasToken: !!token,
-      role: token?.role,
-      id: token?.id,
-      email: token?.email,
-    });
-
     if (!token || token.role !== "admin") {
-      console.log("❌ Unauthorized GET access attempt - Token details:", {
-        hasToken: !!token,
-        role: token?.role,
-        expectedRole: "admin",
-        tokenKeys: token ? Object.keys(token) : "no token",
-      });
       return NextResponse.json(
         {
           error: "Unauthorized",
@@ -77,20 +64,7 @@ export async function POST(req: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
 
-    console.log("🔐 Teacher salary visibility API - Token:", {
-      hasToken: !!token,
-      role: token?.role,
-      id: token?.id,
-      email: token?.email,
-    });
-
     if (!token || token.role !== "admin") {
-      console.log("❌ Unauthorized access attempt - Token details:", {
-        hasToken: !!token,
-        role: token?.role,
-        expectedRole: "admin",
-        tokenKeys: token ? Object.keys(token) : "no token",
-      });
       return NextResponse.json(
         {
           error: "Unauthorized",
@@ -160,9 +134,6 @@ export async function POST(req: NextRequest) {
       );
       const calculator = await createSalaryCalculator();
       calculator.clearCache();
-      console.log(
-        "✅ Salary calculator cache cleared after teacher salary setting change"
-      );
     } catch (error) {
       console.warn("⚠️ Failed to clear salary calculator cache:", error);
     }
@@ -171,9 +142,6 @@ export async function POST(req: NextRequest) {
     try {
       const { clearCalculatorCache } = await import("@/lib/calculator-cache");
       clearCalculatorCache();
-      console.log(
-        "✅ Teacher payments calculator cache cleared after teacher salary setting change"
-      );
     } catch (error) {
       console.warn(
         "⚠️ Failed to clear teacher payments calculator cache:",

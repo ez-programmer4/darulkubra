@@ -44,11 +44,7 @@ export async function GET(req: NextRequest) {
     const sundayConfig = await prisma.setting.findUnique({
       where: { key: "include_sundays_in_salary" },
     });
-    console.log("🔧 Financial Report - Sunday Configuration:", {
-      setting: sundayConfig?.value,
-      includeSundays: sundayConfig?.value === "true",
-      period: `${startDate} to ${endDate}`,
-    });
+   
 
     // Check if teacher salary visibility is enabled for teachers
     if (token.role === "teacher") {

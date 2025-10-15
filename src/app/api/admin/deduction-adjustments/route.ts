@@ -93,11 +93,7 @@ export async function POST(req: NextRequest) {
             (sum, r) => sum + r.deductionApplied,
             0
           );
-        } else {
-          console.log(
-            `ℹ️ NO DATABASE ABSENCE RECORDS FOUND, CHECKING FOR COMPUTED ABSENCES...`
-          );
-        }
+        } 
 
         // Also handle computed absences (same logic as preview API)
         for (const teacherId of teacherIdsArray) {

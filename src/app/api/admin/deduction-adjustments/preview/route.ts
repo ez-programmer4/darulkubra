@@ -92,11 +92,6 @@ export async function POST(req: NextRequest) {
           absenceWaivers.map((w) => format(w.deductionDate, "yyyy-MM-dd"))
         );
 
-        console.log(
-          `📊 Preview - Teacher ${teacherId}: Found ${absenceWaivers.length} waived dates:`,
-          Array.from(waivedDates)
-        );
-
         // Create a set of dates that already have absence records
         const existingAbsenceDates = new Set(
           teacherAbsenceRecords.map((record) =>
@@ -214,15 +209,6 @@ export async function POST(req: NextRequest) {
             new_teacher_id: true,
             change_date: true,
           },
-        });
-
-        console.log(
-          `📋 Teacher ${teacherId}: Found ${teacherChanges.length} teacher changes:`
-        );
-        teacherChanges.forEach((tc) => {
-          console.log(
-            `  Student ${tc.student_id}: ${tc.old_teacher_id} → ${tc.new_teacher_id} on ${tc.change_date.toISOString().split("T")[0]}`
-          );
         });
 
         // Helper function to check if teacher is assigned to student on specific date
@@ -354,9 +340,6 @@ export async function POST(req: NextRequest) {
             );
 
             if (!isAssigned) {
-              console.log(
-                `  ⏭️  Skipping ${student.name} on ${dateStr}: Teacher not assigned (teacher change)`
-              );
               continue; // Teacher not assigned on this date due to teacher change
             }
 
@@ -489,11 +472,6 @@ export async function POST(req: NextRequest) {
 
         const waivedLatenessDates = new Set(
           latenessWaivers.map((w) => format(w.deductionDate, "yyyy-MM-dd"))
-        );
-
-        console.log(
-          `📊 Preview Lateness - Teacher ${teacherId}: Found ${latenessWaivers.length} waived dates:`,
-          Array.from(waivedLatenessDates)
         );
 
         const defaultBaseDeductionAmount = 30;

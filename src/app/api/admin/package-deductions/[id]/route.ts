@@ -90,13 +90,6 @@ export async function PUT(
     const { packageName, latenessBaseAmount, absenceBaseAmount } =
       await req.json();
 
-    console.log("PUT request received:", {
-      id,
-      packageName,
-      latenessBaseAmount,
-      absenceBaseAmount,
-    });
-
     if (
       !packageName ||
       latenessBaseAmount === undefined ||
@@ -113,10 +106,7 @@ export async function PUT(
       where: { id: parseInt(id) },
     });
 
-    console.log("Existing deduction found:", existingDeduction);
-
     if (!existingDeduction) {
-      console.log("No existing deduction found for ID:", id);
       return NextResponse.json(
         { error: "Package deduction not found" },
         { status: 404 }

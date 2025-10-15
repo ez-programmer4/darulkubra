@@ -68,7 +68,7 @@ export default function ControllerEarningsPage() {
       }
 
       const data = await response.json();
-      console.log("API Response:", data); // Debug log
+     
 
       // Ensure we're setting the earnings object correctly
       if (data.earnings && typeof data.earnings === "object") {

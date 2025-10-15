@@ -425,11 +425,7 @@ export async function POST(request: NextRequest) {
             },
           });
 
-          console.log(
-            `✅ Initial teacher assignment recorded: Student ${fullName} (${
-              registration.wdt_ID
-            }) assigned to teacher ${ustaz} on ${new Date().toISOString()}`
-          );
+         
 
           // Clear salary cache for the teacher to ensure dynamic updates
           SalaryCalculator.clearGlobalTeacherCache(ustaz);
@@ -864,13 +860,7 @@ export async function PUT(request: NextRequest) {
             },
           });
 
-          console.log(
-            `✅ Teacher assignment ended: Student ${student?.name} (${parseInt(
-              id
-            )}) status changed to ${newStatus}, ending assignment with teacher ${
-              currentOccupiedTime.ustaz_id
-            } on ${new Date().toISOString()}`
-          );
+        
 
           // Clear salary cache for the teacher to ensure dynamic updates
           SalaryCalculator.clearGlobalTeacherCache(
@@ -926,13 +916,7 @@ export async function PUT(request: NextRequest) {
             },
           });
 
-          console.log(
-            `✅ Old teacher assignment ended: Student ${
-              student?.name
-            } (${parseInt(id)}) ended assignment with teacher ${
-              currentOccupiedTime.ustaz_id
-            } on ${new Date().toISOString()}`
-          );
+         
         }
 
         // Delete current assignment to free up the old teacher's occupied time
@@ -976,13 +960,7 @@ export async function PUT(request: NextRequest) {
           },
         });
 
-        console.log(
-          `✅ New teacher assignment started: Student ${
-            student?.name
-          } (${parseInt(
-            id
-          )}) assigned to new teacher ${ustaz} on ${new Date().toISOString()}`
-        );
+      
 
         // Clear salary cache for both old and new teachers to ensure dynamic updates
         if (currentOccupiedTime?.ustaz_id) {
@@ -1584,9 +1562,6 @@ export async function PATCH(request: NextRequest) {
               },
             });
 
-            console.log(
-              `✅ Bulk teacher assignments ended: ${occupiedTimes.length} teacher assignments ended for students changing to ${newStatus}`
-            );
           }
         }
 
