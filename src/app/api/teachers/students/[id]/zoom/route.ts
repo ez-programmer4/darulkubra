@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
-
-
+import crypto from "crypto";
+import { ZoomService } from "@/lib/zoom-service";
 
 export async function POST(
   req: NextRequest,
@@ -49,7 +49,7 @@ export async function POST(
     });
 
     if (!student) {
-      return NextResponse.json({ error: "Student not dou" }, { status: 404 });
+      return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
     if (student.ustaz !== teacherId) {
@@ -155,7 +155,6 @@ export async function POST(
             join_before_host: true,
             mute_upon_entry: false,
             auto_recording: "none",
-            waiting_room: false,
           },
         });
 
@@ -184,10 +183,7 @@ export async function POST(
       return NextResponse.json({ error: "link is required" }, { status: 400 });
     }
 
-    // We need to create the record first to get the ID for leave_url
-    // Then update the link with the leave_url parameter
-
-    // Persist record
+    // Persist zoom link record to database
     let created;
     try {
       created = await prisma.wpos_zoom_links.create({
@@ -209,22 +205,8 @@ export async function POST(
         },
       });
 
-      // Add leave_url to Zoom link for automatic teacher leave detection
-      const host = req.headers.get("host");
-      const proto = req.headers.get("x-forwarded-proto") ?? "http";
-      const baseUrl = `${proto}://${host}`;
-      const leaveUrl = `${baseUrl}/api/zoom/teacher-left?session=${created.id}`;
-
-      // Append leave_url to the Zoom link
-      const enhancedZoomLink = zoomLink.includes("?")
-        ? `${zoomLink}&leave_url=${encodeURIComponent(leaveUrl)}`
-        : `${zoomLink}?leave_url=${encodeURIComponent(leaveUrl)}`;
-
-      // Update the link with leave_url parameter
-      await prisma.wpos_zoom_links.update({
-        where: { id: created.id },
-        data: { link: enhancedZoomLink },
-      });
+      // Store the clean Zoom link without any tracking parameters
+      // This ensures students can join directly to Zoom app
 
       // Verify the data was stored correctly
       const verification = await prisma.wpos_zoom_links.findUnique({
@@ -283,19 +265,9 @@ export async function POST(
       }
     }
 
-    // Build tracking URL from request headers
-    const host = req.headers.get("host");
-    const proto = req.headers.get("x-forwarded-proto") ?? "http";
-    const baseUrl = `${proto}://${host}`;
-    const trackURL = `${baseUrl}/api/zoom/track?token=${tokenToUse}`;
-
-    // Check if we're in development mode
-    const isDevelopment =
-      host?.includes("localhost") || host?.includes("127.0.0.1");
-
-    // Use direct link in development (Telegram doesn't allow localhost)
-    // Use tracking URL in production
-    const finalURL = isDevelopment ? link : trackURL;
+    // Use the direct Zoom link (no tracking redirect)
+    // This allows students to join directly via Zoom app
+    const finalURL = zoomLink;
 
     let notificationSent = false;
     let notificationError = null;
