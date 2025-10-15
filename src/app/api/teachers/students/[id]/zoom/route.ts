@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
-import crypto from "crypto";
-import { ZoomService } from "@/lib/zoom-service";
+
+
 
 export async function POST(
   req: NextRequest,
@@ -49,7 +49,7 @@ export async function POST(
     });
 
     if (!student) {
-      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+      return NextResponse.json({ error: "Student not dou" }, { status: 404 });
     }
 
     if (student.ustaz !== teacherId) {
