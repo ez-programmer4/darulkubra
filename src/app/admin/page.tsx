@@ -293,6 +293,8 @@ export default function AdminDashboardPage() {
             : [];
           setRealTeacherLeaderboard(topTeachers);
         }
+      } catch (teacherError) {
+        // Ignore teacher performance fetch errors
       } 
 
       if (!qualityRes.ok) throw new Error("Failed to fetch quality reviews");

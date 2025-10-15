@@ -114,6 +114,8 @@ export async function GET(req: NextRequest) {
               minutes || "00"
             }`;
             scheduledAt = `${date}T${time24}:00.000Z`;
+          } catch (timeParseError) {
+            // If time parsing fails, leave scheduledAt as null
           } 
         } else if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(scheduledTime)) {
           // Handle 24-hour format like "14:30", "4:00", or "13:00:00"

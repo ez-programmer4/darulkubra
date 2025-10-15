@@ -179,6 +179,8 @@ export default function TeacherPermissions() {
                   return;
                 }
               }
+            } catch (retryError) {
+              // Ignore retry errors and fall back to default reasons
             } 
 
             setPermissionReasons([
