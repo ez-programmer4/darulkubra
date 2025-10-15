@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { ZoomService } from "@/lib/zoom-service";
 
 export async function POST(
   req: NextRequest,
@@ -25,10 +26,13 @@ export async function POST(
         { status: 400 }
       );
     }
-    const { link, tracking_token, expiration_date } = await req.json();
-    if (!link) {
-      return NextResponse.json({ error: "link is required" }, { status: 400 });
-    }
+    const {
+      link,
+      tracking_token,
+      expiration_date,
+      create_via_api,
+      scheduled_time,
+    } = await req.json();
 
     // Verify ownership and collect student messaging info
     const student = await prisma.wpos_wpdatatable_23.findUnique({
@@ -114,6 +118,72 @@ export async function POST(
       (tracking_token && String(tracking_token)) ||
       crypto.randomBytes(16).toString("hex").toUpperCase();
 
+    // Check if teacher has Zoom connected and should create meeting via API
+    const isZoomConnected = await ZoomService.isZoomConnected(teacherId);
+    let zoomLink = link;
+    let meetingId: string | null = null;
+    let createdViaApi = false;
+
+    // Extract meeting ID from manual Zoom link
+    if (link && !create_via_api) {
+      // Zoom URLs: https://zoom.us/j/123456789 or https://us05web.zoom.us/j/123456789?pwd=...
+      const meetingIdMatch = link.match(/\/j\/(\d+)/);
+      if (meetingIdMatch) {
+        meetingId = meetingIdMatch[1];
+        console.log(`Extracted meeting ID from manual link: ${meetingId}`);
+      }
+    }
+
+    // If teacher wants to use API and has Zoom connected
+    if (create_via_api && isZoomConnected) {
+      try {
+        // Determine meeting time (default to current time + 5 minutes)
+        const meetingTime = scheduled_time
+          ? new Date(scheduled_time)
+          : new Date(Date.now() + 5 * 60 * 1000);
+
+        // Create meeting via Zoom API
+        const meeting = await ZoomService.createMeeting(teacherId, {
+          topic: `Class with ${student.name}`,
+          type: 2, // Scheduled meeting
+          start_time: meetingTime.toISOString(),
+          duration: 30, // 30 minutes
+          timezone: "Africa/Addis_Ababa",
+          settings: {
+            host_video: true,
+            participant_video: true,
+            join_before_host: true,
+            mute_upon_entry: false,
+            auto_recording: "none",
+            waiting_room: false,
+          },
+        });
+
+        zoomLink = meeting.join_url;
+        meetingId = meeting.id;
+        createdViaApi = true;
+
+        console.log(
+          `Created Zoom meeting via API: ${meetingId} for teacher ${teacherId}`
+        );
+      } catch (error) {
+        console.error("Failed to create Zoom meeting via API:", error);
+        // Fall back to manual link if provided
+        if (!link) {
+          return NextResponse.json(
+            {
+              error:
+                "Failed to create Zoom meeting and no manual link provided",
+            },
+            { status: 500 }
+          );
+        }
+      }
+    } else if (!link) {
+      // No link provided and can't create via API
+      return NextResponse.json({ error: "link is required" }, { status: 400 });
+    }
+
     // We need to create the record first to get the ID for leave_url
     // Then update the link with the leave_url parameter
 
@@ -124,7 +194,7 @@ export async function POST(
         data: {
           studentid: studentId,
           ustazid: teacherId,
-          link: link,
+          link: zoomLink,
           tracking_token: tokenToUse,
           sent_time: localTime,
           expiration_date: expiry ?? undefined,
@@ -134,6 +204,8 @@ export async function POST(
           last_activity_at: null,
           session_ended_at: null,
           session_duration_minutes: null,
+          zoom_meeting_id: meetingId,
+          created_via_api: createdViaApi,
         },
       });
 
@@ -144,9 +216,9 @@ export async function POST(
       const leaveUrl = `${baseUrl}/api/zoom/teacher-left?session=${created.id}`;
 
       // Append leave_url to the Zoom link
-      const enhancedZoomLink = link.includes("?")
-        ? `${link}&leave_url=${encodeURIComponent(leaveUrl)}`
-        : `${link}?leave_url=${encodeURIComponent(leaveUrl)}`;
+      const enhancedZoomLink = zoomLink.includes("?")
+        ? `${zoomLink}&leave_url=${encodeURIComponent(leaveUrl)}`
+        : `${zoomLink}?leave_url=${encodeURIComponent(leaveUrl)}`;
 
       // Update the link with leave_url parameter
       await prisma.wpos_zoom_links.update({
