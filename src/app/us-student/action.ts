@@ -14,6 +14,7 @@ export async function getStudents() {
       wpos_wpdatatable_23: {
         select: {
           wdt_ID: true,
+          registrationdate: true,
         },
       },
     },
@@ -26,5 +27,6 @@ export async function getStudents() {
     email: user.email,
     phoneNumber: user.phoneNumber,
     wpos_wpdatatable_23Wdt_ID: user.wpos_wpdatatable_23?.wdt_ID || null,
+    registrationDate: user.wpos_wpdatatable_23?.registrationdate || null,
   }));
 }

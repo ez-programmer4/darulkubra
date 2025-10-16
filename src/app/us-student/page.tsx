@@ -19,6 +19,7 @@ interface UsStudent {
   email: string;
   phoneNumber: string;
   wpos_wpdatatable_23Wdt_ID: number | null;
+  registrationDate: Date | null;
 }
 
 export default function Page() {
@@ -243,6 +244,20 @@ export default function Page() {
                             <div className="text-xs text-gray-500 mt-1">
                               ID: {student.wpos_wpdatatable_23Wdt_ID}
                             </div>
+                            {student.registrationDate && (
+                              <div className="text-xs text-gray-600 mt-1 font-medium">
+                                Registered:{" "}
+                                {new Date(
+                                  student.registrationDate
+                                ).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <button
