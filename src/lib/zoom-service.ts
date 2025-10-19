@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 export interface ZoomMeetingConfig {
   topic: string;
-  type: 2; // Scheduled meeting
+  type: 1 | 2; // 1 = Instant meeting, 2 = Scheduled meeting
   start_time: string; // ISO 8601 format
   duration: number; // in minutes
   timezone: string;

@@ -152,7 +152,7 @@ export async function POST(
 
         const meeting = await ZoomService.createMeeting(teacherId, {
           topic: `Class with ${student.name}`,
-          type: 2, // Scheduled meeting
+          type: 1, // Instant meeting (not scheduled)
           start_time: meetingTime.toISOString(),
           duration: 60, // 60 minutes default
           timezone: "Africa/Addis_Ababa",
