@@ -78,7 +78,13 @@ export async function GET(req: NextRequest) {
         format: exportFormat,
       });
 
-      return new NextResponse(exportResult.content, {
+      // Convert Buffer to string if needed
+      const content =
+        typeof exportResult.content === "string"
+          ? exportResult.content
+          : exportResult.content.toString("utf-8");
+
+      return new NextResponse(content, {
         headers: {
           "Content-Type": exportResult.mimeType,
           "Content-Disposition": `attachment; filename="${exportResult.filename}"`,

@@ -32,9 +32,10 @@ export async function POST(req: NextRequest) {
       signature &&
       timestamp
     ) {
+      const webhookSecret = process.env.ZOOM_WEBHOOK_SECRET_TOKEN as string;
       const message = `v0:${timestamp}:${body}`;
       const hashForVerify = crypto
-        .createHmac("sha256", process.env.ZOOM_WEBHOOK_SECRET_TOKEN)
+        .createHmac("sha256", webhookSecret)
         .update(message)
         .digest("hex");
       const computedSignature = `v0=${hashForVerify}`;
@@ -53,10 +54,12 @@ export async function POST(req: NextRequest) {
 
     // Handle URL verification (one-time setup)
     if (event === "endpoint.url_validation") {
+      const webhookSecret =
+        process.env.ZOOM_WEBHOOK_SECRET_TOKEN || "default_secret";
       return NextResponse.json({
         plainToken: payload.payload.plainToken,
         encryptedToken: crypto
-          .createHmac("sha256", process.env.ZOOM_WEBHOOK_SECRET_TOKEN || "")
+          .createHmac("sha256", webhookSecret)
           .update(payload.payload.plainToken)
           .digest("hex"),
       });
@@ -183,7 +186,16 @@ async function handleMeetingEnded(meeting: any) {
           },
           session_status: "active",
         },
-        select: { id: true, ustazid: true },
+        select: {
+          id: true,
+          ustazid: true,
+          host_joined_at: true,
+          host_left_at: true,
+          student_joined_at: true,
+          student_left_at: true,
+          teacher_duration_minutes: true,
+          student_duration_minutes: true,
+        },
         orderBy: { sent_time: "desc" },
       });
     }
@@ -314,26 +326,13 @@ async function handleParticipantJoined(participant: any) {
 
     // Workaround: Multiple strategies to identify teacher
     const nameMatch = teacherName && participantName.includes(teacherName);
-    const emailMatch =
-      link.wpos_wpdatatable_24?.email &&
-      participant.participant.email === link.wpos_wpdatatable_24.email;
 
-    // Strategy 3: First person to join is usually the teacher (since join_before_host: false)
+    // Strategy 2: First person to join is usually the teacher (since join_before_host: false)
     const isFirstParticipant = (link.participant_count || 0) === 0;
 
-    // Strategy 4: Teacher email from webhook (ezedinebrahim111@gmail.com)
-    const isTeacherEmail =
-      participant.participant.email === "ezedinebrahim111@gmail.com";
-
-    const isActuallyHost =
-      isHost ||
-      nameMatch ||
-      emailMatch ||
-      (isFirstParticipant && isTeacherEmail);
+    const isActuallyHost = isHost || nameMatch || isFirstParticipant;
     console.log(
-      `🔍 Debug - Final host determination: ${isActuallyHost} (role: ${isHost}, name: ${nameMatch}, email: ${emailMatch}, first+email: ${
-        isFirstParticipant && isTeacherEmail
-      })`
+      `🔍 Debug - Final host determination: ${isActuallyHost} (role: ${isHost}, name: ${nameMatch}, first: ${isFirstParticipant})`
     );
 
     // Update based on who joined
@@ -414,17 +413,10 @@ async function handleParticipantLeft(participant: any) {
 
     // Workaround: Multiple strategies to identify teacher
     const nameMatch = teacherName && participantName.includes(teacherName);
-    const emailMatch =
-      meeting.wpos_wpdatatable_24?.email &&
-      participant.participant.email === meeting.wpos_wpdatatable_24.email;
 
-    // Strategy 4: Teacher email from webhook (ezedinebrahim111@gmail.com)
-    const isTeacherEmail =
-      participant.participant.email === "ezedinebrahim111@gmail.com";
-
-    const isActuallyHost = isHost || nameMatch || emailMatch || isTeacherEmail;
+    const isActuallyHost = isHost || nameMatch;
     console.log(
-      `🔍 Debug - Final host determination: ${isActuallyHost} (role: ${isHost}, name: ${nameMatch}, email: ${emailMatch}, teacherEmail: ${isTeacherEmail})`
+      `🔍 Debug - Final host determination: ${isActuallyHost} (role: ${isHost}, name: ${nameMatch})`
     );
 
     const updateData: any = {

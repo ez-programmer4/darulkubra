@@ -16,7 +16,7 @@ import {
   SortConfig,
   MeetingQueryResult,
   PunctualityStatus,
-  DurationAnalytics,
+  DurationAnalytics as DurationAnalyticsInterface,
   AnalyticsInsight,
   TeacherComparison,
   DurationTrend,

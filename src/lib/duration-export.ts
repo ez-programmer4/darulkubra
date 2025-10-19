@@ -273,7 +273,7 @@ export class DurationExportService {
     const size =
       typeof content === "string"
         ? Buffer.byteLength(content, "utf-8")
-        : content.length;
+        : (content as Buffer).length;
 
     return {
       filename,
@@ -319,7 +319,7 @@ export class DurationExportService {
     const size =
       typeof content === "string"
         ? Buffer.byteLength(content, "utf-8")
-        : content.length;
+        : (content as Buffer).length;
 
     return {
       filename,
@@ -429,7 +429,12 @@ export function createDownloadResponse(result: ExportResult): Response {
   );
   headers.set("Content-Length", result.size.toString());
 
-  return new Response(result.content, { headers });
+  const content =
+    typeof result.content === "string"
+      ? result.content
+      : result.content.toString("utf-8");
+
+  return new Response(content, { headers });
 }
 
 /**
