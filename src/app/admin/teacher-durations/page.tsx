@@ -31,20 +31,23 @@ export default function TeacherDurationsPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const itemsPerPage = 20;
 
   useEffect(() => {
     fetchData();
   }, [month]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh only if enabled (disabled by default)
   useEffect(() => {
+    if (!autoRefresh) return;
+
     const interval = setInterval(() => {
-      fetchData();
-    }, 30000); // 30 seconds
+      fetchData(true); // Pass true for background refresh
+    }, 60000); // 60 seconds (1 minute) - less aggressive
 
     return () => clearInterval(interval);
-  }, [month]);
+  }, [month, autoRefresh]);
 
   // Sort and filter teachers
   const processedTeachers = useMemo(() => {
@@ -136,12 +139,17 @@ export default function TeacherDurationsPage() {
     return sortOrder === "asc" ? <span>↑</span> : <span>↓</span>;
   };
 
-  async function fetchData() {
+  async function fetchData(isBackgroundRefresh = false) {
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load, not on background refreshes
+      if (!isBackgroundRefresh) {
+        setLoading(true);
+      }
       setError(null);
 
-      const res = await fetch(`/api/admin/teacher-durations?month=${month}`);
+      const res = await fetch(`/api/admin/teacher-durations?month=${month}`, {
+        cache: "no-store", // Prevent caching
+      });
 
       if (!res.ok) {
         const errorData = await res.json();
@@ -152,9 +160,15 @@ export default function TeacherDurationsPage() {
       setData(result);
     } catch (error) {
       console.error("Error fetching durations:", error);
-      setError(error instanceof Error ? error.message : "Failed to load data");
+      if (!isBackgroundRefresh) {
+        setError(
+          error instanceof Error ? error.message : "Failed to load data"
+        );
+      }
     } finally {
-      setLoading(false);
+      if (!isBackgroundRefresh) {
+        setLoading(false);
+      }
     }
   }
 
@@ -244,7 +258,11 @@ export default function TeacherDurationsPage() {
             <div>
               <h3 className="font-semibold text-red-900">Error Loading Data</h3>
               <p className="text-red-700">{error}</p>
-              <Button onClick={fetchData} className="mt-3" size="sm">
+              <Button
+                onClick={() => fetchData(false)}
+                className="mt-3"
+                size="sm"
+              >
                 Try Again
               </Button>
             </div>
@@ -342,6 +360,21 @@ export default function TeacherDurationsPage() {
           </div>
           <div className="flex gap-2">
             <Button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              size="sm"
+              variant={autoRefresh ? "default" : "outline"}
+              className={autoRefresh ? "bg-green-600 hover:bg-green-700" : ""}
+            >
+              {autoRefresh ? "⏸️ Auto-Refresh ON" : "▶️ Auto-Refresh OFF"}
+            </Button>
+            <Button
+              onClick={() => fetchData(false)}
+              size="sm"
+              variant="outline"
+            >
+              🔄 Refresh Now
+            </Button>
+            <Button
               onClick={() => {
                 const csvContent = generateCSV();
                 downloadCSV(csvContent, `teacher-durations-${month}.csv`);
@@ -351,16 +384,20 @@ export default function TeacherDurationsPage() {
             >
               📥 Export CSV
             </Button>
-            <Button onClick={fetchData} size="sm" variant="outline">
-              🔄 Refresh
-            </Button>
           </div>
         </div>
-        <div className="text-xs text-gray-500 mt-2">
-          Showing {paginatedTeachers.length} of {processedTeachers.length}{" "}
-          teachers
-          {searchQuery &&
-            ` (filtered from ${data.teachers?.length || 0} total)`}
+        <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
+          <span>
+            Showing {paginatedTeachers.length} of {processedTeachers.length}{" "}
+            teachers
+            {searchQuery &&
+              ` (filtered from ${data.teachers?.length || 0} total)`}
+          </span>
+          {autoRefresh && (
+            <span className="text-green-600 font-medium animate-pulse">
+              ● Auto-refreshing every 60s
+            </span>
+          )}
         </div>
       </Card>
 
@@ -705,8 +742,12 @@ export default function TeacherDurationsPage() {
             <p className="font-semibold mb-1">About Duration Tracking:</p>
             <ul className="list-disc list-inside space-y-1 text-blue-800">
               <li>
-                <strong>Auto-refresh:</strong> Data updates every 30 seconds
-                automatically
+                <strong>Manual Refresh:</strong> Click "Refresh Now" to update
+                data (saves bandwidth)
+              </li>
+              <li>
+                <strong>Auto-Refresh:</strong> Toggle ON for automatic updates
+                every 60 seconds (optional)
               </li>
               <li>
                 <strong>Sortable columns:</strong> Click any column header to
@@ -720,7 +761,8 @@ export default function TeacherDurationsPage() {
                 individual meetings
               </li>
               <li>
-                <strong>Pagination:</strong> Shows 20 teachers per page
+                <strong>Pagination:</strong> Shows 20 teachers per page for
+                better performance
               </li>
             </ul>
           </div>
