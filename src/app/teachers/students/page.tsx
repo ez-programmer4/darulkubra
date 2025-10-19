@@ -91,11 +91,23 @@ export default function AssignedStudents() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [zoomOAuthConnected, setZoomOAuthConnected] = useState(false);
+  const [checkingOAuth, setCheckingOAuth] = useState(true);
   const [modal, setModal] = useState<{
     type: ModalType;
     studentId: number | null;
   }>({ type: null, studentId: null });
-  const [forms, setForms] = useState<Record<number, { link: string }>>({});
+  const [forms, setForms] = useState<
+    Record<
+      number,
+      {
+        link: string;
+        meetingId?: string;
+        startUrl?: string;
+        meetingCreated?: boolean;
+      }
+    >
+  >({});
   const [attend, setAttend] = useState<
     Record<
       number,
@@ -220,7 +232,23 @@ export default function AssignedStudents() {
   useEffect(() => {
     refresh();
     loadSurahs();
+    checkZoomOAuthStatus();
   }, []);
+
+  // Check if teacher has connected Zoom OAuth
+  async function checkZoomOAuthStatus() {
+    try {
+      const res = await fetch("/api/teachers/zoom-oauth-status");
+      if (res.ok) {
+        const data = await res.json();
+        setZoomOAuthConnected(data.isConnected);
+      }
+    } catch (error) {
+      console.error("Failed to check Zoom OAuth status:", error);
+    } finally {
+      setCheckingOAuth(false);
+    }
+  }
 
   async function loadSurahs() {
     setSurahs([
@@ -407,6 +435,159 @@ export default function AssignedStudents() {
     []
   );
 
+  // Auto-create meeting via OAuth
+  async function autoCreateMeeting(studentId: number) {
+    try {
+      setSending((s) => ({ ...s, [studentId]: true }));
+
+      const res = await fetch(`/api/teachers/students/${studentId}/zoom`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          create_via_api: true,
+          link: "", // Empty for auto-create
+        }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        let errorMessage = "Failed to create Zoom meeting";
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.error || errorMessage;
+          console.error("Auto-create error:", errorData);
+        } catch {
+          const errorText = await res.text();
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const responseData = await res.json();
+      const studentName =
+        groups.flatMap((g) => g.students).find((s) => s.id === studentId)
+          ?.name || "Student";
+
+      console.log("📥 Auto-create response:", responseData);
+      console.log("📥 Start URL:", responseData.start_url);
+
+      // Store meeting data for start button
+      setForms((prev) => ({
+        ...prev,
+        [studentId]: {
+          ...prev[studentId],
+          link: responseData.tracking_url || responseData.link,
+          meetingId: responseData.zoom_meeting_id,
+          startUrl: responseData.start_url,
+          meetingCreated: true,
+        },
+      }));
+
+      console.log("💾 Stored form data for student:", studentId, {
+        link: responseData.tracking_url || responseData.link,
+        meetingId: responseData.zoom_meeting_id,
+        startUrl: responseData.start_url,
+      });
+
+      toast({
+        title: "✅ Meeting Created!",
+        description: `Meeting ready for ${studentName}. Click "Start & Notify Student" to begin class.`,
+        variant: "default",
+      });
+
+      // Don't close modal - show start button instead
+    } catch (e: any) {
+      console.error("Auto-create error:", e);
+      toast({
+        title: "Error",
+        description:
+          e.message ||
+          "Failed to create meeting. Make sure your Zoom account is connected.",
+        variant: "destructive",
+      });
+    } finally {
+      setSending((s) => ({ ...s, [studentId]: false }));
+    }
+  }
+
+  async function startAndNotifyStudent(studentId: number) {
+    try {
+      const form = forms[studentId];
+
+      console.log("🚀 Starting meeting for student:", studentId);
+      console.log("📋 Form data:", form);
+
+      if (!form?.meetingId) {
+        toast({
+          title: "Error",
+          description: "Meeting ID not found. Please create a meeting first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!form?.startUrl) {
+        toast({
+          title: "Error",
+          description: "Start URL not found. Please create a meeting again.",
+          variant: "destructive",
+        });
+        console.error("❌ No start URL in form:", form);
+        return;
+      }
+
+      setSending((s) => ({ ...s, [studentId]: true }));
+
+      console.log("📞 Calling start-and-notify API...");
+
+      // Call API to notify student
+      const res = await fetch(
+        `/api/teachers/meetings/start-and-notify/${form.meetingId}`,
+        {
+          method: "POST",
+          credentials: "include",
+        }
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to start meeting");
+      }
+
+      const data = await res.json();
+
+      console.log("✅ API response:", data);
+      console.log("🔗 Opening Zoom with start URL:", form.startUrl);
+
+      // Open Zoom for teacher - use location.href for better compatibility
+      window.open(form.startUrl, "_blank");
+
+      const studentName =
+        groups.flatMap((g) => g.students).find((s) => s.id === studentId)
+          ?.name || "Student";
+
+      toast({
+        title: "🎉 Class Started!",
+        description: data.notification_sent
+          ? `Zoom opened! ${studentName} has been notified to join.`
+          : `Zoom opened. Please notify ${studentName} manually.`,
+        variant: "default",
+      });
+
+      setZoomSent((z) => ({ ...z, [studentId]: true }));
+      setModal({ type: null, studentId: null });
+    } catch (e: any) {
+      console.error("Start meeting error:", e);
+      toast({
+        title: "Error",
+        description: e.message || "Failed to start meeting",
+        variant: "destructive",
+      });
+    } finally {
+      setSending((s) => ({ ...s, [studentId]: false }));
+    }
+  }
+
   async function sendZoom(studentId: number) {
     try {
       const form = forms[studentId];
@@ -438,6 +619,7 @@ export default function AssignedStudents() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           link: form.link,
+          create_via_api: false,
         }),
         credentials: "include",
       });
@@ -614,6 +796,39 @@ export default function AssignedStudents() {
 
   return (
     <div className="min-h-screen bg-white pb-20 md:pb-0">
+      {/* OAuth Connection Banner */}
+      {!checkingOAuth && !zoomOAuthConnected && (
+        <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-500 p-4 mb-4 mx-4 mt-4 rounded-lg shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-yellow-500 rounded-lg">
+              <FiAlertTriangle className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-bold text-yellow-900 mb-1">
+                🔗 Connect Your Zoom Account
+              </h4>
+              <p className="text-sm text-yellow-800 mb-3">
+                To use <strong>Auto-Create</strong> features (one-click meeting
+                creation, automatic duration tracking), connect your Zoom
+                account.
+                <br />
+                <span className="text-xs">
+                  Don't worry - you can still send Zoom links manually without
+                  connecting!
+                </span>
+              </p>
+              <a
+                href="/api/zoom/oauth/authorize"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                <FiLink2 className="h-4 w-4" />
+                Connect Zoom Account
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         {/* Header + Stats */}
         <div className="bg-white rounded-xl shadow-lg border p-4">
@@ -821,10 +1036,30 @@ export default function AssignedStudents() {
                           onClick={() =>
                             setModal({ type: "zoom", studentId: s.id })
                           }
-                          className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium text-sm"
+                          className={`${
+                            forms[s.id]?.meetingCreated
+                              ? "bg-green-600 hover:bg-green-700 animate-pulse"
+                              : zoomSent[s.id]
+                              ? "bg-gray-500"
+                              : "bg-blue-600 hover:bg-blue-700"
+                          } text-white py-3 rounded-lg font-medium text-sm transition-all`}
                         >
-                          <FiLink2 className="h-4 w-4 mr-2" />
-                          Send Zoom
+                          {forms[s.id]?.meetingCreated ? (
+                            <>
+                              <FiCheck className="h-4 w-4 mr-2" />
+                              Start Class
+                            </>
+                          ) : zoomSent[s.id] ? (
+                            <>
+                              <FiCheck className="h-4 w-4 mr-2" />
+                              Link Sent
+                            </>
+                          ) : (
+                            <>
+                              <FiLink2 className="h-4 w-4 mr-2" />
+                              Send Zoom
+                            </>
+                          )}
                         </Button>
                         <Button
                           onClick={() => {
@@ -971,91 +1206,264 @@ export default function AssignedStudents() {
                 <div className="p-6 overflow-y-auto max-h-[70vh]">
                   {modal.type === "zoom" && (
                     <div className="space-y-6">
-                      <div>
-                        <label className="block text-sm font-bold text-gray-800 mb-3">
-                          Meeting Link *
-                        </label>
-                        <div className="flex gap-3">
-                          <input
-                            placeholder="https://zoom.us/j/1234567890"
-                            value={forms[modal.studentId]?.link || ""}
-                            onChange={(e) =>
-                              updateForm(modal.studentId!, {
-                                link: e.target.value,
-                              })
-                            }
-                            className="flex-1 p-4 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500 text-base transition-all duration-200"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleCopy(forms[modal.studentId!]?.link || "")
-                            }
-                            className="px-4 border-2 border-blue-200 hover:bg-blue-50"
-                            aria-label="Copy meeting link"
-                          >
-                            <FiCopy className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          Enter your Zoom meeting link only (must start with
-                          https://zoom.us/)
-                        </p>
-                      </div>
-
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FiClock className="h-4 w-4 text-blue-600" />
-                          <label className="text-sm font-bold text-blue-800">
-                            Sending Time
-                          </label>
-                        </div>
-                        <div className="text-lg font-mono text-blue-900">
-                          {new Date().toLocaleString()}
-                        </div>
-                        <p className="text-xs text-blue-600 mt-1">
-                          Link will be sent via Telegram immediately
-                        </p>
-                      </div>
-
-                      <Button
-                        disabled={
-                          !!sending[modal.studentId] ||
-                          !forms[modal.studentId]?.link?.trim()
-                        }
-                        onClick={() => sendZoom(modal.studentId!)}
-                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
-                      >
-                        {sending[modal.studentId] ? (
-                          <span className="flex items-center gap-2">
-                            <svg
-                              className="animate-spin h-5 w-5"
-                              viewBox="0 0 24 24"
+                      {/* AUTO-CREATED MEETING - Show Start Button */}
+                      {forms[modal.studentId]?.meetingCreated ? (
+                        <div className="space-y-4">
+                          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="p-3 bg-green-600 rounded-lg">
+                                <FiCheck className="h-6 w-6 text-white" />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-bold text-green-900 text-lg">
+                                  ✅ Auto-Created Meeting Ready!
+                                </h4>
+                                <p className="text-sm text-green-700 mt-1">
+                                  Click below to start the class and notify your
+                                  student
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              disabled={!!sending[modal.studentId]}
+                              onClick={() =>
+                                startAndNotifyStudent(modal.studentId!)
+                              }
+                              className="w-full bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-105"
                             >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
+                              {sending[modal.studentId] ? (
+                                <span className="flex items-center gap-2">
+                                  <svg
+                                    className="animate-spin h-5 w-5"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <circle
+                                      className="opacity-25"
+                                      cx="12"
+                                      cy="12"
+                                      r="10"
+                                      stroke="currentColor"
+                                      strokeWidth="4"
+                                    />
+                                    <path
+                                      className="opacity-75"
+                                      fill="currentColor"
+                                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                    />
+                                  </svg>
+                                  Starting Class...
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-2 text-lg">
+                                  🎥 Start Class & Notify Student
+                                </span>
+                              )}
+                            </Button>
+                            <p className="text-xs text-green-600 mt-3 text-center">
+                              This will open Zoom for you and send a
+                              notification to your student
+                            </p>
+                          </div>
+
+                          {/* Manual option disabled when auto-created */}
+                          <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-5 opacity-50">
+                            <div className="flex items-center gap-2 mb-2">
+                              <FiX className="h-5 w-5 text-gray-500" />
+                              <h4 className="font-bold text-gray-600">
+                                Manual Link Disabled
+                              </h4>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              You've created an auto-meeting. Manual link option
+                              is not available.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {/* Auto-Create Option - Only show if OAuth connected */}
+                          {zoomOAuthConnected ? (
+                            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-xl p-5">
+                              <div className="flex items-start gap-3 mb-3">
+                                <div className="p-2 bg-purple-600 rounded-lg">
+                                  <FiSend className="h-5 w-5 text-white" />
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="font-bold text-purple-900 text-lg">
+                                    🤖 Automatic Method (Recommended)
+                                  </h4>
+                                  <p className="text-xs text-purple-700 mt-1">
+                                    • Instantly creates meeting via your Zoom
+                                    account
+                                    <br />
+                                    • You start first, then notify student
+                                    <br />• Automatic duration tracking
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                disabled={!!sending[modal.studentId]}
+                                onClick={() =>
+                                  autoCreateMeeting(modal.studentId!)
+                                }
+                                className="w-full bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white font-bold py-3 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                              >
+                                {sending[modal.studentId] ? (
+                                  <span className="flex items-center gap-2">
+                                    <svg
+                                      className="animate-spin h-5 w-5"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                      />
+                                      <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                      />
+                                    </svg>
+                                    Creating Meeting...
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-2">
+                                    ✨ Create Auto-Meeting
+                                  </span>
+                                )}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="bg-gray-50 border-2 border-gray-300 rounded-xl p-5">
+                              <div className="flex items-start gap-3">
+                                <div className="p-2 bg-gray-400 rounded-lg">
+                                  <FiAlertTriangle className="h-5 w-5 text-white" />
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="font-bold text-gray-700 mb-2">
+                                    🔒 Auto-Create Not Available
+                                  </h4>
+                                  <p className="text-xs text-gray-600 mb-3">
+                                    Connect your Zoom account at the top of the
+                                    page to use auto-create features.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Divider */}
+                          <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                              <div className="w-full border-t border-gray-300"></div>
+                            </div>
+                            <div className="relative flex justify-center text-xs">
+                              <span className="px-3 bg-white text-gray-500 font-medium">
+                                {zoomOAuthConnected ? "OR" : ""}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Manual Link Option */}
+                          <div className="bg-gradient-to-r from-gray-50 to-slate-50 border-2 border-gray-200 rounded-xl p-5">
+                            <div className="flex items-start gap-3 mb-3">
+                              <div className="p-2 bg-gray-600 rounded-lg">
+                                <FiLink2 className="h-5 w-5 text-white" />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-bold text-gray-900 text-lg">
+                                  ✋ Manual Method
+                                </h4>
+                              </div>
+                            </div>
+                            <label className="block text-sm font-bold text-gray-800 mb-3">
+                              Paste Zoom Meeting Link
+                            </label>
+                            <div className="flex gap-3 mb-3">
+                              <input
+                                placeholder="https://zoom.us/j/1234567890"
+                                value={forms[modal.studentId]?.link || ""}
+                                onChange={(e) =>
+                                  updateForm(modal.studentId!, {
+                                    link: e.target.value,
+                                  })
+                                }
+                                className="flex-1 p-4 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400 text-base transition-all duration-200"
                               />
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                              />
-                            </svg>
-                            Sending Link...
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-2">
-                            <FiSend className="h-5 w-5" />
-                            Send Zoom Link
-                          </span>
-                        )}
-                      </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleCopy(
+                                    forms[modal.studentId!]?.link || ""
+                                  )
+                                }
+                                className="px-4 border-2 border-gray-200 hover:bg-gray-50"
+                                aria-label="Copy meeting link"
+                              >
+                                <FiCopy className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <FiClock className="h-4 w-4 text-blue-600" />
+                                <label className="text-sm font-bold text-blue-800">
+                                  Sending Time
+                                </label>
+                              </div>
+                              <div className="text-lg font-mono text-blue-900">
+                                {new Date().toLocaleString()}
+                              </div>
+                              <p className="text-xs text-blue-600 mt-1">
+                                Link will be sent via Telegram immediately
+                              </p>
+                            </div>
+
+                            <Button
+                              disabled={
+                                !!sending[modal.studentId] ||
+                                !forms[modal.studentId]?.link?.trim()
+                              }
+                              onClick={() => sendZoom(modal.studentId!)}
+                              className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+                            >
+                              {sending[modal.studentId] ? (
+                                <span className="flex items-center gap-2">
+                                  <svg
+                                    className="animate-spin h-5 w-5"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <circle
+                                      className="opacity-25"
+                                      cx="12"
+                                      cy="12"
+                                      r="10"
+                                      stroke="currentColor"
+                                      strokeWidth="4"
+                                    />
+                                    <path
+                                      className="opacity-75"
+                                      fill="currentColor"
+                                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                    />
+                                  </svg>
+                                  Sending Link...
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-2">
+                                  <FiSend className="h-5 w-5" />
+                                  Send Manual Link
+                                </span>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

@@ -17,6 +17,8 @@ import {
   FiChevronDown,
 } from "react-icons/fi";
 import JSConfetti from "js-confetti";
+import { ZoomConnectionCard } from "@/components/teacher/ZoomConnectionCard";
+import ActiveMeetingsPanel from "@/components/teacher/ActiveMeetingsPanel";
 
 type QualityData = {
   rating: string;
@@ -266,6 +268,12 @@ ${quality.examinerNotes || "No notes provided."}
           <span className="text-red-700 text-sm font-medium">{error}</span>
         </div>
       )}
+
+      {/* Zoom Connection */}
+      <ZoomConnectionCard />
+
+      {/* Active Meetings Panel */}
+      <ActiveMeetingsPanel />
 
       {/* Today Classes */}
       <div className="bg-white rounded-xl shadow-lg border p-4">

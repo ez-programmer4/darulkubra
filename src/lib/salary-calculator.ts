@@ -89,6 +89,24 @@ export interface TeacherSalaryData {
   };
 }
 
+/**
+ * SALARY CALCULATION NOTE:
+ *
+ * This calculator is based on DAYS WORKED, not actual meeting hours/duration.
+ *
+ * While we track actual meeting duration via Zoom webhooks (zoom_actual_duration),
+ * the salary system calculates based on:
+ * - Number of days the teacher had classes (teachingDays)
+ * - Daily rate per student package
+ * - Deductions for lateness and absences
+ *
+ * Actual duration tracking is used for:
+ * - Transparency and reporting (teachers can see their actual hours)
+ * - Future analytics and quality control
+ * - Verification of attendance claims
+ *
+ * To view actual durations: GET /api/teachers/meeting-durations
+ */
 export class SalaryCalculator {
   private config: SalaryCalculationConfig;
   private cache: Map<string, any> = new Map();

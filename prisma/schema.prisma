@@ -22,6 +22,11 @@ model wpos_wpdatatable_24 {
     password                String                      @db.VarChar(255)
     control                 String?                     @db.VarChar(255)
     created_at              DateTime?                   @default(now()) @db.Timestamp(0)
+    zoom_user_id            String?                     @db.VarChar(255)
+    zoom_access_token       String?                     @db.Text
+    zoom_refresh_token      String?                     @db.Text
+    zoom_token_expires_at   DateTime?                   @db.DateTime(0)
+    zoom_connected_at       DateTime?                   @db.DateTime(0)
     absencerecord           absencerecord[]
     attendancesubmissionlog attendancesubmissionlog[]
     bonusrecord             bonusrecord[]
@@ -41,6 +46,7 @@ model wpos_wpdatatable_24 {
 
     @@index([ustazid], map: "idx_ustazid")
     @@index([control], map: "wpos_wpdatatable_24_control_fkey")
+    @@index([zoom_user_id], map: "idx_zoom_user_id")
 }
 
 model wpos_wpdatatable_23 {
@@ -232,6 +238,22 @@ model wpos_zoom_links {
     session_duration_minutes Int?
     session_status           SessionStatus        @default(active)
     last_activity_at         DateTime?            @db.DateTime(0)
+    zoom_meeting_id          String?              @db.VarChar(255)
+    zoom_start_time          DateTime?            @db.DateTime(0)
+    zoom_actual_duration     Int?
+    created_via_api          Boolean?             @default(false)
+    start_url                String?              @db.VarChar(500)
+    scheduled_start_time     DateTime?            @db.DateTime(0)
+    host_joined_at           DateTime?            @db.DateTime(0)
+    host_left_at             DateTime?            @db.DateTime(0)
+    student_joined_at        DateTime?            @db.DateTime(0)
+    student_left_at          DateTime?            @db.DateTime(0)
+    teacher_duration_minutes Int?
+    student_duration_minutes Int?
+    participant_count        Int?                 @default(0)
+    recording_started        Boolean?             @default(false)
+    screen_share_started     Boolean?             @default(false)
+    meeting_topic            String?              @db.VarChar(255)
     wpos_wpdatatable_23      wpos_wpdatatable_23  @relation(fields: [studentid], references: [wdt_ID])
     wpos_wpdatatable_24      wpos_wpdatatable_24? @relation(fields: [ustazid], references: [ustazid])
 
@@ -240,6 +262,8 @@ model wpos_zoom_links {
     @@index([sent_time], map: "idx_sent_time")
     @@index([session_status], map: "idx_session_status")
     @@index([last_activity_at], map: "idx_last_activity")
+    @@index([zoom_meeting_id], map: "idx_zoom_meeting_id")
+    @@index([scheduled_start_time], map: "idx_scheduled_start_time")
 }
 
 enum SessionStatus {

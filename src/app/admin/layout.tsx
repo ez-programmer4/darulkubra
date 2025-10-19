@@ -18,6 +18,7 @@ import {
   Coins,
   FileText,
   Clock,
+  Timer,
 } from "lucide-react";
 import Header from "./components/Header";
 import { useSession, signOut } from "next-auth/react";
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/students", label: "Students", icon: Users },
   { href: "/admin/teacher-schedules", label: "Daily Attendance", icon: Clock },
+  { href: "/admin/teacher-durations", label: "Teaching Durations", icon: Timer },
 
   { href: "/admin/lateness", label: "Lateness Analytics", icon: UserCheck },
   { href: "/admin/payments", label: "Payments", icon: DollarSign },

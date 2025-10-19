@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { ZoomService } from "@/lib/zoom-service";
 
 export async function POST(
   req: NextRequest,
@@ -25,10 +26,13 @@ export async function POST(
         { status: 400 }
       );
     }
-    const { link, tracking_token, expiration_date } = await req.json();
-    if (!link) {
-      return NextResponse.json({ error: "link is required" }, { status: 400 });
-    }
+    const {
+      link,
+      tracking_token,
+      expiration_date,
+      create_via_api,
+      scheduled_time,
+    } = await req.json();
 
     // Verify ownership and collect student messaging info
     const student = await prisma.wpos_wpdatatable_23.findUnique({
@@ -126,8 +130,85 @@ export async function POST(
       (tracking_token && String(tracking_token)) ||
       crypto.randomBytes(16).toString("hex").toUpperCase();
 
-    // We need to create the record first to get the ID for leave_url
-    // Then update the link with the leave_url parameter
+    // Check if teacher wants to auto-create meeting via OAuth
+    const isZoomConnected = await ZoomService.isZoomConnected(teacherId);
+    let zoomLink = link;
+    let meetingId: string | null = null;
+    let startUrl: string | null = null;
+    let createdViaApi = false;
+    let scheduledStartTime: Date | null = null;
+    let meetingTopic: string | null = null;
+
+    // Option 1: Auto-create meeting via teacher's Zoom OAuth
+    if (create_via_api && isZoomConnected) {
+      try {
+        const meetingTime = scheduled_time
+          ? new Date(scheduled_time)
+          : new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+
+        console.log(
+          `🤖 Creating Zoom meeting via API for teacher ${teacherId}`
+        );
+
+        const meeting = await ZoomService.createMeeting(teacherId, {
+          topic: `Class with ${student.name}`,
+          type: 2, // Scheduled meeting
+          start_time: meetingTime.toISOString(),
+          duration: 60, // 60 minutes default
+          timezone: "Africa/Addis_Ababa",
+          settings: {
+            host_video: false, // Video off by default
+            participant_video: false, // Video off by default
+            join_before_host: true,
+            mute_upon_entry: false,
+            auto_recording: "none",
+            waiting_room: false, // No waiting room for quick join
+          },
+        });
+
+        zoomLink = meeting.join_url;
+        meetingId = String(meeting.id); // Convert to string for database
+        startUrl = meeting.start_url; // Capture start URL for teacher
+        scheduledStartTime = meetingTime;
+        meetingTopic = meeting.topic;
+        createdViaApi = true;
+
+        console.log(`✅ Created Zoom meeting via OAuth: ID ${meetingId}`);
+      } catch (error) {
+        console.error("Failed to create meeting via API:", error);
+
+        // Fallback to manual link if provided
+        if (!link) {
+          return NextResponse.json(
+            {
+              error:
+                "Failed to create Zoom meeting. Please provide a manual link or reconnect your Zoom account.",
+            },
+            { status: 500 }
+          );
+        }
+        console.log(`Falling back to manual link`);
+      }
+    }
+
+    // Option 2: Manual link - extract meeting ID for webhook matching
+    if (!createdViaApi) {
+      if (!link) {
+        return NextResponse.json(
+          { error: "Zoom link is required" },
+          { status: 400 }
+        );
+      }
+
+      zoomLink = link;
+      const meetingIdMatch = link.match(/\/j\/(\d+)/);
+      if (meetingIdMatch) {
+        meetingId = meetingIdMatch[1];
+        console.log(
+          `📹 Extracted Zoom meeting ID from manual link: ${meetingId}`
+        );
+      }
+    }
 
     // Persist record
     let created;
@@ -135,14 +216,16 @@ export async function POST(
       console.log(`💾 Creating zoom link with package data:`);
       console.log(`  packageId: ${packageId}`);
       console.log(`  packageRate: ${packageRate}`);
+      console.log(`  zoom_meeting_id: ${meetingId}`);
+      console.log(`  created_via_api: ${createdViaApi}`);
 
       created = await prisma.wpos_zoom_links.create({
         data: {
           studentid: studentId,
           ustazid: teacherId,
-          link: link,
+          link: zoomLink,
           tracking_token: tokenToUse,
-          sent_time: localTime,
+          sent_time: now, // Use UTC time
           expiration_date: expiry ?? undefined,
           packageId: packageId,
           packageRate: packageRate,
@@ -150,22 +233,24 @@ export async function POST(
           last_activity_at: null,
           session_ended_at: null,
           session_duration_minutes: null,
+          zoom_meeting_id: meetingId,
+          created_via_api: createdViaApi,
+          start_url: startUrl,
+          scheduled_start_time: scheduledStartTime,
+          meeting_topic: meetingTopic,
+          participant_count: 0,
+          recording_started: false,
+          screen_share_started: false,
         },
       });
 
       console.log(`✅ Zoom link created with ID: ${created.id}`);
-
-      // Verify the data was stored correctly
-      const verification = await prisma.wpos_zoom_links.findUnique({
-        where: { id: created.id },
-        select: {
-          id: true,
-          packageId: true,
-          packageRate: true,
-          studentid: true,
-        },
+      console.log(`📊 Created data:`, {
+        id: created.id,
+        zoom_meeting_id: meetingId,
+        start_url: startUrl,
+        created_via_api: createdViaApi,
       });
-      console.log(`🔍 Verification query result:`, verification);
     } catch (createError: any) {
       console.error("Zoom link creation error:", createError);
 
@@ -219,21 +304,26 @@ export async function POST(
       }
     }
 
-    // Use direct Zoom link (NO TRACKING REDIRECT)
+    // Use direct Zoom link for student (NO TRACKING REDIRECT)
     // Students click and join Zoom immediately
-    const finalURL = link;
+    const finalURL = zoomLink;
+
+    console.log(`🔗 Direct Zoom link for student: ${finalURL}`);
 
     let notificationSent = false;
     let notificationError = null;
 
-    if (student.country === "USA") {
+    // Skip notification for auto-created meetings (will be sent when teacher starts the class)
+    const skipNotification = createdViaApi;
+
+    if (!skipNotification && student.country === "USA") {
       // send email
       await fetch(`https://darulkubra.com/api/email`, {
         method: "POST",
         body: JSON.stringify({ id: student.wdt_ID, token: tokenToUse }),
       });
-    } else {
-      // Send Telegram notification
+    } else if (!skipNotification) {
+      // Send Telegram notification (only for manual links)
       const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
       if (!botToken) {
@@ -327,10 +417,12 @@ Click the button below to join your online class session.
 
           if (telegramResponse!.ok && responseData.ok) {
             notificationSent = true;
+            console.log("✅ Telegram notification sent successfully");
           } else {
             notificationError =
               responseData.description || "Telegram API error";
             console.error("❌ Telegram API error:", {
+              ok: responseData.ok,
               error_code: responseData.error_code,
               description: responseData.description,
               parameters: responseData.parameters,
@@ -343,11 +435,22 @@ Click the button below to join your online class session.
         }
       }
     }
+
+    // Log notification status
+    if (skipNotification) {
+      console.log(
+        "⏭️ Skipped notification (auto-created meeting - will notify when teacher starts)"
+      );
+    }
+
     return NextResponse.json(
       {
         id: created.id,
         tracking_token: tokenToUse,
         tracking_url: finalURL,
+        link: zoomLink,
+        zoom_meeting_id: meetingId,
+        start_url: startUrl,
         notification_sent: notificationSent,
         notification_method: notificationSent ? "telegram" : "none",
         notification_error: notificationError,
@@ -360,6 +463,8 @@ Click the button below to join your online class session.
           packageId_stored: packageId,
           packageRate_stored: packageRate,
           working_days_calculated: workingDays,
+          created_via_api: createdViaApi,
+          zoom_link: zoomLink,
         },
       },
       { status: 201 }
