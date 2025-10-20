@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
       JSON.stringify({
         teacherId,
         timestamp: Date.now(),
+        retryCount: 0, // Track retry attempts
       })
     ).toString("base64");
 
@@ -48,6 +49,11 @@ export async function GET(req: NextRequest) {
     authUrl.searchParams.set("state", state);
 
     console.log("🔗 Redirecting to Zoom OAuth URL:", authUrl.toString());
+    console.log("📋 OAuth Parameters:");
+    console.log("  - response_type: code");
+    console.log("  - client_id:", clientId);
+    console.log("  - redirect_uri:", redirectUri);
+    console.log("  - state:", state);
 
     return NextResponse.redirect(authUrl.toString());
   } catch (error) {
