@@ -604,6 +604,8 @@ export class DurationService {
         gte: startDate,
         lte: endDate,
       },
+      // Only fetch ended meetings for performance (active meetings don't have complete duration data)
+      session_status: "ended",
     };
 
     // Apply additional filters
@@ -614,7 +616,7 @@ export class DurationService {
       whereClause.studentid = filters.studentId;
     }
     if (filters?.status) {
-      whereClause.session_status = filters.status;
+      whereClause.session_status = filters.status; // Override if specific status requested
     }
     if (filters?.createdViaApi !== undefined) {
       whereClause.created_via_api = filters.createdViaApi;
@@ -627,12 +629,8 @@ export class DurationService {
         ustazid: true,
         studentid: true,
         sent_time: true,
-        zoom_meeting_id: true,
-        zoom_actual_duration: true,
-        session_duration_minutes: true,
         session_status: true,
         created_via_api: true,
-        zoom_start_time: true,
         session_ended_at: true,
         host_joined_at: true,
         host_left_at: true,
@@ -640,7 +638,6 @@ export class DurationService {
         student_left_at: true,
         teacher_duration_minutes: true,
         student_duration_minutes: true,
-        meeting_topic: true,
         wpos_wpdatatable_23: {
           select: {
             name: true,
@@ -655,6 +652,7 @@ export class DurationService {
       orderBy: {
         sent_time: "desc",
       },
+      take: 1000, // Limit to 1000 most recent meetings for performance
     })) as any;
 
     return meetings;

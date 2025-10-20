@@ -62,13 +62,24 @@ export async function GET(req: NextRequest) {
         }
       : undefined;
 
-    // Generate report - NO CACHE - Always fresh data
-    const report = await DurationService.generateReport(
+    // Set timeout for slow queries
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(
+        () =>
+          reject(new Error("Query timeout - please try a smaller date range")),
+        25000
+      );
+    });
+
+    // Generate report with timeout protection
+    const reportPromise = DurationService.generateReport(
       startDate,
       endDate,
       filters,
       sortConfig
     );
+
+    const report = (await Promise.race([reportPromise, timeoutPromise])) as any;
 
     monitor.end();
 

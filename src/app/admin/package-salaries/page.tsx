@@ -105,8 +105,16 @@ export default function PackageSalariesPage() {
 
     setLoading(true);
     try {
-      const response = await fetch("/api/admin/package-salaries", {
-        method: "POST",
+      // Check if we're editing an existing salary or creating a new one
+      const isEditing =
+        editingSalary?.salaryConfigured && editingSalary?.salaryId;
+      const url = isEditing
+        ? `/api/admin/package-salaries/${editingSalary.salaryId}`
+        : "/api/admin/package-salaries";
+      const method = isEditing ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
@@ -114,7 +122,9 @@ export default function PackageSalariesPage() {
       if (response.ok) {
         toast({
           title: "Success",
-          description: "Package salary created successfully",
+          description: isEditing
+            ? "Package salary updated successfully"
+            : "Package salary created successfully",
         });
         fetchSalaries();
         setShowAddDialog(false);
