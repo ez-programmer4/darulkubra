@@ -225,7 +225,7 @@ export async function POST(
           ustazid: teacherId,
           link: zoomLink,
           tracking_token: tokenToUse,
-          sent_time: now, // Use UTC time
+          sent_time: localTime, // Use Ethiopian local time (UTC+3)
           expiration_date: expiry ?? undefined,
           packageId: packageId,
           packageRate: packageRate,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
+import { getEthiopianTime } from "@/lib/ethiopian-time";
 
 /**
  * API to get the start URL for a teacher's meeting
@@ -110,7 +111,7 @@ export async function POST(
         ustazid: teacherId,
       },
       data: {
-        host_joined_at: new Date(),
+        host_joined_at: getEthiopianTime(),
       },
     });
 
@@ -138,7 +139,3 @@ export async function POST(
     );
   }
 }
-
-
-
-

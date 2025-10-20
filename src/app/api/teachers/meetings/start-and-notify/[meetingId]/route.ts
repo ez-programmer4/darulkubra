@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
+import { getEthiopianTime } from "@/lib/ethiopian-time";
 
 /**
  * Start meeting and send notification to student
@@ -54,7 +55,7 @@ export async function POST(
     await prisma.wpos_zoom_links.update({
       where: { id: meeting.id },
       data: {
-        host_joined_at: new Date(),
+        host_joined_at: getEthiopianTime(),
       },
     });
 

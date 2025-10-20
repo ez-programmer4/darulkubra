@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getEthiopianTime } from "@/lib/ethiopian-time";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -26,10 +27,11 @@ export async function GET(req: NextRequest) {
 
   if (!record.clicked_at) {
     // Record clicked time when student first clicks
+    // Use Ethiopian local time (UTC+3)
     await prisma.wpos_zoom_links.update({
       where: { id: record.id },
       data: {
-        clicked_at: new Date(),
+        clicked_at: getEthiopianTime(),
       },
     });
     console.log(`✅ Recorded click time for student`);

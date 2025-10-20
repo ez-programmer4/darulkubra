@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { toEthiopianTime, getEthiopianTime } from "@/lib/ethiopian-time";
 
 /**
  * Zoom Webhook Handler
@@ -118,7 +119,8 @@ export async function POST(req: NextRequest) {
 async function handleMeetingStarted(meeting: any) {
   try {
     const meetingId = String(meeting.id);
-    const startTime = new Date(meeting.start_time);
+    // Convert Zoom UTC time to Ethiopian local time
+    const startTime = toEthiopianTime(meeting.start_time);
 
     console.log(`Meeting started: ${meetingId} at ${startTime}`);
 
@@ -145,8 +147,9 @@ async function handleMeetingStarted(meeting: any) {
 async function handleMeetingEnded(meeting: any) {
   try {
     const meetingId = String(meeting.id);
-    const endTime = new Date(meeting.end_time);
-    const startTime = new Date(meeting.start_time);
+    // Convert Zoom UTC times to Ethiopian local time
+    const endTime = toEthiopianTime(meeting.end_time);
+    const startTime = toEthiopianTime(meeting.start_time);
 
     // Calculate ACTUAL duration from start and end times
     const actualDurationMs = endTime.getTime() - startTime.getTime();
@@ -287,7 +290,8 @@ async function handleMeetingEnded(meeting: any) {
 async function handleParticipantJoined(participant: any) {
   try {
     const meetingId = String(participant.id);
-    const joinTime = new Date(participant.participant.join_time);
+    // Convert Zoom UTC time to Ethiopian local time
+    const joinTime = toEthiopianTime(participant.participant.join_time);
     const participantName = participant.participant.user_name;
     const isHost = participant.participant.role === "host";
 
@@ -383,7 +387,8 @@ async function handleParticipantJoined(participant: any) {
 async function handleParticipantLeft(participant: any) {
   try {
     const meetingId = String(participant.id);
-    const leaveTime = new Date(participant.participant.leave_time);
+    // Convert Zoom UTC time to Ethiopian local time
+    const leaveTime = toEthiopianTime(participant.participant.leave_time);
     const participantName = participant.participant.user_name;
     const isHost = participant.participant.role === "host";
 
@@ -465,7 +470,7 @@ async function handleRecordingStarted(recording: any) {
       where: { zoom_meeting_id: meetingId },
       data: {
         recording_started: true,
-        last_activity_at: new Date(),
+        last_activity_at: getEthiopianTime(),
       },
     });
   } catch (error) {
@@ -482,7 +487,7 @@ async function handleRecordingStopped(recording: any) {
       where: { zoom_meeting_id: meetingId },
       data: {
         recording_started: false,
-        last_activity_at: new Date(),
+        last_activity_at: getEthiopianTime(),
       },
     });
   } catch (error) {
@@ -499,7 +504,7 @@ async function handleScreenShareStarted(meeting: any) {
       where: { zoom_meeting_id: meetingId },
       data: {
         screen_share_started: true,
-        last_activity_at: new Date(),
+        last_activity_at: getEthiopianTime(),
       },
     });
   } catch (error) {
@@ -516,7 +521,7 @@ async function handleScreenShareEnded(meeting: any) {
       where: { zoom_meeting_id: meetingId },
       data: {
         screen_share_started: false,
-        last_activity_at: new Date(),
+        last_activity_at: getEthiopianTime(),
       },
     });
   } catch (error) {
