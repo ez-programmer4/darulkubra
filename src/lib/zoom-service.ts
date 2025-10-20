@@ -61,40 +61,54 @@ export class ZoomService {
       return teacher.zoom_access_token!;
     }
 
-    // Refresh the token
-    const response = await fetch("https://zoom.us/oauth/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${Buffer.from(
-          `${process.env.ZOOM_CLIENT_ID}:${process.env.ZOOM_CLIENT_SECRET}`
-        ).toString("base64")}`,
-      },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: teacher.zoom_refresh_token,
-      }),
-    });
+    // Refresh the token with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to refresh Zoom token: ${error}`);
+    try {
+      const response = await fetch("https://zoom.us/oauth/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${Buffer.from(
+            `${process.env.ZOOM_CLIENT_ID}:${process.env.ZOOM_CLIENT_SECRET}`
+          ).toString("base64")}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: teacher.zoom_refresh_token,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Failed to refresh Zoom token: ${error}`);
+      }
+
+      const data = await response.json();
+
+      // Update tokens in database
+      const newExpiresAt = new Date(Date.now() + data.expires_in * 1000);
+      await prisma.wpos_wpdatatable_24.update({
+        where: { ustazid: teacherId },
+        data: {
+          zoom_access_token: data.access_token,
+          zoom_refresh_token: data.refresh_token || teacher.zoom_refresh_token,
+          zoom_token_expires_at: newExpiresAt,
+        },
+      });
+
+      return data.access_token;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") {
+        throw new Error("Zoom token refresh timed out - please try again");
+      }
+      throw error;
     }
-
-    const data = await response.json();
-
-    // Update tokens in database
-    const newExpiresAt = new Date(Date.now() + data.expires_in * 1000);
-    await prisma.wpos_wpdatatable_24.update({
-      where: { ustazid: teacherId },
-      data: {
-        zoom_access_token: data.access_token,
-        zoom_refresh_token: data.refresh_token || teacher.zoom_refresh_token,
-        zoom_token_expires_at: newExpiresAt,
-      },
-    });
-
-    return data.access_token;
   }
 
   /**
@@ -132,26 +146,43 @@ export class ZoomService {
       throw new Error("Teacher Zoom user ID not found");
     }
 
-    const response = await fetch(
-      `${this.ZOOM_API_BASE}/users/${teacher.zoom_user_id}/meetings`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(config),
-      }
-    );
+    // Create meeting with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(
-        `Failed to create Zoom meeting: ${error.message || response.statusText}`
+    try {
+      const response = await fetch(
+        `${this.ZOOM_API_BASE}/users/${teacher.zoom_user_id}/meetings`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(config),
+          signal: controller.signal,
+        }
       );
-    }
 
-    return response.json();
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(
+          `Failed to create Zoom meeting: ${
+            error.message || response.statusText
+          }`
+        );
+      }
+
+      return response.json();
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") {
+        throw new Error("Zoom meeting creation timed out - please try again");
+      }
+      throw error;
+    }
   }
 
   /**

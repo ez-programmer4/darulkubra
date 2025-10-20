@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { startOfDay, endOfDay, isValid } from "date-fns";
+import { getEthiopianTime } from "@/lib/ethiopian-time";
 
 const prisma = new PrismaClient();
 
@@ -17,8 +18,10 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const date =
-      searchParams.get("date") || new Date().toISOString().split("T")[0];
+    // Use Ethiopian local time for default date since we store times in UTC+3
+    const ethiopianNow = getEthiopianTime();
+    const defaultDate = ethiopianNow.toISOString().split("T")[0];
+    const date = searchParams.get("date") || defaultDate;
     const controllerId = searchParams.get("controllerId") || "";
     const teacherId = searchParams.get("teacherId") || "";
     const attendanceFilter = searchParams.get("attendanceStatus") || "";
@@ -116,7 +119,7 @@ export async function GET(req: NextRequest) {
             scheduledAt = `${date}T${time24}:00.000Z`;
           } catch (timeParseError) {
             // If time parsing fails, leave scheduledAt as null
-          } 
+          }
         } else if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(scheduledTime)) {
           // Handle 24-hour format like "14:30", "4:00", or "13:00:00"
           const timeParts = scheduledTime.split(":");
@@ -124,7 +127,7 @@ export async function GET(req: NextRequest) {
           const minutes = timeParts[1] || "00";
           const time24 = `${hours}:${minutes}`;
           scheduledAt = `${date}T${time24}:00.000Z`;
-        } 
+        }
       }
 
       const linksForDay = (record.zoom_links || []).map((zl: any) => ({

@@ -604,8 +604,10 @@ export class DurationService {
         gte: startDate,
         lte: endDate,
       },
-      // Only fetch ended meetings for performance (active meetings don't have complete duration data)
-      session_status: "ended",
+      // Include both ended and active meetings to show current sessions
+      session_status: {
+        in: ["ended", "active"],
+      },
     };
 
     // Apply additional filters

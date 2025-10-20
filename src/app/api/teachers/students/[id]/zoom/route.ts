@@ -174,15 +174,27 @@ export async function POST(
         createdViaApi = true;
 
         console.log(`✅ Created Zoom meeting via OAuth: ID ${meetingId}`);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to create meeting via API:", error);
+
+        // Check if it's a timeout error
+        const isTimeoutError =
+          error.message?.includes("timed out") ||
+          error.message?.includes("ETIMEDOUT") ||
+          error.cause?.code === "ETIMEDOUT";
 
         // Fallback to manual link if provided
         if (!link) {
+          const errorMessage = isTimeoutError
+            ? "Zoom API is currently slow or unavailable. Please try again in a moment or provide a manual Zoom link."
+            : "Failed to create Zoom meeting. Please provide a manual link or reconnect your Zoom account.";
+
           return NextResponse.json(
             {
-              error:
-                "Failed to create Zoom meeting. Please provide a manual link or reconnect your Zoom account.",
+              error: errorMessage,
+              details: isTimeoutError
+                ? "Network timeout - Zoom servers may be slow"
+                : error.message,
             },
             { status: 500 }
           );

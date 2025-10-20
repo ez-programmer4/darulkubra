@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { getEthiopianTime } from "@/lib/ethiopian-time";
 
 const prisma = new PrismaClient();
 
@@ -15,8 +16,10 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const { searchParams } = url;
-  const date =
-    searchParams.get("date") || new Date().toISOString().split("T")[0];
+  // Use Ethiopian local time for default date since we store times in UTC+3
+  const ethiopianNow = getEthiopianTime();
+  const defaultDate = ethiopianNow.toISOString().split("T")[0];
+  const date = searchParams.get("date") || defaultDate;
   const ustaz = searchParams.get("ustaz") || "";
   const attendanceStatus = searchParams.get("attendanceStatus") || "";
   const sentStatus = searchParams.get("sentStatus") || "";

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { startOfMonth, endOfMonth } from "date-fns";
 import { DurationService } from "@/lib/duration-service";
 import { DurationExportService } from "@/lib/duration-export";
 import {
@@ -10,6 +9,7 @@ import {
   PerformanceMonitor,
 } from "@/lib/duration-error-handler";
 import { SortConfig, DurationFilters } from "@/types/duration-tracking";
+import { getEthiopianTime } from "@/lib/ethiopian-time";
 
 /**
  * Admin endpoint to view all teachers' meeting durations
@@ -44,10 +44,30 @@ export async function GET(req: NextRequest) {
     }
 
     // Determine date range
-    const now = new Date();
+    // Use Ethiopian local time since we store times in UTC+3
+    const now = getEthiopianTime();
     const targetDate = monthParam ? new Date(monthParam + "-01") : now;
-    const startDate = startOfMonth(targetDate);
-    const endDate = endOfMonth(targetDate);
+
+    // Manually create Ethiopian month boundaries
+    // Database stores naive datetime (no timezone), so we need matching boundaries
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth();
+
+    // Start of month in Ethiopian time: YYYY-MM-01 00:00:00
+    const startDate = new Date(year, month, 1, 0, 0, 0, 0);
+
+    // End of month in Ethiopian time: YYYY-MM-DD 23:59:59
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+    console.log(`📅 Date range for teacher durations (Ethiopian time):`);
+    console.log(`  Ethiopian time now: ${now.toISOString()}`);
+    console.log(`  Month: ${year}-${String(month + 1).padStart(2, "0")}`);
+    console.log(
+      `  Start date: ${startDate.toISOString()} (${startDate.toLocaleString()})`
+    );
+    console.log(
+      `  End date: ${endDate.toISOString()} (${endDate.toLocaleString()})`
+    );
 
     // Build filters
     const filters: Partial<DurationFilters> = {};

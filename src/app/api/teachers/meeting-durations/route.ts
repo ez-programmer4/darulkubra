@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
-import { startOfMonth, endOfMonth } from "date-fns";
+import { getEthiopianTime } from "@/lib/ethiopian-time";
 
 /**
  * Get teacher's meeting durations for a given month
@@ -23,10 +23,15 @@ export async function GET(req: NextRequest) {
     const monthParam = searchParams.get("month"); // YYYY-MM format
 
     // Default to current month
-    const now = new Date();
+    // Use Ethiopian local time since we store times in UTC+3
+    const now = getEthiopianTime();
     const targetDate = monthParam ? new Date(monthParam + "-01") : now;
-    const startDate = startOfMonth(targetDate);
-    const endDate = endOfMonth(targetDate);
+
+    // Manually create Ethiopian month boundaries
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth();
+    const startDate = new Date(year, month, 1, 0, 0, 0, 0);
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
 
     // Get all zoom links for this teacher in the month
     const meetings = await prisma.wpos_zoom_links.findMany({
@@ -97,9 +102,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
