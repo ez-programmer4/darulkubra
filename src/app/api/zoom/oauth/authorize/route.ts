@@ -18,7 +18,16 @@ export async function GET(req: NextRequest) {
     const clientId = process.env.ZOOM_CLIENT_ID;
     const redirectUri = process.env.ZOOM_REDIRECT_URI;
 
+    console.log("🔍 Zoom OAuth Authorize Debug:");
+    console.log("  Teacher ID:", teacherId);
+    console.log("  Client ID:", clientId ? "Present" : "Missing");
+    console.log("  Redirect URI:", redirectUri);
+
     if (!clientId || !redirectUri) {
+      console.error("❌ Zoom OAuth not configured:", {
+        clientId: !!clientId,
+        redirectUri: !!redirectUri,
+      });
       return NextResponse.json(
         { error: "Zoom OAuth not configured" },
         { status: 500 }
@@ -38,6 +47,8 @@ export async function GET(req: NextRequest) {
     authUrl.searchParams.set("redirect_uri", redirectUri);
     authUrl.searchParams.set("state", state);
 
+    console.log("🔗 Redirecting to Zoom OAuth URL:", authUrl.toString());
+
     return NextResponse.redirect(authUrl.toString());
   } catch (error) {
     console.error("Zoom OAuth authorize error:", error);
@@ -47,9 +58,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-

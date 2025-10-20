@@ -85,6 +85,15 @@ export class ZoomService {
 
       if (!response.ok) {
         const error = await response.text();
+        console.error("❌ Zoom token refresh failed:", error);
+
+        // Check for specific error types
+        if (error.includes("invalid_grant")) {
+          throw new Error(
+            "Zoom account disconnected - please reconnect your Zoom account"
+          );
+        }
+
         throw new Error(`Failed to refresh Zoom token: ${error}`);
       }
 

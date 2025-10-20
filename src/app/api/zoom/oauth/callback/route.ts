@@ -9,8 +9,17 @@ export async function GET(req: NextRequest) {
     const state = searchParams.get("state");
     const error = searchParams.get("error");
 
+    // Debug logging
+    console.log("🔍 Zoom OAuth Callback Debug:");
+    console.log("  URL:", req.url);
+    console.log("  Code:", code ? "Present" : "Missing");
+    console.log("  State:", state ? "Present" : "Missing");
+    console.log("  Error:", error || "None");
+    console.log("  All params:", Object.fromEntries(searchParams.entries()));
+
     // Handle OAuth errors
     if (error) {
+      console.error("❌ Zoom OAuth error:", error);
       return NextResponse.redirect(
         new URL(
           `/teachers/dashboard?zoom_error=${encodeURIComponent(error)}`,
@@ -20,6 +29,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (!code || !state) {
+      console.error("❌ Missing OAuth parameters:", {
+        code: !!code,
+        state: !!state,
+      });
       return NextResponse.redirect(
         new URL("/teachers/dashboard?zoom_error=missing_parameters", req.url)
       );
@@ -104,4 +117,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
