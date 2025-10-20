@@ -139,6 +139,27 @@ export async function POST(
     let scheduledStartTime: Date | null = null;
     let meetingTopic: string | null = null;
 
+    console.log(`🔍 Auto-create check for teacher ${teacherId}:`);
+    console.log(`  create_via_api: ${create_via_api}`);
+    console.log(`  isZoomConnected: ${isZoomConnected}`);
+    console.log(`  manual link provided: ${!!link}`);
+
+    // Check if auto-create is requested but Zoom is not connected
+    if (create_via_api && !isZoomConnected) {
+      console.warn(
+        `⚠️ Auto-create requested but Zoom not connected for teacher ${teacherId}`
+      );
+      return NextResponse.json(
+        {
+          error: "Zoom account not connected",
+          message:
+            "Please connect your Zoom account to use auto-create, or provide a manual Zoom link.",
+          needsZoomConnection: true,
+        },
+        { status: 400 }
+      );
+    }
+
     // Option 1: Auto-create meeting via teacher's Zoom OAuth
     if (create_via_api && isZoomConnected) {
       try {

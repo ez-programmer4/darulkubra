@@ -452,10 +452,25 @@ export default function AssignedStudents() {
 
       if (!res.ok) {
         let errorMessage = "Failed to create Zoom meeting";
+        let needsZoomConnection = false;
         try {
           const errorData = await res.json();
-          errorMessage = errorData.error || errorMessage;
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          needsZoomConnection = errorData.needsZoomConnection || false;
           console.error("Auto-create error:", errorData);
+
+          // If Zoom not connected, show special message with connect button
+          if (needsZoomConnection) {
+            toast({
+              title: "Zoom Account Not Connected",
+              description:
+                "Please connect your Zoom account first to use auto-create, or provide a manual Zoom link.",
+              variant: "destructive",
+              duration: 7000,
+            });
+            setSending((s) => ({ ...s, [studentId]: false }));
+            return;
+          }
         } catch {
           const errorText = await res.text();
           errorMessage = errorText || errorMessage;

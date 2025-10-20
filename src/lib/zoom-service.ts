@@ -271,10 +271,20 @@ export class ZoomService {
   static async isZoomConnected(teacherId: string): Promise<boolean> {
     const teacher = await prisma.wpos_wpdatatable_24.findUnique({
       where: { ustazid: teacherId },
-      select: { zoom_access_token: true, zoom_refresh_token: true },
+      select: {
+        zoom_access_token: true,
+        zoom_refresh_token: true,
+        zoom_token_expires_at: true,
+      },
     });
 
-    return !!(teacher?.zoom_access_token && teacher?.zoom_refresh_token);
+    if (!teacher?.zoom_access_token || !teacher?.zoom_refresh_token) {
+      return false;
+    }
+
+    // Check if refresh token is expired (Zoom refresh tokens expire after 90 days of inactivity)
+    // If access token is expired but refresh token exists, we can refresh it
+    return true;
   }
 
   /**
