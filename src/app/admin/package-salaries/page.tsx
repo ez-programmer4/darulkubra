@@ -113,6 +113,13 @@ export default function PackageSalariesPage() {
         : "/api/admin/package-salaries";
       const method = isEditing ? "PUT" : "POST";
 
+      console.log("Saving package salary:");
+      console.log("- isEditing:", isEditing);
+      console.log("- editingSalary:", editingSalary);
+      console.log("- method:", method);
+      console.log("- url:", url);
+      console.log("- formData:", formData);
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -149,6 +156,9 @@ export default function PackageSalariesPage() {
   };
 
   const handleEdit = (salary: PackageSalary) => {
+    console.log("Editing salary:", salary);
+    console.log("Salary configured:", salary.salaryConfigured);
+    console.log("Salary ID:", salary.salaryId);
     setEditingSalary(salary);
     setFormData({
       packageName: salary.packageName,
@@ -229,7 +239,15 @@ export default function PackageSalariesPage() {
               Refresh
             </Button>
 
-            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            <Dialog
+              open={showAddDialog}
+              onOpenChange={(open) => {
+                setShowAddDialog(open);
+                if (!open) {
+                  resetForm();
+                }
+              }}
+            >
               <DialogTrigger asChild>
                 <Button
                   onClick={resetForm}
