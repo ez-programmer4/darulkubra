@@ -1007,6 +1007,35 @@ ${allTeacherZoomLinks
       // Get teacher periods for this student
       const periods = teacherPeriods.get(student.wdt_ID.toString()) || [];
 
+      if (isDebugStudent) {
+        console.log(`
+🔍 DEBUG - Teacher Periods for ${student.name}:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student ID: ${student.wdt_ID}
+Teacher Periods Found: ${periods.length}
+${periods
+  .map(
+    (p, i) => `
+Period ${i + 1}:
+  Start: ${p.start.toISOString().split("T")[0]}
+  End: ${p.end ? p.end.toISOString().split("T")[0] : "ONGOING"}
+`
+  )
+  .join("")}
+Zoom Links: ${student.zoom_links?.length || 0}
+${
+  student.zoom_links
+    ?.map(
+      (link: any, i: number) => `
+  ${i + 1}. ${new Date(link.sent_time!).toISOString().split("T")[0]}
+`
+    )
+    .join("") || "None"
+}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        `);
+      }
+
       // If no specific periods found, check if teacher has zoom links for this student
       // This handles the case where teacher was transferred but still has zoom links
       if (periods.length === 0) {
