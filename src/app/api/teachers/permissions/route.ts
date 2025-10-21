@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAdminNotification } from "@/lib/notifications";
-import { getEthiopianTime } from "@/lib/ethiopian-time";
 
 /**
  * Normalize Ethiopian phone number to international format
@@ -167,24 +166,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for multiple permission requests in a single day (limit to 1 per day)
-    // Use Ethiopian time to determine "today"
-    const ethiopianToday = getEthiopianTime();
-    const todayStr = ethiopianToday.toISOString().split("T")[0];
-
-    // Calculate Ethiopian day boundaries and convert to UTC for database query
-    const ethiopianDayStart = new Date(todayStr + "T00:00:00.000Z");
-    const ethiopianDayEnd = new Date(todayStr + "T23:59:59.999Z");
-    const utcDayStart = new Date(
-      ethiopianDayStart.getTime() - 3 * 60 * 60 * 1000
-    );
-    const utcDayEnd = new Date(ethiopianDayEnd.getTime() - 3 * 60 * 60 * 1000);
-
+    const today = new Date().toISOString().split("T")[0];
     const todayRequests = await prisma.permissionrequest.count({
       where: {
         teacherId: user.id,
         createdAt: {
-          gte: utcDayStart,
-          lt: utcDayEnd,
+          gte: new Date(today + "T00:00:00.000Z"),
+          lt: new Date(today + "T23:59:59.999Z"),
         },
       },
     });

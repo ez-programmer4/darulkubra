@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
-import { getEthiopianTime } from "@/lib/ethiopian-time";
 
 function normalize(str: string | null | undefined) {
   return (str || "").trim().toLowerCase();
@@ -59,8 +58,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Use Ethiopian time to get correct day of week
-    const today = getEthiopianTime();
+    const today = new Date();
     const dayIndex = today.getDay();
 
     const records = await prisma.wpos_ustaz_occupied_times.findMany({
