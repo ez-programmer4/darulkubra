@@ -54,7 +54,11 @@ function safeIncludes(haystack: unknown, needle: string): boolean {
 
 function packageIncludesToday(pkg?: string): boolean {
   if (!pkg) return false;
-  const day = new Date().getDay();
+  // Get day in Ethiopian timezone (UTC+3)
+  const now = new Date();
+  const ethiopianTime = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  const day = ethiopianTime.getDay();
+
   const key = pkg.trim().toUpperCase();
   const map: Record<string, number[]> = {
     MWF: [1, 3, 5],

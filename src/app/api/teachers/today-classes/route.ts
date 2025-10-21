@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
+import { getEthiopianTime } from "@/lib/ethiopian-time";
 
 function normalize(str: string | null | undefined) {
   return (str || "").trim().toLowerCase();
@@ -34,7 +35,9 @@ function packageIncludesToday(pkg: string, dayIndex: number) {
       fri: 5,
       sat: 6,
     };
-    const days = tokens.map((t) => dayMap[t]).filter((n) => n !== undefined) as number[];
+    const days = tokens
+      .map((t) => dayMap[t])
+      .filter((n) => n !== undefined) as number[];
     if (days.length > 0) return days.includes(dayIndex);
   }
   // Default: include
@@ -43,7 +46,10 @@ function packageIncludesToday(pkg: string, dayIndex: number) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = (await getToken({ req, secret: process.env.NEXTAUTH_SECRET })) as any;
+    const session = (await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET,
+    })) as any;
     const role = session?.role || session?.user?.role;
     if (!session || role !== "teacher") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -53,7 +59,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const today = new Date();
+    // Use Ethiopian time to get correct day of week
+    const today = getEthiopianTime();
     const dayIndex = today.getDay();
 
     const records = await prisma.wpos_ustaz_occupied_times.findMany({
@@ -62,7 +69,14 @@ export async function GET(req: NextRequest) {
         time_slot: true,
         daypackage: true,
         student_id: true,
-        student: { select: { wdt_ID: true, name: true, daypackages: true, subject: true } },
+        student: {
+          select: {
+            wdt_ID: true,
+            name: true,
+            daypackages: true,
+            subject: true,
+          },
+        },
       },
     });
 
@@ -79,6 +93,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ date: today.toISOString(), classes });
   } catch (e) {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

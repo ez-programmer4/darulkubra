@@ -538,6 +538,21 @@ export class SalaryCalculator {
     fromDate: Date,
     toDate: Date
   ) {
+    // Debug flag for specific teachers
+    const isDebugTeacher = teacherId.toLowerCase().includes("sultan");
+
+    if (isDebugTeacher) {
+      console.log(`
+🔍 DEBUG - Fetching Students for Teacher:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher ID: ${teacherId}
+Period: ${fromDate.toISOString().split("T")[0]} to ${
+        toDate.toISOString().split("T")[0]
+      }
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
+
     // Get students who were assigned to this teacher during the period
     // This includes both current assignments and historical assignments
 
@@ -764,6 +779,49 @@ export class SalaryCalculator {
       orderBy: { sent_time: "desc" },
     });
 
+    if (isDebugTeacher) {
+      console.log(`
+📊 DEBUG - Students Found Summary:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total Students Found: ${allStudents.length}
+Current Students: ${currentStudents.length}
+Historical Students: ${historicalStudents.length}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Zoom Links Found: ${allTeacherZoomLinks.length}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Students List:
+${allStudents
+  .map(
+    (s, i) => `
+  ${i + 1}. ${s.name || "Unknown"} (ID: ${s.wdt_ID})
+     - Package: ${s.package || "NOT SET ⚠️"}
+     - Day Package: ${s.daypackages || "NOT SET ⚠️"}
+     - Status: ${s.status}
+     - Zoom Links: ${s.zoom_links?.length || 0}
+     - Occupied Times: ${s.occupiedTimes?.length || 0}
+`
+  )
+  .join("")}
+
+Zoom Links Breakdown:
+${allTeacherZoomLinks
+  .map(
+    (link, i) => `
+  ${i + 1}. Student: ${link.wpos_wpdatatable_23?.name || "Unknown"} (ID: ${
+      link.studentid
+    })
+     - Sent: ${new Date(link.sent_time!).toISOString()}
+     - Current Teacher: ${link.wpos_wpdatatable_23?.ustaz}
+     - Package: ${link.wpos_wpdatatable_23?.package || "NOT SET"}
+     - Day Package: ${link.wpos_wpdatatable_23?.daypackages || "NOT SET"}
+`
+  )
+  .join("")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
+
     return allStudents;
   }
 
@@ -931,9 +989,10 @@ export class SalaryCalculator {
     // Process each student with their teacher periods
     for (const student of students) {
       // Debug flag for specific teacher and student
-      const isDebugStudent = student.name
-        ?.toLowerCase()
-        .includes("kassim kedir");
+      const isDebugStudent =
+        student.name?.toLowerCase().includes("kassim kedir") ||
+        student.name?.toLowerCase().includes("abdulbasit") ||
+        teacherId.toLowerCase().includes("sultan");
 
       // Get package salary (use 0 if no package configured)
       const monthlyPackageSalary =
@@ -1207,15 +1266,67 @@ export class SalaryCalculator {
         }
       }
 
-      if (totalEarned > 0) {
-        // Calculate actual days worked for this student
-        const studentTeachingDates = new Set<string>();
-        periodBreakdown.forEach((period: any) => {
-          period.teachingDates.forEach((date: string) => {
-            studentTeachingDates.add(date);
-          });
+      // Calculate actual days worked for this student
+      const studentTeachingDates = new Set<string>();
+      periodBreakdown.forEach((period: any) => {
+        period.teachingDates.forEach((date: string) => {
+          studentTeachingDates.add(date);
         });
+      });
 
+      // Debug logging for specific students
+      if (isDebugStudent) {
+        console.log(`
+🔍 DEBUG - Student Breakdown Analysis:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student: ${student.name || "Unknown"}
+Student ID: ${student.wdt_ID}
+Teacher ID: ${teacherId}
+Package: ${student.package || "NOT SET ⚠️"}
+Day Package: ${student.daypackages || "NOT SET ⚠️"}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Monthly Rate: ${monthlyPackageSalary} ETB
+Daily Rate: ${dailyRate} ETB
+Working Days in Month: ${workingDays}
+Days Worked: ${studentTeachingDates.size}
+Total Earned: ${totalEarned} ETB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Zoom Links Count: ${student.zoom_links?.length || 0}
+Teacher Periods: ${periods.length}
+Period Breakdown: ${periodBreakdown.length} periods
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${
+  totalEarned > 0
+    ? "✅ INCLUDED in breakdown"
+    : "❌ EXCLUDED from breakdown (totalEarned = 0)"
+}
+
+${
+  totalEarned === 0
+    ? `
+❌ EXCLUSION REASON:
+  ${
+    monthlyPackageSalary === 0
+      ? "- Package salary is 0 (no package configured or package not found)"
+      : ""
+  }
+  ${dailyRate === 0 ? "- Daily rate is 0" : ""}
+  ${
+    studentTeachingDates.size === 0
+      ? "- No teaching dates counted (check daypackage and zoom links)"
+      : ""
+  }
+  ${periods.length === 0 ? "- No teacher periods found" : ""}
+  ${periodBreakdown.length === 0 ? "- No period breakdown generated" : ""}
+`
+    : ""
+}
+Debug Info: ${JSON.stringify(debugInfo, null, 2)}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        `);
+      }
+
+      if (totalEarned > 0) {
         studentBreakdown.push({
           studentName: student.name || "Unknown",
           package: student.package || "Unknown",
@@ -1226,6 +1337,33 @@ export class SalaryCalculator {
           periods: periodBreakdown,
           teacherChanges: periods.length > 1,
           debugInfo: debugInfo, // Add debug info for UI display
+        });
+      } else if (isDebugStudent) {
+        // Add excluded students to breakdown with debug flag for troubleshooting
+        studentBreakdown.push({
+          studentName: student.name || "Unknown",
+          package: student.package || "Unknown",
+          monthlyRate: monthlyPackageSalary,
+          dailyRate: dailyRate,
+          daysWorked: studentTeachingDates.size,
+          totalEarned: 0,
+          periods: periodBreakdown,
+          teacherChanges: periods.length > 1,
+          debugInfo: {
+            ...debugInfo,
+            excluded: true,
+            exclusionReasons: [
+              monthlyPackageSalary === 0 ? "Package salary is 0" : null,
+              dailyRate === 0 ? "Daily rate is 0" : null,
+              studentTeachingDates.size === 0
+                ? "No teaching dates counted"
+                : null,
+              periods.length === 0 ? "No teacher periods" : null,
+              student.zoom_links?.length || 0 > 0
+                ? null
+                : "No zoom links found",
+            ].filter(Boolean),
+          },
         });
       }
     }
