@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
             (sum, r) => sum + r.deductionApplied,
             0
           );
-        } 
+        }
 
         // Also handle computed absences (same logic as preview API)
         for (const teacherId of teacherIdsArray) {

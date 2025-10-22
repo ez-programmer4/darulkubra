@@ -487,17 +487,18 @@ export class SalaryCalculator {
   private async getStudentForClassDate(teacherId: string, classDate: Date) {
     // This is a simplified implementation - in reality you'd need to match
     // the specific student based on the class schedule and time
+    // IMPORTANT: Include students with ANY status - teacher should be paid for days taught
     const students = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         ustaz: teacherId,
-        status: { in: ["active", "Active", "Not yet"] },
+        // No status filter - include all students with zoom links on this date
       },
       select: {
         wdt_ID: true,
         name: true,
         package: true,
       },
-      take: 1, // For now, just get the first active student
+      take: 1, // For now, just get the first student
     });
 
     return students[0] || null;
