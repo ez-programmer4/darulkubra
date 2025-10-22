@@ -1168,15 +1168,14 @@ ${allTeacherZoomLinks
 
       // CRITICAL FIX: For "Leave" status students, occupied_times records are deleted
       // So we MUST use zoom links as the source of truth for teaching period
-      const isLeaveStudent = student.status?.toLowerCase() === "leave";
+      // Matches: "Leave", "Ramadan Leave", "Is Leave", etc.
+      const isLeaveStudent = student.status?.toLowerCase().includes("leave");
 
-      if (
-        isLeaveStudent &&
-        (!periods || periods.length === 0) &&
-        student.zoom_links &&
-        student.zoom_links.length > 0
-      ) {
-        // Create period from zoom links for leave students
+      // Check if we have zoom links to work with
+      const hasZoomLinks = student.zoom_links && student.zoom_links.length > 0;
+
+      if (isLeaveStudent && hasZoomLinks) {
+        // Get zoom date range
         const zoomDates = student.zoom_links
           .filter((link: any) => link.sent_time)
           .map((link: any) => new Date(link.sent_time!))
@@ -1186,33 +1185,76 @@ ${allTeacherZoomLinks
           const firstZoom = zoomDates[0];
           const lastZoom = zoomDates[zoomDates.length - 1];
 
-          if (isDebugStudent) {
-            console.log(`
+          // Check if existing period is bad (same start/end day or doesn't match zoom links)
+          let needsOverride = false;
+          let overrideReason = "";
+
+          if (!periods || periods.length === 0) {
+            needsOverride = true;
+            overrideReason = "No periods found (occupied_times deleted)";
+          } else {
+            const firstPeriod = periods[0];
+            const periodStartDate = firstPeriod.start
+              ?.toISOString()
+              .split("T")[0];
+            const periodEndDate = firstPeriod.end?.toISOString().split("T")[0];
+            const firstZoomDate = firstZoom.toISOString().split("T")[0];
+            const lastZoomDate = lastZoom.toISOString().split("T")[0];
+
+            // Check if period is a single day (bad data)
+            if (periodStartDate === periodEndDate) {
+              needsOverride = true;
+              overrideReason = `Period is only 1 day (${periodStartDate}) but zoom links span ${firstZoomDate} to ${lastZoomDate}`;
+            }
+            // Check if period doesn't cover the zoom link range
+            else if (
+              periodStartDate !== firstZoomDate ||
+              periodEndDate !== lastZoomDate
+            ) {
+              needsOverride = true;
+              overrideReason = `Period (${periodStartDate} to ${periodEndDate}) doesn't match zoom links (${firstZoomDate} to ${lastZoomDate})`;
+            }
+          }
+
+          if (needsOverride) {
+            if (isDebugStudent) {
+              console.log(`
 ╔═══════════════════════════════════════════════════════════════════════════════
-║ 🔄 LEAVE STUDENT - Using Zoom Links as Source of Truth
+║ 🔄 LEAVE STUDENT - Overriding with Zoom Links
 ╠═══════════════════════════════════════════════════════════════════════════════
 ║ Student: ${student.name}
 ║ Status: ${student.status} ⚠️
 ║ 
-║ REASON: occupied_times records are deleted when students leave
+║ REASON: ${overrideReason}
 ║ 
-║ SOLUTION: Creating teaching period from zoom link dates
+║ BAD PERIOD DATA:
+║ ${
+                periods.length > 0
+                  ? `Existing Period: ${
+                      periods[0].start?.toISOString().split("T")[0]
+                    } to ${periods[0].end?.toISOString().split("T")[0]}`
+                  : "No periods exist"
+              }
+║ 
+║ CORRECT DATA FROM ZOOM LINKS:
 ║ First Zoom Link: ${firstZoom.toISOString().split("T")[0]}
 ║ Last Zoom Link: ${lastZoom.toISOString().split("T")[0]}
 ║ Total Zoom Links: ${zoomDates.length}
 ║ 
-║ ✅ Teacher will be paid for ALL days they taught before student left
+║ ✅ OVERRIDING: Using zoom link dates as teaching period
 ╚═══════════════════════════════════════════════════════════════════════════════
-            `);
-          }
+              `);
+            }
 
-          periods = [
-            {
-              start: firstZoom,
-              end: lastZoom,
-              student: student,
-            },
-          ];
+            // Override with correct period from zoom links
+            periods = [
+              {
+                start: firstZoom,
+                end: lastZoom,
+                student: student,
+              },
+            ];
+          }
         }
       }
 
