@@ -1164,7 +1164,57 @@ ${allTeacherZoomLinks
       // because daypackage determines expected teaching days, not package
 
       // Get teacher periods for this student
-      const periods = teacherPeriods.get(student.wdt_ID.toString()) || [];
+      let periods = teacherPeriods.get(student.wdt_ID.toString()) || [];
+
+      // CRITICAL FIX: For "Leave" status students, occupied_times records are deleted
+      // So we MUST use zoom links as the source of truth for teaching period
+      const isLeaveStudent = student.status?.toLowerCase() === "leave";
+
+      if (
+        isLeaveStudent &&
+        (!periods || periods.length === 0) &&
+        student.zoom_links &&
+        student.zoom_links.length > 0
+      ) {
+        // Create period from zoom links for leave students
+        const zoomDates = student.zoom_links
+          .filter((link: any) => link.sent_time)
+          .map((link: any) => new Date(link.sent_time!))
+          .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+
+        if (zoomDates.length > 0) {
+          const firstZoom = zoomDates[0];
+          const lastZoom = zoomDates[zoomDates.length - 1];
+
+          if (isDebugStudent) {
+            console.log(`
+╔═══════════════════════════════════════════════════════════════════════════════
+║ 🔄 LEAVE STUDENT - Using Zoom Links as Source of Truth
+╠═══════════════════════════════════════════════════════════════════════════════
+║ Student: ${student.name}
+║ Status: ${student.status} ⚠️
+║ 
+║ REASON: occupied_times records are deleted when students leave
+║ 
+║ SOLUTION: Creating teaching period from zoom link dates
+║ First Zoom Link: ${firstZoom.toISOString().split("T")[0]}
+║ Last Zoom Link: ${lastZoom.toISOString().split("T")[0]}
+║ Total Zoom Links: ${zoomDates.length}
+║ 
+║ ✅ Teacher will be paid for ALL days they taught before student left
+╚═══════════════════════════════════════════════════════════════════════════════
+            `);
+          }
+
+          periods = [
+            {
+              start: firstZoom,
+              end: lastZoom,
+              student: student,
+            },
+          ];
+        }
+      }
 
       if (isDebugStudent) {
         console.log(`
@@ -1316,22 +1366,24 @@ ${periods
             });
           }
         } else {
-          // No zoom links, assume teacher was assigned for the entire period
+          // No zoom links - no proof of teaching, skip this student
           if (isDebugStudent) {
             console.log(`
 ╔═══════════════════════════════════════════════════════════════════════════════
-║ ⚠️ NO ZOOM LINKS FOUND - Using full month period
+║ ⚠️ NO ZOOM LINKS FOUND - Cannot Calculate Payment
 ╠═══════════════════════════════════════════════════════════════════════════════
-║ This student will likely have 0 earnings since no zoom links exist
+║ Student: ${student.name}
+║ Status: ${student.status}
+║ 
+║ No occupied_times data (may have been deleted)
+║ No zoom links found (no proof of teaching)
+║ 
+║ → Skipping this student - no payment without teaching evidence
 ╚═══════════════════════════════════════════════════════════════════════════════
             `);
           }
-
-          periods.push({
-            start: fromDate,
-            end: toDate,
-            student: student,
-          });
+          // Don't create any period - this will result in 0 earnings
+          continue;
         }
       }
 
