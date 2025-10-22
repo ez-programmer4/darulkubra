@@ -147,6 +147,52 @@ export class SalaryCalculator {
         toDate
       );
 
+      // Enhanced debug for specific teacher
+      const isDebugTeacher =
+        teacherId.toLowerCase().includes("mubarek") ||
+        teacherId.toLowerCase().includes("rahmeto");
+
+      if (isDebugTeacher) {
+        console.log(`
+╔═══════════════════════════════════════════════════════════════════════════════
+║ 🔍 ENHANCED DEBUG - Teacher Salary Calculation Start
+╠═══════════════════════════════════════════════════════════════════════════════
+║ Teacher ID: ${teacherId}
+║ Teacher Name: ${teacher.ustazname || "Unknown"}
+║ Period: ${fromDate.toISOString().split("T")[0]} to ${
+          toDate.toISOString().split("T")[0]
+        }
+║ Total Students Found: ${students.length}
+╠═══════════════════════════════════════════════════════════════════════════════
+║ ALL STUDENTS FOR THIS TEACHER:
+║ ${students
+          .map(
+            (s, i) => `
+║   ${i + 1}. ${s.name || "Unknown"} (ID: ${s.wdt_ID})
+║      - Package: ${s.package || "NOT SET ⚠️"}
+║      - Day Package: ${s.daypackages || "NOT SET ⚠️"}
+║      - Status: ${s.status}
+║      - Zoom Links: ${s.zoom_links?.length || 0}
+║      - Occupied Times: ${s.occupiedTimes?.length || 0}
+║      ${
+              s.zoom_links
+                ?.map(
+                  (zl: any, zi: number) =>
+                    `\n║         Zoom ${zi + 1}: ${
+                      zl.sent_time
+                        ? new Date(zl.sent_time).toISOString().split("T")[0]
+                        : "N/A"
+                    }`
+                )
+                .join("") || ""
+            }
+`
+          )
+          .join("")}
+╚═══════════════════════════════════════════════════════════════════════════════
+        `);
+      }
+
       // Get teacher change periods from the new history system
       const teacherChangePeriods = await getTeacherChangePeriods(
         teacherId,
@@ -539,7 +585,10 @@ export class SalaryCalculator {
     toDate: Date
   ) {
     // Debug flag for specific teachers
-    const isDebugTeacher = teacherId.toLowerCase().includes("sultan");
+    const isDebugTeacher =
+      teacherId.toLowerCase().includes("sultan") ||
+      teacherId.toLowerCase().includes("mubarek") ||
+      teacherId.toLowerCase().includes("rahmeto");
 
     if (isDebugTeacher) {
       console.log(`
@@ -780,6 +829,96 @@ Period: ${fromDate.toISOString().split("T")[0]} to ${
     });
 
     if (isDebugTeacher) {
+      // SPECIAL DEBUG: Check if Akram Khalid exists in database
+      const allAkramStudents = await prisma.wpos_wpdatatable_23.findMany({
+        select: {
+          wdt_ID: true,
+          name: true,
+          package: true,
+          daypackages: true,
+          status: true,
+          ustaz: true,
+          occupiedTimes: {
+            select: {
+              ustaz_id: true,
+              time_slot: true,
+              daypackage: true,
+              occupied_at: true,
+              end_at: true,
+            },
+          },
+          zoom_links: {
+            where: {
+              sent_time: { gte: fromDate, lte: toDate },
+            },
+            select: {
+              ustazid: true,
+              sent_time: true,
+            },
+          },
+        },
+      });
+
+      // Filter for students with "akram" in name (case insensitive)
+      const akramCheck = allAkramStudents.filter(
+        (s) =>
+          s.name?.toLowerCase().includes("akram") ||
+          s.name?.toLowerCase().includes("khalid")
+      );
+
+      console.log(`
+╔═══════════════════════════════════════════════════════════════════════════════
+║ 🔍 SPECIAL DEBUG - AKRAM KHALID CHECK
+╠═══════════════════════════════════════════════════════════════════════════════
+║ Found ${akramCheck.length} students with "akram" or "khalid" in name:
+${akramCheck
+  .map(
+    (s: any, i: number) => `
+║   ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
+║      - Current Teacher: ${s.ustaz || "NOT ASSIGNED"}
+║      - Package: ${s.package || "NOT SET"}
+║      - Day Package: ${s.daypackages || "NOT SET"}
+║      - Status: ${s.status}
+║      - Occupied Times: ${s.occupiedTimes?.length || 0}
+${
+  s.occupiedTimes
+    ?.map(
+      (ot: any, oti: number) => `
+║        OT${oti + 1}: Teacher=${ot.ustaz_id}, TimeSlot=${
+        ot.time_slot
+      }, DayPkg=${ot.daypackage}
+║             Start=${
+        ot.occupied_at
+          ? new Date(ot.occupied_at).toISOString().split("T")[0]
+          : "N/A"
+      }
+║             End=${
+        ot.end_at ? new Date(ot.end_at).toISOString().split("T")[0] : "ONGOING"
+      }
+`
+    )
+    .join("") || ""
+}
+║      - Zoom Links in Period: ${s.zoom_links?.length || 0}
+${
+  s.zoom_links
+    ?.map(
+      (zl: any, zli: number) => `
+║        Zoom${zli + 1}: Teacher=${zl.ustazid}, Date=${
+        zl.sent_time
+          ? new Date(zl.sent_time).toISOString().split("T")[0]
+          : "N/A"
+      }
+`
+    )
+    .join("") || ""
+}
+`
+  )
+  .join("")}
+╚═══════════════════════════════════════════════════════════════════════════════
+      `);
+
       console.log(`
 📊 DEBUG - Students Found Summary:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -956,7 +1095,17 @@ ${allTeacherZoomLinks
     const workingDays = this.calculateWorkingDays(fromDate, toDate);
 
     const dailyEarnings = new Map<string, number>();
-    const studentBreakdown = [];
+    const studentBreakdown: Array<{
+      studentName: string;
+      package: string;
+      monthlyRate: number;
+      dailyRate: number;
+      daysWorked: number;
+      totalEarned: number;
+      periods?: Array<any>;
+      teacherChanges: boolean;
+      debugInfo?: any;
+    }> = [];
     const teacherPeriods = new Map<
       string,
       Array<{ start: Date; end: Date | null; student: any }>
@@ -992,7 +1141,11 @@ ${allTeacherZoomLinks
       const isDebugStudent =
         student.name?.toLowerCase().includes("kassim kedir") ||
         student.name?.toLowerCase().includes("abdulbasit") ||
-        teacherId.toLowerCase().includes("sultan");
+        student.name?.toLowerCase().includes("akram") ||
+        student.name?.toLowerCase().includes("khalid") ||
+        teacherId.toLowerCase().includes("sultan") ||
+        teacherId.toLowerCase().includes("mubarek") ||
+        teacherId.toLowerCase().includes("rahmeto");
 
       // Get package salary (use 0 if no package configured)
       const monthlyPackageSalary =
@@ -1416,6 +1569,61 @@ Debug Info: ${JSON.stringify(debugInfo, null, 2)}
     const activeStudentCount = studentBreakdown.filter(
       (student) => student.totalEarned > 0
     ).length;
+
+    // Final debug summary for MUBAREK RAHMETO
+    const isFinalDebugTeacher =
+      teacherId.toLowerCase().includes("mubarek") ||
+      teacherId.toLowerCase().includes("rahmeto");
+
+    if (isFinalDebugTeacher) {
+      console.log(`
+╔═══════════════════════════════════════════════════════════════════════════════
+║ 🔍 FINAL DEBUG SUMMARY - BASE SALARY CALCULATION
+╠═══════════════════════════════════════════════════════════════════════════════
+║ Teacher ID: ${teacherId}
+║ Total Students Processed: ${students.length}
+║ Students in Breakdown: ${studentBreakdown.length}
+║ Active Students (earned > 0): ${activeStudentCount}
+║ Total Salary: ${totalSalary}
+║ Teaching Days: ${actualTeachingDays}
+║ Working Days: ${workingDays}
+╠═══════════════════════════════════════════════════════════════════════════════
+║ BREAKDOWN DETAILS:
+${studentBreakdown
+  .map(
+    (sb, i) => `
+║   ${i + 1}. ${sb.studentName} - ${sb.totalEarned} ETB
+║      Package: ${sb.package}
+║      Days Worked: ${sb.daysWorked}
+║      Daily Rate: ${sb.dailyRate}
+║      Included: ${sb.totalEarned > 0 ? "✅ YES" : "❌ NO"}
+║      ${
+      sb.debugInfo?.excluded
+        ? `Exclusion Reasons: ${sb.debugInfo.exclusionReasons?.join(", ")}`
+        : ""
+    }
+`
+  )
+  .join("")}
+╠═══════════════════════════════════════════════════════════════════════════════
+║ STUDENTS NOT IN BREAKDOWN:
+${students
+  .filter((s) => !studentBreakdown.find((sb) => sb.studentName === s.name))
+  .map(
+    (s, i) => `
+║   ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
+║      Package: ${s.package || "NOT SET"}
+║      Day Package: ${s.daypackages || "NOT SET"}
+║      Status: ${s.status}
+║      Zoom Links: ${s.zoom_links?.length || 0}
+║      Occupied Times: ${s.occupiedTimes?.length || 0}
+║      ⚠️ REASON: Not processed in calculateBaseSalary - check assignment periods
+`
+  )
+  .join("")}
+╚═══════════════════════════════════════════════════════════════════════════════
+      `);
+    }
 
     return {
       totalSalary,
