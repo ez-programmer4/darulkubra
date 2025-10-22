@@ -604,17 +604,18 @@ Period: ${fromDate.toISOString().split("T")[0]} to ${
 
     // Get students who were assigned to this teacher during the period
     // This includes both current assignments and historical assignments
+    // IMPORTANT: Include students with ANY status if they have zoom links during the period
+    // This ensures teachers get paid even if student left mid-month
 
     // First, get current students assigned to this teacher
-    // Include active and "not yet" students who were taught during the period
+    // Include ALL students (any status) who were taught during the period
     // Use OR to catch both current assignments AND historical assignments (teacher changes)
     const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         OR: [
-          // Current assignment (active or not yet)
+          // Current assignment (any status, will filter by zoom links later)
           {
             ustaz: teacherId,
-            status: { in: ["active", "Active", "Not yet", "not yet"] },
             occupiedTimes: {
               some: {
                 ustaz_id: teacherId,
@@ -623,9 +624,8 @@ Period: ${fromDate.toISOString().split("T")[0]} to ${
               },
             },
           },
-          // Historical assignment via occupiedTimes (catches teacher changes)
+          // Historical assignment via occupiedTimes (any status)
           {
-            status: { in: ["active", "Active", "Not yet", "not yet"] },
             occupiedTimes: {
               some: {
                 ustaz_id: teacherId,
@@ -694,13 +694,13 @@ Period: ${fromDate.toISOString().split("T")[0]} to ${
     });
 
     // Get historical students who were assigned to this teacher
-    // Include only active and "not yet" students
+    // Include students with ANY status - teacher should be paid if they taught during the period
     const historicalStudents =
       historicalStudentIds.size > 0
         ? await prisma.wpos_wpdatatable_23.findMany({
             where: {
               wdt_ID: { in: Array.from(historicalStudentIds) },
-              status: { in: ["active", "Active", "Not yet", "not yet"] },
+              // No status filter - include all students with zoom links during period
             },
             select: {
               wdt_ID: true,
@@ -744,6 +744,9 @@ Period: ${fromDate.toISOString().split("T")[0]} to ${
 
     // Fallback: Find students based on zoom links sent by this teacher
     // This catches cases where assignment data might be missing but zoom links exist
+    // CRITICAL: Include students with ANY status if zoom links exist
+    // Rationale: If teacher sent zoom links and taught the student, they deserve payment
+    // Even if student left mid-month, teacher should be paid for days taught
     const zoomLinkStudents = await prisma.wpos_zoom_links.findMany({
       where: {
         ustazid: teacherId,
@@ -757,7 +760,7 @@ Period: ${fromDate.toISOString().split("T")[0]} to ${
             name: true,
             package: true,
             daypackages: true, // ✅ ADDED: Include daypackages field
-            status: true,
+            status: true, // Include status for debugging, but don't filter by it
             occupiedTimes: {
               where: {
                 ustaz_id: teacherId,
@@ -778,7 +781,7 @@ Period: ${fromDate.toISOString().split("T")[0]} to ${
     });
 
     // Add students found through zoom links
-    // Include regardless of status - if teacher sent zoom links, they should be paid
+    // Include ALL students regardless of status - if teacher sent zoom links, they should be paid
     const existingStudentIds = new Set(allStudents.map((s) => s.wdt_ID));
 
     for (const zoomLink of zoomLinkStudents) {
@@ -1667,18 +1670,18 @@ ${students
 
     // Get ALL students for this teacher (EXACT same as preview API)
     // Use OR to catch both current assignments AND historical assignments (teacher changes)
-    // Filter by active and "not yet" status
+    // IMPORTANT: Include students with ANY status - teacher should be paid for days taught
+    // even if student left mid-month
     const allStudents = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         OR: [
-          // Current assignment (active or not yet)
+          // Current assignment (any status)
           {
             ustaz: teacherId,
-            status: { in: ["active", "Active", "Not yet", "not yet"] },
+            // No status filter - include all students with zoom links
           },
-          // Historical assignment via occupiedTimes (catches teacher changes)
+          // Historical assignment via occupiedTimes (any status)
           {
-            status: { in: ["active", "Active", "Not yet", "not yet"] },
             occupiedTimes: {
               some: {
                 ustaz_id: teacherId,
@@ -1955,14 +1958,15 @@ ${students
       );
 
       // Get all students assigned to this teacher during the period
-      // Include active and "not yet" students - if teacher taught them, they should be evaluated
+      // IMPORTANT: Include students with ANY status - teacher should be evaluated for all students taught
+      // even if student left mid-month (they should still get deductions for missed days before leaving)
       const students = await prisma.wpos_wpdatatable_23.findMany({
         where: {
           OR: [
-            // Current assignments (active or not yet)
+            // Current assignments (any status)
             {
               ustaz: teacherId,
-              status: { in: ["active", "Active", "Not yet", "not yet"] },
+              // No status filter - include all students
               occupiedTimes: {
                 some: {
                   ustaz_id: teacherId,
@@ -1971,9 +1975,9 @@ ${students
                 },
               },
             },
-            // Historical assignments from audit logs (active or not yet)
+            // Historical assignments from audit logs (any status)
             {
-              status: { in: ["active", "Active", "Not yet", "not yet"] },
+              // No status filter - include all students
               occupiedTimes: {
                 some: {
                   ustaz_id: teacherId,
