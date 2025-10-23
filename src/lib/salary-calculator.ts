@@ -666,6 +666,20 @@ Daily Rate: ${fayzPeriod.dailyRate} ETB
 ❌ FAYZ NOT FOUND IN TEACHER CHANGE PERIODS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 This means the teacher change period query didn't find Fayz for teacher ${teacherId}
+
+🔍 DEBUGGING TEACHER CHANGE PERIODS:
+Total Periods: ${teacherChangePeriods.length}
+${teacherChangePeriods
+  .map(
+    (p, i) => `
+${i + 1}. Student: ${p.studentName} (ID: ${p.studentId})
+    Teacher: ${p.teacherId}
+    Period: ${p.startDate.toISOString().split("T")[0]} to ${
+      p.endDate.toISOString().split("T")[0]
+    }
+`
+  )
+  .join("")}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           `);
         }
@@ -1175,6 +1189,20 @@ Fayz Details:
 `
     : ""
 }
+
+🔍 ALL STUDENTS FOR THIS TEACHER:
+${allStudents
+  .map(
+    (s, i) => `
+${i + 1}. ${s.name} (ID: ${s.wdt_ID})
+    Package: ${s.package}
+    Has Teacher Change Period: ${
+      (s as any).teacherChangePeriod ? "✅ YES" : "❌ NO"
+    }
+    Zoom Links: ${s.zoom_links?.length || 0}
+`
+  )
+  .join("")}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       `);
     }
@@ -1353,6 +1381,30 @@ Fayz Details:
       });
     }
 
+    // 🔍 DEBUG: Log all students for this teacher
+    if (teacherId === "U271" || teacherId === "U361") {
+      console.log(`
+🔍 SALARY CALCULATION - STUDENT PROCESSING START:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher ID: ${teacherId}
+Total Students to Process: ${students.length}
+${students
+  .map(
+    (s, i) => `
+${i + 1}. ${s.name} (ID: ${s.wdt_ID})
+    Package: ${s.package}
+    Status: ${s.status}
+    Has Teacher Change Period: ${
+      (s as any).teacherChangePeriod ? "✅ YES" : "❌ NO"
+    }
+    Zoom Links: ${s.zoom_links?.length || 0}
+`
+  )
+  .join("")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
+
     // Process each student with their teacher periods
     for (const student of students) {
       // Debug flag for specific teacher and student
@@ -1363,9 +1415,13 @@ Fayz Details:
         student.name?.toLowerCase().includes("khalid") ||
         student.name?.toLowerCase().includes("aminat") ||
         student.name?.toLowerCase().includes("yasin") ||
+        student.name?.toLowerCase().includes("fayz") ||
+        student.name?.toLowerCase().includes("abdelhassen") ||
         teacherId.toLowerCase().includes("sultan") ||
         teacherId.toLowerCase().includes("mubarek") ||
-        teacherId.toLowerCase().includes("rahmeto");
+        teacherId.toLowerCase().includes("rahmeto") ||
+        teacherId === "U271" ||
+        teacherId === "U361";
 
       // 🔧 CRITICAL FIX: Use teacher change period data if available
       // This ensures old teachers get paid with the correct package rates from their teaching period
