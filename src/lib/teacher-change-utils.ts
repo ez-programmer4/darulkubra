@@ -222,16 +222,57 @@ ${i + 1}. Student ID: ${change.student_id}
     }
 
     const periods: TeacherChangePeriod[] = [];
+    const processedChanges = new Set<string>(); // Track processed changes to avoid duplicates
 
     for (let i = 0; i < changes.length; i++) {
       const change = changes[i];
       const nextChange = changes[i + 1];
 
+      // Create a unique key for this change to avoid duplicates
+      const changeKey = `${
+        change.student_id
+      }-${change.change_date.toISOString()}-${change.old_teacher_id}-${
+        change.new_teacher_id
+      }`;
+
+      if (processedChanges.has(changeKey)) {
+        if (isDebugTeacher) {
+          console.log(`
+🔍 SKIPPING DUPLICATE CHANGE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student ID: ${change.student_id}
+Change Date: ${change.change_date.toISOString().split("T")[0]}
+Old Teacher: ${change.old_teacher_id}
+New Teacher: ${change.new_teacher_id}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          `);
+        }
+        continue;
+      }
+
+      processedChanges.add(changeKey);
+
       // If this teacher was the old teacher, add period until change
       if (change.old_teacher_id === teacherId) {
+        // 🔧 CRITICAL FIX: For old teachers, we need to find when they actually started teaching
+        // The change_date is when they STOPPED teaching, so we need to find their start date
+        let actualStartDate = fromDate;
+
+        // Look for when this teacher actually started teaching this student
+        // We need to find the previous change where this teacher became the new teacher
+        for (let j = i - 1; j >= 0; j--) {
+          if (changes[j].new_teacher_id === teacherId) {
+            actualStartDate = changes[j].change_date;
+            break;
+          }
+        }
+
+        // If no previous change found, use fromDate (teacher was teaching from beginning of period)
+        // But we need to be more careful - check if this teacher was actually teaching before the change
+
         const period = {
           teacherId: change.old_teacher_id,
-          startDate: i === 0 ? fromDate : change.change_date,
+          startDate: actualStartDate,
           endDate: change.change_date,
           studentId: change.student_id,
           studentName: change.student.name || "Unknown",
@@ -256,6 +297,8 @@ Period: ${period.startDate.toISOString().split("T")[0]} to ${
           }
 Package: ${period.package}
 Daily Rate: ${period.dailyRate} ETB
+Actual Start Date: ${actualStartDate.toISOString().split("T")[0]}
+Change Date: ${change.change_date.toISOString().split("T")[0]}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           `);
         }
