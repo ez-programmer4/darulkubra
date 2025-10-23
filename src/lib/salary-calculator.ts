@@ -603,6 +603,36 @@ Period: ${fromDate.toISOString().split("T")[0]} to ${
       `);
     }
 
+    // 🔧 CRITICAL FIX: Get teacher change periods FIRST to ensure we include
+    // students who were taught by this teacher during their period, even if
+    // they're no longer assigned (due to mid-month teacher changes)
+    const teacherChangePeriods = await getTeacherChangePeriods(
+      teacherId,
+      fromDate,
+      toDate
+    );
+
+    if (isDebugTeacher) {
+      console.log(`
+🔍 TEACHER CHANGE PERIODS FOUND:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total Periods: ${teacherChangePeriods.length}
+${teacherChangePeriods
+  .map(
+    (period, i) => `
+${i + 1}. Student: ${period.studentName} (ID: ${period.studentId})
+    Period: ${period.startDate.toISOString().split("T")[0]} to ${
+      period.endDate.toISOString().split("T")[0]
+    }
+    Package: ${period.package}
+    Daily Rate: ${period.dailyRate} ETB
+`
+  )
+  .join("")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
+
     // Get students who were assigned to this teacher during the period
     // This includes both current assignments and historical assignments
     // IMPORTANT: Include students with ANY status if they have zoom links during the period
@@ -807,6 +837,98 @@ Period: ${fromDate.toISOString().split("T")[0]} to ${
           occupiedTimes: student.occupiedTimes || [], // ✅ ADDED: Include occupied_times
           zoom_links: studentZoomLinks,
         });
+      }
+    }
+
+    // 🔧 CRITICAL FIX: Add students from teacher change periods
+    // This ensures old teachers get paid for students they taught before mid-month changes
+    if (teacherChangePeriods.length > 0) {
+      if (isDebugTeacher) {
+        console.log(`
+🔧 ADDING STUDENTS FROM TEACHER CHANGE PERIODS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Found ${teacherChangePeriods.length} teacher change periods
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        `);
+      }
+
+      for (const period of teacherChangePeriods) {
+        // Skip if student is already included
+        if (existingStudentIds.has(period.studentId)) {
+          if (isDebugTeacher) {
+            console.log(
+              `⏭️  Skipping student ${period.studentName} (ID: ${period.studentId}) - already included`
+            );
+          }
+          continue;
+        }
+
+        // Get the student data
+        const student = await prisma.wpos_wpdatatable_23.findUnique({
+          where: { wdt_ID: period.studentId },
+          select: {
+            wdt_ID: true,
+            name: true,
+            package: true,
+            daypackages: true,
+            status: true,
+            occupiedTimes: {
+              where: {
+                ustaz_id: teacherId,
+                occupied_at: { lte: toDate },
+                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+              },
+              select: {
+                time_slot: true,
+                daypackage: true,
+                occupied_at: true,
+                end_at: true,
+              },
+            },
+            zoom_links: {
+              where: {
+                ustazid: teacherId,
+                sent_time: { gte: fromDate, lte: toDate },
+              },
+              select: { sent_time: true },
+            },
+          },
+        });
+
+        if (student) {
+          // Override package and daily rate from teacher change period
+          const studentWithPeriodData = {
+            ...student,
+            package: period.package,
+            // Add period-specific data for salary calculation
+            teacherChangePeriod: {
+              startDate: period.startDate,
+              endDate: period.endDate,
+              monthlyRate: period.monthlyRate,
+              dailyRate: period.dailyRate,
+              timeSlot: period.timeSlot,
+              dayPackage: period.dayPackage,
+            },
+          };
+
+          allStudents.push(studentWithPeriodData);
+          existingStudentIds.add(period.studentId);
+
+          if (isDebugTeacher) {
+            console.log(`
+✅ ADDED STUDENT FROM TEACHER CHANGE PERIOD:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student: ${period.studentName} (ID: ${period.studentId})
+Period: ${period.startDate.toISOString().split("T")[0]} to ${
+              period.endDate.toISOString().split("T")[0]
+            }
+Package: ${period.package}
+Daily Rate: ${period.dailyRate} ETB
+Zoom Links: ${student.zoom_links?.length || 0}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            `);
+          }
+        }
       }
     }
 
@@ -1153,18 +1275,72 @@ ${allTeacherZoomLinks
         teacherId.toLowerCase().includes("mubarek") ||
         teacherId.toLowerCase().includes("rahmeto");
 
-      // Get package salary (use 0 if no package configured)
-      const monthlyPackageSalary =
-        student.package && salaryMap[student.package]
-          ? Number(salaryMap[student.package])
-          : 0;
-      const dailyRate = Number((monthlyPackageSalary / workingDays).toFixed(2));
+      // 🔧 CRITICAL FIX: Use teacher change period data if available
+      // This ensures old teachers get paid with the correct package rates from their teaching period
+      let monthlyPackageSalary = 0;
+      let dailyRate = 0;
+
+      if (student.teacherChangePeriod) {
+        // Use data from teacher change period (for old teachers)
+        monthlyPackageSalary = student.teacherChangePeriod.monthlyRate;
+        dailyRate = student.teacherChangePeriod.dailyRate;
+
+        if (isDebugStudent) {
+          console.log(`
+🔧 USING TEACHER CHANGE PERIOD DATA:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student: ${student.name}
+Monthly Rate: ${monthlyPackageSalary} ETB (from teacher change period)
+Daily Rate: ${dailyRate} ETB (from teacher change period)
+Period: ${
+            student.teacherChangePeriod.startDate.toISOString().split("T")[0]
+          } to ${
+            student.teacherChangePeriod.endDate.toISOString().split("T")[0]
+          }
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          `);
+        }
+      } else {
+        // Use current package salary (for current teachers)
+        monthlyPackageSalary =
+          student.package && salaryMap[student.package]
+            ? Number(salaryMap[student.package])
+            : 0;
+        dailyRate = Number((monthlyPackageSalary / workingDays).toFixed(2));
+      }
 
       // Note: We still process students even without a package configured
       // because daypackage determines expected teaching days, not package
 
       // Get teacher periods for this student
       let periods = teacherPeriods.get(student.wdt_ID.toString()) || [];
+
+      // 🔧 CRITICAL FIX: Use teacher change period data if available
+      // This ensures old teachers get paid for the correct teaching period
+      if (student.teacherChangePeriod) {
+        // Override periods with teacher change period data
+        periods = [
+          {
+            start: student.teacherChangePeriod.startDate,
+            end: student.teacherChangePeriod.endDate,
+            student: student,
+          },
+        ];
+
+        if (isDebugStudent) {
+          console.log(`
+🔧 USING TEACHER CHANGE PERIOD FOR TEACHING PERIOD:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student: ${student.name}
+Teaching Period: ${
+            student.teacherChangePeriod.startDate.toISOString().split("T")[0]
+          } to ${
+            student.teacherChangePeriod.endDate.toISOString().split("T")[0]
+          }
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          `);
+        }
+      }
 
       // CRITICAL FIX: For "Leave" status students, occupied_times records are deleted
       // So we MUST use zoom links as the source of truth for teaching period
@@ -1503,36 +1679,54 @@ ${periods
           }
         });
 
-        // Get daypackage from occupied_times or student record
-        // Priority: occupied_times.daypackage > student.daypackages
+        // 🔧 CRITICAL FIX: Get daypackage with priority for teacher change periods
+        // Priority: teacher change period > occupied_times.daypackage > student.daypackages
         let studentDaypackage = "";
 
-        // Try to get daypackage from student's occupied_times
-        if (student.occupiedTimes && student.occupiedTimes.length > 0) {
-          const relevantOccupiedTimes = student.occupiedTimes.filter(
-            (ot: any) => {
-              const assignmentStart = ot.occupied_at
-                ? new Date(ot.occupied_at)
-                : null;
-              const assignmentEnd = ot.end_at ? new Date(ot.end_at) : null;
-              if (assignmentStart && periodStart < assignmentStart)
-                return false;
-              if (assignmentEnd && periodEnd > assignmentEnd) return false;
-              return true;
-            }
-          );
+        // First priority: Use daypackage from teacher change period (for old teachers)
+        if (
+          student.teacherChangePeriod &&
+          student.teacherChangePeriod.dayPackage
+        ) {
+          studentDaypackage = student.teacherChangePeriod.dayPackage;
 
-          if (
-            relevantOccupiedTimes.length > 0 &&
-            relevantOccupiedTimes[0].daypackage
-          ) {
-            studentDaypackage = relevantOccupiedTimes[0].daypackage;
+          if (isDebugStudent) {
+            console.log(`
+🔧 USING TEACHER CHANGE PERIOD DAYPACKAGE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student: ${student.name}
+Day Package: ${studentDaypackage} (from teacher change period)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            `);
           }
-        }
+        } else {
+          // Try to get daypackage from student's occupied_times
+          if (student.occupiedTimes && student.occupiedTimes.length > 0) {
+            const relevantOccupiedTimes = student.occupiedTimes.filter(
+              (ot: any) => {
+                const assignmentStart = ot.occupied_at
+                  ? new Date(ot.occupied_at)
+                  : null;
+                const assignmentEnd = ot.end_at ? new Date(ot.end_at) : null;
+                if (assignmentStart && periodStart < assignmentStart)
+                  return false;
+                if (assignmentEnd && periodEnd > assignmentEnd) return false;
+                return true;
+              }
+            );
 
-        // Fallback to student record daypackages
-        if (!studentDaypackage && student.daypackages) {
-          studentDaypackage = student.daypackages;
+            if (
+              relevantOccupiedTimes.length > 0 &&
+              relevantOccupiedTimes[0].daypackage
+            ) {
+              studentDaypackage = relevantOccupiedTimes[0].daypackage;
+            }
+          }
+
+          // Fallback to student record daypackages
+          if (!studentDaypackage && student.daypackages) {
+            studentDaypackage = student.daypackages;
+          }
         }
 
         // Now consider daypackage to determine expected teaching days
