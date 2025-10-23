@@ -267,8 +267,12 @@ New Teacher: ${change.new_teacher_id}
           }
         }
 
-        // If no previous change found, use fromDate (teacher was teaching from beginning of period)
-        // But we need to be more careful - check if this teacher was actually teaching before the change
+        // 🔧 CRITICAL FIX: If this is the first change and the teacher was teaching from the beginning,
+        // we need to check if there are any zoom links or occupied_times that show when they started
+        // For now, let's use fromDate as the start date for the first change
+        if (i === 0) {
+          actualStartDate = fromDate;
+        }
 
         const period = {
           teacherId: change.old_teacher_id,
@@ -299,6 +303,9 @@ Package: ${period.package}
 Daily Rate: ${period.dailyRate} ETB
 Actual Start Date: ${actualStartDate.toISOString().split("T")[0]}
 Change Date: ${change.change_date.toISOString().split("T")[0]}
+From Date: ${fromDate.toISOString().split("T")[0]}
+To Date: ${toDate.toISOString().split("T")[0]}
+Change Index: ${i}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           `);
         }

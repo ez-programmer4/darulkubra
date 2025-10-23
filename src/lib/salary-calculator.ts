@@ -1490,6 +1490,52 @@ Teaching Period: ${
         }
       }
 
+      // 🔧 CRITICAL FIX: For teacher change students, use zoom links as source of truth
+      // This is the same logic as for "Leave" students - occupied_times are deleted but zoom links exist
+      const isTeacherChangeStudent = student.teacherChangePeriod;
+      const hasZoomLinksForTeacherChange =
+        student.zoom_links && student.zoom_links.length > 0;
+
+      if (isTeacherChangeStudent && hasZoomLinksForTeacherChange) {
+        // Get zoom date range for the teacher's period
+        const zoomDates = student.zoom_links
+          .filter((link: any) => link.sent_time)
+          .map((link: any) => new Date(link.sent_time!))
+          .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+
+        if (zoomDates.length > 0) {
+          const firstZoom = zoomDates[0];
+          const lastZoom = zoomDates[zoomDates.length - 1];
+
+          // Override periods with zoom link dates (same as leave student logic)
+          periods = [
+            {
+              start: firstZoom,
+              end: lastZoom,
+              student: student,
+            },
+          ];
+
+          if (isDebugStudent) {
+            console.log(`
+🔧 TEACHER CHANGE STUDENT - OVERRIDING WITH ZOOM LINKS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student: ${student.name}
+Teacher Change Period: ${
+              student.teacherChangePeriod.startDate.toISOString().split("T")[0]
+            } to ${
+              student.teacherChangePeriod.endDate.toISOString().split("T")[0]
+            }
+Zoom Link Period: ${firstZoom.toISOString().split("T")[0]} to ${
+              lastZoom.toISOString().split("T")[0]
+            }
+Total Zoom Links: ${zoomDates.length}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            `);
+          }
+        }
+      }
+
       // CRITICAL FIX: For "Leave" status students, occupied_times records are deleted
       // So we MUST use zoom links as the source of truth for teaching period
       // Matches: "Leave", "Ramadan Leave", "Is Leave", etc.
