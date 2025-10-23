@@ -161,6 +161,20 @@ export async function getTeacherChangePeriods(
   toDate: Date
 ): Promise<TeacherChangePeriod[]> {
   try {
+    // 🔍 DEBUG: Add debug logging for specific teachers
+    const isDebugTeacher = teacherId === "U271" || teacherId === "U361";
+
+    if (isDebugTeacher) {
+      console.log(`
+🔍 DEBUG - getTeacherChangePeriods:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher ID: ${teacherId}
+From Date: ${fromDate.toISOString().split("T")[0]}
+To Date: ${toDate.toISOString().split("T")[0]}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
+
     const changes = await prisma.teacher_change_history.findMany({
       where: {
         OR: [{ old_teacher_id: teacherId }, { new_teacher_id: teacherId }],
@@ -182,6 +196,31 @@ export async function getTeacherChangePeriods(
       },
     });
 
+    if (isDebugTeacher) {
+      console.log(`
+🔍 TEACHER CHANGE HISTORY RECORDS FOUND:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total Records: ${changes.length}
+${changes
+  .map(
+    (change, i) => `
+${i + 1}. Student ID: ${change.student_id}
+    Old Teacher: ${change.old_teacher_id}
+    New Teacher: ${change.new_teacher_id}
+    Change Date: ${change.change_date.toISOString().split("T")[0]}
+    Student Name: ${change.student?.name || "Unknown"}
+    Student Package: ${
+      change.student?.package || change.student_package || "Unknown"
+    }
+    Monthly Rate: ${change.monthly_rate}
+    Daily Rate: ${change.daily_rate}
+`
+  )
+  .join("")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
+
     const periods: TeacherChangePeriod[] = [];
 
     for (let i = 0; i < changes.length; i++) {
@@ -190,7 +229,7 @@ export async function getTeacherChangePeriods(
 
       // If this teacher was the old teacher, add period until change
       if (change.old_teacher_id === teacherId) {
-        periods.push({
+        const period = {
           teacherId: change.old_teacher_id,
           startDate: i === 0 ? fromDate : change.change_date,
           endDate: change.change_date,
@@ -202,12 +241,29 @@ export async function getTeacherChangePeriods(
           dailyRate: Number(change.daily_rate || 0),
           timeSlot: change.time_slot,
           dayPackage: change.daypackage,
-        });
+        };
+
+        periods.push(period);
+
+        if (isDebugTeacher) {
+          console.log(`
+🔍 CREATED OLD TEACHER PERIOD:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher ID: ${period.teacherId}
+Student: ${period.studentName} (ID: ${period.studentId})
+Period: ${period.startDate.toISOString().split("T")[0]} to ${
+            period.endDate.toISOString().split("T")[0]
+          }
+Package: ${period.package}
+Daily Rate: ${period.dailyRate} ETB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          `);
+        }
       }
 
       // If this teacher is the new teacher, add period from change
       if (change.new_teacher_id === teacherId) {
-        periods.push({
+        const period = {
           teacherId: change.new_teacher_id,
           startDate: change.change_date,
           endDate: nextChange ? nextChange.change_date : toDate,
@@ -219,8 +275,47 @@ export async function getTeacherChangePeriods(
           dailyRate: Number(change.daily_rate || 0),
           timeSlot: change.time_slot,
           dayPackage: change.daypackage,
-        });
+        };
+
+        periods.push(period);
+
+        if (isDebugTeacher) {
+          console.log(`
+🔍 CREATED NEW TEACHER PERIOD:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher ID: ${period.teacherId}
+Student: ${period.studentName} (ID: ${period.studentId})
+Period: ${period.startDate.toISOString().split("T")[0]} to ${
+            period.endDate.toISOString().split("T")[0]
+          }
+Package: ${period.package}
+Daily Rate: ${period.dailyRate} ETB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          `);
+        }
       }
+    }
+
+    if (isDebugTeacher) {
+      console.log(`
+🔍 FINAL TEACHER CHANGE PERIODS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher ID: ${teacherId}
+Total Periods Created: ${periods.length}
+${periods
+  .map(
+    (period, i) => `
+${i + 1}. Student: ${period.studentName} (ID: ${period.studentId})
+    Period: ${period.startDate.toISOString().split("T")[0]} to ${
+      period.endDate.toISOString().split("T")[0]
+    }
+    Package: ${period.package}
+    Daily Rate: ${period.dailyRate} ETB
+`
+  )
+  .join("")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
     }
 
     return periods;

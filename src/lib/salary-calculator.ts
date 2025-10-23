@@ -589,7 +589,9 @@ export class SalaryCalculator {
     const isDebugTeacher =
       teacherId.toLowerCase().includes("sultan") ||
       teacherId.toLowerCase().includes("mubarek") ||
-      teacherId.toLowerCase().includes("rahmeto");
+      teacherId.toLowerCase().includes("rahmeto") ||
+      teacherId === "U271" || // MUBAREK RAHMETO
+      teacherId === "U361"; // ABDUREZAK ASEFA
 
     if (isDebugTeacher) {
       console.log(`
@@ -631,6 +633,43 @@ ${i + 1}. Student: ${period.studentName} (ID: ${period.studentId})
   .join("")}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       `);
+
+      // 🔍 SPECIAL DEBUG: Check for Fayz Abdelhassen specifically
+      if (teacherId === "U271" || teacherId === "U361") {
+        console.log(`
+🔍 SPECIAL DEBUG - FAYZ ABDELHASSEN CASE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher ID: ${teacherId}
+Looking for student ID: 6763 (Fayz Abdelhassen)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        `);
+
+        // Check if Fayz is in teacher change periods
+        const fayzPeriod = teacherChangePeriods.find(
+          (p) => p.studentId === 6763
+        );
+        if (fayzPeriod) {
+          console.log(`
+✅ FAYZ FOUND IN TEACHER CHANGE PERIODS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student: ${fayzPeriod.studentName} (ID: ${fayzPeriod.studentId})
+Teacher ID: ${fayzPeriod.teacherId}
+Period: ${fayzPeriod.startDate.toISOString().split("T")[0]} to ${
+            fayzPeriod.endDate.toISOString().split("T")[0]
+          }
+Package: ${fayzPeriod.package}
+Daily Rate: ${fayzPeriod.dailyRate} ETB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          `);
+        } else {
+          console.log(`
+❌ FAYZ NOT FOUND IN TEACHER CHANGE PERIODS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This means the teacher change period query didn't find Fayz for teacher ${teacherId}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          `);
+        }
+      }
     }
 
     // Get students who were assigned to this teacher during the period
@@ -927,6 +966,33 @@ Daily Rate: ${period.dailyRate} ETB
 Zoom Links: ${student.zoom_links?.length || 0}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             `);
+
+            // 🔍 SPECIAL DEBUG: Check if this is Fayz Abdelhassen
+            if (period.studentId === 6763) {
+              console.log(`
+🎯 FAYZ ABDELHASSEN ADDED TO TEACHER ${teacherId}:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student ID: ${period.studentId}
+Teacher ID: ${teacherId}
+Period: ${period.startDate.toISOString().split("T")[0]} to ${
+                period.endDate.toISOString().split("T")[0]
+              }
+Package: ${period.package}
+Daily Rate: ${period.dailyRate} ETB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              `);
+            }
+          }
+        } else {
+          if (isDebugTeacher && period.studentId === 6763) {
+            console.log(`
+❌ FAYZ ABDELHASSEN STUDENT NOT FOUND IN DATABASE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student ID: ${period.studentId}
+Teacher ID: ${teacherId}
+This means the student record doesn't exist in wpos_wpdatatable_23
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            `);
           }
         }
       }
@@ -1083,6 +1149,32 @@ ${allTeacherZoomLinks
 `
   )
   .join("")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
+
+    // 🔍 FINAL DEBUG: Check if Fayz is in the final student list
+    if (isDebugTeacher && (teacherId === "U271" || teacherId === "U361")) {
+      const fayzInFinalList = allStudents.find((s) => s.wdt_ID === 6763);
+      console.log(`
+🔍 FINAL STUDENT LIST CHECK - FAYZ ABDELHASSEN:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher ID: ${teacherId}
+Total Students: ${allStudents.length}
+Fayz in Final List: ${fayzInFinalList ? "✅ YES" : "❌ NO"}
+${
+  fayzInFinalList
+    ? `
+Fayz Details:
+- Name: ${fayzInFinalList.name}
+- Package: ${fayzInFinalList.package}
+- Has Teacher Change Period: ${
+        (fayzInFinalList as any).teacherChangePeriod ? "✅ YES" : "❌ NO"
+      }
+- Zoom Links: ${fayzInFinalList.zoom_links?.length || 0}
+`
+    : ""
+}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       `);
     }
