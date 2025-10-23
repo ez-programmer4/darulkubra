@@ -251,6 +251,10 @@ export class SalaryCalculator {
         teacherId
       );
 
+      if (!baseSalaryData) {
+        throw new Error("Failed to calculate base salary");
+      }
+
       const result: TeacherSalaryData = {
         id: teacherId,
         teacherId,
@@ -1408,20 +1412,7 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
     // Process each student with their teacher periods
     for (const student of students) {
       // Debug flag for specific teacher and student
-      const isDebugStudent =
-        student.name?.toLowerCase().includes("kassim kedir") ||
-        student.name?.toLowerCase().includes("abdulbasit") ||
-        student.name?.toLowerCase().includes("akram") ||
-        student.name?.toLowerCase().includes("khalid") ||
-        student.name?.toLowerCase().includes("aminat") ||
-        student.name?.toLowerCase().includes("yasin") ||
-        student.name?.toLowerCase().includes("fayz") ||
-        student.name?.toLowerCase().includes("abdelhassen") ||
-        teacherId.toLowerCase().includes("sultan") ||
-        teacherId.toLowerCase().includes("mubarek") ||
-        teacherId.toLowerCase().includes("rahmeto") ||
-        teacherId === "U271" ||
-        teacherId === "U361";
+      const isDebugStudent = false; // Disabled to prevent duplication
 
       // 🔧 CRITICAL FIX: Use teacher change period data if available
       // This ensures old teachers get paid with the correct package rates from their teaching period
@@ -1432,22 +1423,6 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
         // Use data from teacher change period (for old teachers)
         monthlyPackageSalary = student.teacherChangePeriod.monthlyRate;
         dailyRate = student.teacherChangePeriod.dailyRate;
-
-        if (isDebugStudent) {
-          console.log(`
-🔧 USING TEACHER CHANGE PERIOD DATA:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Student: ${student.name}
-Monthly Rate: ${monthlyPackageSalary} ETB (from teacher change period)
-Daily Rate: ${dailyRate} ETB (from teacher change period)
-Period: ${
-            student.teacherChangePeriod.startDate.toISOString().split("T")[0]
-          } to ${
-            student.teacherChangePeriod.endDate.toISOString().split("T")[0]
-          }
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          `);
-        }
       } else {
         // Use current package salary (for current teachers)
         monthlyPackageSalary =
@@ -1474,20 +1449,6 @@ Period: ${
             student: student,
           },
         ];
-
-        if (isDebugStudent) {
-          console.log(`
-🔧 USING TEACHER CHANGE PERIOD FOR TEACHING PERIOD:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Student: ${student.name}
-Teaching Period: ${
-            student.teacherChangePeriod.startDate.toISOString().split("T")[0]
-          } to ${
-            student.teacherChangePeriod.endDate.toISOString().split("T")[0]
-          }
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          `);
-        }
       }
 
       // 🔧 CRITICAL FIX: For teacher change students, use zoom links as source of truth
@@ -1515,24 +1476,6 @@ Teaching Period: ${
               student: student,
             },
           ];
-
-          if (isDebugStudent) {
-            console.log(`
-🔧 TEACHER CHANGE STUDENT - OVERRIDING WITH ZOOM LINKS:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Student: ${student.name}
-Teacher Change Period: ${
-              student.teacherChangePeriod.startDate.toISOString().split("T")[0]
-            } to ${
-              student.teacherChangePeriod.endDate.toISOString().split("T")[0]
-            }
-Zoom Link Period: ${firstZoom.toISOString().split("T")[0]} to ${
-              lastZoom.toISOString().split("T")[0]
-            }
-Total Zoom Links: ${zoomDates.length}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            `);
-          }
         }
       }
 
@@ -1628,106 +1571,9 @@ Total Zoom Links: ${zoomDates.length}
         }
       }
 
-      if (isDebugStudent) {
-        console.log(`
-╔═══════════════════════════════════════════════════════════════════════════════
-║ 🔍 DETAILED DEBUG - Student Processing: ${student.name}
-╠═══════════════════════════════════════════════════════════════════════════════
-║ Student ID: ${student.wdt_ID}
-║ Teacher ID: ${teacherId}
-║ Student Status: ${student.status}
-║ Package: ${student.package || "NOT SET ⚠️"}
-║ Day Package: ${student.daypackages || "NOT SET ⚠️"}
-║ Monthly Package Salary: ${monthlyPackageSalary} ETB
-║ Daily Rate: ${dailyRate} ETB
-║ Working Days in Month: ${workingDays}
-╠═══════════════════════════════════════════════════════════════════════════════
-║ OCCUPIED TIMES (Assignment Records):
-${
-  student.occupiedTimes?.length > 0
-    ? student.occupiedTimes
-        .map(
-          (ot: any, i: number) => `
-║   ${i + 1}. Time Slot: ${ot.time_slot || "N/A"}
-║      Day Package: ${ot.daypackage || "N/A"}
-║      Start Date: ${
-            ot.occupied_at
-              ? new Date(ot.occupied_at).toISOString().split("T")[0]
-              : "N/A"
-          }
-║      End Date: ${
-            ot.end_at
-              ? new Date(ot.end_at).toISOString().split("T")[0]
-              : "ONGOING ✅"
-          }
-║      ${
-            ot.end_at
-              ? "⚠️ STUDENT LEFT - Assignment ended on " +
-                new Date(ot.end_at).toISOString().split("T")[0]
-              : ""
-          }
-`
-        )
-        .join("")
-    : "║   ⚠️ NO OCCUPIED TIMES FOUND\n"
-}
-╠═══════════════════════════════════════════════════════════════════════════════
-║ ZOOM LINKS (Teaching Evidence):
-║ Total Links: ${student.zoom_links?.length || 0}
-${
-  student.zoom_links?.length > 0
-    ? student.zoom_links
-        .map(
-          (link: any, i: number) => `
-║   ${i + 1}. Date: ${
-            link.sent_time
-              ? new Date(link.sent_time).toISOString().split("T")[0]
-              : "N/A"
-          }
-║      Time: ${
-            link.sent_time
-              ? new Date(link.sent_time)
-                  .toISOString()
-                  .split("T")[1]
-                  .substring(0, 8)
-              : "N/A"
-          }
-`
-        )
-        .join("")
-    : "║   ⚠️ NO ZOOM LINKS FOUND\n"
-}
-╠═══════════════════════════════════════════════════════════════════════════════
-║ TEACHER PERIODS (Calculated from assignments):
-║ Total Periods: ${periods.length}
-${periods
-  .map(
-    (p, i) => `
-║   Period ${i + 1}:
-║     Start: ${p.start.toISOString().split("T")[0]}
-║     End: ${p.end ? p.end.toISOString().split("T")[0] : "ONGOING"}
-`
-  )
-  .join("")}
-╚═══════════════════════════════════════════════════════════════════════════════
-        `);
-      }
-
       // If no specific periods found, check if teacher has zoom links for this student
       // This handles the case where teacher was transferred but still has zoom links
       if (periods.length === 0) {
-        if (isDebugStudent) {
-          console.log(`
-╔═══════════════════════════════════════════════════════════════════════════════
-║ ⚠️ NO TEACHER PERIODS FOUND - Creating fallback period
-╠═══════════════════════════════════════════════════════════════════════════════
-║ Student: ${student.name}
-║ This means no occupied_times matched the teacher/date range
-║ Creating period based on zoom links...
-╚═══════════════════════════════════════════════════════════════════════════════
-          `);
-        }
-
         // Check if teacher has any zoom links for this student during the period
         const hasZoomLinks =
           student.zoom_links && student.zoom_links.length > 0;
@@ -1752,25 +1598,6 @@ ${periods
               Math.min(lastZoomDate.getTime(), toDate.getTime())
             );
 
-            if (isDebugStudent) {
-              console.log(`
-╔═══════════════════════════════════════════════════════════════════════════════
-║ ✅ FALLBACK PERIOD CREATED FROM ZOOM LINKS
-╠═══════════════════════════════════════════════════════════════════════════════
-║ First Zoom Link: ${firstZoomDate.toISOString().split("T")[0]}
-║ Last Zoom Link: ${lastZoomDate.toISOString().split("T")[0]}
-║ Period Start: ${
-                periodStart.toISOString().split("T")[0]
-              } (max of first zoom and fromDate)
-║ Period End: ${
-                periodEnd.toISOString().split("T")[0]
-              } (min of last zoom and toDate)
-║ 
-║ 🔍 This respects when student left - teacher paid only for days taught
-╚═══════════════════════════════════════════════════════════════════════════════
-              `);
-            }
-
             periods.push({
               start: periodStart,
               end: periodEnd,
@@ -1778,22 +1605,6 @@ ${periods
             });
           }
         } else {
-          // No zoom links - no proof of teaching, skip this student
-          if (isDebugStudent) {
-            console.log(`
-╔═══════════════════════════════════════════════════════════════════════════════
-║ ⚠️ NO ZOOM LINKS FOUND - Cannot Calculate Payment
-╠═══════════════════════════════════════════════════════════════════════════════
-║ Student: ${student.name}
-║ Status: ${student.status}
-║ 
-║ No occupied_times data (may have been deleted)
-║ No zoom links found (no proof of teaching)
-║ 
-║ → Skipping this student - no payment without teaching evidence
-╚═══════════════════════════════════════════════════════════════════════════════
-            `);
-          }
           // Don't create any period - this will result in 0 earnings
           continue;
         }
@@ -1804,24 +1615,7 @@ ${periods
       const periodBreakdown = [];
 
       // Debug info for specific student
-      const debugInfo: any = isDebugStudent
-        ? {
-            studentName: student.name,
-            studentId: student.wdt_ID,
-            package: student.package,
-            daypackage: student.daypackages,
-            zoomLinksTotal: student.zoom_links?.length || 0,
-            zoomLinkDates:
-              student.zoom_links
-                ?.map((link: any) =>
-                  link.sent_time
-                    ? new Date(link.sent_time).toISOString().split("T")[0]
-                    : null
-                )
-                .filter(Boolean) || [],
-            periods: [],
-          }
-        : null;
+      const debugInfo: any = null;
 
       for (const period of periods) {
         const periodStart = new Date(
@@ -1930,67 +1724,12 @@ Day Package: ${studentDaypackage} (from teacher change period)
           studentDaypackage
         );
 
-        // Create debug info for this period (after expectedTeachingDays is calculated)
-        if (isDebugStudent && debugInfo) {
-          const periodDebugInfo = {
-            period: `${periodStart.toISOString().split("T")[0]} to ${
-              periodEnd.toISOString().split("T")[0]
-            }`,
-            zoomLinksInPeriod: periodZoomLinks.length,
-            zoomLinkDates: periodZoomLinks.map(
-              (link: any) =>
-                new Date(link.sent_time).toISOString().split("T")[0]
-            ),
-            expectedTeachingDays: expectedTeachingDays.length,
-            teachingDates: [],
-            dailyRate: dailyRate,
-            periodEarnings: 0,
-          };
-          debugInfo.periods.push(periodDebugInfo);
-        }
-
         // Use expected teaching days based on daypackage, but only count days with zoom links
         expectedTeachingDays.forEach((dateStr) => {
           if (dailyLinks.has(dateStr)) {
             teachingDates.add(dateStr);
           }
         });
-
-        if (isDebugStudent && debugInfo && debugInfo.periods.length > 0) {
-          const currentPeriodDebug =
-            debugInfo.periods[debugInfo.periods.length - 1];
-          currentPeriodDebug.teachingDates = Array.from(teachingDates);
-          currentPeriodDebug.periodEarnings = Number(
-            (dailyRate * teachingDates.size).toFixed(2)
-          );
-
-          // Add detailed debug for this period calculation
-          console.log(`
-╔═══════════════════════════════════════════════════════════════════════════════
-║ 📊 PERIOD EARNINGS CALCULATION - ${student.name}
-╠═══════════════════════════════════════════════════════════════════════════════
-║ Period: ${periodStart.toISOString().split("T")[0]} to ${
-            periodEnd.toISOString().split("T")[0]
-          }
-║ Day Package: ${studentDaypackage || "NOT SET"}
-║ Expected Teaching Days (from daypackage): ${expectedTeachingDays.length}
-║ Expected Dates: ${expectedTeachingDays.join(", ")}
-║ 
-║ Zoom Links in Period: ${periodZoomLinks.length}
-║ Zoom Link Dates: ${periodZoomLinks
-            .map((l: any) => new Date(l.sent_time).toISOString().split("T")[0])
-            .join(", ")}
-║ 
-║ Matching Teaching Dates (expected + has zoom): ${teachingDates.size}
-║ Matched Dates: ${Array.from(teachingDates).join(", ")}
-║ 
-║ Daily Rate: ${dailyRate} ETB
-║ Period Earnings: ${dailyRate} × ${teachingDates.size} = ${Number(
-            (dailyRate * teachingDates.size).toFixed(2)
-          )} ETB
-╚═══════════════════════════════════════════════════════════════════════════════
-          `);
-        }
 
         const periodEarnings = Number(
           (dailyRate * teachingDates.size).toFixed(2)
@@ -2069,76 +1808,6 @@ Day Package: ${studentDaypackage} (from teacher change period)
         });
       });
 
-      // Debug logging for specific students
-      if (isDebugStudent) {
-        console.log(`
-╔═══════════════════════════════════════════════════════════════════════════════
-║ 📋 FINAL CALCULATION SUMMARY - ${student.name || "Unknown"}
-╠═══════════════════════════════════════════════════════════════════════════════
-║ Student ID: ${student.wdt_ID}
-║ Teacher ID: ${teacherId}
-║ Student Status: ${student.status}
-║ Package: ${student.package || "NOT SET ⚠️"}
-║ Day Package: ${student.daypackages || "NOT SET ⚠️"}
-╠═══════════════════════════════════════════════════════════════════════════════
-║ FINANCIAL CALCULATION:
-║ Monthly Rate: ${monthlyPackageSalary} ETB
-║ Daily Rate: ${dailyRate} ETB
-║ Working Days in Month: ${workingDays}
-║ Days Worked: ${studentTeachingDates.size}
-║ Total Earned: ${totalEarned} ETB
-╠═══════════════════════════════════════════════════════════════════════════════
-║ DATA SUMMARY:
-║ Zoom Links Count: ${student.zoom_links?.length || 0}
-║ Occupied Times: ${student.occupiedTimes?.length || 0}
-║ Teacher Periods: ${periods.length}
-║ Period Breakdown: ${periodBreakdown.length} periods
-║ Teaching Dates: ${Array.from(studentTeachingDates).join(", ")}
-╠═══════════════════════════════════════════════════════════════════════════════
-║ FINAL DECISION: ${
-          totalEarned > 0
-            ? "✅ INCLUDED IN SALARY BREAKDOWN"
-            : "❌ EXCLUDED FROM SALARY BREAKDOWN"
-        }
-${
-  totalEarned === 0
-    ? `╠═══════════════════════════════════════════════════════════════════════════════
-║ ❌ EXCLUSION REASONS:
-${
-  monthlyPackageSalary === 0
-    ? "║   • Package salary is 0 (no package configured or package not found)\n"
-    : ""
-}${dailyRate === 0 ? "║   • Daily rate is 0\n" : ""}${
-        studentTeachingDates.size === 0
-          ? "║   • No teaching dates counted (check daypackage and zoom links)\n"
-          : ""
-      }${periods.length === 0 ? "║   • No teacher periods found\n" : ""}${
-        periodBreakdown.length === 0
-          ? "║   • No period breakdown generated\n"
-          : ""
-      }${
-        student.zoom_links?.length || 0 === 0
-          ? "║   • No zoom links found for this teacher\n"
-          : ""
-      }`
-    : ""
-}
-╠═══════════════════════════════════════════════════════════════════════════════
-║ RECOMMENDATION:
-${
-  totalEarned === 0 && (student.zoom_links?.length || 0) > 0
-    ? `║ ⚠️ Student has ${student.zoom_links?.length} zoom links but earned 0 ETB
-║ → Check if occupied_times end_at date is before the zoom link dates
-║ → Check if daypackage matches the days zoom links were sent
-║ → Verify package salary is configured correctly`
-    : totalEarned === 0
-    ? `║ → No zoom links found, teacher didn't teach this student in the period`
-    : `║ ✅ Teacher will be paid ${totalEarned} ETB for teaching this student`
-}
-╚═══════════════════════════════════════════════════════════════════════════════
-        `);
-      }
-
       if (totalEarned > 0) {
         studentBreakdown.push({
           studentName: student.name || "Unknown",
@@ -2150,33 +1819,6 @@ ${
           periods: periodBreakdown,
           teacherChanges: periods.length > 1,
           debugInfo: debugInfo, // Add debug info for UI display
-        });
-      } else if (isDebugStudent) {
-        // Add excluded students to breakdown with debug flag for troubleshooting
-        studentBreakdown.push({
-          studentName: student.name || "Unknown",
-          package: student.package || "Unknown",
-          monthlyRate: monthlyPackageSalary,
-          dailyRate: dailyRate,
-          daysWorked: studentTeachingDates.size,
-          totalEarned: 0,
-          periods: periodBreakdown,
-          teacherChanges: periods.length > 1,
-          debugInfo: {
-            ...debugInfo,
-            excluded: true,
-            exclusionReasons: [
-              monthlyPackageSalary === 0 ? "Package salary is 0" : null,
-              dailyRate === 0 ? "Daily rate is 0" : null,
-              studentTeachingDates.size === 0
-                ? "No teaching dates counted"
-                : null,
-              periods.length === 0 ? "No teacher periods" : null,
-              student.zoom_links?.length || 0 > 0
-                ? null
-                : "No zoom links found",
-            ].filter(Boolean),
-          },
         });
       }
     }
@@ -2200,61 +1842,6 @@ ${
     const activeStudentCount = studentBreakdown.filter(
       (student) => student.totalEarned > 0
     ).length;
-
-    // Final debug summary for MUBAREK RAHMETO
-    const isFinalDebugTeacher =
-      teacherId.toLowerCase().includes("mubarek") ||
-      teacherId.toLowerCase().includes("rahmeto");
-
-    if (isFinalDebugTeacher) {
-      console.log(`
-╔═══════════════════════════════════════════════════════════════════════════════
-║ 🔍 FINAL DEBUG SUMMARY - BASE SALARY CALCULATION
-╠═══════════════════════════════════════════════════════════════════════════════
-║ Teacher ID: ${teacherId}
-║ Total Students Processed: ${students.length}
-║ Students in Breakdown: ${studentBreakdown.length}
-║ Active Students (earned > 0): ${activeStudentCount}
-║ Total Salary: ${totalSalary}
-║ Teaching Days: ${actualTeachingDays}
-║ Working Days: ${workingDays}
-╠═══════════════════════════════════════════════════════════════════════════════
-║ BREAKDOWN DETAILS:
-${studentBreakdown
-  .map(
-    (sb, i) => `
-║   ${i + 1}. ${sb.studentName} - ${sb.totalEarned} ETB
-║      Package: ${sb.package}
-║      Days Worked: ${sb.daysWorked}
-║      Daily Rate: ${sb.dailyRate}
-║      Included: ${sb.totalEarned > 0 ? "✅ YES" : "❌ NO"}
-║      ${
-      sb.debugInfo?.excluded
-        ? `Exclusion Reasons: ${sb.debugInfo.exclusionReasons?.join(", ")}`
-        : ""
-    }
-`
-  )
-  .join("")}
-╠═══════════════════════════════════════════════════════════════════════════════
-║ STUDENTS NOT IN BREAKDOWN:
-${students
-  .filter((s) => !studentBreakdown.find((sb) => sb.studentName === s.name))
-  .map(
-    (s, i) => `
-║   ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
-║      Package: ${s.package || "NOT SET"}
-║      Day Package: ${s.daypackages || "NOT SET"}
-║      Status: ${s.status}
-║      Zoom Links: ${s.zoom_links?.length || 0}
-║      Occupied Times: ${s.occupiedTimes?.length || 0}
-║      ⚠️ REASON: Not processed in calculateBaseSalary - check assignment periods
-`
-  )
-  .join("")}
-╚═══════════════════════════════════════════════════════════════════════════════
-      `);
-    }
 
     return {
       totalSalary,
