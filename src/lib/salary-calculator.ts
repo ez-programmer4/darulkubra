@@ -1961,23 +1961,47 @@ Day Package: ${studentDaypackage} (from teacher change period)
     let totalDeduction = 0;
     const breakdown: any[] = [];
 
-    // Group zoom links by date (EXACT same logic as preview API)
+    // Group zoom links by date with teacher change period filtering
     const dailyZoomLinks = new Map<string, any[]>();
 
     for (const student of allStudents) {
       student.zoom_links?.forEach((link: any) => {
         if (link.sent_time) {
+          const linkDate = new Date(link.sent_time);
           const dateStr = format(link.sent_time, "yyyy-MM-dd");
-          if (!dailyZoomLinks.has(dateStr)) {
-            dailyZoomLinks.set(dateStr, []);
+
+          // 🔧 CRITICAL FIX: Filter zoom links based on teacher change periods
+          let shouldIncludeLink = true;
+
+          // Check if this student had a teacher change during the period
+          const studentChange = teacherChanges.find(
+            (change) => change.student_id === student.wdt_ID
+          );
+
+          if (studentChange) {
+            if (teacherId === studentChange.old_teacher_id) {
+              // For old teacher: only include links BEFORE the change date
+              shouldIncludeLink =
+                linkDate < new Date(studentChange.change_date);
+            } else if (teacherId === studentChange.new_teacher_id) {
+              // For new teacher: only include links AFTER the change date
+              shouldIncludeLink =
+                linkDate >= new Date(studentChange.change_date);
+            }
           }
-          dailyZoomLinks.get(dateStr)!.push({
-            ...link,
-            studentId: student.wdt_ID,
-            studentName: student.name,
-            studentPackage: student.package,
-            timeSlot: student.occupiedTimes?.[0]?.time_slot,
-          });
+
+          if (shouldIncludeLink) {
+            if (!dailyZoomLinks.has(dateStr)) {
+              dailyZoomLinks.set(dateStr, []);
+            }
+            dailyZoomLinks.get(dateStr)!.push({
+              ...link,
+              studentId: student.wdt_ID,
+              studentName: student.name,
+              studentPackage: student.package,
+              timeSlot: student.occupiedTimes?.[0]?.time_slot,
+            });
+          }
         }
       });
     }
