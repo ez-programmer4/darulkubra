@@ -138,6 +138,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
+      action,
       teacherId,
       period,
       status,
@@ -146,7 +147,68 @@ export async function POST(req: NextRequest) {
       absenceDeduction,
       bonuses,
       processPaymentNow = false,
+      month,
+      year,
     } = body;
+
+    // Handle debug action
+    if (action === "debug") {
+      const session = await getToken({
+        req,
+        secret: process.env.NEXTAUTH_SECRET,
+      });
+
+      if (!session || session.role !== "admin") {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      try {
+        const calculator = await getSalaryCalculator();
+
+        // Calculate date range
+        const selectedMonth = month || new Date().getMonth() + 1;
+        const selectedYear = year || new Date().getFullYear();
+        const startDate = `${selectedYear}-${String(selectedMonth).padStart(
+          2,
+          "0"
+        )}-01`;
+        const lastDayOfMonth = new Date(
+          selectedYear,
+          selectedMonth,
+          0
+        ).getDate();
+        const endDate = `${selectedYear}-${String(selectedMonth).padStart(
+          2,
+          "0"
+        )}-${String(lastDayOfMonth).padStart(2, "0")}`;
+
+        const fromDate = parseISO(startDate);
+        const toDate = parseISO(endDate);
+
+        // Calculate all teacher salaries with debug info
+        const teachersData = await calculator.calculateAllTeacherSalaries(
+          fromDate,
+          toDate
+        );
+
+        return NextResponse.json({
+          debug: true,
+          period: `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`,
+          teachers: teachersData,
+          message:
+            "Debug information collected. Check server logs for detailed debug output.",
+        });
+      } catch (error) {
+        return NextResponse.json(
+          {
+            debug: true,
+            error: error instanceof Error ? error.message : "Unknown error",
+            message: "Debug failed. Check server logs for details.",
+          },
+          { status: 500 }
+        );
+      }
+    }
 
     // Validate session
     const session = await getToken({

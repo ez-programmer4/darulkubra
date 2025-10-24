@@ -186,6 +186,7 @@ export default function TeacherPaymentsClient({
   const [showSettings, setShowSettings] = useState(false);
   const [showTeacherChangeValidator, setShowTeacherChangeValidator] =
     useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>("");
   const [includeSundays, setIncludeSundays] = useState(initialIncludeSundays);
   const [showTeacherSalary, setShowTeacherSalary] = useState(
     initialShowTeacherSalary
@@ -233,6 +234,41 @@ export default function TeacherPaymentsClient({
       }
     }
   }, [searchParams, selectedMonth, selectedYear]);
+
+  // Debug function to fetch debug information
+  const fetchDebugInfo = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/admin/teacher-payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "debug",
+          month: selectedMonth,
+          year: selectedYear,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDebugInfo(JSON.stringify(data, null, 2));
+        toast({
+          title: "Debug Info",
+          description: "Debug information loaded. Check the debug panel below.",
+        });
+      } else {
+        throw new Error("Failed to fetch debug info");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch debug information",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedMonth, selectedYear]);
 
   // Refresh data by navigating to the same URL with clearCache
   const refreshWithCacheClear = useCallback(async () => {
@@ -517,6 +553,15 @@ export default function TeacherPaymentsClient({
             >
               <FiTrash2 className="w-4 h-4" />
               Clear Cache
+            </Button>
+            <Button
+              onClick={fetchDebugInfo}
+              disabled={loading}
+              variant="outline"
+              className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border-blue-200"
+            >
+              <FiInfo className="w-4 h-4" />
+              Debug Info
             </Button>
           </div>
         </div>
@@ -1095,6 +1140,36 @@ export default function TeacherPaymentsClient({
           />
         </DialogContent>
       </Dialog>
+
+      {/* Debug Panel */}
+      {debugInfo && (
+        <Card className="mt-4 border border-blue-200 shadow-sm">
+          <CardHeader className="bg-blue-50">
+            <CardTitle className="flex items-center gap-2 text-blue-900">
+              <FiInfo className="w-5 h-5" />
+              Debug Information
+            </CardTitle>
+            <CardDescription className="text-blue-700">
+              Debug logs for salary calculation
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-auto max-h-96 whitespace-pre-wrap">
+              {debugInfo}
+            </pre>
+            <div className="mt-4 flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setDebugInfo("")}
+                className="text-gray-600"
+              >
+                <FiX className="w-4 h-4 mr-2" />
+                Close Debug
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
