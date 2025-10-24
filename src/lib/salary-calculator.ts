@@ -693,7 +693,8 @@ ${i + 1}. Student: ${p.studentName} (ID: ${p.studentId})
     // Get students who were assigned to this teacher during the period
     // This includes both current assignments and historical assignments
     // IMPORTANT: Include students with ANY status if they have zoom links during the period
-    // This ensures teachers get paid even if student left mid-month
+    // This ensures teachers get paid even if student status changed mid-month
+    // (Leave, Completed, Not Succeed, etc.) - zoom links are evidence of teaching
 
     // First, get current students assigned to this teacher
     // Include ALL students (any status) who were taught during the period
@@ -869,7 +870,8 @@ ${i + 1}. Student: ${p.studentName} (ID: ${p.studentId})
     });
 
     // Add students found through zoom links
-    // Include ALL students regardless of status - if teacher sent zoom links, they should be paid
+    // Include ALL students regardless of status (Active, Leave, Completed, Not Succeed, etc.)
+    // If teacher sent zoom links, they should be paid - zoom links are evidence of teaching
     const existingStudentIds = new Set(allStudents.map((s) => s.wdt_ID));
 
     for (const zoomLink of zoomLinkStudents) {
@@ -1479,15 +1481,25 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
         }
       }
 
-      // CRITICAL FIX: For "Leave" status students, occupied_times records are deleted
+      // CRITICAL FIX: For "Leave", "Completed", and "Not Succeed" status students,
+      // occupied_times records may be deleted or student status changed mid-month
       // So we MUST use zoom links as the source of truth for teaching period
-      // Matches: "Leave", "Ramadan Leave", "Is Leave", etc.
+      // Matches: "Leave", "Ramadan Leave", "Is Leave", "Completed", "Not Succeed", etc.
       const isLeaveStudent = student.status?.toLowerCase().includes("leave");
+      const isCompletedStudent = student.status
+        ?.toLowerCase()
+        .includes("completed");
+      const isNotSucceedStudent =
+        student.status?.toLowerCase().includes("not succeed") ||
+        student.status?.toLowerCase().includes("notsucceed");
+
+      const isSpecialStatusStudent =
+        isLeaveStudent || isCompletedStudent || isNotSucceedStudent;
 
       // Check if we have zoom links to work with
       const hasZoomLinks = student.zoom_links && student.zoom_links.length > 0;
 
-      if (isLeaveStudent && hasZoomLinks) {
+      if (isSpecialStatusStudent && hasZoomLinks) {
         // Get zoom date range
         const zoomDates = student.zoom_links
           .filter((link: any) => link.sent_time)
@@ -1533,10 +1545,19 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
             if (isDebugStudent) {
               console.log(`
 ╔═══════════════════════════════════════════════════════════════════════════════
-║ 🔄 LEAVE STUDENT - Overriding with Zoom Links
+║ 🔄 SPECIAL STATUS STUDENT - Overriding with Zoom Links
 ╠═══════════════════════════════════════════════════════════════════════════════
 ║ Student: ${student.name}
 ║ Status: ${student.status} ⚠️
+║ Type: ${
+                isLeaveStudent
+                  ? "Leave"
+                  : isCompletedStudent
+                  ? "Completed"
+                  : isNotSucceedStudent
+                  ? "Not Succeed"
+                  : "Unknown"
+              }
 ║ 
 ║ REASON: ${overrideReason}
 ║ 
@@ -1572,7 +1593,8 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
       }
 
       // If no specific periods found, check if teacher has zoom links for this student
-      // This handles the case where teacher was transferred but still has zoom links
+      // This handles the case where teacher was transferred, or student status changed mid-month
+      // (Leave, Completed, Not Succeed) but teacher still has zoom links as evidence of teaching
       if (periods.length === 0) {
         // Check if teacher has any zoom links for this student during the period
         const hasZoomLinks =
