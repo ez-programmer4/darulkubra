@@ -1718,8 +1718,44 @@ Total Days: ${
       let totalEarned = 0;
       const periodBreakdown = [];
 
-      // Debug info for specific student
-      const debugInfo: any = null;
+      // Debug info for specific student - enhanced for "Not Succeed" students
+      const debugInfo: any = {
+        studentName: student.name,
+        status: student.status,
+        isNotSucceed:
+          student.status?.toLowerCase().includes("not succeed") ||
+          student.status?.toLowerCase().includes("notsucceed"),
+        isCompleted: student.status?.toLowerCase().includes("completed"),
+        isLeave: student.status?.toLowerCase().includes("leave"),
+        zoomLinksCount: student.zoom_links?.length || 0,
+        periodsCount: periods.length,
+        hasTeacherChangePeriod: !!student.teacherChangePeriod,
+        debugMessage: "",
+      };
+
+      // Add specific debug message for "Not Succeed" students
+      if (debugInfo.isNotSucceed) {
+        debugInfo.debugMessage = `🔍 NOT SUCCEED STUDENT DEBUG:
+Status: ${student.status}
+Zoom Links: ${student.zoom_links?.length || 0}
+Periods: ${periods.length}
+Teacher Change Period: ${student.teacherChangePeriod ? "Yes" : "No"}
+Expected to be paid based on zoom links: ${
+          student.zoom_links?.length > 0 ? "Yes" : "No"
+        }`;
+      } else if (debugInfo.isCompleted) {
+        debugInfo.debugMessage = `🔍 COMPLETED STUDENT DEBUG:
+Status: ${student.status}
+Zoom Links: ${student.zoom_links?.length || 0}
+Periods: ${periods.length}
+Teacher Change Period: ${student.teacherChangePeriod ? "Yes" : "No"}`;
+      } else if (debugInfo.isLeave) {
+        debugInfo.debugMessage = `🔍 LEAVE STUDENT DEBUG:
+Status: ${student.status}
+Zoom Links: ${student.zoom_links?.length || 0}
+Periods: ${periods.length}
+Teacher Change Period: ${student.teacherChangePeriod ? "Yes" : "No"}`;
+      }
 
       for (const period of periods) {
         const periodStart = new Date(
