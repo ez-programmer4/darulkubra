@@ -887,6 +887,15 @@ ${i + 1}. Student: ${p.studentName} (ID: ${p.studentId})
           select: { sent_time: true },
         });
 
+        // 🔍 DEBUG: Log students found through zoom links
+        console.log(`
+🔍 STUDENT FOUND THROUGH ZOOM LINKS:
+Student: ${student.name}
+Status: ${student.status}
+Zoom Links: ${studentZoomLinks.length}
+Teacher ID: ${teacherId}
+        `);
+
         allStudents.push({
           wdt_ID: student.wdt_ID,
           name: student.name,
@@ -1213,6 +1222,22 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
       `);
     }
 
+    // 🔍 DEBUG: Log final student list for debugging
+    console.log(`
+🔍 FINAL STUDENT LIST FOR TEACHER ${teacherId}:
+Total Students: ${allStudents.length}
+Students with Special Status: ${
+      allStudents.filter(
+        (s) =>
+          s.status?.toLowerCase().includes("leave") ||
+          s.status?.toLowerCase().includes("completed") ||
+          s.status?.toLowerCase().includes("not succeed") ||
+          s.status?.toLowerCase().includes("notsucceed")
+      ).length
+    }
+Students: ${allStudents.map((s) => `${s.name} (${s.status})`).join(", ")}
+    `);
+
     return allStudents;
   }
 
@@ -1337,6 +1362,22 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
     teacherChangePeriods: any[] = [],
     teacherId: string
   ) {
+    // 🔍 DEBUG: Log students being processed for salary calculation
+    console.log(`
+🔍 CALCULATING BASE SALARY FOR TEACHER ${teacherId}:
+Total Students: ${students.length}
+Students with Special Status: ${students
+      .filter(
+        (s) =>
+          s.status?.toLowerCase().includes("leave") ||
+          s.status?.toLowerCase().includes("completed") ||
+          s.status?.toLowerCase().includes("not succeed") ||
+          s.status?.toLowerCase().includes("notsucceed")
+      )
+      .map((s) => `${s.name} (${s.status})`)
+      .join(", ")}
+    `);
+
     const packageSalaries = await prisma.packageSalary.findMany();
     const salaryMap: Record<string, number> = {};
     packageSalaries.forEach((pkg) => {
@@ -1496,10 +1537,37 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
       const isSpecialStatusStudent =
         isLeaveStudent || isCompletedStudent || isNotSucceedStudent;
 
+      // 🔍 DEBUG: Log special status students for debugging
+      if (isSpecialStatusStudent) {
+        console.log(`
+🔍 SPECIAL STATUS STUDENT DETECTED:
+Student: ${student.name}
+Status: ${student.status}
+Type: ${
+          isLeaveStudent
+            ? "Leave"
+            : isCompletedStudent
+            ? "Completed"
+            : isNotSucceedStudent
+            ? "Not Succeed"
+            : "Unknown"
+        }
+Zoom Links: ${student.zoom_links?.length || 0}
+Current Periods: ${periods.length}
+        `);
+      }
+
       // Check if we have zoom links to work with
       const hasZoomLinks = student.zoom_links && student.zoom_links.length > 0;
 
       if (isSpecialStatusStudent && hasZoomLinks) {
+        console.log(`
+🔍 PROCESSING SPECIAL STATUS STUDENT WITH ZOOM LINKS:
+Student: ${student.name}
+Status: ${student.status}
+Zoom Links Count: ${student.zoom_links.length}
+        `);
+
         // Get zoom date range
         const zoomDates = student.zoom_links
           .filter((link: any) => link.sent_time)
@@ -1588,6 +1656,20 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
                 student: student,
               },
             ];
+
+            console.log(`
+🔍 PERIOD OVERRIDE COMPLETED:
+Student: ${student.name}
+New Period: ${firstZoom.toISOString().split("T")[0]} to ${
+              lastZoom.toISOString().split("T")[0]
+            }
+Total Days: ${
+              Math.ceil(
+                (lastZoom.getTime() - firstZoom.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              ) + 1
+            }
+            `);
           }
         }
       }
