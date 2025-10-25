@@ -793,7 +793,8 @@ export default function TeacherSalaryPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {salaryData.breakdown.studentBreakdown.length > 0 ? (
+                  {salaryData.breakdown.studentBreakdown &&
+                  salaryData.breakdown.studentBreakdown.length > 0 ? (
                     <div className="space-y-4">
                       {salaryData.breakdown.studentBreakdown.map(
                         (student, index) => (
@@ -836,6 +837,7 @@ export default function TeacherSalaryPage() {
                             {/* Show period breakdown if teacher changes occurred */}
                             {student.teacherChanges &&
                               student.periods &&
+                              Array.isArray(student.periods) &&
                               student.periods.length > 0 && (
                                 <div className="mt-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
                                   <h5 className="font-medium text-orange-900 mb-3 flex items-center gap-2">
@@ -843,55 +845,74 @@ export default function TeacherSalaryPage() {
                                     Your Teaching Periods for This Student
                                   </h5>
                                   <div className="space-y-3">
-                                    {student.periods.map(
-                                      (period, periodIndex) => (
-                                        <div
-                                          key={periodIndex}
-                                          className="p-3 bg-white rounded-lg border border-orange-200"
-                                        >
-                                          <div className="flex items-center justify-between mb-2">
-                                            <div className="flex items-center gap-2">
-                                              <div
-                                                className={`px-2 py-1 rounded text-xs font-medium ${
-                                                  period.teacherRole ===
+                                    {student.periods &&
+                                      Array.isArray(student.periods) &&
+                                      student.periods.map(
+                                        (period, periodIndex) => (
+                                          <div
+                                            key={periodIndex}
+                                            className="p-3 bg-white rounded-lg border border-orange-200"
+                                          >
+                                            <div className="flex items-center justify-between mb-2">
+                                              <div className="flex items-center gap-2">
+                                                <div
+                                                  className={`px-2 py-1 rounded text-xs font-medium ${
+                                                    period.teacherRole ===
+                                                    "old_teacher"
+                                                      ? "bg-red-100 text-red-700"
+                                                      : "bg-green-100 text-green-700"
+                                                  }`}
+                                                >
+                                                  {period.teacherRole ===
                                                   "old_teacher"
-                                                    ? "bg-red-100 text-red-700"
-                                                    : "bg-green-100 text-green-700"
-                                                }`}
-                                              >
+                                                    ? "Previous Teacher"
+                                                    : "Current Teacher"}
+                                                </div>
+                                                <span className="text-sm font-medium text-gray-700">
+                                                  {period.period}
+                                                </span>
+                                              </div>
+                                              <div className="text-right">
+                                                <div className="text-sm font-bold text-gray-900">
+                                                  {formatCurrency(
+                                                    period.periodEarnings
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <div className="flex items-center justify-between text-xs text-gray-600">
+                                              <span>
+                                                {period.daysWorked} days ×{" "}
+                                                {formatCurrency(
+                                                  period.dailyRate
+                                                )}
+                                                /day
+                                              </span>
+                                              <span>
                                                 {period.teacherRole ===
                                                 "old_teacher"
-                                                  ? "Previous Teacher"
-                                                  : "Current Teacher"}
-                                              </div>
-                                              <span className="text-sm font-medium text-gray-700">
-                                                {period.period}
+                                                  ? "You taught before the change"
+                                                  : "You took over after the change"}
                                               </span>
                                             </div>
-                                            <div className="text-right">
-                                              <div className="text-sm font-bold text-gray-900">
-                                                {formatCurrency(
-                                                  period.periodEarnings
-                                                )}
-                                              </div>
-                                            </div>
+                                            {period.teachingDates &&
+                                              Array.isArray(
+                                                period.teachingDates
+                                              ) &&
+                                              period.teachingDates.length >
+                                                0 && (
+                                                <div className="mt-2 text-xs text-gray-500">
+                                                  <strong>
+                                                    Teaching Dates:
+                                                  </strong>{" "}
+                                                  {period.teachingDates.join(
+                                                    ", "
+                                                  )}
+                                                </div>
+                                              )}
                                           </div>
-                                          <div className="flex items-center justify-between text-xs text-gray-600">
-                                            <span>
-                                              {period.daysWorked} days ×{" "}
-                                              {formatCurrency(period.dailyRate)}
-                                              /day
-                                            </span>
-                                            <span>
-                                              {period.teacherRole ===
-                                              "old_teacher"
-                                                ? "You taught before the change"
-                                                : "You took over after the change"}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      )
-                                    )}
+                                        )
+                                      )}
                                   </div>
                                   <div className="mt-3 p-2 bg-orange-100 rounded text-xs text-orange-800">
                                     <strong>Explanation:</strong> This student
@@ -929,7 +950,8 @@ export default function TeacherSalaryPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {salaryData.breakdown.latenessBreakdown.length > 0 ? (
+                    {salaryData.breakdown.latenessBreakdown &&
+                    salaryData.breakdown.latenessBreakdown.length > 0 ? (
                       <div className="space-y-3">
                         {salaryData.breakdown.latenessBreakdown.map(
                           (record, index) => (
@@ -990,7 +1012,8 @@ export default function TeacherSalaryPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {salaryData.breakdown.absenceBreakdown.length > 0 ? (
+                    {salaryData.breakdown.absenceBreakdown &&
+                    salaryData.breakdown.absenceBreakdown.length > 0 ? (
                       <div className="space-y-3">
                         {salaryData.breakdown.absenceBreakdown.map(
                           (record, index) => (
@@ -1064,7 +1087,8 @@ export default function TeacherSalaryPage() {
                       </div>
                       <div className="text-center p-4 bg-green-50 rounded-lg">
                         <div className="text-2xl font-bold text-green-600">
-                          {salaryData.breakdown.summary.workingDaysInMonth}
+                          {salaryData.breakdown.summary?.workingDaysInMonth ||
+                            0}
                         </div>
                         <div className="text-sm text-green-700">
                           Working Days
@@ -1072,7 +1096,8 @@ export default function TeacherSalaryPage() {
                       </div>
                       <div className="text-center p-4 bg-purple-50 rounded-lg">
                         <div className="text-2xl font-bold text-purple-600">
-                          {salaryData.breakdown.summary.actualTeachingDays}
+                          {salaryData.breakdown.summary?.actualTeachingDays ||
+                            0}
                         </div>
                         <div className="text-sm text-purple-700">
                           Teaching Days
@@ -1081,7 +1106,8 @@ export default function TeacherSalaryPage() {
                       <div className="text-center p-4 bg-orange-50 rounded-lg">
                         <div className="text-2xl font-bold text-orange-600">
                           {formatCurrency(
-                            salaryData.breakdown.summary.averageDailyEarning
+                            salaryData.breakdown.summary?.averageDailyEarning ||
+                              0
                           )}
                         </div>
                         <div className="text-sm text-orange-700">
@@ -1097,8 +1123,10 @@ export default function TeacherSalaryPage() {
                         </span>
                         <span className="text-sm font-medium text-gray-700">
                           {Math.round(
-                            (salaryData.breakdown.summary.actualTeachingDays /
-                              salaryData.breakdown.summary.workingDaysInMonth) *
+                            ((salaryData.breakdown.summary
+                              ?.actualTeachingDays || 0) /
+                              (salaryData.breakdown.summary
+                                ?.workingDaysInMonth || 1)) *
                               100
                           )}
                           %
@@ -1109,9 +1137,10 @@ export default function TeacherSalaryPage() {
                           className="bg-green-500 h-2 rounded-full transition-all duration-300"
                           style={{
                             width: `${
-                              (salaryData.breakdown.summary.actualTeachingDays /
-                                salaryData.breakdown.summary
-                                  .workingDaysInMonth) *
+                              ((salaryData.breakdown.summary
+                                ?.actualTeachingDays || 0) /
+                                (salaryData.breakdown.summary
+                                  ?.workingDaysInMonth || 1)) *
                               100
                             }%`,
                           }}

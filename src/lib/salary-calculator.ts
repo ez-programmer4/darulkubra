@@ -279,14 +279,14 @@ export class SalaryCalculator {
           (s) => s.teacherChanges
         ),
         breakdown: {
-          dailyEarnings: baseSalaryData.dailyEarnings,
-          studentBreakdown: baseSalaryData.studentBreakdown,
-          latenessBreakdown: latenessData.breakdown,
-          absenceBreakdown: absenceData.breakdown,
+          dailyEarnings: baseSalaryData.dailyEarnings || [],
+          studentBreakdown: baseSalaryData.studentBreakdown || [],
+          latenessBreakdown: latenessData.breakdown || [],
+          absenceBreakdown: absenceData.breakdown || [],
           summary: {
-            workingDaysInMonth: baseSalaryData.workingDays,
-            actualTeachingDays: baseSalaryData.teachingDays,
-            averageDailyEarning: baseSalaryData.averageDailyEarning,
+            workingDaysInMonth: baseSalaryData.workingDays || 0,
+            actualTeachingDays: baseSalaryData.teachingDays || 0,
+            averageDailyEarning: baseSalaryData.averageDailyEarning || 0,
             totalDeductions:
               latenessData.totalDeduction + absenceData.totalDeduction,
             netSalary: Number(
