@@ -2130,6 +2130,26 @@ Day Package: ${studentDaypackage} (from teacher change period)
         });
       });
 
+      // 🔍 DEBUG: Check MUBAREK RAHMETO's Not succeed students
+      const isMubarek =
+        teacherId.toLowerCase().includes("mubarek") ||
+        teacherId.toLowerCase().includes("rahmeto");
+      if (isMubarek && debugInfo.isNotSucceed) {
+        console.log(`
+🔍 MUBAREK NOT SUCCEED DEBUG:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student: ${student.name}
+Status: ${student.status}
+Monthly Package Salary: ${monthlyPackageSalary}
+Daily Rate: ${dailyRate}
+Total Earned: ${totalEarned}
+Days Worked: ${studentTeachingDates.size}
+Zoom Links: ${student.zoom_links?.length || 0}
+Will be added to breakdown: ${totalEarned > 0 ? "YES" : "NO"}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        `);
+      }
+
       if (totalEarned > 0) {
         studentBreakdown.push({
           studentName: student.name || "Unknown",
