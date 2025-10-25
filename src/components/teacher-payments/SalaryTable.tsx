@@ -1055,89 +1055,29 @@ export default function SalaryTable({
                                         </div>
                                       </div>
 
-                                      {student.debugInfo.periods &&
-                                        student.debugInfo.periods.length >
-                                          0 && (
+                                      {student.studentInfo &&
+                                        student.studentInfo.zoomLinkDates &&
+                                        student.studentInfo.zoomLinkDates
+                                          .length > 0 && (
                                           <div className="mt-3 space-y-2">
                                             <span className="font-medium text-gray-700 text-xs">
-                                              Period Details:
+                                              Zoom Link Dates:
                                             </span>
                                             {(
-                                              student.debugInfo.periods || []
+                                              student.studentInfo
+                                                .zoomLinkDates || []
                                             ).map(
-                                              (period: any, pIdx: number) => (
+                                              (date: string, pIdx: number) => (
                                                 <div
                                                   key={pIdx}
                                                   className="bg-white border border-gray-200 rounded p-2 text-xs"
                                                 >
                                                   <div className="font-medium text-gray-900 mb-1">
-                                                    {period.period}
+                                                    Zoom Link Date: {date}
                                                   </div>
-                                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                                                    <div>
-                                                      <span className="text-gray-600">
-                                                        Zoom Links:
-                                                      </span>
-                                                      <div className="font-medium">
-                                                        {
-                                                          period.zoomLinksInPeriod
-                                                        }
-                                                      </div>
-                                                    </div>
-                                                    <div>
-                                                      <span className="text-gray-600">
-                                                        Expected Days:
-                                                      </span>
-                                                      <div className="font-medium">
-                                                        {
-                                                          period.expectedTeachingDays
-                                                        }
-                                                      </div>
-                                                    </div>
-                                                    <div>
-                                                      <span className="text-gray-600">
-                                                        Teaching Days:
-                                                      </span>
-                                                      <div className="font-medium">
-                                                        {
-                                                          period.teachingDates
-                                                            .length
-                                                        }
-                                                      </div>
-                                                    </div>
-                                                    <div>
-                                                      <span className="text-gray-600">
-                                                        Earnings:
-                                                      </span>
-                                                      <div className="font-medium">
-                                                        {formatCurrency(
-                                                          period.periodEarnings
-                                                        )}
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                  <div className="mt-1">
-                                                    <span className="text-gray-600">
-                                                      Teaching Dates:
-                                                    </span>
-                                                    <div className="flex flex-wrap gap-1 mt-0.5">
-                                                      {(
-                                                        period.teachingDates ||
-                                                        []
-                                                      ).map(
-                                                        (
-                                                          date: string,
-                                                          dIdx: number
-                                                        ) => (
-                                                          <span
-                                                            key={dIdx}
-                                                            className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs"
-                                                          >
-                                                            {date}
-                                                          </span>
-                                                        )
-                                                      )}
-                                                    </div>
+                                                  <div className="text-xs text-gray-600">
+                                                    This zoom link was sent on{" "}
+                                                    {date}
                                                   </div>
                                                 </div>
                                               )
@@ -1156,7 +1096,8 @@ export default function SalaryTable({
 
                     {/* Show period breakdown for students with teacher changes */}
                     {selectedTeacher.breakdown.studentBreakdown.some(
-                      (s) => s.teacherChanges && s.periods
+                      (s) =>
+                        s.teacherChanges && s.periods && s.periods.length > 0
                     ) && (
                       <div className="mt-6">
                         <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -1165,7 +1106,12 @@ export default function SalaryTable({
                         </h4>
                         <div className="space-y-4">
                           {(selectedTeacher.breakdown.studentBreakdown || [])
-                            .filter((s) => s.teacherChanges && s.periods)
+                            .filter(
+                              (s) =>
+                                s.teacherChanges &&
+                                s.periods &&
+                                s.periods.length > 0
+                            )
                             .map((student, studentIndex) => (
                               <div
                                 key={studentIndex}
