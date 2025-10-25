@@ -178,6 +178,46 @@ export default function TeacherSalaryPage() {
       }
 
       const data = await response.json();
+
+      // Ensure data has proper structure to prevent map errors
+      if (data && data.breakdown) {
+        // Ensure all arrays are properly initialized
+        if (!data.breakdown.dailyEarnings) data.breakdown.dailyEarnings = [];
+        if (!data.breakdown.studentBreakdown)
+          data.breakdown.studentBreakdown = [];
+        if (!data.breakdown.latenessBreakdown)
+          data.breakdown.latenessBreakdown = [];
+        if (!data.breakdown.absenceBreakdown)
+          data.breakdown.absenceBreakdown = [];
+        if (!data.breakdown.summary) {
+          data.breakdown.summary = {
+            workingDaysInMonth: 0,
+            actualTeachingDays: 0,
+            averageDailyEarning: 0,
+            totalDeductions: 0,
+            netSalary: 0,
+          };
+        }
+
+        // Ensure each student has proper structure
+        if (
+          data.breakdown.studentBreakdown &&
+          Array.isArray(data.breakdown.studentBreakdown)
+        ) {
+          data.breakdown.studentBreakdown.forEach((student: any) => {
+            if (!student.periods) student.periods = [];
+            if (!Array.isArray(student.periods)) student.periods = [];
+
+            // Ensure each period has proper structure
+            student.periods.forEach((period: any) => {
+              if (!period.teachingDates) period.teachingDates = [];
+              if (!Array.isArray(period.teachingDates))
+                period.teachingDates = [];
+            });
+          });
+        }
+      }
+
       setSalaryData(data);
       setLastUpdated(new Date());
     } catch (err) {
