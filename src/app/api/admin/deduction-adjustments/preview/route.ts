@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
           };
         });
 
-        // Get all students assigned to this teacher during the period (EXACT same as salary calculator)
+        // Get ALL students assigned to this teacher (same as salary calculator)
         // IMPORTANT: Include students with ANY status - teacher should be evaluated for all students taught
         // even if student left mid-month (they should still get deductions for missed days before leaving)
         const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
@@ -67,13 +67,6 @@ export async function POST(req: NextRequest) {
               {
                 ustaz: teacherId,
                 // No status filter - include all students
-                occupiedTimes: {
-                  some: {
-                    ustaz_id: teacherId,
-                    occupied_at: { lte: endDate },
-                    OR: [{ end_at: null }, { end_at: { gte: startDate } }],
-                  },
-                },
               },
               // Historical assignments from audit logs (any status)
               {
@@ -81,8 +74,6 @@ export async function POST(req: NextRequest) {
                 occupiedTimes: {
                   some: {
                     ustaz_id: teacherId,
-                    occupied_at: { lte: endDate },
-                    OR: [{ end_at: null }, { end_at: { gte: startDate } }],
                   },
                 },
               },
@@ -92,8 +83,6 @@ export async function POST(req: NextRequest) {
             occupiedTimes: {
               where: {
                 ustaz_id: teacherId,
-                occupied_at: { lte: endDate },
-                OR: [{ end_at: null }, { end_at: { gte: startDate } }],
               },
               select: {
                 time_slot: true,
