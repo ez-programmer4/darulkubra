@@ -63,6 +63,20 @@ interface TeacherSalaryData {
       }>;
       teacherChanges: boolean;
       debugInfo?: any;
+      studentInfo?: {
+        studentId: number;
+        studentStatus: string;
+        package: string;
+        daypackage: string;
+        zoomLinksTotal: number;
+        zoomLinkDates: string[];
+        isNotSucceed: boolean;
+        isCompleted: boolean;
+        isLeave: boolean;
+        isActive: boolean;
+        isNotYet: boolean;
+        statusReason: string;
+      };
     }>;
     latenessBreakdown: Array<{
       date: string;
@@ -871,15 +885,34 @@ export default function SalaryTable({
                                 <td className="px-4 py-2 text-sm text-gray-900">
                                   <div className="flex items-center gap-2">
                                     {student.studentName}
-                                    {student.debugInfo && (
+                                    {student.studentInfo && (
                                       <div className="flex items-center gap-1">
-                                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                                          {student.debugInfo.studentStatus ||
-                                            "Not succeed"}
+                                        <span
+                                          className={`text-xs px-2 py-0.5 rounded-full ${
+                                            student.studentInfo
+                                              .studentStatus === "Not succeed"
+                                              ? "bg-red-100 text-red-700"
+                                              : student.studentInfo
+                                                  .studentStatus === "Completed"
+                                              ? "bg-green-100 text-green-700"
+                                              : student.studentInfo
+                                                  .studentStatus === "Leave"
+                                              ? "bg-yellow-100 text-yellow-700"
+                                              : student.studentInfo
+                                                  .studentStatus === "Active"
+                                              ? "bg-blue-100 text-blue-700"
+                                              : "bg-gray-100 text-gray-700"
+                                          }`}
+                                        >
+                                          {student.studentInfo.studentStatus}
                                         </span>
-                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                          🔍 DEBUG
-                                        </span>
+                                        {(student.studentInfo.isNotSucceed ||
+                                          student.studentInfo.isCompleted ||
+                                          student.studentInfo.isLeave) && (
+                                          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                                            Special Status
+                                          </span>
+                                        )}
                                       </div>
                                     )}
                                   </div>
@@ -913,16 +946,16 @@ export default function SalaryTable({
                                 </td>
                               </tr>
 
-                              {/* Debug Info Row */}
-                              {student.debugInfo && (
+                              {/* Enhanced Student Info Row */}
+                              {student.studentInfo && (
                                 <tr>
                                   <td
                                     colSpan={7}
-                                    className="px-4 py-4 bg-blue-50 border-b border-blue-200"
+                                    className="px-4 py-4 bg-gray-50 border-b border-gray-200"
                                   >
                                     <div className="space-y-3">
-                                      <div className="font-semibold text-sm text-blue-900 mb-2">
-                                        🔍 Debug Information for{" "}
+                                      <div className="font-semibold text-sm text-gray-900 mb-2">
+                                        📊 Student Information for{" "}
                                         {student.studentName}
                                       </div>
 
@@ -932,7 +965,7 @@ export default function SalaryTable({
                                             Student ID:
                                           </span>
                                           <div className="text-gray-900">
-                                            {student.debugInfo.studentId}
+                                            {student.studentInfo.studentId}
                                           </div>
                                         </div>
                                         <div>
@@ -941,7 +974,7 @@ export default function SalaryTable({
                                           </span>
                                           <div className="text-gray-900">
                                             <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">
-                                              {student.debugInfo
+                                              {student.studentInfo
                                                 .studentStatus || "Unknown"}
                                             </span>
                                           </div>
@@ -951,7 +984,7 @@ export default function SalaryTable({
                                             Package:
                                           </span>
                                           <div className="text-gray-900">
-                                            {student.debugInfo.package ||
+                                            {student.studentInfo.package ||
                                               "None"}
                                           </div>
                                         </div>
@@ -960,7 +993,7 @@ export default function SalaryTable({
                                             Daypackage:
                                           </span>
                                           <div className="text-gray-900">
-                                            {student.debugInfo.daypackage ||
+                                            {student.studentInfo.daypackage ||
                                               "None"}
                                           </div>
                                         </div>
@@ -972,16 +1005,15 @@ export default function SalaryTable({
                                             Total Zoom Links:
                                           </span>
                                           <div className="text-gray-900">
-                                            {student.debugInfo.zoomLinksTotal}
+                                            {student.studentInfo.zoomLinksTotal}
                                           </div>
                                         </div>
                                         <div>
                                           <span className="font-medium text-gray-700">
-                                            Debug Reason:
+                                            Status Reason:
                                           </span>
                                           <div className="text-gray-900 text-xs">
-                                            {student.debugInfo.debugReason ||
-                                              "Not succeed student"}
+                                            {student.studentInfo.statusReason}
                                           </div>
                                         </div>
                                         <div>
@@ -1010,7 +1042,7 @@ export default function SalaryTable({
                                         </span>
                                         <div className="flex flex-wrap gap-1 mt-1">
                                           {(
-                                            student.debugInfo.zoomLinkDates ||
+                                            student.studentInfo.zoomLinkDates ||
                                             []
                                           ).map((date: string, idx: number) => (
                                             <span

@@ -59,6 +59,20 @@ export interface TeacherSalaryData {
       }>;
       teacherChanges: boolean;
       debugInfo?: any;
+      studentInfo?: {
+        studentId: number;
+        studentStatus: string;
+        package: string;
+        daypackage: string;
+        zoomLinksTotal: number;
+        zoomLinkDates: string[];
+        isNotSucceed: boolean;
+        isCompleted: boolean;
+        isLeave: boolean;
+        isActive: boolean;
+        isNotYet: boolean;
+        statusReason: string;
+      };
     }>;
     latenessBreakdown: Array<{
       date: string;
@@ -1580,6 +1594,20 @@ Students with Special Status: ${students
       periods?: Array<any>;
       teacherChanges: boolean;
       debugInfo?: any;
+      studentInfo?: {
+        studentId: number;
+        studentStatus: string;
+        package: string;
+        daypackage: string;
+        zoomLinksTotal: number;
+        zoomLinkDates: string[];
+        isNotSucceed: boolean;
+        isCompleted: boolean;
+        isLeave: boolean;
+        isActive: boolean;
+        isNotYet: boolean;
+        statusReason: string;
+      };
     }> = [];
     const teacherPeriods = new Map<
       string,
@@ -2130,26 +2158,6 @@ Day Package: ${studentDaypackage} (from teacher change period)
         });
       });
 
-      // 🔍 DEBUG: Check MUBAREK RAHMETO's Not succeed students
-      const isMubarek =
-        teacherId.toLowerCase().includes("mubarek") ||
-        teacherId.toLowerCase().includes("rahmeto");
-      if (isMubarek && debugInfo.isNotSucceed) {
-        console.log(`
-🔍 MUBAREK NOT SUCCEED DEBUG:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Student: ${student.name}
-Status: ${student.status}
-Monthly Package Salary: ${monthlyPackageSalary}
-Daily Rate: ${dailyRate}
-Total Earned: ${totalEarned}
-Days Worked: ${studentTeachingDates.size}
-Zoom Links: ${student.zoom_links?.length || 0}
-Will be added to breakdown: ${totalEarned > 0 ? "YES" : "NO"}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        `);
-      }
-
       if (totalEarned > 0) {
         studentBreakdown.push({
           studentName: student.name || "Unknown",
@@ -2160,24 +2168,31 @@ Will be added to breakdown: ${totalEarned > 0 ? "YES" : "NO"}
           totalEarned: totalEarned,
           periods: periodBreakdown,
           teacherChanges: periods.length > 1,
-          debugInfo: debugInfo.isNotSucceed
-            ? {
-                ...debugInfo,
-                studentStatus: student.status,
-                studentId: student.wdt_ID,
-                package: student.package,
-                daypackage: student.daypackages,
-                zoomLinksTotal: student.zoom_links?.length || 0,
-                zoomLinkDates:
-                  student.zoom_links?.map(
-                    (link: any) =>
-                      new Date(link.sent_time).toISOString().split("T")[0]
-                  ) || [],
-                isNotSucceed: true,
-                debugReason:
-                  "Not succeed student with zoom links - teacher should be paid",
-              }
-            : undefined, // Only show debug for Not succeed students
+          // Enhanced student information for all students
+          studentInfo: {
+            studentId: student.wdt_ID,
+            studentStatus: student.status,
+            package: student.package,
+            daypackage: student.daypackages,
+            zoomLinksTotal: student.zoom_links?.length || 0,
+            zoomLinkDates:
+              student.zoom_links?.map(
+                (link: any) =>
+                  new Date(link.sent_time).toISOString().split("T")[0]
+              ) || [],
+            isNotSucceed: debugInfo.isNotSucceed,
+            isCompleted: debugInfo.isCompleted,
+            isLeave: debugInfo.isLeave,
+            isActive: debugInfo.isActive,
+            isNotYet: debugInfo.isNotYet,
+            statusReason: debugInfo.isNotSucceed
+              ? "Not succeed student with zoom links - teacher should be paid"
+              : debugInfo.isCompleted
+              ? "Completed student with zoom links - teacher should be paid"
+              : debugInfo.isLeave
+              ? "Leave student with zoom links - teacher should be paid"
+              : "Active student - normal calculation",
+          },
         });
       }
     }
