@@ -54,19 +54,72 @@ export async function POST(req: NextRequest) {
           };
         });
 
-        // Get current students (same as teacher payments)
+        // Get ALL students assigned to this teacher (same as salary calculator)
+        // IMPORTANT: Include students with ANY status - teacher should be evaluated for all students taught
+        // even if student left mid-month (they should still get deductions for missed days before leaving)
         const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
-          where: { ustaz: teacherId, status: { in: ["active", "Active"] } },
-          select: {
-            wdt_ID: true,
-            name: true,
-            package: true,
+          where: {
+            OR: [
+              // Current assignments (any status)
+              {
+                ustaz: teacherId,
+                // No status filter - include all students
+              },
+              // Historical assignments from audit logs (any status)
+              {
+                // No status filter - include all students
+                occupiedTimes: {
+                  some: {
+                    ustaz_id: teacherId,
+                  },
+                },
+              },
+            ],
+          },
+          include: {
+            occupiedTimes: {
+              where: {
+                ustaz_id: teacherId,
+              },
+              select: {
+                time_slot: true,
+                daypackage: true,
+                occupied_at: true,
+                end_at: true,
+              },
+            },
             zoom_links: {
               where: {
+                ustazid: teacherId,
                 sent_time: { gte: startDate, lte: endDate },
               },
               select: { sent_time: true },
             },
+            attendance_progress: {
+              where: {
+                date: { gte: startDate, lte: endDate },
+              },
+              select: {
+                date: true,
+                attendance_status: true,
+              },
+            },
+          },
+        });
+
+        // Get teacher change history for proper assignment validation
+        const teacherChanges = await prisma.teacher_change_history.findMany({
+          where: {
+            OR: [{ old_teacher_id: teacherId }, { new_teacher_id: teacherId }],
+            change_date: {
+              lte: endDate,
+            },
+          },
+          select: {
+            student_id: true,
+            old_teacher_id: true,
+            new_teacher_id: true,
+            change_date: true,
           },
         });
 
@@ -267,6 +320,62 @@ export async function POST(req: NextRequest) {
           return false;
         };
 
+        // Helper function to check if teacher is assigned to student on specific date
+        const isTeacherAssignedOnDate = (
+          studentId: number,
+          date: Date,
+          occupiedTimes: Array<{
+            occupied_at: Date | null;
+            end_at: Date | null;
+          }>
+        ): boolean => {
+          // Get all teacher changes for this student, sorted by date
+          const studentChanges = teacherChanges
+            .filter((tc) => tc.student_id === studentId)
+            .sort((a, b) => a.change_date.getTime() - b.change_date.getTime());
+
+          if (studentChanges.length > 0) {
+            // Find the most recent change before or on this date
+            let currentTeacherOnDate: string | null = null;
+
+            for (const change of studentChanges) {
+              const changeDate = new Date(change.change_date);
+              changeDate.setHours(0, 0, 0, 0);
+              const checkDate = new Date(date);
+              checkDate.setHours(0, 0, 0, 0);
+
+              if (checkDate < changeDate) {
+                // This change hasn't happened yet on checkDate
+                // Use the old teacher if this is the first change
+                if (studentChanges[0] === change && change.old_teacher_id) {
+                  currentTeacherOnDate = change.old_teacher_id;
+                }
+                break;
+              } else {
+                // This change has happened by checkDate
+                currentTeacherOnDate = change.new_teacher_id;
+              }
+            }
+
+            return currentTeacherOnDate === teacherId;
+          }
+
+          // No teacher changes, check regular assignment period
+          for (const ot of occupiedTimes) {
+            const assignmentStart = ot.occupied_at
+              ? new Date(ot.occupied_at)
+              : null;
+            const assignmentEnd = ot.end_at ? new Date(ot.end_at) : null;
+
+            if (assignmentStart && date < assignmentStart) continue;
+            if (assignmentEnd && date > assignmentEnd) continue;
+
+            return true;
+          }
+
+          return false;
+        };
+
         // Helper to parse daypackage
         const parseDaypackage = (dp: string): number[] => {
           if (!dp || dp.trim() === "") return [];
@@ -331,7 +440,7 @@ export async function POST(req: NextRequest) {
           let dailyDeduction = 0;
           const affectedStudents = [];
 
-          for (const student of studentsWithOccupiedTimes) {
+          for (const student of currentStudents) {
             // Check if teacher was actually assigned to this student on this date (considering teacher changes)
             const isAssigned = isTeacherAssignedOnDate(
               student.wdt_ID,

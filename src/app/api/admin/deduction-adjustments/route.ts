@@ -117,31 +117,23 @@ export async function POST(req: NextRequest) {
             };
           });
 
-          // Get current students with occupied times for proper daypackage checking
-          // Use OR to catch both current assignments AND historical assignments (teacher changes)
+          // Get ALL students assigned to this teacher (same as salary calculator)
+          // IMPORTANT: Include students with ANY status - teacher should be evaluated for all students taught
+          // even if student left mid-month (they should still get deductions for missed days before leaving)
           const currentStudents = await tx.wpos_wpdatatable_23.findMany({
             where: {
               OR: [
-                // Current assignment (active or not yet)
+                // Current assignments (any status)
                 {
                   ustaz: teacherId,
-                  status: { in: ["active", "Active", "Not yet", "not yet"] },
-                  occupiedTimes: {
-                    some: {
-                      ustaz_id: teacherId,
-                      occupied_at: { lte: endDate },
-                      OR: [{ end_at: null }, { end_at: { gte: startDate } }],
-                    },
-                  },
+                  // No status filter - include all students
                 },
-                // Historical assignment via occupiedTimes (catches teacher changes)
+                // Historical assignments from audit logs (any status)
                 {
-                  status: { in: ["active", "Active", "Not yet", "not yet"] },
+                  // No status filter - include all students
                   occupiedTimes: {
                     some: {
                       ustaz_id: teacherId,
-                      occupied_at: { lte: endDate },
-                      OR: [{ end_at: null }, { end_at: { gte: startDate } }],
                     },
                   },
                 },
@@ -151,8 +143,6 @@ export async function POST(req: NextRequest) {
               occupiedTimes: {
                 where: {
                   ustaz_id: teacherId,
-                  occupied_at: { lte: endDate },
-                  OR: [{ end_at: null }, { end_at: { gte: startDate } }],
                 },
                 select: {
                   time_slot: true,
