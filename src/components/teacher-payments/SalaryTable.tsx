@@ -863,208 +863,214 @@ export default function SalaryTable({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {selectedTeacher.breakdown.studentBreakdown.map(
-                            (student, index) => (
-                              <React.Fragment key={index}>
-                                <tr>
-                                  <td className="px-4 py-2 text-sm text-gray-900">
-                                    <div className="flex items-center gap-2">
-                                      {student.studentName}
-                                      {student.debugInfo && (
-                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                          🔍 DEBUG
-                                        </span>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-600">
-                                    {student.package}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-600">
-                                    {formatCurrency(student.monthlyRate)}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-600">
-                                    {formatCurrency(student.dailyRate)}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-600">
-                                    {student.daysWorked}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm font-medium text-gray-900">
-                                    {formatCurrency(student.totalEarned)}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm">
-                                    {student.teacherChanges ? (
-                                      <Badge
-                                        variant="outline"
-                                        className="text-xs bg-orange-50 text-orange-700 border-orange-200"
-                                      >
-                                        Yes
-                                      </Badge>
-                                    ) : (
-                                      <span className="text-gray-500">No</span>
+                          {(
+                            selectedTeacher.breakdown.studentBreakdown || []
+                          ).map((student, index) => (
+                            <React.Fragment key={index}>
+                              <tr>
+                                <td className="px-4 py-2 text-sm text-gray-900">
+                                  <div className="flex items-center gap-2">
+                                    {student.studentName}
+                                    {student.debugInfo && (
+                                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                        🔍 DEBUG
+                                      </span>
                                     )}
-                                  </td>
-                                </tr>
-
-                                {/* Debug Info Row */}
-                                {student.debugInfo && (
-                                  <tr>
-                                    <td
-                                      colSpan={7}
-                                      className="px-4 py-4 bg-blue-50 border-b border-blue-200"
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {student.package}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {formatCurrency(student.monthlyRate)}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {formatCurrency(student.dailyRate)}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {student.daysWorked}
+                                </td>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                                  {formatCurrency(student.totalEarned)}
+                                </td>
+                                <td className="px-4 py-2 text-sm">
+                                  {student.teacherChanges ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs bg-orange-50 text-orange-700 border-orange-200"
                                     >
-                                      <div className="space-y-3">
-                                        <div className="font-semibold text-sm text-blue-900 mb-2">
-                                          🔍 Debug Information for{" "}
-                                          {student.studentName}
-                                        </div>
+                                      Yes
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-gray-500">No</span>
+                                  )}
+                                </td>
+                              </tr>
 
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                                          <div>
-                                            <span className="font-medium text-gray-700">
-                                              Student ID:
-                                            </span>
-                                            <div className="text-gray-900">
-                                              {student.debugInfo.studentId}
-                                            </div>
-                                          </div>
-                                          <div>
-                                            <span className="font-medium text-gray-700">
-                                              Package:
-                                            </span>
-                                            <div className="text-gray-900">
-                                              {student.debugInfo.package ||
-                                                "None"}
-                                            </div>
-                                          </div>
-                                          <div>
-                                            <span className="font-medium text-gray-700">
-                                              Daypackage:
-                                            </span>
-                                            <div className="text-gray-900">
-                                              {student.debugInfo.daypackage ||
-                                                "None"}
-                                            </div>
-                                          </div>
-                                          <div>
-                                            <span className="font-medium text-gray-700">
-                                              Total Zoom Links:
-                                            </span>
-                                            <div className="text-gray-900">
-                                              {student.debugInfo.zoomLinksTotal}
-                                            </div>
-                                          </div>
-                                        </div>
+                              {/* Debug Info Row */}
+                              {student.debugInfo && (
+                                <tr>
+                                  <td
+                                    colSpan={7}
+                                    className="px-4 py-4 bg-blue-50 border-b border-blue-200"
+                                  >
+                                    <div className="space-y-3">
+                                      <div className="font-semibold text-sm text-blue-900 mb-2">
+                                        🔍 Debug Information for{" "}
+                                        {student.studentName}
+                                      </div>
 
-                                        <div className="mt-2">
-                                          <span className="font-medium text-gray-700 text-xs">
-                                            Zoom Link Dates:
+                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                        <div>
+                                          <span className="font-medium text-gray-700">
+                                            Student ID:
                                           </span>
-                                          <div className="flex flex-wrap gap-1 mt-1">
-                                            {student.debugInfo.zoomLinkDates.map(
-                                              (date: string, idx: number) => (
-                                                <span
-                                                  key={idx}
-                                                  className="px-2 py-0.5 bg-white border border-gray-300 rounded text-xs"
-                                                >
-                                                  {date}
-                                                </span>
-                                              )
-                                            )}
+                                          <div className="text-gray-900">
+                                            {student.debugInfo.studentId}
                                           </div>
                                         </div>
+                                        <div>
+                                          <span className="font-medium text-gray-700">
+                                            Package:
+                                          </span>
+                                          <div className="text-gray-900">
+                                            {student.debugInfo.package ||
+                                              "None"}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium text-gray-700">
+                                            Daypackage:
+                                          </span>
+                                          <div className="text-gray-900">
+                                            {student.debugInfo.daypackage ||
+                                              "None"}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium text-gray-700">
+                                            Total Zoom Links:
+                                          </span>
+                                          <div className="text-gray-900">
+                                            {student.debugInfo.zoomLinksTotal}
+                                          </div>
+                                        </div>
+                                      </div>
 
-                                        {student.debugInfo.periods &&
-                                          student.debugInfo.periods.length >
-                                            0 && (
-                                            <div className="mt-3 space-y-2">
-                                              <span className="font-medium text-gray-700 text-xs">
-                                                Period Details:
-                                              </span>
-                                              {student.debugInfo.periods.map(
-                                                (period: any, pIdx: number) => (
-                                                  <div
-                                                    key={pIdx}
-                                                    className="bg-white border border-gray-200 rounded p-2 text-xs"
-                                                  >
-                                                    <div className="font-medium text-gray-900 mb-1">
-                                                      {period.period}
-                                                    </div>
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                                                      <div>
-                                                        <span className="text-gray-600">
-                                                          Zoom Links:
-                                                        </span>
-                                                        <div className="font-medium">
-                                                          {
-                                                            period.zoomLinksInPeriod
-                                                          }
-                                                        </div>
-                                                      </div>
-                                                      <div>
-                                                        <span className="text-gray-600">
-                                                          Expected Days:
-                                                        </span>
-                                                        <div className="font-medium">
-                                                          {
-                                                            period.expectedTeachingDays
-                                                          }
-                                                        </div>
-                                                      </div>
-                                                      <div>
-                                                        <span className="text-gray-600">
-                                                          Teaching Days:
-                                                        </span>
-                                                        <div className="font-medium">
-                                                          {
-                                                            period.teachingDates
-                                                              .length
-                                                          }
-                                                        </div>
-                                                      </div>
-                                                      <div>
-                                                        <span className="text-gray-600">
-                                                          Earnings:
-                                                        </span>
-                                                        <div className="font-medium">
-                                                          {formatCurrency(
-                                                            period.periodEarnings
-                                                          )}
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                    <div className="mt-1">
+                                      <div className="mt-2">
+                                        <span className="font-medium text-gray-700 text-xs">
+                                          Zoom Link Dates:
+                                        </span>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {(
+                                            student.debugInfo.zoomLinkDates ||
+                                            []
+                                          ).map((date: string, idx: number) => (
+                                            <span
+                                              key={idx}
+                                              className="px-2 py-0.5 bg-white border border-gray-300 rounded text-xs"
+                                            >
+                                              {date}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {student.debugInfo.periods &&
+                                        student.debugInfo.periods.length >
+                                          0 && (
+                                          <div className="mt-3 space-y-2">
+                                            <span className="font-medium text-gray-700 text-xs">
+                                              Period Details:
+                                            </span>
+                                            {(
+                                              student.debugInfo.periods || []
+                                            ).map(
+                                              (period: any, pIdx: number) => (
+                                                <div
+                                                  key={pIdx}
+                                                  className="bg-white border border-gray-200 rounded p-2 text-xs"
+                                                >
+                                                  <div className="font-medium text-gray-900 mb-1">
+                                                    {period.period}
+                                                  </div>
+                                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                                    <div>
                                                       <span className="text-gray-600">
-                                                        Teaching Dates:
+                                                        Zoom Links:
                                                       </span>
-                                                      <div className="flex flex-wrap gap-1 mt-0.5">
-                                                        {period.teachingDates.map(
-                                                          (
-                                                            date: string,
-                                                            dIdx: number
-                                                          ) => (
-                                                            <span
-                                                              key={dIdx}
-                                                              className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs"
-                                                            >
-                                                              {date}
-                                                            </span>
-                                                          )
+                                                      <div className="font-medium">
+                                                        {
+                                                          period.zoomLinksInPeriod
+                                                        }
+                                                      </div>
+                                                    </div>
+                                                    <div>
+                                                      <span className="text-gray-600">
+                                                        Expected Days:
+                                                      </span>
+                                                      <div className="font-medium">
+                                                        {
+                                                          period.expectedTeachingDays
+                                                        }
+                                                      </div>
+                                                    </div>
+                                                    <div>
+                                                      <span className="text-gray-600">
+                                                        Teaching Days:
+                                                      </span>
+                                                      <div className="font-medium">
+                                                        {
+                                                          period.teachingDates
+                                                            .length
+                                                        }
+                                                      </div>
+                                                    </div>
+                                                    <div>
+                                                      <span className="text-gray-600">
+                                                        Earnings:
+                                                      </span>
+                                                      <div className="font-medium">
+                                                        {formatCurrency(
+                                                          period.periodEarnings
                                                         )}
                                                       </div>
                                                     </div>
                                                   </div>
-                                                )
-                                              )}
-                                            </div>
-                                          )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </React.Fragment>
-                            )
-                          )}
+                                                  <div className="mt-1">
+                                                    <span className="text-gray-600">
+                                                      Teaching Dates:
+                                                    </span>
+                                                    <div className="flex flex-wrap gap-1 mt-0.5">
+                                                      {(
+                                                        period.teachingDates ||
+                                                        []
+                                                      ).map(
+                                                        (
+                                                          date: string,
+                                                          dIdx: number
+                                                        ) => (
+                                                          <span
+                                                            key={dIdx}
+                                                            className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs"
+                                                          >
+                                                            {date}
+                                                          </span>
+                                                        )
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              )
+                                            )}
+                                          </div>
+                                        )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          ))}
                         </tbody>
                       </table>
                     </div>
@@ -1079,7 +1085,7 @@ export default function SalaryTable({
                           Teacher Change Periods
                         </h4>
                         <div className="space-y-4">
-                          {selectedTeacher.breakdown.studentBreakdown
+                          {(selectedTeacher.breakdown.studentBreakdown || [])
                             .filter((s) => s.teacherChanges && s.periods)
                             .map((student, studentIndex) => (
                               <div
@@ -1099,7 +1105,7 @@ export default function SalaryTable({
                                   period
                                 </div>
                                 <div className="space-y-2">
-                                  {student.periods?.map(
+                                  {(student.periods || []).map(
                                     (period, periodIndex) => (
                                       <div
                                         key={periodIndex}
@@ -1189,27 +1195,27 @@ export default function SalaryTable({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200">
-                            {selectedTeacher.breakdown.latenessBreakdown.map(
-                              (record, index) => (
-                                <tr key={index}>
-                                  <td className="px-4 py-2 text-sm text-gray-900">
-                                    {new Date(record.date).toLocaleDateString()}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-600">
-                                    {record.studentName}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-600">
-                                    {record.latenessMinutes} min
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-600">
-                                    {record.tier}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm font-medium text-red-600">
-                                    -{formatCurrency(record.deduction)}
-                                  </td>
-                                </tr>
-                              )
-                            )}
+                            {(
+                              selectedTeacher.breakdown.latenessBreakdown || []
+                            ).map((record, index) => (
+                              <tr key={index}>
+                                <td className="px-4 py-2 text-sm text-gray-900">
+                                  {new Date(record.date).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {record.studentName}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {record.latenessMinutes} min
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {record.tier}
+                                </td>
+                                <td className="px-4 py-2 text-sm font-medium text-red-600">
+                                  -{formatCurrency(record.deduction)}
+                                </td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>
@@ -1260,42 +1266,42 @@ export default function SalaryTable({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200">
-                            {selectedTeacher.breakdown.absenceBreakdown.map(
-                              (record, index) => (
-                                <tr key={index}>
-                                  <td className="px-4 py-2 text-sm text-gray-900">
-                                    {new Date(record.date).toLocaleDateString()}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-600">
-                                    {record.studentName}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-600">
-                                    {record.studentPackage}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-600">
-                                    {record.reason}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm">
-                                    {record.permitted ? (
-                                      <Badge className="bg-green-100 text-green-800 border-green-200">
-                                        ✓ Permitted
-                                      </Badge>
-                                    ) : record.waived ? (
-                                      <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                                        ✓ Waived
-                                      </Badge>
-                                    ) : (
-                                      <Badge className="bg-red-100 text-red-800 border-red-200">
-                                        ✗ Unauthorized
-                                      </Badge>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm font-medium text-red-600">
-                                    -{formatCurrency(record.deduction)}
-                                  </td>
-                                </tr>
-                              )
-                            )}
+                            {(
+                              selectedTeacher.breakdown.absenceBreakdown || []
+                            ).map((record, index) => (
+                              <tr key={index}>
+                                <td className="px-4 py-2 text-sm text-gray-900">
+                                  {new Date(record.date).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {record.studentName}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {record.studentPackage}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                  {record.reason}
+                                </td>
+                                <td className="px-4 py-2 text-sm">
+                                  {record.permitted ? (
+                                    <Badge className="bg-green-100 text-green-800 border-green-200">
+                                      ✓ Permitted
+                                    </Badge>
+                                  ) : record.waived ? (
+                                    <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                                      ✓ Waived
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-red-100 text-red-800 border-red-200">
+                                      ✗ Unauthorized
+                                    </Badge>
+                                  )}
+                                </td>
+                                <td className="px-4 py-2 text-sm font-medium text-red-600">
+                                  -{formatCurrency(record.deduction)}
+                                </td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>

@@ -44,7 +44,6 @@ export async function GET(req: NextRequest) {
     const sundayConfig = await prisma.setting.findUnique({
       where: { key: "include_sundays_in_salary" },
     });
-   
 
     // Check if teacher salary visibility is enabled for teachers
     if (token.role === "teacher") {
@@ -198,20 +197,28 @@ export async function GET(req: NextRequest) {
       teachingDays: teacher.teachingDays,
       hasTeacherChanges: teacher.hasTeacherChanges,
       breakdown: {
-        dailyEarnings: teacher.breakdown.dailyEarnings,
-        studentBreakdown: teacher.breakdown.studentBreakdown.map((student) => ({
-          studentName: student.studentName,
-          package: student.package,
-          monthlyRate: student.monthlyRate,
-          dailyRate: student.dailyRate,
-          daysWorked: student.daysWorked,
-          totalEarned: student.totalEarned,
-          teacherChanges: student.teacherChanges,
-          periods: student.periods || [],
-        })),
-        latenessBreakdown: teacher.breakdown.latenessBreakdown,
-        absenceBreakdown: teacher.breakdown.absenceBreakdown,
-        summary: teacher.breakdown.summary,
+        dailyEarnings: teacher.breakdown.dailyEarnings || [],
+        studentBreakdown: (teacher.breakdown.studentBreakdown || []).map(
+          (student) => ({
+            studentName: student.studentName,
+            package: student.package,
+            monthlyRate: student.monthlyRate,
+            dailyRate: student.dailyRate,
+            daysWorked: student.daysWorked,
+            totalEarned: student.totalEarned,
+            teacherChanges: student.teacherChanges,
+            periods: student.periods || [],
+          })
+        ),
+        latenessBreakdown: teacher.breakdown.latenessBreakdown || [],
+        absenceBreakdown: teacher.breakdown.absenceBreakdown || [],
+        summary: teacher.breakdown.summary || {
+          workingDaysInMonth: 0,
+          actualTeachingDays: 0,
+          averageDailyEarning: 0,
+          totalDeductions: 0,
+          netSalary: 0,
+        },
       },
     }));
 
