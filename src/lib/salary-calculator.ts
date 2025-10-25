@@ -1420,91 +1420,6 @@ Teacher ID: ${teacherId}
       orderBy: { sent_time: "desc" },
     });
 
-    // 🔍 FOCUSED DEBUG: Look specifically for Seid Awel
-    if (isDebugTeacher) {
-      const seidAwelZoomLinks = allTeacherZoomLinks.filter(
-        (link) =>
-          link.wpos_wpdatatable_23?.name?.toLowerCase().includes("seid") &&
-          link.wpos_wpdatatable_23?.name?.toLowerCase().includes("awel")
-      );
-
-      console.log(`
-🔍 SEID AWEL DEBUG:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Teacher: ${teacherId}
-Period: ${fromDate.toISOString().split("T")[0]} to ${
-        toDate.toISOString().split("T")[0]
-      }
-Seid Awel Zoom Links: ${seidAwelZoomLinks.length}
-${
-  seidAwelZoomLinks.length > 0
-    ? `
-Zoom Link Details:
-${seidAwelZoomLinks
-  .map(
-    (link, i) => `
-${i + 1}. Student: ${link.wpos_wpdatatable_23?.name} (ID: ${link.studentid})
-    Status: ${link.wpos_wpdatatable_23?.status}
-    Current Teacher: ${link.wpos_wpdatatable_23?.ustaz}
-    Sent Time: ${link.sent_time?.toISOString().split("T")[0]}
-`
-  )
-  .join("")}`
-    : "No Seid Awel zoom links found"
-}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      `);
-    }
-
-    // 🔍 FOCUSED DEBUG: Show final student summary
-    if (isDebugTeacher) {
-      console.log(`
-📊 FINAL STUDENT SUMMARY:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total Students: ${allStudents.length}
-Not Succeed Students: ${
-        allStudents.filter((s) =>
-          s.status?.toLowerCase().includes("not succeed")
-        ).length
-      }
-Completed Students: ${
-        allStudents.filter((s) => s.status?.toLowerCase().includes("completed"))
-          .length
-      }
-Leave Students: ${
-        allStudents.filter((s) => s.status?.toLowerCase().includes("leave"))
-          .length
-      }
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      `);
-    }
-
-    // 🔍 FOCUSED DEBUG: Check if Seid Awel is in the final student list
-    if (isDebugTeacher) {
-      const seidAwelInFinalList = allStudents.find(
-        (s) =>
-          s.name?.toLowerCase().includes("seid") &&
-          s.name?.toLowerCase().includes("awel")
-      );
-      console.log(`
-🔍 SEID AWEL FINAL CHECK:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Teacher: ${teacherId}
-Seid Awel in Final List: ${seidAwelInFinalList ? "✅ YES" : "❌ NO"}
-${
-  seidAwelInFinalList
-    ? `
-- Name: ${seidAwelInFinalList.name}
-- Status: ${seidAwelInFinalList.status}
-- Package: ${seidAwelInFinalList.package}
-- Zoom Links: ${seidAwelInFinalList.zoom_links?.length || 0}
-`
-    : "Seid Awel not found in final student list"
-}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      `);
-    }
-
     return allStudents;
   }
 
@@ -2215,36 +2130,6 @@ Day Package: ${studentDaypackage} (from teacher change period)
         });
       });
 
-      // 🔍 DEBUG: Log earnings calculation for special status students
-      const isDebugTeacher =
-        teacherId.toLowerCase().includes("mubarek") ||
-        teacherId.toLowerCase().includes("rahmeto");
-      if (
-        isDebugTeacher &&
-        (debugInfo.isNotSucceed || debugInfo.isCompleted || debugInfo.isLeave)
-      ) {
-        console.log(`
-🔍 EARNINGS CALCULATION DEBUG:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Student: ${student.name}
-Status: ${student.status}
-Type: ${
-          debugInfo.isNotSucceed
-            ? "Not Succeed"
-            : debugInfo.isCompleted
-            ? "Completed"
-            : "Leave"
-        }
-Monthly Package Salary: ${monthlyPackageSalary}
-Daily Rate: ${dailyRate}
-Total Earned: ${totalEarned}
-Days Worked: ${studentTeachingDates.size}
-Periods: ${periods.length}
-Zoom Links: ${student.zoom_links?.length || 0}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        `);
-      }
-
       if (totalEarned > 0) {
         studentBreakdown.push({
           studentName: student.name || "Unknown",
@@ -2255,23 +2140,8 @@ Zoom Links: ${student.zoom_links?.length || 0}
           totalEarned: totalEarned,
           periods: periodBreakdown,
           teacherChanges: periods.length > 1,
-          debugInfo: debugInfo, // Add debug info for UI display
+          debugInfo: debugInfo.isNotSucceed ? debugInfo : undefined, // Only show debug for Not succeed students
         });
-      } else if (
-        isDebugTeacher &&
-        (debugInfo.isNotSucceed || debugInfo.isCompleted || debugInfo.isLeave)
-      ) {
-        console.log(`
-❌ STUDENT NOT ADDED TO BREAKDOWN:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Student: ${student.name}
-Status: ${student.status}
-Reason: totalEarned = ${totalEarned} (must be > 0)
-Monthly Package Salary: ${monthlyPackageSalary}
-Daily Rate: ${dailyRate}
-Days Worked: ${studentTeachingDates.size}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        `);
       }
     }
 
