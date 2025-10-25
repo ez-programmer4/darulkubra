@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
+
+const TZ = "Asia/Riyadh";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -54,7 +57,7 @@ export async function POST(req: NextRequest) {
           };
         });
 
-        // Get ALL students assigned to this teacher (same as salary calculator)
+        // Get all students assigned to this teacher during the period (EXACT same as salary calculator)
         // IMPORTANT: Include students with ANY status - teacher should be evaluated for all students taught
         // even if student left mid-month (they should still get deductions for missed days before leaving)
         const currentStudents = await prisma.wpos_wpdatatable_23.findMany({
@@ -64,6 +67,13 @@ export async function POST(req: NextRequest) {
               {
                 ustaz: teacherId,
                 // No status filter - include all students
+                occupiedTimes: {
+                  some: {
+                    ustaz_id: teacherId,
+                    occupied_at: { lte: endDate },
+                    OR: [{ end_at: null }, { end_at: { gte: startDate } }],
+                  },
+                },
               },
               // Historical assignments from audit logs (any status)
               {
@@ -71,6 +81,8 @@ export async function POST(req: NextRequest) {
                 occupiedTimes: {
                   some: {
                     ustaz_id: teacherId,
+                    occupied_at: { lte: endDate },
+                    OR: [{ end_at: null }, { end_at: { gte: startDate } }],
                   },
                 },
               },
@@ -80,6 +92,8 @@ export async function POST(req: NextRequest) {
             occupiedTimes: {
               where: {
                 ustaz_id: teacherId,
+                occupied_at: { lte: endDate },
+                OR: [{ end_at: null }, { end_at: { gte: startDate } }],
               },
               select: {
                 time_slot: true,
@@ -239,22 +253,26 @@ export async function POST(req: NextRequest) {
           return false;
         };
 
-        // Helper to parse daypackage
+        // Helper function to parse daypackage (EXACT same as salary calculator)
         const parseDaypackage = (dp: string): number[] => {
-          if (!dp || dp.trim() === "") return [];
+          if (!dp || dp.trim() === "") {
+            return [];
+          }
 
           const dpTrimmed = dp.trim().toUpperCase();
 
+          // Common patterns
           if (dpTrimmed === "ALL DAYS" || dpTrimmed === "ALLDAYS") {
-            return [0, 1, 2, 3, 4, 5, 6];
+            return [0, 1, 2, 3, 4, 5, 6]; // Sunday to Saturday
           }
           if (dpTrimmed === "MWF") {
-            return [1, 3, 5];
+            return [1, 3, 5]; // Monday, Wednesday, Friday
           }
           if (dpTrimmed === "TTS" || dpTrimmed === "TTH") {
-            return [2, 4, 6];
+            return [2, 4, 6]; // Tuesday, Thursday, Saturday
           }
 
+          // Day mapping
           const dayMap: Record<string, number> = {
             MONDAY: 1,
             MON: 1,
@@ -272,26 +290,75 @@ export async function POST(req: NextRequest) {
             SUN: 0,
           };
 
+          // Check for exact day match
           if (dayMap[dpTrimmed] !== undefined) {
             return [dayMap[dpTrimmed]];
+          }
+
+          // Check for numeric patterns
+          const numericMatch = dpTrimmed.match(/\d+/g);
+          if (numericMatch) {
+            const days = numericMatch
+              .map(Number)
+              .filter((d) => d >= 0 && d <= 6);
+            return days;
+          }
+
+          // Check for comma-separated days
+          if (dpTrimmed.includes(",")) {
+            const parts = dpTrimmed.split(",").map((p) => p.trim());
+            const days: number[] = [];
+            for (const part of parts) {
+              const day = dayMap[part] ?? parseInt(part);
+              if (!isNaN(day) && day >= 0 && day <= 6) {
+                days.push(day);
+              }
+            }
+            return days;
           }
 
           return [];
         };
 
-        for (
-          let d = new Date(startDate);
-          d <= endDate;
-          d.setDate(d.getDate() + 1)
-        ) {
-          // Skip future dates
-          if (d > today) continue;
+        // Safe date iteration to avoid invalid dates like Sept 31st (EXACT same as salary calculator)
+        const safeDateIterator = (startDate: Date, endDate: Date) => {
+          const dates: Date[] = [];
+          const current = new Date(startDate);
 
-          const dayOfWeek = d.getDay();
-          const dateStr = format(d, "yyyy-MM-dd");
+          while (current <= endDate) {
+            // Validate the date to avoid invalid dates like Sept 31st
+            const year = current.getFullYear();
+            const month = current.getMonth();
+            const day = current.getDate();
 
-          // Skip Sundays if not included
-          if (!includeSundays && dayOfWeek === 0) continue;
+            // Check if this is a valid date
+            const testDate = new Date(year, month, day);
+            if (
+              testDate.getFullYear() === year &&
+              testDate.getMonth() === month &&
+              testDate.getDate() === day
+            ) {
+              dates.push(new Date(testDate));
+            }
+
+            // Move to next day safely
+            current.setTime(current.getTime() + 24 * 60 * 60 * 1000);
+          }
+
+          return dates;
+        };
+
+        const datesToProcess = safeDateIterator(startDate, endDate);
+
+        for (const d of datesToProcess) {
+          // Convert to timezone-aware date for proper day calculation (EXACT same as salary calculator)
+          const zonedDate = toZonedTime(d, TZ);
+          const dateStr = format(zonedDate, "yyyy-MM-dd");
+          const dayOfWeek = zonedDate.getDay();
+          // Skip Sunday unless configured to include
+          if (dayOfWeek === 0 && !includeSundays) {
+            continue;
+          }
 
           // Skip if we already have a database record for this date
           if (existingAbsenceDates.has(dateStr)) continue;
@@ -303,8 +370,10 @@ export async function POST(req: NextRequest) {
           let dailyDeduction = 0;
           const affectedStudents = [];
 
+          // Check each student (EXACT same logic as salary calculator)
           for (const student of currentStudents) {
-            // Check if teacher was actually assigned to this student on this date (considering teacher changes)
+            // Check if teacher was actually assigned to this student on this date
+            // considering teacher changes
             const isAssigned = isTeacherAssignedOnDate(
               student.wdt_ID,
               d,
@@ -312,10 +381,10 @@ export async function POST(req: NextRequest) {
             );
 
             if (!isAssigned) {
-              continue; // Teacher not assigned on this date due to teacher change
+              continue;
             }
 
-            // Get relevant occupied times for this date
+            // Get relevant occupied times for daypackage checking
             const relevantOccupiedTimes = student.occupiedTimes.filter(
               (ot: any) => {
                 const assignmentStart = ot.occupied_at
@@ -329,29 +398,56 @@ export async function POST(req: NextRequest) {
               }
             );
 
-            if (relevantOccupiedTimes.length === 0) continue;
+            // If no occupied times, check if student has zoom links during the period
+            // If yes, assume they should be taught and check their daypackage
+            if (relevantOccupiedTimes.length === 0) {
+              // Check if student has any zoom links during the period
+              const hasZoomLinksInPeriod = student.zoom_links?.some(
+                (link: any) => {
+                  if (!link.sent_time) return false;
+                  const linkDate = new Date(link.sent_time);
+                  return linkDate >= startDate && linkDate <= endDate;
+                }
+              );
 
-            // Check if student is scheduled on this day of week
-            let isScheduled = false;
-            for (const ot of relevantOccupiedTimes) {
-              const scheduledDays = parseDaypackage(ot.daypackage || "");
-              if (scheduledDays.includes(dayOfWeek)) {
-                isScheduled = true;
-                break;
+              if (!hasZoomLinksInPeriod) {
+                continue;
               }
-              // Fallback: if no daypackage and has zoom links, assume weekdays
-              if (
-                scheduledDays.length === 0 &&
-                student.zoom_links?.length > 0 &&
-                dayOfWeek >= 1 &&
-                dayOfWeek <= 5
-              ) {
-                isScheduled = true;
-                break;
+
+              // Student has zoom links but no occupied times - use all occupied times
+              // This handles cases where occupied times might be missing
+              if (student.occupiedTimes.length > 0) {
+                relevantOccupiedTimes.push(...student.occupiedTimes);
+              } else {
+                continue;
               }
             }
 
-            if (!isScheduled) continue;
+            // Check if student is scheduled on this day
+            let isScheduled = false;
+            let scheduledDays: number[] = [];
+            for (const ot of relevantOccupiedTimes) {
+              const parsedDays = parseDaypackage(ot.daypackage || "");
+              scheduledDays = [...new Set([...scheduledDays, ...parsedDays])];
+
+              if (parsedDays.includes(dayOfWeek)) {
+                isScheduled = true;
+              }
+            }
+
+            // Fallback: if no daypackage at all but has zoom links, assume weekdays
+            // Only apply fallback if scheduledDays is empty (no daypackage defined)
+            if (
+              !isScheduled &&
+              scheduledDays.length === 0 &&
+              student.zoom_links?.length > 0
+            ) {
+              isScheduled = dayOfWeek >= 1 && dayOfWeek <= 5;
+            }
+
+            if (!isScheduled) {
+              continue;
+            }
 
             // Check if student has zoom link for this date
             const hasZoomLink = student.zoom_links?.some((link: any) => {
