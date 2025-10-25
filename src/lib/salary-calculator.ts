@@ -1103,6 +1103,89 @@ Teacher ID: ${teacherId}
 Looking for students with "Not Succeed" status who have zoom links from this teacher
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       `);
+
+      // 🔍 DEBUG: Check ALL "Not succeed" students in database (regardless of zoom links)
+      const allNotSucceedStudents = await prisma.wpos_wpdatatable_23.findMany({
+        where: {
+          status: {
+            contains: "Not succeed",
+          },
+        },
+        select: {
+          wdt_ID: true,
+          name: true,
+          status: true,
+          ustaz: true,
+          zoom_links: {
+            where: {
+              ustazid: teacherId,
+              sent_time: { gte: fromDate, lte: toDate },
+            },
+            select: { sent_time: true, ustazid: true },
+          },
+        },
+      });
+
+      console.log(`
+🔍 ALL "NOT SUCCEED" STUDENTS IN DATABASE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total "Not Succeed" Students: ${allNotSucceedStudents.length}
+${allNotSucceedStudents
+  .map(
+    (s, i) => `
+${i + 1}. ${s.name} (ID: ${s.wdt_ID})
+    Status: ${s.status}
+    Current Teacher: ${s.ustaz || "NOT ASSIGNED"}
+    Zoom Links from ${teacherId}: ${s.zoom_links?.length || 0}
+    ${
+      s.zoom_links?.length > 0
+        ? `Zoom Link Dates: ${s.zoom_links
+            .map((zl: any) => zl.sent_time?.toISOString().split("T")[0])
+            .join(", ")}`
+        : "No Zoom Links from this teacher"
+    }
+`
+  )
+  .join("")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+
+      // 🔍 SPECIAL DEBUG: Look specifically for Seid Awel
+      const seidAwel = allNotSucceedStudents.find(
+        (s) =>
+          s.name?.toLowerCase().includes("seid") &&
+          s.name?.toLowerCase().includes("awel")
+      );
+
+      if (seidAwel) {
+        console.log(`
+🎯 SEID AWEL FOUND IN DATABASE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: ${seidAwel.name}
+ID: ${seidAwel.wdt_ID}
+Status: ${seidAwel.status}
+Current Teacher: ${seidAwel.ustaz || "NOT ASSIGNED"}
+Zoom Links from ${teacherId}: ${seidAwel.zoom_links?.length || 0}
+${
+  seidAwel.zoom_links?.length > 0
+    ? `Zoom Link Dates: ${seidAwel.zoom_links
+        .map((zl: any) => zl.sent_time?.toISOString().split("T")[0])
+        .join(", ")}`
+    : "No Zoom Links from this teacher"
+}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        `);
+      } else {
+        console.log(`
+❌ SEID AWEL NOT FOUND IN "NOT SUCCEED" STUDENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This means either:
+1. Seid Awel doesn't exist in the database
+2. Seid Awel has a different status (not "Not succeed")
+3. Seid Awel's name is spelled differently
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        `);
+      }
     }
 
     // Find all "Not Succeed" students who have zoom links from this teacher
@@ -1146,6 +1229,40 @@ Looking for students with "Not Succeed" status who have zoom links from this tea
         },
       },
     });
+
+    // 🔍 ENHANCED DEBUG: Log all "Not Succeed" students found
+    if (isDebugTeacher) {
+      console.log(`
+🔍 NOT SUCCEED STUDENTS DEBUG:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher ID: ${teacherId}
+Period: ${fromDate.toISOString().split("T")[0]} to ${
+        toDate.toISOString().split("T")[0]
+      }
+Total "Not Succeed" Students Found: ${notSucceedStudents.length}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${notSucceedStudents
+  .map(
+    (s, i) => `
+${i + 1}. ${s.name} (ID: ${s.wdt_ID})
+    Status: ${s.status}
+    Package: ${s.package}
+    Day Package: ${s.daypackages}
+    Zoom Links: ${s.zoom_links?.length || 0}
+    Occupied Times: ${s.occupiedTimes?.length || 0}
+    ${
+      s.zoom_links?.length > 0
+        ? `Zoom Link Dates: ${s.zoom_links
+            .map((zl: any) => zl.sent_time?.toISOString().split("T")[0])
+            .join(", ")}`
+        : "No Zoom Links"
+    }
+`
+  )
+  .join("")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
 
     // Add "Not Succeed" students to the list if not already included
     for (const student of notSucceedStudents) {
@@ -1296,186 +1413,73 @@ Teacher ID: ${teacherId}
             package: true,
             daypackages: true, // ✅ ADDED: Include daypackages field
             ustaz: true,
+            status: true, // ✅ ADDED: Include status field
           },
         },
       },
       orderBy: { sent_time: "desc" },
     });
 
+    // 🔍 FOCUSED DEBUG: Look specifically for Seid Awel
     if (isDebugTeacher) {
-      // SPECIAL DEBUG: Check if Akram Khalid exists in database
-      const allAkramStudents = await prisma.wpos_wpdatatable_23.findMany({
-        select: {
-          wdt_ID: true,
-          name: true,
-          package: true,
-          daypackages: true,
-          status: true,
-          ustaz: true,
-          occupiedTimes: {
-            select: {
-              ustaz_id: true,
-              time_slot: true,
-              daypackage: true,
-              occupied_at: true,
-              end_at: true,
-            },
-          },
-          zoom_links: {
-            where: {
-              sent_time: { gte: fromDate, lte: toDate },
-            },
-            select: {
-              ustazid: true,
-              sent_time: true,
-            },
-          },
-        },
-      });
-
-      // Filter for students with "akram" in name (case insensitive)
-      const akramCheck = allAkramStudents.filter(
-        (s) =>
-          s.name?.toLowerCase().includes("akram") ||
-          s.name?.toLowerCase().includes("khalid")
+      const seidAwelZoomLinks = allTeacherZoomLinks.filter(
+        (link) =>
+          link.wpos_wpdatatable_23?.name?.toLowerCase().includes("seid") &&
+          link.wpos_wpdatatable_23?.name?.toLowerCase().includes("awel")
       );
 
       console.log(`
-╔═══════════════════════════════════════════════════════════════════════════════
-║ 🔍 SPECIAL DEBUG - AKRAM KHALID CHECK
-╠═══════════════════════════════════════════════════════════════════════════════
-║ Found ${akramCheck.length} students with "akram" or "khalid" in name:
-${akramCheck
-  .map(
-    (s: any, i: number) => `
-║   ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
-║      - Current Teacher: ${s.ustaz || "NOT ASSIGNED"}
-║      - Package: ${s.package || "NOT SET"}
-║      - Day Package: ${s.daypackages || "NOT SET"}
-║      - Status: ${s.status}
-║      - Occupied Times: ${s.occupiedTimes?.length || 0}
+🔍 SEID AWEL DEBUG:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher: ${teacherId}
+Period: ${fromDate.toISOString().split("T")[0]} to ${
+        toDate.toISOString().split("T")[0]
+      }
+Seid Awel Zoom Links: ${seidAwelZoomLinks.length}
 ${
-  s.occupiedTimes
-    ?.map(
-      (ot: any, oti: number) => `
-║        OT${oti + 1}: Teacher=${ot.ustaz_id}, TimeSlot=${
-        ot.time_slot
-      }, DayPkg=${ot.daypackage}
-║             Start=${
-        ot.occupied_at
-          ? new Date(ot.occupied_at).toISOString().split("T")[0]
-          : "N/A"
-      }
-║             End=${
-        ot.end_at ? new Date(ot.end_at).toISOString().split("T")[0] : "ONGOING"
-      }
-`
-    )
-    .join("") || ""
-}
-║      - Zoom Links in Period: ${s.zoom_links?.length || 0}
-${
-  s.zoom_links
-    ?.map(
-      (zl: any, zli: number) => `
-║        Zoom${zli + 1}: Teacher=${zl.ustazid}, Date=${
-        zl.sent_time
-          ? new Date(zl.sent_time).toISOString().split("T")[0]
-          : "N/A"
-      }
-`
-    )
-    .join("") || ""
-}
-`
-  )
-  .join("")}
-╚═══════════════════════════════════════════════════════════════════════════════
-      `);
-
-      console.log(`
-📊 DEBUG - Students Found Summary:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total Students Found: ${allStudents.length}
-Current Students: ${currentStudents.length}
-Historical Students: ${historicalStudents.length}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Zoom Links Found: ${allTeacherZoomLinks.length}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Students List:
-${allStudents
-  .map(
-    (s, i) => `
-  ${i + 1}. ${s.name || "Unknown"} (ID: ${s.wdt_ID})
-     - Package: ${s.package || "NOT SET ⚠️"}
-     - Day Package: ${s.daypackages || "NOT SET ⚠️"}
-     - Status: ${s.status}
-     - Zoom Links: ${s.zoom_links?.length || 0}
-     - Occupied Times: ${s.occupiedTimes?.length || 0}
-`
-  )
-  .join("")}
-
-Zoom Links Breakdown:
-${allTeacherZoomLinks
+  seidAwelZoomLinks.length > 0
+    ? `
+Zoom Link Details:
+${seidAwelZoomLinks
   .map(
     (link, i) => `
-  ${i + 1}. Student: ${link.wpos_wpdatatable_23?.name || "Unknown"} (ID: ${
-      link.studentid
-    })
-     - Sent: ${new Date(link.sent_time!).toISOString()}
-     - Current Teacher: ${link.wpos_wpdatatable_23?.ustaz}
-     - Package: ${link.wpos_wpdatatable_23?.package || "NOT SET"}
-     - Day Package: ${link.wpos_wpdatatable_23?.daypackages || "NOT SET"}
+${i + 1}. Student: ${link.wpos_wpdatatable_23?.name} (ID: ${link.studentid})
+    Status: ${link.wpos_wpdatatable_23?.status}
+    Current Teacher: ${link.wpos_wpdatatable_23?.ustaz}
+    Sent Time: ${link.sent_time?.toISOString().split("T")[0]}
 `
   )
-  .join("")}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      `);
-    }
-
-    // 🔍 FINAL DEBUG: Check if Fayz is in the final student list
-    if (isDebugTeacher && (teacherId === "U271" || teacherId === "U361")) {
-      const fayzInFinalList = allStudents.find((s) => s.wdt_ID === 6763);
-      console.log(`
-🔍 FINAL STUDENT LIST CHECK - FAYZ ABDELHASSEN:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Teacher ID: ${teacherId}
-Total Students: ${allStudents.length}
-Fayz in Final List: ${fayzInFinalList ? "✅ YES" : "❌ NO"}
-${
-  fayzInFinalList
-    ? `
-Fayz Details:
-- Name: ${fayzInFinalList.name}
-- Package: ${fayzInFinalList.package}
-- Has Teacher Change Period: ${
-        (fayzInFinalList as any).teacherChangePeriod ? "✅ YES" : "❌ NO"
-      }
-- Zoom Links: ${fayzInFinalList.zoom_links?.length || 0}
-`
-    : ""
+  .join("")}`
+    : "No Seid Awel zoom links found"
 }
-
-🔍 ALL STUDENTS FOR THIS TEACHER:
-${allStudents
-  .map(
-    (s, i) => `
-${i + 1}. ${s.name} (ID: ${s.wdt_ID})
-    Package: ${s.package}
-    Has Teacher Change Period: ${
-      (s as any).teacherChangePeriod ? "✅ YES" : "❌ NO"
-    }
-    Zoom Links: ${s.zoom_links?.length || 0}
-`
-  )
-  .join("")}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       `);
     }
 
-    // 🔍 FINAL DEBUG: Check if Seid Awel is in the final student list
+    // 🔍 FOCUSED DEBUG: Show final student summary
+    if (isDebugTeacher) {
+      console.log(`
+📊 FINAL STUDENT SUMMARY:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total Students: ${allStudents.length}
+Not Succeed Students: ${
+        allStudents.filter((s) =>
+          s.status?.toLowerCase().includes("not succeed")
+        ).length
+      }
+Completed Students: ${
+        allStudents.filter((s) => s.status?.toLowerCase().includes("completed"))
+          .length
+      }
+Leave Students: ${
+        allStudents.filter((s) => s.status?.toLowerCase().includes("leave"))
+          .length
+      }
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
+
+    // 🔍 FOCUSED DEBUG: Check if Seid Awel is in the final student list
     if (isDebugTeacher) {
       const seidAwelInFinalList = allStudents.find(
         (s) =>
@@ -1483,44 +1487,23 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
           s.name?.toLowerCase().includes("awel")
       );
       console.log(`
-🔍 FINAL STUDENT LIST CHECK - SEID AWEL:
+🔍 SEID AWEL FINAL CHECK:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Teacher ID: ${teacherId}
-Total Students: ${allStudents.length}
+Teacher: ${teacherId}
 Seid Awel in Final List: ${seidAwelInFinalList ? "✅ YES" : "❌ NO"}
 ${
   seidAwelInFinalList
     ? `
-Seid Awel Details:
 - Name: ${seidAwelInFinalList.name}
 - Status: ${seidAwelInFinalList.status}
 - Package: ${seidAwelInFinalList.package}
 - Zoom Links: ${seidAwelInFinalList.zoom_links?.length || 0}
-- Has Teacher Change Period: ${
-        (seidAwelInFinalList as any).teacherChangePeriod ? "✅ YES" : "❌ NO"
-      }
 `
-    : ""
+    : "Seid Awel not found in final student list"
 }
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       `);
     }
-
-    // 🔍 DEBUG: Log final student list for debugging
-    console.log(`
-🔍 FINAL STUDENT LIST FOR TEACHER ${teacherId}:
-Total Students: ${allStudents.length}
-Students with Special Status: ${
-      allStudents.filter(
-        (s) =>
-          s.status?.toLowerCase().includes("leave") ||
-          s.status?.toLowerCase().includes("completed") ||
-          s.status?.toLowerCase().includes("not succeed") ||
-          s.status?.toLowerCase().includes("notsucceed")
-      ).length
-    }
-Students: ${allStudents.map((s) => `${s.name} (${s.status})`).join(", ")}
-    `);
 
     return allStudents;
   }
