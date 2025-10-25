@@ -1109,7 +1109,7 @@ Looking for students with "Not Succeed" status who have zoom links from this tea
     const notSucceedStudents = await prisma.wpos_wpdatatable_23.findMany({
       where: {
         status: {
-          contains: "Not Succeed",
+          contains: "Not succeed",
         },
         zoom_links: {
           some: {
