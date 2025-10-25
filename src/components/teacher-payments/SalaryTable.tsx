@@ -872,9 +872,15 @@ export default function SalaryTable({
                                   <div className="flex items-center gap-2">
                                     {student.studentName}
                                     {student.debugInfo && (
-                                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                        🔍 DEBUG
-                                      </span>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                                          {student.debugInfo.studentStatus ||
+                                            "Not succeed"}
+                                        </span>
+                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                          🔍 DEBUG
+                                        </span>
+                                      </div>
                                     )}
                                   </div>
                                 </td>
@@ -931,6 +937,17 @@ export default function SalaryTable({
                                         </div>
                                         <div>
                                           <span className="font-medium text-gray-700">
+                                            Status:
+                                          </span>
+                                          <div className="text-gray-900">
+                                            <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">
+                                              {student.debugInfo
+                                                .studentStatus || "Unknown"}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium text-gray-700">
                                             Package:
                                           </span>
                                           <div className="text-gray-900">
@@ -947,12 +964,42 @@ export default function SalaryTable({
                                               "None"}
                                           </div>
                                         </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs mt-3">
                                         <div>
                                           <span className="font-medium text-gray-700">
                                             Total Zoom Links:
                                           </span>
                                           <div className="text-gray-900">
                                             {student.debugInfo.zoomLinksTotal}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium text-gray-700">
+                                            Debug Reason:
+                                          </span>
+                                          <div className="text-gray-900 text-xs">
+                                            {student.debugInfo.debugReason ||
+                                              "Not succeed student"}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium text-gray-700">
+                                            Monthly Rate:
+                                          </span>
+                                          <div className="text-gray-900">
+                                            {formatCurrency(
+                                              student.monthlyRate
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium text-gray-700">
+                                            Daily Rate:
+                                          </span>
+                                          <div className="text-gray-900">
+                                            {formatCurrency(student.dailyRate)}
                                           </div>
                                         </div>
                                       </div>

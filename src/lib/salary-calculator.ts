@@ -2160,7 +2160,24 @@ Will be added to breakdown: ${totalEarned > 0 ? "YES" : "NO"}
           totalEarned: totalEarned,
           periods: periodBreakdown,
           teacherChanges: periods.length > 1,
-          debugInfo: debugInfo.isNotSucceed ? debugInfo : undefined, // Only show debug for Not succeed students
+          debugInfo: debugInfo.isNotSucceed
+            ? {
+                ...debugInfo,
+                studentStatus: student.status,
+                studentId: student.wdt_ID,
+                package: student.package,
+                daypackage: student.daypackages,
+                zoomLinksTotal: student.zoom_links?.length || 0,
+                zoomLinkDates:
+                  student.zoom_links?.map(
+                    (link: any) =>
+                      new Date(link.sent_time).toISOString().split("T")[0]
+                  ) || [],
+                isNotSucceed: true,
+                debugReason:
+                  "Not succeed student with zoom links - teacher should be paid",
+              }
+            : undefined, // Only show debug for Not succeed students
         });
       }
     }
