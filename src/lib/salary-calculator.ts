@@ -2215,6 +2215,36 @@ Day Package: ${studentDaypackage} (from teacher change period)
         });
       });
 
+      // 🔍 DEBUG: Log earnings calculation for special status students
+      const isDebugTeacher =
+        teacherId.toLowerCase().includes("mubarek") ||
+        teacherId.toLowerCase().includes("rahmeto");
+      if (
+        isDebugTeacher &&
+        (debugInfo.isNotSucceed || debugInfo.isCompleted || debugInfo.isLeave)
+      ) {
+        console.log(`
+🔍 EARNINGS CALCULATION DEBUG:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student: ${student.name}
+Status: ${student.status}
+Type: ${
+          debugInfo.isNotSucceed
+            ? "Not Succeed"
+            : debugInfo.isCompleted
+            ? "Completed"
+            : "Leave"
+        }
+Monthly Package Salary: ${monthlyPackageSalary}
+Daily Rate: ${dailyRate}
+Total Earned: ${totalEarned}
+Days Worked: ${studentTeachingDates.size}
+Periods: ${periods.length}
+Zoom Links: ${student.zoom_links?.length || 0}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        `);
+      }
+
       if (totalEarned > 0) {
         studentBreakdown.push({
           studentName: student.name || "Unknown",
@@ -2227,6 +2257,21 @@ Day Package: ${studentDaypackage} (from teacher change period)
           teacherChanges: periods.length > 1,
           debugInfo: debugInfo, // Add debug info for UI display
         });
+      } else if (
+        isDebugTeacher &&
+        (debugInfo.isNotSucceed || debugInfo.isCompleted || debugInfo.isLeave)
+      ) {
+        console.log(`
+❌ STUDENT NOT ADDED TO BREAKDOWN:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student: ${student.name}
+Status: ${student.status}
+Reason: totalEarned = ${totalEarned} (must be > 0)
+Monthly Package Salary: ${monthlyPackageSalary}
+Daily Rate: ${dailyRate}
+Days Worked: ${studentTeachingDates.size}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        `);
       }
     }
 
