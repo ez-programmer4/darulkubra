@@ -1096,7 +1096,11 @@ export default function SalaryTable({
 
                     {/* Show period breakdown for students with teacher changes */}
                     {selectedTeacher.breakdown.studentBreakdown.some(
-                      (s) => s.teacherChanges && s.periods
+                      (s) =>
+                        s.teacherChanges &&
+                        s.studentInfo &&
+                        s.studentInfo.zoomLinkDates &&
+                        s.studentInfo.zoomLinkDates.length > 0
                     ) && (
                       <div className="mt-6">
                         <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -1105,7 +1109,13 @@ export default function SalaryTable({
                         </h4>
                         <div className="space-y-4">
                           {(selectedTeacher.breakdown.studentBreakdown || [])
-                            .filter((s) => s.teacherChanges && s.periods)
+                            .filter(
+                              (s) =>
+                                s.teacherChanges &&
+                                s.studentInfo &&
+                                s.studentInfo.zoomLinkDates &&
+                                s.studentInfo.zoomLinkDates.length > 0
+                            )
                             .map((student, studentIndex) => (
                               <div
                                 key={studentIndex}
@@ -1124,53 +1134,32 @@ export default function SalaryTable({
                                   period
                                 </div>
                                 <div className="space-y-2">
-                                  {(student.periods || []).map(
-                                    (period, periodIndex) => (
-                                      <div
-                                        key={periodIndex}
-                                        className="p-3 bg-white rounded-lg border border-orange-200"
-                                      >
-                                        <div className="flex items-center justify-between mb-2">
-                                          <div className="flex items-center gap-2">
-                                            <div
-                                              className={`px-2 py-1 rounded text-xs font-medium ${
-                                                period.teacherRole ===
-                                                "old_teacher"
-                                                  ? "bg-red-100 text-red-700"
-                                                  : "bg-green-100 text-green-700"
-                                              }`}
-                                            >
-                                              {period.teacherRole ===
-                                              "old_teacher"
-                                                ? "Previous Teacher"
-                                                : "Current Teacher"}
-                                            </div>
-                                            <span className="text-sm font-medium text-gray-700">
-                                              {period.period}
-                                            </span>
+                                  {(
+                                    student.studentInfo?.zoomLinkDates || []
+                                  ).map((date, periodIndex) => (
+                                    <div
+                                      key={periodIndex}
+                                      className="p-3 bg-white rounded-lg border border-orange-200"
+                                    >
+                                      <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                          <div className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                                            Zoom Link Date
                                           </div>
-                                          <div className="text-sm font-bold text-gray-900">
-                                            {formatCurrency(
-                                              period.periodEarnings
-                                            )}
-                                          </div>
+                                          <span className="text-sm font-medium text-gray-700">
+                                            {date}
+                                          </span>
                                         </div>
-                                        <div className="flex items-center justify-between text-xs text-gray-600">
-                                          <span>
-                                            {period.daysWorked} days ×{" "}
-                                            {formatCurrency(period.dailyRate)}
-                                            /day
-                                          </span>
-                                          <span>
-                                            {period.teacherRole ===
-                                            "old_teacher"
-                                              ? "Taught before the change"
-                                              : "Took over after the change"}
-                                          </span>
+                                        <div className="text-sm font-bold text-gray-900">
+                                          Teaching Day
                                         </div>
                                       </div>
-                                    )
-                                  )}
+                                      <div className="flex items-center justify-between text-xs text-gray-600">
+                                        <span>Zoom link sent on {date}</span>
+                                        <span>Teacher taught this student</span>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                                 <div className="mt-3 p-2 bg-orange-100 rounded text-xs text-orange-800">
                                   <strong>Note:</strong> Teacher was paid for
