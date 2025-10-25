@@ -1195,6 +1195,91 @@ This student should now be included in salary calculation
       }
     }
 
+    // 🔧 CRITICAL FIX: Add specific query for "Completed" students
+    // This ensures teachers get paid for students who completed mid-month but have zoom links
+    if (isDebugTeacher) {
+      console.log(`
+🔧 ADDITIONAL FALLBACK FOR "COMPLETED" STUDENTS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher ID: ${teacherId}
+Looking for students with "Completed" status who have zoom links from this teacher
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
+
+    // Find all "Completed" students who have zoom links from this teacher
+    const completedStudents = await prisma.wpos_wpdatatable_23.findMany({
+      where: {
+        status: {
+          contains: "Completed",
+        },
+        zoom_links: {
+          some: {
+            ustazid: teacherId,
+            sent_time: { gte: fromDate, lte: toDate },
+          },
+        },
+      },
+      select: {
+        wdt_ID: true,
+        name: true,
+        package: true,
+        daypackages: true,
+        status: true,
+        occupiedTimes: {
+          where: {
+            ustaz_id: teacherId,
+            occupied_at: { lte: toDate },
+            OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+          },
+          select: {
+            time_slot: true,
+            daypackage: true,
+            occupied_at: true,
+            end_at: true,
+          },
+        },
+        zoom_links: {
+          where: {
+            ustazid: teacherId,
+            sent_time: { gte: fromDate, lte: toDate },
+          },
+          select: { sent_time: true },
+        },
+      },
+    });
+
+    // Add "Completed" students to the list if not already included
+    for (const student of completedStudents) {
+      if (!existingStudentIds.has(student.wdt_ID)) {
+        // Ensure the student has the required structure
+        const studentWithRequiredFields = {
+          wdt_ID: student.wdt_ID,
+          name: student.name,
+          package: student.package,
+          daypackages: student.daypackages,
+          status: student.status,
+          occupiedTimes: student.occupiedTimes || [],
+          zoom_links: student.zoom_links || [],
+        };
+
+        allStudents.push(studentWithRequiredFields);
+        existingStudentIds.add(student.wdt_ID);
+
+        if (isDebugTeacher) {
+          console.log(`
+✅ ADDED "COMPLETED" STUDENT:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Student: ${student.name} (ID: ${student.wdt_ID})
+Status: ${student.status}
+Zoom Links: ${student.zoom_links?.length || 0}
+Teacher ID: ${teacherId}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          `);
+        }
+      }
+    }
+
     // Debug: Log all zoom links for this teacher
     const allTeacherZoomLinks = await prisma.wpos_zoom_links.findMany({
       where: {
