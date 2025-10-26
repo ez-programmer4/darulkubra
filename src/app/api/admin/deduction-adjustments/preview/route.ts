@@ -67,6 +67,13 @@ export async function POST(req: NextRequest) {
               {
                 ustaz: teacherId,
                 // No status filter - include all students
+                occupiedTimes: {
+                  some: {
+                    ustaz_id: teacherId,
+                    occupied_at: { lte: endDate },
+                    OR: [{ end_at: null }, { end_at: { gte: startDate } }],
+                  },
+                },
               },
               // Historical assignments from audit logs (any status)
               {
@@ -74,6 +81,8 @@ export async function POST(req: NextRequest) {
                 occupiedTimes: {
                   some: {
                     ustaz_id: teacherId,
+                    occupied_at: { lte: endDate },
+                    OR: [{ end_at: null }, { end_at: { gte: startDate } }],
                   },
                 },
               },
@@ -83,6 +92,8 @@ export async function POST(req: NextRequest) {
             occupiedTimes: {
               where: {
                 ustaz_id: teacherId,
+                occupied_at: { lte: endDate },
+                OR: [{ end_at: null }, { end_at: { gte: startDate } }],
               },
               select: {
                 time_slot: true,
