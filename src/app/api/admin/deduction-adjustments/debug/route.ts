@@ -425,8 +425,8 @@ export async function POST(req: NextRequest) {
               const hasZoomLinksInPeriod = student.zoom_links?.some(
                 (link: any) => {
                   if (!link.sent_time) return false;
-                  const linkDate = new Date(link.sent_time);
-                  return linkDate >= startDate && linkDate <= endDate;
+                  // Don't filter by date range here - this was causing inconsistent results
+                  return true;
                 }
               );
 

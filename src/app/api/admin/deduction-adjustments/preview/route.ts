@@ -392,12 +392,13 @@ export async function POST(req: NextRequest) {
             // If no occupied times, check if student has zoom links during the period
             // If yes, assume they should be taught and check their daypackage
             if (relevantOccupiedTimes.length === 0) {
-              // Check if student has any zoom links during the period
+              // Check if student has any zoom links at all (not filtered by date range)
+              // This ensures consistent student inclusion regardless of date range
               const hasZoomLinksInPeriod = student.zoom_links?.some(
                 (link: any) => {
                   if (!link.sent_time) return false;
-                  const linkDate = new Date(link.sent_time);
-                  return linkDate >= startDate && linkDate <= endDate;
+                  // Don't filter by date range here - this was causing inconsistent results
+                  return true;
                 }
               );
 
