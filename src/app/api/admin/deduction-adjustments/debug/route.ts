@@ -51,10 +51,25 @@ export async function POST(req: NextRequest) {
         const teacherDebug = {
           teacherId,
           teacherName: "",
-          students: [],
-          dateAnalysis: [],
+          students: [] as Array<{
+            id: number;
+            name: string;
+            package: string;
+            status: string;
+            zoomLinksCount: number;
+            occupiedTimesCount: number;
+            attendanceRecordsCount: number;
+          }>,
+          dateAnalysis: [] as Array<{
+            date: string;
+            dayOfWeek: number;
+            isSunday: boolean;
+            skipSunday: boolean;
+            hasExistingRecord: boolean;
+            isWaived: boolean;
+          }>,
           totalDeduction: 0,
-          issues: [],
+          issues: [] as string[],
         };
 
         const teacher = await prisma.wpos_wpdatatable_24.findUnique({
@@ -68,7 +83,7 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        teacherDebug.teacherName = teacher.ustazname;
+        teacherDebug.teacherName = teacher.ustazname || "Unknown";
 
         // Get package deduction rates
         const packageDeductions = await prisma.packageDeduction.findMany();
@@ -134,9 +149,9 @@ export async function POST(req: NextRequest) {
 
         teacherDebug.students = currentStudents.map((s) => ({
           id: s.wdt_ID,
-          name: s.name,
-          package: s.package,
-          status: s.status,
+          name: s.name || "Unknown",
+          package: s.package || "Unknown",
+          status: s.status || "Unknown",
           zoomLinksCount: s.zoom_links?.length || 0,
           occupiedTimesCount: s.occupiedTimes?.length || 0,
           attendanceRecordsCount: s.attendance_progress?.length || 0,
@@ -515,7 +530,10 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Debug error:", error);
     return NextResponse.json(
-      { error: "Failed to debug adjustments", details: error.message },
+      {
+        error: "Failed to debug adjustments",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
