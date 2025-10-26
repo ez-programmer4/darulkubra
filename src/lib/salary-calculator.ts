@@ -893,7 +893,9 @@ ${i + 1}. Student: ${p.studentName} (ID: ${p.studentId})
               zoom_links: {
                 where: {
                   ustazid: teacherId, // Only zoom links sent by this teacher
-                  sent_time: { gte: fromDate, lte: toDate },
+                  // CRITICAL FIX: Don't filter by date range here
+                  // This was causing inconsistent results when different date ranges were used
+                  // The date filtering should only happen during the absence calculation loop
                 },
                 select: { sent_time: true },
               },
@@ -919,7 +921,9 @@ ${i + 1}. Student: ${p.studentName} (ID: ${p.studentId})
     const zoomLinkStudents = await prisma.wpos_zoom_links.findMany({
       where: {
         ustazid: teacherId,
-        sent_time: { gte: fromDate, lte: toDate },
+        // CRITICAL FIX: Don't filter by date range here
+        // This was causing inconsistent results when different date ranges were used
+        // The date filtering should only happen during the absence calculation loop
       },
       select: {
         studentid: true,
