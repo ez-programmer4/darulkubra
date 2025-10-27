@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createImprovedSalaryCalculator } from "@/lib/salary-calculator-improved";
+import { ImprovedSalaryCalculator } from "@/lib/salary-calculator-improved";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,24 +15,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const from = new Date(fromDate);
-    const to = new Date(toDate);
-
     console.log(`
-🚀 TESTING IMPROVED SALARY CALCULATOR
+🔍 IMPROVED SALARY CALCULATION API:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Teacher ID: ${teacherId}
-Period: ${fromDate} to ${toDate}
+From Date: ${fromDate}
+To Date: ${toDate}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     `);
 
-    const calculator = await createImprovedSalaryCalculator();
-    const result = await calculator.calculateTeacherSalary(teacherId, from, to);
+    const calculator = new ImprovedSalaryCalculator();
+    const result = await calculator.calculateTeacherSalaryImproved(
+      teacherId,
+      new Date(fromDate),
+      new Date(toDate)
+    );
 
     return NextResponse.json({
       success: true,
-      message: "Improved salary calculation completed",
       data: result,
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error in improved salary calculation:", error);

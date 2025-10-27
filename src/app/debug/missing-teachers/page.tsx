@@ -77,6 +77,8 @@ export default function MissingTeachersDebugPage() {
   const [checkingTeachers, setCheckingTeachers] = useState(false);
   const [zoomLinkHistory, setZoomLinkHistory] = useState<any>(null);
   const [checkingHistory, setCheckingHistory] = useState(false);
+  const [improvedSalaryResults, setImprovedSalaryResults] = useState<any>(null);
+  const [testingImproved, setTestingImproved] = useState(false);
 
   const handleDebug = async () => {
     if (!teacherIds || !fromDate || !toDate) {
@@ -162,6 +164,43 @@ export default function MissingTeachersDebugPage() {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setCheckingHistory(false);
+    }
+  };
+
+  const handleTestImprovedSalary = async () => {
+    setTestingImproved(true);
+    setError(null);
+    setImprovedSalaryResults(null);
+
+    try {
+      const teacherIdList = teacherIds.split(",").map((id) => id.trim());
+      const testPromises = teacherIdList.map(async (teacherId) => {
+        const response = await fetch(
+          `/api/debug/improved-salary?teacherId=${encodeURIComponent(
+            teacherId
+          )}&fromDate=${encodeURIComponent(
+            fromDate
+          )}&toDate=${encodeURIComponent(toDate)}`
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to test improved salary");
+        }
+
+        const data = await response.json();
+        return {
+          teacherId,
+          ...data.data,
+        };
+      });
+
+      const results = await Promise.all(testPromises);
+      setImprovedSalaryResults(results);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setTestingImproved(false);
     }
   };
 
@@ -258,6 +297,13 @@ export default function MissingTeachersDebugPage() {
               variant="outline"
             >
               {checkingHistory ? "Checking..." : "Check Zoom History"}
+            </Button>
+            <Button
+              onClick={handleTestImprovedSalary}
+              disabled={testingImproved}
+              variant="secondary"
+            >
+              {testingImproved ? "Testing..." : "Test Improved Salary"}
             </Button>
           </div>
         </CardContent>
@@ -530,6 +576,106 @@ export default function MissingTeachersDebugPage() {
                   </div>
                 )
               )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {improvedSalaryResults && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Improved Salary Calculator Results</CardTitle>
+            <CardDescription>
+              Salary calculation based on zoom links as the primary source of
+              truth
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {improvedSalaryResults.map((result: any, index: number) => (
+                <div key={index} className="border rounded p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <h4 className="font-semibold text-lg">
+                      {result.teacherName}
+                    </h4>
+                    <div className="flex gap-2">
+                      <Badge variant="default">
+                        {result.numberOfStudents} Students
+                      </Badge>
+                      <Badge variant="secondary">
+                        {result.studentsWithEarnings} With Earnings
+                      </Badge>
+                      <Badge variant="outline">{result.totalSalary} ETB</Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Total Salary
+                      </p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {result.totalSalary} ETB
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Teaching Days
+                      </p>
+                      <p className="text-2xl font-bold">
+                        {result.teachingDays}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Students</p>
+                      <p className="text-2xl font-bold">
+                        {result.numberOfStudents}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        With Earnings
+                      </p>
+                      <p className="text-2xl font-bold">
+                        {result.studentsWithEarnings}
+                      </p>
+                    </div>
+                  </div>
+
+                  {result.breakdown && result.breakdown.length > 0 && (
+                    <div>
+                      <h5 className="font-medium mb-2">Student Breakdown:</h5>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {result.breakdown.map(
+                          (student: any, studentIndex: number) => (
+                            <div
+                              key={studentIndex}
+                              className="flex justify-between items-center p-2 border rounded text-sm"
+                            >
+                              <div>
+                                <p className="font-medium">
+                                  {student.studentName}
+                                </p>
+                                <p className="text-muted-foreground">
+                                  {student.package} • {student.daysWorked} days
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold">
+                                  {student.totalEarned} ETB
+                                </p>
+                                <p className="text-muted-foreground">
+                                  {student.dailyRate} ETB/day
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
