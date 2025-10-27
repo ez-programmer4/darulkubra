@@ -28,12 +28,21 @@ const navItems = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/students", label: "Students", icon: Users },
   { href: "/admin/teacher-schedules", label: "Daily Attendance", icon: Clock },
-  { href: "/admin/teacher-durations", label: "Teaching Durations", icon: Timer },
+  {
+    href: "/admin/teacher-durations",
+    label: "Teaching Durations",
+    icon: Timer,
+  },
 
   { href: "/admin/lateness", label: "Lateness Analytics", icon: UserCheck },
   { href: "/admin/payments", label: "Payments", icon: DollarSign },
   { href: "/admin/permissions", label: "Permissions", icon: Shield },
   { href: "/admin/teacher-payments", label: "Teacher Payments", icon: Coins },
+  {
+    href: "/admin/improved-teacher-payments",
+    label: "Improved Teacher Payments",
+    icon: Coins,
+  },
 
   {
     href: "/admin/controller-earnings",

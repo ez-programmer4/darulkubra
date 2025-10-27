@@ -27,7 +27,7 @@ To Date: ${toDate}
 
     // Default config for improved calculator
     const defaultConfig = {
-      includeSundays: false,
+      includeSundays: searchParams.get("includeSundays") === "true",
       excusedThreshold: 3,
       latenessTiers: [
         { start: 0, end: 5, percent: 0 },

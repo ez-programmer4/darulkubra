@@ -344,15 +344,15 @@ Assignment Mismatch: ${student.assignment_mismatch ? "Yes" : "No"}
   }
 
   /**
-   * Calculate working days between two dates (excluding Sundays by default)
+   * Calculate working days between two dates (respecting Sunday inclusion/exclusion)
    */
   private calculateWorkingDaysImproved(fromDate: Date, toDate: Date): number {
     let workingDays = 0;
     const currentDate = new Date(fromDate);
 
     while (currentDate <= toDate) {
-      // Exclude Sundays (day 0)
-      if (currentDate.getDay() !== 0) {
+      // If includeSundays is false, skip Sundays (day 0)
+      if (this.config.includeSundays || currentDate.getDay() !== 0) {
         workingDays++;
       }
       currentDate.setDate(currentDate.getDate() + 1);

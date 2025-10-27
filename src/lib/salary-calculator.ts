@@ -122,7 +122,7 @@ export interface TeacherSalaryData {
  * To view actual durations: GET /api/teachers/meeting-durations
  */
 export class SalaryCalculator {
-  private config: SalaryCalculationConfig;
+  protected config: SalaryCalculationConfig;
   private cache: Map<string, any> = new Map();
   private static globalCache: Map<string, any> = new Map();
 
