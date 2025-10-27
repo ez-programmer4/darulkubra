@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
     const {
       fullName,
       phoneNumber,
+      parentPhone,
       classfee,
       startdate,
       status,
@@ -350,6 +351,7 @@ export async function POST(request: NextRequest) {
       const createData: any = {
         name: fullName,
         phoneno: phoneNumber,
+        parent_phone: parentPhone || null,
         classfee:
           classfee !== undefined && classfee !== null
             ? parseFloat(classfee)
@@ -517,6 +519,7 @@ export async function PUT(request: NextRequest) {
     const {
       fullName,
       phoneNumber,
+      parentPhone,
       classfee,
       startdate,
       status,
@@ -740,6 +743,7 @@ export async function PUT(request: NextRequest) {
       const updateData: any = {
         name: fullName,
         phoneno: phoneNumber,
+        parent_phone: parentPhone || null,
         classfee:
           classfee !== undefined && classfee !== null
             ? parseFloat(classfee)

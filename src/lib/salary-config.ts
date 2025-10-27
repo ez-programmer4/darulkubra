@@ -32,7 +32,7 @@ export async function getSalaryConfig(): Promise<SalaryConfig> {
     packageSalaries,
   ] = await Promise.all([
     prisma.setting.findUnique({
-      where: { key: "include_sundays_in_salary" },
+      where: { key: "include_sundays" },
       select: { value: true },
     }),
     prisma.setting.findUnique({

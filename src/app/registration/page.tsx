@@ -41,6 +41,7 @@ import { Badge } from "@/components/ui/badge";
 interface FormData {
   fullName?: string;
   phoneNumber?: string;
+  parentPhone?: string;
   classfee?: number;
   startdate?: string;
   status?: string;
@@ -679,6 +680,7 @@ function RegistrationContent() {
       const payload = {
         fullName: data.fullName,
         phoneNumber: data.phoneNumber,
+        parentPhone: data.parentPhone || null,
         classfee:
           data.classfee !== undefined && data.classfee !== null
             ? parseFloat(data.classfee as any)
@@ -1818,6 +1820,36 @@ function RegistrationContent() {
                           {errors.phoneNumber.message}
                         </p>
                       )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-gray-800 flex items-center">
+                        <FiPhone className="mr-2 text-teal-600" />
+                        Parent Phone Number (Optional)
+                      </label>
+                      <PhoneInput
+                        country={"sd"} // or your preferred default country code
+                        value={watch("parentPhone") || ""}
+                        onChange={(value) => setValue("parentPhone", value)}
+                        inputProps={{
+                          name: "parentPhone",
+                          className: `w-full px-5 py-3 rounded-xl border focus:ring-2 focus:ring-teal-400 focus:border-teal-400 text-sm font-medium transition-all duration-200 shadow-sm ${
+                            errors.parentPhone
+                              ? "border-red-500"
+                              : "border-gray-200 hover:border-teal-300"
+                          }`,
+                          placeholder: "Enter parent phone number",
+                        }}
+                      />
+                      {errors.parentPhone && (
+                        <p className="mt-1 text-xs text-red-600 font-medium">
+                          {errors.parentPhone.message}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        This will allow parents to access the parent portal to
+                        view their child's progress
+                      </p>
                     </div>
 
                     <div className="space-y-2">

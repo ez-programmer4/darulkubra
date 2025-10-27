@@ -91,9 +91,11 @@ model wpos_wpdatatable_23 {
     studentQuiz          studentQuiz[]
     user                 user?                         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
     userId               String?                       @unique
+    parent_phone         String?                       @db.VarChar(20)
 
     @@index([ustaz], map: "idx_ustaz")
     @@index([u_control], map: "wpos_wpdatatable_23_u_control_fkey")
+    @@index([parent_phone], map: "idx_parent_phone")
 }
 
 model wpos_wpdatatable_28 {
