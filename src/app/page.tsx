@@ -94,6 +94,24 @@ export default function Home() {
               <FiBookOpen className="mr-3 sm:mr-4" size={24} />
               Student Registration
             </Link>
+
+            <Link
+              href="/improved-teacher-payment"
+              className="group inline-flex items-center px-8 sm:px-12 py-4 sm:py-5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white text-lg sm:text-xl font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              aria-label="Improved Teacher Payment Dashboard"
+            >
+              <FiUsers className="mr-3 sm:mr-4" size={24} />
+              Teacher Payment Dashboard
+            </Link>
+
+            <Link
+              href="/debug/missing-teachers"
+              className="group inline-flex items-center px-8 sm:px-12 py-4 sm:py-5 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white text-lg sm:text-xl font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              aria-label="Debug Missing Teachers"
+            >
+              <FiLogIn className="mr-3 sm:mr-4" size={24} />
+              Debug Tools
+            </Link>
           </motion.div>
 
           {/* Additional Info */}

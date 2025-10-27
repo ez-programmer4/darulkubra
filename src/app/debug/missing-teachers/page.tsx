@@ -83,6 +83,8 @@ export default function MissingTeachersDebugPage() {
   const [comparingSalaries, setComparingSalaries] = useState(false);
   const [comprehensiveResults, setComprehensiveResults] = useState<any>(null);
   const [comparingAllTeachers, setComparingAllTeachers] = useState(false);
+  const [discussionData, setDiscussionData] = useState<any>(null);
+  const [showingDiscussion, setShowingDiscussion] = useState(false);
 
   const handleDebug = async () => {
     if (!teacherIds || !fromDate || !toDate) {
@@ -268,6 +270,28 @@ export default function MissingTeachersDebugPage() {
     }
   };
 
+  const handleShowDiscussion = async () => {
+    setShowingDiscussion(true);
+    setError(null);
+    setDiscussionData(null);
+
+    try {
+      const response = await fetch("/api/debug/salary-comparison-discussion");
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to load discussion");
+      }
+
+      const data = await response.json();
+      setDiscussionData(data.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setShowingDiscussion(false);
+    }
+  };
+
   const getIssueColor = (issue: string) => {
     if (issue.includes("❌")) return "destructive";
     if (issue.includes("⚠️")) return "secondary";
@@ -311,6 +335,10 @@ export default function MissingTeachersDebugPage() {
             <br />
             <strong>🏢 Comprehensive Analysis:</strong> Use "Compare ALL
             Teachers" to analyze the impact across your entire organization.
+            <br />
+            <br />
+            <strong>📚 Discussion:</strong> Use "Discussion" to understand the
+            fundamental differences between the old and new salary calculators.
           </AlertDescription>
         </Alert>
       </div>
@@ -394,6 +422,14 @@ export default function MissingTeachersDebugPage() {
               {comparingAllTeachers
                 ? "Analyzing All Teachers..."
                 : "Compare ALL Teachers"}
+            </Button>
+            <Button
+              onClick={handleShowDiscussion}
+              disabled={showingDiscussion}
+              variant="outline"
+              className="bg-purple-600 text-white hover:bg-purple-700"
+            >
+              {showingDiscussion ? "Loading..." : "📚 Discussion"}
             </Button>
           </div>
         </CardContent>
@@ -1140,6 +1176,336 @@ export default function MissingTeachersDebugPage() {
                 </p>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {discussionData && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>{discussionData.title}</CardTitle>
+            <CardDescription>
+              Comprehensive analysis comparing the old assignment-based
+              calculator with the new activity-based calculator
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {/* Summary */}
+            <div className="p-6 border rounded bg-gradient-to-r from-blue-50 to-green-50">
+              <h3 className="font-semibold mb-4 text-center">
+                🎯 Key Difference
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-lg font-bold text-red-600">
+                    {discussionData.summary.oldCalculator}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Assignment-Based
+                  </p>
+                </div>
+                <div className="flex items-center justify-center">
+                  <p className="text-2xl">→</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-green-600">
+                    {discussionData.summary.newCalculator}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Activity-Based
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Student Discovery Comparison */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-6 border rounded">
+                <h4 className="font-semibold mb-4 text-red-600">
+                  ❌ Old Calculator: Assignment-Based Discovery
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-medium">Method:</p>
+                    <p className="text-sm text-muted-foreground">
+                      {
+                        discussionData.detailedComparison.studentDiscovery.old
+                          .method
+                      }
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium">Process:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      {discussionData.detailedComparison.studentDiscovery.old.process.map(
+                        (step: string, index: number) => (
+                          <li key={index}>{step}</li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-medium">Issues:</p>
+                    <ul className="text-sm text-red-600 space-y-1">
+                      {discussionData.detailedComparison.studentDiscovery.old.issues.map(
+                        (issue: string, index: number) => (
+                          <li key={index}>{issue}</li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border rounded">
+                <h4 className="font-semibold mb-4 text-green-600">
+                  ✅ New Calculator: Activity-Based Discovery
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-medium">Method:</p>
+                    <p className="text-sm text-muted-foreground">
+                      {
+                        discussionData.detailedComparison.studentDiscovery.new
+                          .method
+                      }
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium">Process:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      {discussionData.detailedComparison.studentDiscovery.new.process.map(
+                        (step: string, index: number) => (
+                          <li key={index}>{step}</li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-medium">Benefits:</p>
+                    <ul className="text-sm text-green-600 space-y-1">
+                      {discussionData.detailedComparison.studentDiscovery.new.benefits.map(
+                        (benefit: string, index: number) => (
+                          <li key={index}>{benefit}</li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Real World Scenarios */}
+            <div>
+              <h3 className="font-semibold mb-4">
+                🌍 Real-World Impact Scenarios
+              </h3>
+              <div className="space-y-6">
+                {Object.values(discussionData.realWorldImpact).map(
+                  (scenario: any, index: number) => (
+                    <div key={index} className="p-6 border rounded">
+                      <h4 className="font-semibold mb-3">{scenario.title}</h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {scenario.description}
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-red-50 border border-red-200 rounded">
+                          <h5 className="font-semibold text-red-600 mb-2">
+                            Old Calculator Result:
+                          </h5>
+                          <p className="text-sm mb-2">
+                            {scenario.oldCalculator.result}
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Reason: {scenario.oldCalculator.reason}
+                          </p>
+                          <p className="text-xs text-red-600">
+                            Impact: {scenario.oldCalculator.impact}
+                          </p>
+                        </div>
+
+                        <div className="p-4 bg-green-50 border border-green-200 rounded">
+                          <h5 className="font-semibold text-green-600 mb-2">
+                            New Calculator Result:
+                          </h5>
+                          <p className="text-sm mb-2">
+                            {scenario.newCalculator.result}
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Reason: {scenario.newCalculator.reason}
+                          </p>
+                          <p className="text-xs text-green-600">
+                            Impact: {scenario.newCalculator.impact}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Technical Comparison */}
+            <div>
+              <h3 className="font-semibold mb-4">⚙️ Technical Comparison</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 border rounded">
+                  <h4 className="font-semibold mb-3">Code Complexity</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Old Calculator:</span>
+                      <Badge variant="destructive">
+                        {
+                          discussionData.technicalComparison.codeComplexity.old
+                            .rating
+                        }
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>New Calculator:</span>
+                      <Badge variant="default">
+                        {
+                          discussionData.technicalComparison.codeComplexity.new
+                            .rating
+                        }
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded">
+                  <h4 className="font-semibold mb-3">Performance</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Old Calculator:</span>
+                      <Badge variant="secondary">
+                        {
+                          discussionData.technicalComparison.performance.old
+                            .rating
+                        }
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>New Calculator:</span>
+                      <Badge variant="default">
+                        {
+                          discussionData.technicalComparison.performance.new
+                            .rating
+                        }
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded">
+                  <h4 className="font-semibold mb-3">Maintainability</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Old Calculator:</span>
+                      <Badge variant="destructive">
+                        {
+                          discussionData.technicalComparison.maintainability.old
+                            .rating
+                        }
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>New Calculator:</span>
+                      <Badge variant="default">
+                        {
+                          discussionData.technicalComparison.maintainability.new
+                            .rating
+                        }
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Business Impact */}
+            <div>
+              <h3 className="font-semibold mb-4">💼 Business Impact</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 border rounded">
+                  <h4 className="font-semibold mb-3 text-red-600">
+                    Old Calculator
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <strong>Fairness:</strong>{" "}
+                      {discussionData.businessImpact.fairness.old}
+                    </div>
+                    <div>
+                      <strong>Accuracy:</strong>{" "}
+                      {discussionData.businessImpact.accuracy.old}
+                    </div>
+                    <div>
+                      <strong>Reliability:</strong>{" "}
+                      {discussionData.businessImpact.reliability.old}
+                    </div>
+                    <div>
+                      <strong>Transparency:</strong>{" "}
+                      {discussionData.businessImpact.transparency.old}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded">
+                  <h4 className="font-semibold mb-3 text-green-600">
+                    New Calculator
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <strong>Fairness:</strong>{" "}
+                      {discussionData.businessImpact.fairness.new}
+                    </div>
+                    <div>
+                      <strong>Accuracy:</strong>{" "}
+                      {discussionData.businessImpact.accuracy.new}
+                    </div>
+                    <div>
+                      <strong>Reliability:</strong>{" "}
+                      {discussionData.businessImpact.reliability.new}
+                    </div>
+                    <div>
+                      <strong>Transparency:</strong>{" "}
+                      {discussionData.businessImpact.transparency.new}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Conclusion */}
+            <div className="p-6 border rounded bg-gradient-to-r from-green-50 to-blue-50">
+              <h3 className="font-semibold mb-4 text-center">🎯 Conclusion</h3>
+              <p className="text-center mb-4">
+                {discussionData.conclusion.summary}
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold mb-2">Key Benefits:</h4>
+                  <ul className="text-sm space-y-1">
+                    {discussionData.conclusion.keyBenefits.map(
+                      (benefit: string, index: number) => (
+                        <li key={index} className="flex items-start">
+                          <span className="text-green-600 mr-2">✅</span>
+                          {benefit}
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold mb-2">Overall Impact:</h4>
+                  <p className="text-sm">{discussionData.conclusion.impact}</p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
