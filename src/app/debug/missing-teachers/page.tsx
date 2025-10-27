@@ -79,6 +79,10 @@ export default function MissingTeachersDebugPage() {
   const [checkingHistory, setCheckingHistory] = useState(false);
   const [improvedSalaryResults, setImprovedSalaryResults] = useState<any>(null);
   const [testingImproved, setTestingImproved] = useState(false);
+  const [comparisonResults, setComparisonResults] = useState<any>(null);
+  const [comparingSalaries, setComparingSalaries] = useState(false);
+  const [comprehensiveResults, setComprehensiveResults] = useState<any>(null);
+  const [comparingAllTeachers, setComparingAllTeachers] = useState(false);
 
   const handleDebug = async () => {
     if (!teacherIds || !fromDate || !toDate) {
@@ -204,6 +208,66 @@ export default function MissingTeachersDebugPage() {
     }
   };
 
+  const handleCompareSalaries = async () => {
+    setComparingSalaries(true);
+    setError(null);
+    setComparisonResults(null);
+
+    try {
+      const teacherIdList = teacherIds.split(",").map((id) => id.trim());
+      const comparisonPromises = teacherIdList.map(async (teacherId) => {
+        const response = await fetch(
+          `/api/debug/salary-comparison?teacherId=${encodeURIComponent(
+            teacherId
+          )}&fromDate=${encodeURIComponent(
+            fromDate
+          )}&toDate=${encodeURIComponent(toDate)}`
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to compare salaries");
+        }
+
+        const data = await response.json();
+        return data.data;
+      });
+
+      const results = await Promise.all(comparisonPromises);
+      setComparisonResults(results);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setComparingSalaries(false);
+    }
+  };
+
+  const handleCompareAllTeachers = async () => {
+    setComparingAllTeachers(true);
+    setError(null);
+    setComprehensiveResults(null);
+
+    try {
+      const response = await fetch(
+        `/api/debug/comprehensive-salary-comparison?fromDate=${encodeURIComponent(
+          fromDate
+        )}&toDate=${encodeURIComponent(toDate)}`
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to compare all teachers");
+      }
+
+      const data = await response.json();
+      setComprehensiveResults(data.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setComparingAllTeachers(false);
+    }
+  };
+
   const getIssueColor = (issue: string) => {
     if (issue.includes("❌")) return "destructive";
     if (issue.includes("⚠️")) return "secondary";
@@ -238,6 +302,15 @@ export default function MissingTeachersDebugPage() {
             but have <strong>0 zoom links</strong> in the specified period. This
             is why their salaries aren't being calculated. Use the "Check Zoom
             History" button to see if they have links in other time periods.
+            <br />
+            <br />
+            <strong>🆕 New:</strong> Use "Compare Old vs New" to see the exact
+            difference between the current salary calculator and the improved
+            version that pays based on zoom links.
+            <br />
+            <br />
+            <strong>🏢 Comprehensive Analysis:</strong> Use "Compare ALL
+            Teachers" to analyze the impact across your entire organization.
           </AlertDescription>
         </Alert>
       </div>
@@ -304,6 +377,23 @@ export default function MissingTeachersDebugPage() {
               variant="secondary"
             >
               {testingImproved ? "Testing..." : "Test Improved Salary"}
+            </Button>
+            <Button
+              onClick={handleCompareSalaries}
+              disabled={comparingSalaries}
+              variant="destructive"
+            >
+              {comparingSalaries ? "Comparing..." : "Compare Old vs New"}
+            </Button>
+            <Button
+              onClick={handleCompareAllTeachers}
+              disabled={comparingAllTeachers}
+              variant="outline"
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              {comparingAllTeachers
+                ? "Analyzing All Teachers..."
+                : "Compare ALL Teachers"}
             </Button>
           </div>
         </CardContent>
@@ -677,6 +767,379 @@ export default function MissingTeachersDebugPage() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {comparisonResults && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Salary Calculator Comparison: Old vs Improved</CardTitle>
+            <CardDescription>
+              Side-by-side comparison showing the difference between old and
+              improved salary calculations
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {comparisonResults.map((comparison: any, index: number) => (
+                <div key={index} className="border rounded p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <h4 className="font-semibold text-xl">
+                      {comparison.teacherName}
+                    </h4>
+                    <div className="flex gap-2">
+                      <Badge
+                        variant={
+                          comparison.differences.impact === "POSITIVE"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {comparison.differences.impact}
+                      </Badge>
+                      <Badge variant="outline">
+                        {comparison.differences.percentageIncrease}% Change
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="text-center p-4 border rounded">
+                      <p className="text-sm text-muted-foreground">
+                        Old Salary
+                      </p>
+                      <p className="text-2xl font-bold text-red-600">
+                        {comparison.oldCalculator.totalSalary} ETB
+                      </p>
+                    </div>
+                    <div className="text-center p-4 border rounded">
+                      <p className="text-sm text-muted-foreground">
+                        New Salary
+                      </p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {comparison.improvedCalculator.totalSalary} ETB
+                      </p>
+                    </div>
+                    <div className="text-center p-4 border rounded">
+                      <p className="text-sm text-muted-foreground">
+                        Difference
+                      </p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {comparison.differences.salaryDifference} ETB
+                      </p>
+                    </div>
+                    <div className="text-center p-4 border rounded">
+                      <p className="text-sm text-muted-foreground">
+                        Students Gained
+                      </p>
+                      <p className="text-2xl font-bold text-purple-600">
+                        {comparison.differences.studentDifference}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Detailed Comparison */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h5 className="font-semibold mb-3 text-red-600">
+                        ❌ Old Calculator Issues:
+                      </h5>
+                      <div className="space-y-2">
+                        {comparison.oldCalculator.issues.map(
+                          (issue: string, issueIndex: number) => (
+                            <div
+                              key={issueIndex}
+                              className="p-2 bg-red-50 border border-red-200 rounded text-sm"
+                            >
+                              {issue}
+                            </div>
+                          )
+                        )}
+                        {comparison.oldCalculator.issues.length === 0 && (
+                          <div className="p-2 bg-gray-50 border border-gray-200 rounded text-sm text-gray-600">
+                            No specific issues detected
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h5 className="font-semibold mb-3 text-green-600">
+                        ✅ Improved Calculator Benefits:
+                      </h5>
+                      <div className="space-y-2">
+                        <div className="p-2 bg-green-50 border border-green-200 rounded text-sm">
+                          ✅ Found{" "}
+                          {comparison.improvedCalculator.numberOfStudents}{" "}
+                          students via zoom links
+                        </div>
+                        <div className="p-2 bg-green-50 border border-green-200 rounded text-sm">
+                          ✅ Calculated salary based on actual teaching days
+                        </div>
+                        <div className="p-2 bg-green-50 border border-green-200 rounded text-sm">
+                          ✅ Handles teacher assignment mismatches properly
+                        </div>
+                        <div className="p-2 bg-green-50 border border-green-200 rounded text-sm">
+                          ✅ Pays for{" "}
+                          {comparison.improvedCalculator.teachingDays} total
+                          teaching days
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Student Breakdown */}
+                  {comparison.improvedCalculator.breakdown &&
+                    comparison.improvedCalculator.breakdown.length > 0 && (
+                      <div className="mt-6">
+                        <h5 className="font-semibold mb-3">
+                          📊 Students Now Getting Paid:
+                        </h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                          {comparison.improvedCalculator.breakdown.map(
+                            (student: any, studentIndex: number) => (
+                              <div
+                                key={studentIndex}
+                                className="flex justify-between items-center p-2 border rounded text-sm"
+                              >
+                                <div>
+                                  <p className="font-medium">
+                                    {student.studentName}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    {student.package} • {student.daysWorked}{" "}
+                                    days
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold">
+                                    {student.totalEarned} ETB
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    {student.dailyRate} ETB/day
+                                  </p>
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {comprehensiveResults && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>
+              🏢 Organization-Wide Salary Calculator Comparison
+            </CardTitle>
+            <CardDescription>
+              Comprehensive analysis of salary calculator impact across ALL
+              teachers in the system
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Summary Statistics */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="text-center p-4 border rounded bg-red-50">
+                <p className="text-sm text-muted-foreground">Total Teachers</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {comprehensiveResults.summary.totalTeachers}
+                </p>
+              </div>
+              <div className="text-center p-4 border rounded bg-green-50">
+                <p className="text-sm text-muted-foreground">
+                  Teachers with Salary Increase
+                </p>
+                <p className="text-2xl font-bold text-green-600">
+                  {comprehensiveResults.summary.teachersWithSalaryIncrease}
+                </p>
+              </div>
+              <div className="text-center p-4 border rounded bg-blue-50">
+                <p className="text-sm text-muted-foreground">
+                  Total Salary Impact
+                </p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {comprehensiveResults.summary.totalSalaryDifference.toFixed(
+                    2
+                  )}{" "}
+                  ETB
+                </p>
+              </div>
+              <div className="text-center p-4 border rounded bg-purple-50">
+                <p className="text-sm text-muted-foreground">Students Gained</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {comprehensiveResults.summary.totalStudentDifference}
+                </p>
+              </div>
+            </div>
+
+            {/* Detailed Impact Analysis */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="p-6 border rounded">
+                <h4 className="font-semibold mb-4 text-red-600">
+                  ❌ Old Calculator Issues
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Total Old Salary:</span>
+                    <span className="font-semibold">
+                      {comprehensiveResults.summary.totalOldSalary.toFixed(2)}{" "}
+                      ETB
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Teachers with 0 Salary:</span>
+                    <span className="font-semibold">
+                      {comprehensiveResults.summary.totalTeachers -
+                        comprehensiveResults.summary.processedTeachers +
+                        comprehensiveResults.summary.teachersWithNoChange}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Average Old Salary:</span>
+                    <span className="font-semibold">
+                      {comprehensiveResults.summary.averageOldSalary.toFixed(2)}{" "}
+                      ETB
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Teaching Days:</span>
+                    <span className="font-semibold">
+                      {comprehensiveResults.summary.totalOldTeachingDays}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border rounded">
+                <h4 className="font-semibold mb-4 text-green-600">
+                  ✅ Improved Calculator Benefits
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Total New Salary:</span>
+                    <span className="font-semibold">
+                      {comprehensiveResults.summary.totalNewSalary.toFixed(2)}{" "}
+                      ETB
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Teachers Now Getting Paid:</span>
+                    <span className="font-semibold">
+                      {comprehensiveResults.summary.teachersWithSalaryIncrease}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Average New Salary:</span>
+                    <span className="font-semibold">
+                      {comprehensiveResults.summary.averageNewSalary.toFixed(2)}{" "}
+                      ETB
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Teaching Days:</span>
+                    <span className="font-semibold">
+                      {comprehensiveResults.summary.totalNewTeachingDays}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Impact Summary */}
+            <div className="p-6 border rounded bg-gradient-to-r from-blue-50 to-green-50 mb-8">
+              <h4 className="font-semibold mb-4 text-center">
+                🎯 Overall Impact Summary
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-3xl font-bold text-blue-600">
+                    {comprehensiveResults.summary.totalSalaryDifference.toFixed(
+                      2
+                    )}{" "}
+                    ETB
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Total Salary Recovery
+                  </p>
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-green-600">
+                    {comprehensiveResults.summary.percentageIncrease}%
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Overall Increase
+                  </p>
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-purple-600">
+                    {comprehensiveResults.summary.totalStudentDifference}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Students Now Recognized
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Top Impact Teachers */}
+            <div className="mb-8">
+              <h4 className="font-semibold mb-4">
+                🏆 Top 20 Teachers with Highest Salary Impact
+              </h4>
+              <div className="border rounded max-h-96 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {comprehensiveResults.results
+                    .filter((teacher: any) => teacher.salaryDifference > 0)
+                    .slice(0, 20)
+                    .map((teacher: any, index: number) => (
+                      <div
+                        key={index}
+                        className="flex justify-between items-center p-3 border-b hover:bg-gray-50"
+                      >
+                        <div>
+                          <p className="font-medium">{teacher.teacherName}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {teacher.oldStudents} → {teacher.newStudents}{" "}
+                            students
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-green-600">
+                            +{teacher.salaryDifference.toFixed(2)} ETB
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {teacher.oldSalary.toFixed(2)} →{" "}
+                            {teacher.newSalary.toFixed(2)} ETB
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Error Summary */}
+            {comprehensiveResults.summary.teachersWithErrors > 0 && (
+              <div className="p-4 border rounded bg-yellow-50">
+                <h4 className="font-semibold mb-2 text-yellow-700">
+                  ⚠️ Teachers with Processing Errors
+                </h4>
+                <p className="text-sm text-yellow-600">
+                  {comprehensiveResults.summary.teachersWithErrors} teachers had
+                  errors during processing. This might be due to missing data or
+                  calculation issues.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
