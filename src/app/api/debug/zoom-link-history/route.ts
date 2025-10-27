@@ -22,20 +22,38 @@ Teacher IDs: ${teacherIds}
           in: teacherIdList,
         },
       },
-      include: {
-        wpos_wpdatatable_23: {
-          select: {
-            wdt_ID: true,
-            name: true,
-            package: true,
-            daypackages: true,
-            status: true,
-            ustaz: true,
-          },
-        },
-      },
       orderBy: { sent_time: "desc" },
     });
+
+    // Get student data separately to avoid null reference issues
+    const studentIds = [
+      ...new Set(zoomLinks.map((link) => link.studentid).filter(Boolean)),
+    ];
+    const students = await prisma.wpos_wpdatatable_23.findMany({
+      where: {
+        wdt_ID: { in: studentIds },
+      },
+      select: {
+        wdt_ID: true,
+        name: true,
+        package: true,
+        daypackages: true,
+        status: true,
+        ustaz: true,
+      },
+    });
+
+    // Create a map for quick student lookup
+    const studentMap = new Map();
+    students.forEach((student) => {
+      studentMap.set(student.wdt_ID, student);
+    });
+
+    // Combine zoom links with student data
+    const zoomLinksWithStudents = zoomLinks.map((link) => ({
+      ...link,
+      wpos_wpdatatable_23: studentMap.get(link.studentid) || null,
+    }));
 
     // Group by teacher
     const teacherZoomHistory: Record<
@@ -63,7 +81,7 @@ Teacher IDs: ${teacherIds}
     });
 
     // Process zoom links
-    zoomLinks.forEach((link) => {
+    zoomLinksWithStudents.forEach((link) => {
       const teacherId = link.ustazid;
 
       // Skip if sent_time is null or teacherId is null
@@ -143,7 +161,7 @@ Teacher IDs: ${teacherIds}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Total Zoom Links in Database: ${totalZoomLinks}
 Recent Zoom Links (3 months): ${recentZoomLinks}
-Links Found for Target Teachers: ${zoomLinks.length}
+Links Found for Target Teachers: ${zoomLinksWithStudents.length}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     `);
 

@@ -47,26 +47,44 @@ Period: ${fromDate} to ${toDate}
         ustazid: teacherId,
         sent_time: { gte: from, lte: to },
       },
-      include: {
-        wpos_wpdatatable_23: {
-          select: {
-            wdt_ID: true,
-            name: true,
-            package: true,
-            daypackages: true,
-            status: true,
-            ustaz: true,
-          },
-        },
-      },
       orderBy: { sent_time: "asc" },
     });
+
+    // Get student data separately to avoid null reference issues
+    const studentIds = [
+      ...new Set(zoomLinks.map((link) => link.studentid).filter(Boolean)),
+    ];
+    const students = await prisma.wpos_wpdatatable_23.findMany({
+      where: {
+        wdt_ID: { in: studentIds },
+      },
+      select: {
+        wdt_ID: true,
+        name: true,
+        package: true,
+        daypackages: true,
+        status: true,
+        ustaz: true,
+      },
+    });
+
+    // Create a map for quick student lookup
+    const studentMap = new Map();
+    students.forEach((student) => {
+      studentMap.set(student.wdt_ID, student);
+    });
+
+    // Combine zoom links with student data
+    const zoomLinksWithStudents = zoomLinks.map((link) => ({
+      ...link,
+      wpos_wpdatatable_23: studentMap.get(link.studentid) || null,
+    }));
 
     console.log(`
 📊 ZOOM LINKS FOUND:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total Zoom Links: ${zoomLinks.length}
-${zoomLinks
+Total Zoom Links: ${zoomLinksWithStudents.length}
+${zoomLinksWithStudents
   .map(
     (link, i) => `
 ${i + 1}. ${link.wpos_wpdatatable_23?.name || "Unknown Student"}
@@ -83,7 +101,7 @@ ${i + 1}. ${link.wpos_wpdatatable_23?.name || "Unknown Student"}
 
     // 3. Get unique students from zoom links
     const uniqueStudents = new Map();
-    zoomLinks.forEach((link) => {
+    zoomLinksWithStudents.forEach((link) => {
       if (link.wpos_wpdatatable_23) {
         uniqueStudents.set(link.studentid, link.wpos_wpdatatable_23);
       }
@@ -126,7 +144,7 @@ ${i + 1}. ${pkg.packageName}: ${pkg.salaryPerStudent} ETB
           status: student.status,
           daypackages: student.daypackages,
           currentTeacher: student.ustaz,
-          zoomLinksCount: zoomLinks.filter(
+          zoomLinksCount: zoomLinksWithStudents.filter(
             (link) => link.studentid === student.wdt_ID
           ).length,
         };
@@ -259,8 +277,8 @@ Students with Earnings: ${salaryData.breakdown.studentBreakdown.length}
         exists: true,
       },
       zoomLinks: {
-        total: zoomLinks.length,
-        details: zoomLinks.map((link) => ({
+        total: zoomLinksWithStudents.length,
+        details: zoomLinksWithStudents.map((link) => ({
           date: link.sent_time?.toISOString().split("T")[0],
           studentId: link.studentid,
           studentName: link.wpos_wpdatatable_23?.name,
