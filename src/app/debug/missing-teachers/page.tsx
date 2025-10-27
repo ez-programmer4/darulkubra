@@ -68,13 +68,15 @@ interface TeacherDebugResult {
 
 export default function MissingTeachersDebugPage() {
   const [teacherIds, setTeacherIds] = useState("U299,U294,U250");
-  const [fromDate, setFromDate] = useState("2024-01-01");
-  const [toDate, setToDate] = useState("2024-01-31");
+  const [fromDate, setFromDate] = useState("2024-12-01");
+  const [toDate, setToDate] = useState("2024-12-31");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<TeacherDebugResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [teacherCheck, setTeacherCheck] = useState<any>(null);
   const [checkingTeachers, setCheckingTeachers] = useState(false);
+  const [zoomLinkHistory, setZoomLinkHistory] = useState<any>(null);
+  const [checkingHistory, setCheckingHistory] = useState(false);
 
   const handleDebug = async () => {
     if (!teacherIds || !fromDate || !toDate) {
@@ -144,6 +146,25 @@ export default function MissingTeachersDebugPage() {
     }
   };
 
+  const handleCheckZoomHistory = async () => {
+    setCheckingHistory(true);
+    setError(null);
+    setZoomLinkHistory(null);
+
+    try {
+      const response = await fetch("/api/debug/zoom-link-history");
+      if (!response.ok) {
+        throw new Error("Failed to check zoom link history");
+      }
+      const data = await response.json();
+      setZoomLinkHistory(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setCheckingHistory(false);
+    }
+  };
+
   const getIssueColor = (issue: string) => {
     if (issue.includes("❌")) return "destructive";
     if (issue.includes("⚠️")) return "secondary";
@@ -171,6 +192,15 @@ export default function MissingTeachersDebugPage() {
           Debug why specific teachers (U299, U294, U250) are not getting their
           salaries calculated
         </p>
+
+        <Alert className="mt-4">
+          <AlertDescription>
+            <strong>🔍 Key Finding:</strong> The teachers exist in the database
+            but have <strong>0 zoom links</strong> in the specified period. This
+            is why their salaries aren't being calculated. Use the "Check Zoom
+            History" button to see if they have links in other time periods.
+          </AlertDescription>
+        </Alert>
       </div>
 
       <Card className="mb-6">
@@ -221,6 +251,13 @@ export default function MissingTeachersDebugPage() {
               variant="outline"
             >
               {checkingTeachers ? "Checking..." : "Check Teachers"}
+            </Button>
+            <Button
+              onClick={handleCheckZoomHistory}
+              disabled={checkingHistory}
+              variant="outline"
+            >
+              {checkingHistory ? "Checking..." : "Check Zoom History"}
             </Button>
           </div>
         </CardContent>
@@ -327,6 +364,172 @@ export default function MissingTeachersDebugPage() {
                   )
                 )}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {zoomLinkHistory && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Zoom Link History Analysis</CardTitle>
+            <CardDescription>
+              Historical zoom link data for the target teachers across all time
+              periods
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Total Zoom Links
+                </p>
+                <p className="text-2xl font-bold">
+                  {zoomLinkHistory.totalZoomLinks}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Recent (3 months)
+                </p>
+                <p className="text-2xl font-bold">
+                  {zoomLinkHistory.recentZoomLinks}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Teachers with Links
+                </p>
+                <p className="text-2xl font-bold text-green-600">
+                  {zoomLinkHistory.summary.teachersWithLinks}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Teachers without Links
+                </p>
+                <p className="text-2xl font-bold text-red-600">
+                  {zoomLinkHistory.summary.teachersWithoutLinks}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {Object.entries(zoomLinkHistory.teacherZoomHistory).map(
+                ([teacherId, history]: [string, any]) => (
+                  <div key={teacherId} className="border rounded p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <h4 className="font-semibold text-lg">{teacherId}</h4>
+                      <Badge
+                        variant={
+                          history.totalLinks > 0 ? "default" : "destructive"
+                        }
+                      >
+                        {history.totalLinks} total links
+                      </Badge>
+                    </div>
+
+                    {history.totalLinks > 0 ? (
+                      <div className="space-y-3">
+                        {/* Monthly breakdown */}
+                        <div>
+                          <h5 className="font-medium mb-2">Links by Month:</h5>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {Object.entries(history.linksByMonth)
+                              .sort(([a], [b]) => b.localeCompare(a))
+                              .slice(0, 8)
+                              .map(([month, count]: [string, any]) => (
+                                <div
+                                  key={month}
+                                  className="p-2 border rounded text-sm"
+                                >
+                                  <p className="font-medium">{month}</p>
+                                  <p className="text-muted-foreground">
+                                    {count} links
+                                  </p>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+
+                        {/* Students taught */}
+                        <div>
+                          <h5 className="font-medium mb-2">Students Taught:</h5>
+                          <div className="flex flex-wrap gap-1">
+                            {history.students
+                              .slice(0, 10)
+                              .map((student: string, index: number) => (
+                                <Badge
+                                  key={index}
+                                  variant="secondary"
+                                  className="text-xs"
+                                >
+                                  {student}
+                                </Badge>
+                              ))}
+                            {history.students.length > 10 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{history.students.length - 10} more
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Recent links */}
+                        <div>
+                          <h5 className="font-medium mb-2">Recent Links:</h5>
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {history.recentLinks.map(
+                              (link: any, index: number) => (
+                                <div
+                                  key={index}
+                                  className="flex justify-between items-center p-2 border rounded text-sm"
+                                >
+                                  <div>
+                                    <p className="font-medium">
+                                      {link.studentName}
+                                    </p>
+                                    <p className="text-muted-foreground">
+                                      ID: {link.studentId}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p>{link.date}</p>
+                                    <p className="text-muted-foreground">
+                                      {link.studentPackage}
+                                    </p>
+                                  </div>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <Alert variant="destructive">
+                        <AlertDescription>
+                          <strong>No zoom links found for {teacherId}</strong>
+                          <br />
+                          This teacher has never sent any zoom links in the
+                          system.
+                          <br />
+                          Possible reasons:
+                          <ul className="list-disc list-inside mt-2">
+                            <li>
+                              Teacher is new and hasn't started teaching yet
+                            </li>
+                            <li>
+                              Teacher uses a different method to send links
+                            </li>
+                            <li>Teacher ID might be incorrect</li>
+                            <li>Zoom links are stored in a different table</li>
+                          </ul>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                )
+              )}
             </div>
           </CardContent>
         </Card>
