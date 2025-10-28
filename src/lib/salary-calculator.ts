@@ -399,12 +399,63 @@ export class SalaryCalculator {
     fromDate: Date,
     toDate: Date
   ): Promise<TeacherSalaryData[]> {
-    const teachers = await prisma.wpos_wpdatatable_24.findMany({
+    // Get all teachers from main table
+    const mainTableTeachers = await prisma.wpos_wpdatatable_24.findMany({
       select: { ustazid: true, ustazname: true },
     });
 
+    // Also get teachers who might be found through zoom links but not in main table
+    const zoomLinkTeachers = await prisma.wpos_zoom_links.findMany({
+      where: {
+        sent_time: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      select: {
+        ustazid: true,
+      },
+      distinct: ["ustazid"],
+    });
+
+    // Create a comprehensive list of all unique teachers
+    const allTeacherIds = new Set<string>();
+
+    // Add teachers from main table
+    mainTableTeachers.forEach((teacher) => {
+      if (teacher.ustazid && teacher.ustazid.trim() !== "") {
+        allTeacherIds.add(teacher.ustazid);
+      }
+    });
+
+    // Add teachers from zoom links
+    zoomLinkTeachers.forEach((zoomTeacher) => {
+      if (zoomTeacher.ustazid && zoomTeacher.ustazid.trim() !== "") {
+        allTeacherIds.add(zoomTeacher.ustazid);
+      }
+    });
+
+    // Create final teacher list with names
+    const finalTeachers = Array.from(allTeacherIds).map((teacherId) => {
+      const mainTeacher = mainTableTeachers.find(
+        (t) => t.ustazid === teacherId
+      );
+      return {
+        ustazid: teacherId,
+        ustazname: mainTeacher?.ustazname || `Teacher ${teacherId}`,
+      };
+    });
+
+    console.log(`📊 Found ${mainTableTeachers.length} teachers in main table`);
+    console.log(
+      `📊 Found ${zoomLinkTeachers.length} unique teachers in zoom links`
+    );
+    console.log(
+      `📊 Total unique teachers to calculate salaries for: ${finalTeachers.length}`
+    );
+
     const results = await Promise.all(
-      teachers.map(async (teacher) => {
+      finalTeachers.map(async (teacher) => {
         try {
           return await this.calculateTeacherSalary(
             teacher.ustazid,
@@ -413,7 +464,7 @@ export class SalaryCalculator {
           );
         } catch (error) {
           console.error(
-            `Failed to calculate salary for ${teacher.ustazname}:`,
+            `Failed to calculate salary for ${teacher.ustazname} (${teacher.ustazid}):`,
             error
           );
           return null;
@@ -421,7 +472,12 @@ export class SalaryCalculator {
       })
     );
 
-    return results.filter(Boolean) as TeacherSalaryData[];
+    const validResults = results.filter(Boolean) as TeacherSalaryData[];
+    console.log(
+      `✅ Successfully calculated salaries for ${validResults.length}/${finalTeachers.length} teachers`
+    );
+
+    return validResults;
   }
 
   /**
@@ -498,10 +554,37 @@ export class SalaryCalculator {
   }
 
   private async getTeacherInfo(teacherId: string) {
-    return await prisma.wpos_wpdatatable_24.findUnique({
+    // First try to find teacher in main table
+    let teacher = await prisma.wpos_wpdatatable_24.findUnique({
       where: { ustazid: teacherId },
       select: { ustazid: true, ustazname: true },
     });
+
+    // If not found in main table, check if teacher exists in zoom links
+    if (!teacher) {
+      console.log(
+        `⚠️ Teacher ${teacherId} not found in main table, checking zoom links...`
+      );
+
+      // Check if this teacher has any zoom links
+      const zoomLinkCount = await prisma.wpos_zoom_links.count({
+        where: { ustazid: teacherId },
+      });
+
+      if (zoomLinkCount > 0) {
+        console.log(
+          `✅ Teacher ${teacherId} found in zoom links (${zoomLinkCount} links), creating virtual teacher record`
+        );
+        teacher = {
+          ustazid: teacherId,
+          ustazname: `Teacher ${teacherId}`,
+        };
+      } else {
+        console.log(`❌ Teacher ${teacherId} not found in zoom links either`);
+      }
+    }
+
+    return teacher;
   }
 
   /**

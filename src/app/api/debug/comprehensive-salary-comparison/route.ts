@@ -24,11 +24,8 @@ To Date: ${toDate}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     `);
 
-    // Get all teachers from the database
+    // Get all teachers from the database - include ALL teachers regardless of ustazid
     const teachers = await prisma.wpos_wpdatatable_24.findMany({
-      where: {
-        AND: [{ ustazid: { not: "" } }],
-      },
       select: {
         ustazid: true,
         ustazname: true,
@@ -36,7 +33,51 @@ To Date: ${toDate}
       orderBy: { ustazid: "asc" },
     });
 
-    console.log(`📊 Found ${teachers.length} teachers to analyze...`);
+    // Also get teachers who might be found through zoom links but not in main table
+    const zoomLinkTeachers = await prisma.wpos_zoom_links.findMany({
+      where: {
+        sent_time: {
+          gte: new Date(fromDate),
+          lte: new Date(toDate),
+        },
+      },
+      select: {
+        ustazid: true,
+      },
+      distinct: ["ustazid"],
+    });
+
+    // Create a comprehensive list of all unique teachers
+    const allTeacherIds = new Set<string>();
+
+    // Add teachers from main table
+    teachers.forEach((teacher) => {
+      if (teacher.ustazid && teacher.ustazid.trim() !== "") {
+        allTeacherIds.add(teacher.ustazid);
+      }
+    });
+
+    // Add teachers from zoom links
+    zoomLinkTeachers.forEach((zoomTeacher) => {
+      if (zoomTeacher.ustazid && zoomTeacher.ustazid.trim() !== "") {
+        allTeacherIds.add(zoomTeacher.ustazid);
+      }
+    });
+
+    // Create final teacher list with names
+    const finalTeachers = Array.from(allTeacherIds).map((teacherId) => {
+      const mainTeacher = teachers.find((t) => t.ustazid === teacherId);
+      return {
+        ustazid: teacherId,
+        ustazname: mainTeacher?.ustazname || `Teacher ${teacherId}`,
+      };
+    });
+
+    console.log(`📊 Found ${teachers.length} teachers in main table`);
+    console.log(
+      `📊 Found ${zoomLinkTeachers.length} unique teachers in zoom links`
+    );
+    console.log(`📊 Total unique teachers to analyze: ${finalTeachers.length}`);
 
     // Default config for calculators
     const defaultConfig = {
@@ -65,19 +106,24 @@ To Date: ${toDate}
     const results = [];
     let processedCount = 0;
 
-    for (let i = 0; i < teachers.length; i += batchSize) {
-      const batch = teachers.slice(i, i + batchSize);
+    for (let i = 0; i < finalTeachers.length; i += batchSize) {
+      const batch = finalTeachers.slice(i, i + batchSize);
 
       console.log(
         `🔄 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(
-          teachers.length / batchSize
+          finalTeachers.length / batchSize
         )} (${batch.length} teachers)...`
       );
 
       const batchPromises = batch.map(async (teacher) => {
         try {
           const teacherId = teacher.ustazid;
-          if (!teacherId) return null;
+          if (!teacherId || teacherId.trim() === "") {
+            console.log(
+              `⚠️ Skipping teacher with empty ustazid: ${teacher.ustazname}`
+            );
+            return null;
+          }
 
           // Test both calculators
           const oldResult = await oldCalculator.calculateTeacherSalary(
@@ -157,7 +203,9 @@ To Date: ${toDate}
       results.push(...batchResults.filter((result) => result !== null));
 
       processedCount += batch.length;
-      console.log(`✅ Processed ${processedCount}/${teachers.length} teachers`);
+      console.log(
+        `✅ Processed ${processedCount}/${finalTeachers.length} teachers`
+      );
     }
 
     // Calculate summary statistics
@@ -203,7 +251,7 @@ To Date: ${toDate}
       totalNewTeachingDays - totalOldTeachingDays;
 
     const summary = {
-      totalTeachers: teachers.length,
+      totalTeachers: finalTeachers.length,
       processedTeachers: results.length,
       teachersWithErrors: teachersWithErrors.length,
       teachersWithSalaryIncrease: teachersWithSalaryIncrease.length,

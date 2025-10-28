@@ -85,6 +85,8 @@ export default function MissingTeachersDebugPage() {
   const [comparingAllTeachers, setComparingAllTeachers] = useState(false);
   const [discussionData, setDiscussionData] = useState<any>(null);
   const [showingDiscussion, setShowingDiscussion] = useState(false);
+  const [oldSalaryDebug, setOldSalaryDebug] = useState<any>(null);
+  const [loadingOldDebug, setLoadingOldDebug] = useState(false);
 
   const handleDebug = async () => {
     if (!teacherIds || !fromDate || !toDate) {
@@ -292,6 +294,32 @@ export default function MissingTeachersDebugPage() {
     }
   };
 
+  // Test old salary calculator for specific teacher
+  const handleOldSalaryDebug = async () => {
+    if (!teacherIds || !fromDate || !toDate) {
+      setError("Please fill in all fields");
+      return;
+    }
+
+    setLoadingOldDebug(true);
+    try {
+      const teacherId = teacherIds.split(",")[0].trim(); // Use first teacher ID
+      const response = await fetch(
+        `/api/debug/old-salary-debug?teacherId=${encodeURIComponent(
+          teacherId
+        )}&fromDate=${fromDate}&toDate=${toDate}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setOldSalaryDebug(data.data);
+      }
+    } catch (err) {
+      setError("Failed to debug old salary calculator");
+    } finally {
+      setLoadingOldDebug(false);
+    }
+  };
+
   const getIssueColor = (issue: string) => {
     if (issue.includes("❌")) return "destructive";
     if (issue.includes("⚠️")) return "secondary";
@@ -430,6 +458,14 @@ export default function MissingTeachersDebugPage() {
               className="bg-purple-600 text-white hover:bg-purple-700"
             >
               {showingDiscussion ? "Loading..." : "📚 Discussion"}
+            </Button>
+            <Button
+              onClick={handleOldSalaryDebug}
+              disabled={loadingOldDebug}
+              variant="outline"
+              className="bg-orange-600 text-white hover:bg-orange-700"
+            >
+              {loadingOldDebug ? "Debugging..." : "🔍 Debug Old Calculator"}
             </Button>
           </div>
         </CardContent>
@@ -1782,6 +1818,215 @@ export default function MissingTeachersDebugPage() {
             ))}
           </Tabs>
         </div>
+      )}
+
+      {/* Old Salary Calculator Debug Results */}
+      {oldSalaryDebug && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              🔍 Old Salary Calculator Debug Results
+            </CardTitle>
+            <CardDescription>
+              Detailed analysis of why the old calculator might not be paying
+              teachers with zoom links
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Teacher Info */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 border rounded bg-blue-50">
+                <p className="text-sm text-muted-foreground">Teacher</p>
+                <p className="font-bold">
+                  {oldSalaryDebug.teacherInMainTable?.ustazname ||
+                    "Not in main table"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ID: {oldSalaryDebug.teacherId}
+                </p>
+              </div>
+              <div className="p-4 border rounded bg-green-50">
+                <p className="text-sm text-muted-foreground">
+                  Total Zoom Links
+                </p>
+                <p className="font-bold text-green-600">
+                  {oldSalaryDebug.zoomLinkCount}
+                </p>
+              </div>
+              <div className="p-4 border rounded bg-yellow-50">
+                <p className="text-sm text-muted-foreground">
+                  Period Zoom Links
+                </p>
+                <p className="font-bold text-yellow-600">
+                  {oldSalaryDebug.periodZoomLinks}
+                </p>
+              </div>
+            </div>
+
+            {/* Salary Result */}
+            <div className="p-4 border rounded bg-gray-50">
+              <h4 className="font-semibold mb-2">Salary Calculation Result</h4>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Salary</p>
+                  <p className="font-bold text-lg">
+                    {oldSalaryDebug.salaryResult.totalSalary} ETB
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Teaching Days</p>
+                  <p className="font-bold">
+                    {oldSalaryDebug.salaryResult.totalTeachingDays}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Students Found
+                  </p>
+                  <p className="font-bold">
+                    {oldSalaryDebug.salaryResult.studentsCount}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Students with Earnings
+                  </p>
+                  <p className="font-bold">
+                    {oldSalaryDebug.salaryResult.studentsWithEarnings}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Zoom Links Details */}
+            <div>
+              <h4 className="font-semibold mb-2">Zoom Links Analysis</h4>
+              <div className="space-y-2">
+                {oldSalaryDebug.zoomLinksDetails.map(
+                  (link: any, index: number) => (
+                    <div key={index} className="p-3 border rounded">
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-2 text-sm">
+                        <div>
+                          <p className="font-medium">{link.studentName}</p>
+                          <p className="text-muted-foreground">
+                            ID: {link.studentId}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Package</p>
+                          <p className="text-muted-foreground">
+                            {link.studentPackage || "None"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Status</p>
+                          <p className="text-muted-foreground">
+                            {link.studentStatus || "Unknown"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Assigned To</p>
+                          <p className="text-muted-foreground">
+                            {link.studentAssignedTo || "None"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Package Salary</p>
+                          <p className="text-muted-foreground">
+                            {link.packageSalary || "Not configured"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Zoom Date</p>
+                          <p className="text-muted-foreground">
+                            {link.sentTime?.split("T")[0]}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Student Breakdown */}
+            <div>
+              <h4 className="font-semibold mb-2">
+                Student Breakdown from Old Calculator
+              </h4>
+              <div className="space-y-2">
+                {oldSalaryDebug.salaryResult.studentBreakdown.map(
+                  (student: any, index: number) => (
+                    <div key={index} className="p-3 border rounded">
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-2 text-sm">
+                        <div>
+                          <p className="font-medium">{student.name}</p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Package</p>
+                          <p className="text-muted-foreground">
+                            {student.package || "None"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Monthly Rate</p>
+                          <p className="text-muted-foreground">
+                            {student.monthlyRate} ETB
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Daily Rate</p>
+                          <p className="text-muted-foreground">
+                            {student.dailyRate} ETB
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Days Worked</p>
+                          <p className="text-muted-foreground">
+                            {student.daysWorked}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Total Earned</p>
+                          <p
+                            className={`font-bold ${
+                              student.totalEarned > 0
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {student.totalEarned} ETB
+                          </p>
+                        </div>
+                      </div>
+                      {student.hasZoomLinks && (
+                        <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                          ✅ This student has zoom links but earned{" "}
+                          {student.totalEarned} ETB
+                        </div>
+                      )}
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Package Salaries */}
+            <div>
+              <h4 className="font-semibold mb-2">Available Package Salaries</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {oldSalaryDebug.packageSalaries.map(
+                  (pkg: any, index: number) => (
+                    <div key={index} className="p-2 border rounded text-sm">
+                      <p className="font-medium">{pkg.name}</p>
+                      <p className="text-muted-foreground">{pkg.salary} ETB</p>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

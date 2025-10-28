@@ -117,6 +117,8 @@ export default function AdminImprovedTeacherPayments() {
     useState<TeacherPaymentData | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [error, setError] = useState<string | null>(null);
+  const [teacherCoverage, setTeacherCoverage] = useState<any>(null);
+  const [loadingCoverage, setLoadingCoverage] = useState(false);
 
   // Set default month to current month
   useEffect(() => {
@@ -214,6 +216,27 @@ export default function AdminImprovedTeacherPayments() {
       firstDay.toISOString().split("T")[0],
       lastDay.toISOString().split("T")[0],
     ];
+  };
+
+  // Load teacher coverage analysis
+  const loadTeacherCoverage = async () => {
+    setLoadingCoverage(true);
+    try {
+      const [fromDate, toDate] = getMonthDateRange(selectedMonth);
+
+      const response = await fetch(
+        `/api/debug/teacher-coverage?fromDate=${fromDate}&toDate=${toDate}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setTeacherCoverage(data.data);
+      }
+    } catch (err) {
+      setError("Failed to load teacher coverage data");
+    } finally {
+      setLoadingCoverage(false);
+    }
   };
 
   const filteredTeachers = teachers.filter(
@@ -339,6 +362,16 @@ export default function AdminImprovedTeacherPayments() {
                 {loading ? "Loading..." : "Load Data"}
               </Button>
             </div>
+            <div>
+              <Button
+                onClick={loadTeacherCoverage}
+                disabled={loadingCoverage}
+                variant="outline"
+                className="w-full"
+              >
+                {loadingCoverage ? "Analyzing..." : "Check Coverage"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -347,6 +380,89 @@ export default function AdminImprovedTeacherPayments() {
         <Alert variant="destructive" className="mb-6">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
+      )}
+
+      {/* Teacher Coverage Analysis */}
+      {teacherCoverage && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users size={24} />
+              Teacher Coverage Analysis
+            </CardTitle>
+            <CardDescription>
+              Analysis of teacher coverage across different data sources
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <div className="text-center p-4 border rounded bg-blue-50">
+                <p className="text-sm text-muted-foreground">Total Teachers</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {teacherCoverage.totalUniqueTeachers}
+                </p>
+              </div>
+              <div className="text-center p-4 border rounded bg-green-50">
+                <p className="text-sm text-muted-foreground">In Main Table</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {teacherCoverage.mainTableTeachers}
+                </p>
+              </div>
+              <div className="text-center p-4 border rounded bg-yellow-50">
+                <p className="text-sm text-muted-foreground">In Zoom Links</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {teacherCoverage.zoomLinkTeachers}
+                </p>
+              </div>
+              <div className="text-center p-4 border rounded bg-purple-50">
+                <p className="text-sm text-muted-foreground">
+                  In Occupied Times
+                </p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {teacherCoverage.occupiedTimeTeachers}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-3 border rounded bg-red-50">
+                <p className="text-sm text-muted-foreground">
+                  Only in Zoom Links
+                </p>
+                <p className="text-xl font-bold text-red-600">
+                  {teacherCoverage.onlyInZoomLinks}
+                </p>
+              </div>
+              <div className="text-center p-3 border rounded bg-orange-50">
+                <p className="text-sm text-muted-foreground">
+                  Only in Occupied Times
+                </p>
+                <p className="text-xl font-bold text-orange-600">
+                  {teacherCoverage.onlyInOccupiedTimes}
+                </p>
+              </div>
+              <div className="text-center p-3 border rounded bg-gray-50">
+                <p className="text-sm text-muted-foreground">
+                  Only in Main Table
+                </p>
+                <p className="text-xl font-bold text-gray-600">
+                  {teacherCoverage.onlyInMainTable}
+                </p>
+              </div>
+            </div>
+
+            {teacherCoverage.onlyInZoomLinks > 0 && (
+              <Alert className="mt-4">
+                <AlertDescription>
+                  <strong>⚠️ Missing Teachers Found:</strong>{" "}
+                  {teacherCoverage.onlyInZoomLinks} teachers are found in zoom
+                  links but not in the main teacher table. These teachers will
+                  now be included in salary calculations.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Tabs */}
