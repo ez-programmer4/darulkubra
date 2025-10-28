@@ -156,6 +156,7 @@ export async function GET(
       select: {
         id: true,
         result: true,
+        questionId: true,
         testquestion: {
           select: {
             id: true,
@@ -180,19 +181,51 @@ export async function GET(
       },
     });
 
+    // Get all test questions for all tests at once to avoid N+1 queries
+    const testIds = testAppointments.map((appointment) => appointment.test.id);
+    const allTestQuestions = await prisma.testquestion.findMany({
+      where: {
+        testId: { in: testIds },
+      },
+      select: {
+        id: true,
+        testId: true,
+      },
+    });
+
+    // Group questions by test ID
+    const questionsByTest = allTestQuestions.reduce((acc, question) => {
+      if (!acc[question.testId]) {
+        acc[question.testId] = [];
+      }
+      acc[question.testId].push(question.id);
+      return acc;
+    }, {} as Record<string, string[]>);
+
+    // Debug logging removed for production
+
     // Calculate test performance summary
     const testSummary = testAppointments.map((appointment) => {
-      const results = testResults.filter(
-        (result) => result.testquestion.test.id === appointment.test.id
+      const testQuestionIds = questionsByTest[appointment.test.id] || [];
+
+      // Get results for this specific test appointment
+      const results = testResults.filter((result) =>
+        testQuestionIds.includes(result.questionId)
       );
 
-      const totalQuestions = results.length;
-      const correctAnswers = results.filter((r) => r.result === 1).length;
+      const totalQuestions = testQuestionIds.length;
+      // Count correct answers - it seems result stores the actual score/points
+      // If result > 0, it means the answer was correct
+      const correctAnswers = results.filter((r) => r.result > 0).length;
+
+      // Debug logging removed for production
       const score =
         totalQuestions > 0
           ? Math.round((correctAnswers / totalQuestions) * 100)
           : 0;
       const passed = score >= appointment.test.passingResult;
+
+      // Debug logging removed for production
 
       return {
         testId: appointment.test.id,
