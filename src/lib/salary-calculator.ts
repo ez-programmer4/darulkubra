@@ -1023,47 +1023,77 @@ Current Students Found: ${allStudents.length}
       `);
     }
 
-    const zoomLinkStudents = await prisma.wpos_zoom_links.findMany({
+    // First get zoom links without the relation to avoid null reference errors
+    const zoomLinkIds = await prisma.wpos_zoom_links.findMany({
       where: {
         ustazid: teacherId,
-        // CRITICAL FIX: Don't filter by date range here
-        // This was causing inconsistent results when different date ranges were used
-        // The date filtering should only happen during the absence calculation loop
       },
       select: {
         studentid: true,
-        wpos_wpdatatable_23: {
-          select: {
-            wdt_ID: true,
-            name: true,
-            package: true,
-            daypackages: true, // ✅ ADDED: Include daypackages field
-            status: true, // Include status for debugging, but don't filter by it
-            occupiedTimes: {
-              where: {
-                ustaz_id: teacherId,
-                occupied_at: { lte: toDate },
-                OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
-              },
-              select: {
-                time_slot: true,
-                daypackage: true, // ✅ ADDED: Include daypackage field
-                occupied_at: true,
-                end_at: true,
-              },
-            },
-          },
-        },
       },
       distinct: ["studentid"],
     });
+
+    // Then get student data for those IDs
+    const studentIds = zoomLinkIds
+      .map((link) => link.studentid)
+      .filter((id) => id !== null);
+
+    const zoomLinkStudents =
+      studentIds.length > 0
+        ? await prisma.wpos_wpdatatable_23.findMany({
+            where: {
+              wdt_ID: { in: studentIds },
+            },
+            select: {
+              wdt_ID: true,
+              name: true,
+              package: true,
+              daypackages: true,
+              status: true,
+              occupiedTimes: {
+                where: {
+                  ustaz_id: teacherId,
+                  occupied_at: { lte: toDate },
+                  OR: [{ end_at: null }, { end_at: { gte: fromDate } }],
+                },
+                select: {
+                  time_slot: true,
+                  daypackage: true,
+                  occupied_at: true,
+                  end_at: true,
+                },
+              },
+            },
+          })
+        : [];
+
+    // Get zoom links for each student in the period
+    const zoomLinkStudentsWithLinks = await Promise.all(
+      zoomLinkStudents.map(async (student) => {
+        const studentZoomLinks = await prisma.wpos_zoom_links.findMany({
+          where: {
+            ustazid: teacherId,
+            studentid: student.wdt_ID,
+            sent_time: { gte: fromDate, lte: toDate },
+          },
+          select: { sent_time: true },
+        });
+
+        return {
+          studentid: student.wdt_ID,
+          wpos_wpdatatable_23: student,
+          zoom_links: studentZoomLinks,
+        };
+      })
+    );
 
     if (isDebugTeacher) {
       console.log(`
 🔍 ZOOM LINK QUERY RESULTS:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Zoom Link Students Found: ${zoomLinkStudents.length}
-${zoomLinkStudents
+Zoom Link Students Found: ${zoomLinkStudentsWithLinks.length}
+${zoomLinkStudentsWithLinks
   .slice(0, 5)
   .map(
     (link, i) => `
@@ -1071,6 +1101,7 @@ ${i + 1}. Student ID: ${link.studentid}
    Student Name: ${link.wpos_wpdatatable_23?.name || "NULL"}
    Student Package: ${link.wpos_wpdatatable_23?.package || "NULL"}
    Student Status: ${link.wpos_wpdatatable_23?.status || "NULL"}
+   Zoom Links in Period: ${link.zoom_links?.length || 0}
 `
   )
   .join("")}
@@ -1083,27 +1114,19 @@ ${i + 1}. Student ID: ${link.studentid}
     // If teacher sent zoom links, they should be paid - zoom links are evidence of teaching
     const existingStudentIds = new Set(allStudents.map((s) => s.wdt_ID));
 
-    for (const zoomLink of zoomLinkStudents) {
+    for (const zoomLink of zoomLinkStudentsWithLinks) {
       const student = zoomLink.wpos_wpdatatable_23;
       if (student && !existingStudentIds.has(student.wdt_ID)) {
-        // Get zoom links for this student
-        const studentZoomLinks = await prisma.wpos_zoom_links.findMany({
-          where: {
-            ustazid: teacherId,
-            studentid: student.wdt_ID,
-            sent_time: { gte: fromDate, lte: toDate },
-          },
-          select: { sent_time: true },
-        });
-
         // 🔍 DEBUG: Log students found through zoom links
-        console.log(`
+        if (isDebugTeacher) {
+          console.log(`
 🔍 STUDENT FOUND THROUGH ZOOM LINKS:
 Student: ${student.name}
 Status: ${student.status}
-Zoom Links: ${studentZoomLinks.length}
+Zoom Links: ${zoomLink.zoom_links.length}
 Teacher ID: ${teacherId}
-        `);
+          `);
+        }
 
         allStudents.push({
           wdt_ID: student.wdt_ID,
@@ -1112,7 +1135,7 @@ Teacher ID: ${teacherId}
           daypackages: student.daypackages, // ✅ ADDED: Include daypackages field
           status: student.status,
           occupiedTimes: student.occupiedTimes || [], // ✅ ADDED: Include occupied_times
-          zoom_links: studentZoomLinks,
+          zoom_links: zoomLink.zoom_links,
         });
       }
     }
