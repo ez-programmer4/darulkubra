@@ -19,6 +19,24 @@ interface TelegramUpdate {
     date: number;
     text?: string;
   };
+  callback_query?: {
+    id: string;
+    from: {
+      id: number;
+      is_bot: boolean;
+      first_name: string;
+      last_name?: string;
+      username?: string;
+    };
+    message?: {
+      message_id: number;
+      chat: {
+        id: number;
+        type: string;
+      };
+    };
+    data?: string;
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -27,28 +45,40 @@ export async function POST(req: NextRequest) {
     const update: TelegramUpdate = await req.json();
     console.log("📝 Update data:", JSON.stringify(update, null, 2));
 
-    // Only handle messages (not callbacks, etc.)
-    if (!update.message || !update.message.text) {
-      console.log("❌ No message or text found");
+    // Handle callback queries (button clicks)
+    if (update.callback_query) {
+      await handleCallbackQuery(update.callback_query);
       return NextResponse.json({ ok: true });
     }
 
-    const chatId = update.message.chat.id.toString();
-    const messageText = update.message.text.trim();
-    const firstName = update.message.from.first_name;
+    // Handle messages
+    if (update.message && update.message.text) {
+      const chatId = update.message.chat.id.toString();
+      const messageText = update.message.text.trim();
+      const firstName = update.message.from.first_name;
 
-    console.log(
-      `🤖 Bot received message from ${firstName} (${chatId}): ${messageText}`
-    );
+      console.log(
+        `🤖 Bot received message from ${firstName} (${chatId}): ${messageText}`
+      );
 
-    // Handle /myprogress command
-    if (messageText === "/myprogress") {
-      await handleMyProgressCommand(chatId, firstName);
-    } else if (messageText === "/start") {
-      await handleStartCommand(chatId, firstName);
-    } else {
-      // Unknown command - send help
-      await sendHelpMessage(chatId, firstName);
+      // Handle commands and menu options
+      if (messageText === "/start") {
+        await handleStartCommand(chatId, firstName);
+      } else if (
+        messageText === "/myprogress" ||
+        messageText === "📊 My Progress"
+      ) {
+        await handleMyProgressCommand(chatId, firstName);
+      } else if (messageText === "/help" || messageText === "❓ Help") {
+        await sendHelpMessage(chatId, firstName);
+      } else if (messageText === "🏠 Main Menu") {
+        await handleStartCommand(chatId, firstName);
+      } else if (messageText === "📱 Open Dashboard") {
+        await handleMyProgressCommand(chatId, firstName);
+      } else {
+        // Unknown command - send help with menu
+        await sendHelpMessage(chatId, firstName);
+      }
     }
 
     return NextResponse.json({ ok: true });
@@ -74,20 +104,47 @@ async function handleStartCommand(chatId: string, firstName: string) {
 
 Welcome to Darulkubra Online Learning!
 
-I'm here to help you with your studies. Here's what you can do:
+I'm here to help you with your studies. Use the menu below to navigate:
 
-📊 **View Your Progress**
-Use /myprogress to see your attendance, test results, and learning progress.
-
-📚 **Join Classes**
-Your teacher will send you zoom links for online classes.
-
-❓ **Need Help?**
-Type /help anytime for assistance.
+📊 **View Your Progress** - See attendance, tests, and learning progress
+📚 **Join Classes** - Your teacher will send zoom links
+❓ **Get Help** - Need assistance? I'm here to help!
 
 *May Allah bless your learning journey*`;
 
-  await sendTelegramMessage(botToken, chatId, message);
+  const keyboard = {
+    keyboard: [
+      [{ text: "📊 My Progress" }, { text: "❓ Help" }],
+      [{ text: "🏠 Main Menu" }],
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: false,
+    selective: true,
+  };
+
+  const requestPayload = {
+    chat_id: chatId,
+    text: message,
+    parse_mode: "Markdown",
+    reply_markup: keyboard,
+  };
+
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestPayload),
+      }
+    );
+
+    if (!response.ok) {
+      console.error("Failed to send start message:", await response.text());
+    }
+  } catch (error) {
+    console.error("Error sending start message:", error);
+  }
 }
 
 async function handleMyProgressCommand(chatId: string, firstName: string) {
@@ -135,6 +192,8 @@ Click the button below to view your:
 • 📅 Attendance records
 • 📝 Test results  
 • 🎓 Terbia learning progress
+• 💰 Payment details
+• ⏰ Schedule times
 • 📈 Performance statistics
 
 *Your data is always up-to-date*`;
@@ -147,8 +206,24 @@ Click the button below to view your:
       inline_keyboard: [
         [
           {
-            text: "📱 Open My Progress",
+            text: "📱 Open Dashboard",
             web_app: { url: miniAppUrl },
+          },
+        ],
+        [
+          {
+            text: "🔄 Refresh Data",
+            callback_data: "refresh_progress",
+          },
+          {
+            text: "❓ Help",
+            callback_data: "help_progress",
+          },
+        ],
+        [
+          {
+            text: "🏠 Main Menu",
+            callback_data: "main_menu",
           },
         ],
       ],
@@ -177,19 +252,120 @@ async function sendHelpMessage(chatId: string, firstName: string) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) return;
 
-  const message = `❓ **Help - Available Commands**
+  const message = `❓ **Help - How to Use the Bot**
 
-Hello ${firstName}! Here are the commands you can use:
+Hello ${firstName}! Here's how to use your learning bot:
 
-📊 **/myprogress** - View your learning progress
-🎓 **/start** - Welcome message and instructions
+**📱 Quick Access:**
+• Use the menu buttons below for instant access
+• No need to type commands - just tap buttons!
+
+**🎯 Main Features:**
+• **📊 My Progress** - View your complete dashboard
+• **❓ Help** - Get assistance anytime
+• **🏠 Main Menu** - Return to main menu
+
+**💡 Tips:**
+• The menu stays visible for easy navigation
+• Your dashboard shows real-time data
+• Contact your teacher for account issues
 
 **Need more help?**
 Contact your teacher or the school administration.
 
 *May Allah bless your learning journey*`;
 
-  await sendTelegramMessage(botToken, chatId, message);
+  const keyboard = {
+    keyboard: [
+      [{ text: "📊 My Progress" }, { text: "❓ Help" }],
+      [{ text: "🏠 Main Menu" }],
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: false,
+    selective: true,
+  };
+
+  const requestPayload = {
+    chat_id: chatId,
+    text: message,
+    parse_mode: "Markdown",
+    reply_markup: keyboard,
+  };
+
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestPayload),
+      }
+    );
+
+    if (!response.ok) {
+      console.error("Failed to send help message:", await response.text());
+    }
+  } catch (error) {
+    console.error("Error sending help message:", error);
+  }
+}
+
+async function handleCallbackQuery(callbackQuery: any) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return;
+
+  const chatId = callbackQuery.message?.chat.id.toString();
+  const messageId = callbackQuery.message?.message_id;
+  const data = callbackQuery.data;
+  const firstName = callbackQuery.from.first_name;
+
+  console.log(`🔄 Callback query from ${firstName}: ${data}`);
+
+  // Answer the callback query to remove loading state
+  await answerCallbackQuery(botToken, callbackQuery.id);
+
+  if (!chatId) return;
+
+  switch (data) {
+    case "refresh_progress":
+      await handleMyProgressCommand(chatId, firstName);
+      break;
+    case "help_progress":
+      await sendHelpMessage(chatId, firstName);
+      break;
+    case "main_menu":
+      await handleStartCommand(chatId, firstName);
+      break;
+    default:
+      console.log(`Unknown callback data: ${data}`);
+  }
+}
+
+async function answerCallbackQuery(
+  botToken: string,
+  callbackQueryId: string,
+  text?: string
+) {
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/answerCallbackQuery`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          callback_query_id: callbackQueryId,
+          text: text || "✅ Done!",
+          show_alert: false,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      console.error("Failed to answer callback query:", await response.text());
+    }
+  } catch (error) {
+    console.error("Error answering callback query:", error);
+  }
 }
 
 async function sendTelegramMessage(
