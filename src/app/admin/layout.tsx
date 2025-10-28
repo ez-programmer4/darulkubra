@@ -38,11 +38,6 @@ const navItems = [
   { href: "/admin/payments", label: "Payments", icon: DollarSign },
   { href: "/admin/permissions", label: "Permissions", icon: Shield },
   { href: "/admin/teacher-payments", label: "Teacher Payments", icon: Coins },
-  {
-    href: "/admin/improved-teacher-payments",
-    label: "Improved Teacher Payments",
-    icon: Coins,
-  },
 
   {
     href: "/admin/controller-earnings",

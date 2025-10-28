@@ -145,8 +145,7 @@ export class SalaryCalculator {
     }
 
     try {
-      // Debug configuration - add teacher IDs here to enable debug logging
-      const debugTeacherIds = ["MOHAMED_TEACHER_ID", "SPECIFIC_TEACHER_ID"]; // Add actual teacher IDs here
+      // Debug configuration disabled for production
 
       // Get teacher info
       const teacher = await this.getTeacherInfo(teacherId);
@@ -161,10 +160,8 @@ export class SalaryCalculator {
         toDate
       );
 
-      // Enhanced debug for specific teacher
-      const isDebugTeacher =
-        teacherId.toLowerCase().includes("mubarek") ||
-        teacherId.toLowerCase().includes("rahmeto");
+      // Debug disabled for production
+      const isDebugTeacher = false;
 
       if (isDebugTeacher) {
         console.log(`
@@ -224,9 +221,7 @@ export class SalaryCalculator {
 
       // Calculate deductions
       // Enable debug mode for lateness calculations
-      const latenessDebugMode =
-        debugTeacherIds.includes(teacherId) ||
-        process.env.DEBUG_LATENESS === "true";
+      const latenessDebugMode = process.env.DEBUG_LATENESS === "true";
 
       let latenessData = await this.calculateLatenessDeductions(
         teacherId,
@@ -760,16 +755,8 @@ export class SalaryCalculator {
     fromDate: Date,
     toDate: Date
   ) {
-    // Debug flag for specific teachers
-    const isDebugTeacher =
-      teacherId.toLowerCase().includes("sultan") ||
-      teacherId.toLowerCase().includes("mubarek") ||
-      teacherId.toLowerCase().includes("rahmeto") ||
-      teacherId === "U271" || // MUBAREK RAHMETO
-      teacherId === "U361" || // ABDUREZAK ASEFA
-      teacherId === "U299" || // FIRDOUES ABDULHAKIM4
-      teacherId === "U294" || // ABDULJELIL BESHIR
-      teacherId === "U250"; // SEADA JEMAL
+    // Debug flag for specific teachers (disabled for production)
+    const isDebugTeacher = false;
 
     if (isDebugTeacher) {
       console.log(`
