@@ -125,7 +125,7 @@ Type /help for more assistance.`;
   // Status check removed - allow all students to access mini app
 
   // Student found and active - send mini app button
-  const miniAppUrl = `https://presphenoid-mixable-minh.ngrok-free.dev/student/mini-app/${chatId}`;
+  const miniAppUrl = `https://exam.darelkubra.com/student/mini-app/${chatId}`;
 
   const message = `📊 **Your Progress Dashboard**
 

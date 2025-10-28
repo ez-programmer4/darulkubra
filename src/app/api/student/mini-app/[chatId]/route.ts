@@ -307,23 +307,23 @@ export async function GET(
         // Convert 24-hour format to 12-hour format
         const convertTo12Hour = (timeStr: string) => {
           if (!timeStr) return "Unknown";
-          
+
           // Handle different time formats
           let time = timeStr;
-          
+
           // If it's just time (HH:MM), add a date for parsing
           if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
             time = `2000-01-01 ${timeStr}`;
           }
-          
+
           try {
             const date = new Date(time);
             if (isNaN(date.getTime())) return timeStr;
-            
-            return date.toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true
+
+            return date.toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
             });
           } catch {
             return timeStr;
@@ -333,7 +333,8 @@ export async function GET(
         return {
           timeSlot: convertTo12Hour(time.time_slot),
           dayPackage: time.daypackage,
-          occupiedAt: time.occupied_at?.toISOString().split("T")[0] || "Unknown",
+          occupiedAt:
+            time.occupied_at?.toISOString().split("T")[0] || "Unknown",
           endAt: time.end_at?.toISOString().split("T")[0] || null,
           teacher: time.teacher?.ustazname || "Unknown",
         };
