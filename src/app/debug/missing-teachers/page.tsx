@@ -1898,6 +1898,69 @@ export default function MissingTeachersDebugPage() {
               </div>
             </div>
 
+            {/* Students Found by Old Calculator */}
+            <div>
+              <h4 className="font-semibold mb-2">
+                Students Found by Old Calculator
+              </h4>
+              <div className="mb-4 p-3 border rounded bg-gray-50">
+                <p className="text-sm text-muted-foreground">
+                  The old calculator found{" "}
+                  <strong>{oldSalaryDebug.studentsFound}</strong> students
+                </p>
+              </div>
+              {oldSalaryDebug.studentsDetails &&
+              oldSalaryDebug.studentsDetails.length > 0 ? (
+                <div className="space-y-2">
+                  {oldSalaryDebug.studentsDetails.map(
+                    (student: any, index: number) => (
+                      <div key={index} className="p-3 border rounded">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-2 text-sm">
+                          <div>
+                            <p className="font-medium">{student.name}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium">Package</p>
+                            <p className="text-muted-foreground">
+                              {student.package || "None"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="font-medium">Status</p>
+                            <p className="text-muted-foreground">
+                              {student.status || "Unknown"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="font-medium">Zoom Links</p>
+                            <p className="text-muted-foreground">
+                              {student.zoomLinks}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="font-medium">Occupied Times</p>
+                            <p className="text-muted-foreground">
+                              {student.occupiedTimes}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              ) : (
+                <div className="p-4 border rounded bg-red-50">
+                  <p className="text-red-600 font-medium">
+                    ❌ No students found by old calculator
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    This explains why the salary is 0. The old calculator is not
+                    finding any students for this teacher.
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Zoom Links Details */}
             <div>
               <h4 className="font-semibold mb-2">Zoom Links Analysis</h4>

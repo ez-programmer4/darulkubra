@@ -86,7 +86,30 @@ To Date: ${toDate}
       },
     };
 
+    // Test the old salary calculator with detailed debugging
     const calculator = new SalaryCalculator(config);
+
+    // First, let's manually test the getTeacherStudents method
+    console.log(`🔍 Testing getTeacherStudents for ${teacherId}...`);
+    const students = await calculator.getTeacherStudentsPublic(
+      teacherId,
+      new Date(fromDate),
+      new Date(toDate)
+    );
+
+    console.log(`📊 getTeacherStudents returned ${students.length} students`);
+    if (students.length > 0) {
+      console.log(
+        `📊 First few students:`,
+        students.slice(0, 3).map((s) => ({
+          name: s.name,
+          package: s.package,
+          status: s.status,
+          zoomLinks: s.zoom_links?.length || 0,
+        }))
+      );
+    }
+
     const salaryResult = await calculator.calculateTeacherSalary(
       teacherId,
       new Date(fromDate),
@@ -98,6 +121,14 @@ To Date: ${toDate}
       teacherInMainTable,
       zoomLinkCount,
       periodZoomLinks: periodZoomLinks.length,
+      studentsFound: students.length,
+      studentsDetails: students.map((s) => ({
+        name: s.name,
+        package: s.package,
+        status: s.status,
+        zoomLinks: s.zoom_links?.length || 0,
+        occupiedTimes: s.occupiedTimes?.length || 0,
+      })),
       zoomLinksDetails: periodZoomLinks.map((link) => ({
         studentId: link.studentid,
         studentName: link.wpos_wpdatatable_23?.name,

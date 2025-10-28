@@ -747,6 +747,14 @@ export class SalaryCalculator {
     return allAssignments;
   }
 
+  public async getTeacherStudentsPublic(
+    teacherId: string,
+    fromDate: Date,
+    toDate: Date
+  ) {
+    return this.getTeacherStudents(teacherId, fromDate, toDate);
+  }
+
   private async getTeacherStudents(
     teacherId: string,
     fromDate: Date,
@@ -758,7 +766,10 @@ export class SalaryCalculator {
       teacherId.toLowerCase().includes("mubarek") ||
       teacherId.toLowerCase().includes("rahmeto") ||
       teacherId === "U271" || // MUBAREK RAHMETO
-      teacherId === "U361"; // ABDUREZAK ASEFA
+      teacherId === "U361" || // ABDUREZAK ASEFA
+      teacherId === "U299" || // FIRDOUES ABDULHAKIM4
+      teacherId === "U294" || // ABDULJELIL BESHIR
+      teacherId === "U250"; // SEADA JEMAL
 
     if (isDebugTeacher) {
       console.log(`
@@ -1001,6 +1012,17 @@ ${i + 1}. Student: ${p.studentName} (ID: ${p.studentId})
     // CRITICAL: Include students with ANY status if zoom links exist
     // Rationale: If teacher sent zoom links and taught the student, they deserve payment
     // Even if student left mid-month, teacher should be paid for days taught
+
+    if (isDebugTeacher) {
+      console.log(`
+🔍 FALLBACK: Looking for students via zoom links
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Teacher ID: ${teacherId}
+Current Students Found: ${allStudents.length}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
+
     const zoomLinkStudents = await prisma.wpos_zoom_links.findMany({
       where: {
         ustazid: teacherId,
@@ -1035,6 +1057,26 @@ ${i + 1}. Student: ${p.studentName} (ID: ${p.studentId})
       },
       distinct: ["studentid"],
     });
+
+    if (isDebugTeacher) {
+      console.log(`
+🔍 ZOOM LINK QUERY RESULTS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Zoom Link Students Found: ${zoomLinkStudents.length}
+${zoomLinkStudents
+  .slice(0, 5)
+  .map(
+    (link, i) => `
+${i + 1}. Student ID: ${link.studentid}
+   Student Name: ${link.wpos_wpdatatable_23?.name || "NULL"}
+   Student Package: ${link.wpos_wpdatatable_23?.package || "NULL"}
+   Student Status: ${link.wpos_wpdatatable_23?.status || "NULL"}
+`
+  )
+  .join("")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      `);
+    }
 
     // Add students found through zoom links
     // Include ALL students regardless of status (Active, Leave, Completed, Not Succeed, etc.)
