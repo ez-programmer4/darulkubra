@@ -148,6 +148,7 @@ export async function GET(
     const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
       where: {
         student_id: student.wdt_ID,
+        end_at: null, // Only get active assignments
       },
       select: {
         time_slot: true,

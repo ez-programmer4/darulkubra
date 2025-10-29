@@ -32,6 +32,7 @@ export async function GET(
         daypackages: true,
         registrationdate: true,
         startdate: true,
+        classfee: true,
         teacher: {
           select: {
             ustazname: true,
@@ -240,10 +241,130 @@ export async function GET(
       };
     });
 
+    // Get occupied times/scheduled times
+    const occupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+      where: {
+        student_id: parseInt(studentId),
+        end_at: null, // Only get active assignments
+      },
+      select: {
+        time_slot: true,
+        daypackage: true,
+        occupied_at: true,
+        end_at: true,
+        teacher: {
+          select: {
+            ustazname: true,
+          },
+        },
+      },
+      orderBy: { occupied_at: "desc" },
+    });
+
+    // Debug logging
+    console.log(
+      `Student ID: ${studentId}, Occupied times count: ${occupiedTimes.length}`
+    );
+    if (occupiedTimes.length > 0) {
+      console.log("Sample occupied time:", occupiedTimes[0]);
+    } else {
+      // Try to get all occupied times for this student (including inactive ones) for debugging
+      const allOccupiedTimes = await prisma.wpos_ustaz_occupied_times.findMany({
+        where: {
+          student_id: parseInt(studentId),
+        },
+        select: {
+          time_slot: true,
+          daypackage: true,
+          occupied_at: true,
+          end_at: true,
+          teacher: {
+            select: {
+              ustazname: true,
+            },
+          },
+        },
+        orderBy: { occupied_at: "desc" },
+      });
+      console.log(
+        `Student ID: ${studentId}, All occupied times count: ${allOccupiedTimes.length}`
+      );
+      if (allOccupiedTimes.length > 0) {
+        console.log("Sample all occupied time:", allOccupiedTimes[0]);
+      }
+    }
+
+    // Get payment data
+    const deposits = await prisma.payment.findMany({
+      where: {
+        studentid: parseInt(studentId),
+      },
+      select: {
+        id: true,
+        paidamount: true,
+        reason: true,
+        paymentdate: true,
+        status: true,
+        transactionid: true,
+      },
+      orderBy: { paymentdate: "desc" },
+    });
+
+    const monthlyPayments = await prisma.months_table.findMany({
+      where: {
+        studentid: parseInt(studentId),
+      },
+      select: {
+        id: true,
+        month: true,
+        paid_amount: true,
+        payment_status: true,
+        payment_type: true,
+        start_date: true,
+        end_date: true,
+        free_month_reason: true,
+        is_free_month: true,
+      },
+      orderBy: { month: "desc" },
+    });
+
+    // Calculate payment summary
+    const totalDeposits = deposits
+      .filter((d) => d.status === "Approved")
+      .reduce((sum, d) => sum + Number(d.paidamount), 0);
+
+    const totalMonthlyPayments = monthlyPayments
+      .filter((p) => p.payment_status === "Paid" && p.payment_type !== "free")
+      .reduce((sum, p) => sum + Number(p.paid_amount), 0);
+
+    const remainingBalance = totalDeposits - totalMonthlyPayments;
+
+    // Get paid and unpaid months
+    const paidMonths = monthlyPayments.filter(
+      (p) => p.payment_status === "Paid" || p.is_free_month
+    );
+
+    const unpaidMonths = monthlyPayments.filter(
+      (p) => p.payment_status !== "Paid" && !p.is_free_month
+    );
+
+    // Debug logging for payments
+    console.log(`Student ID: ${studentId}, Deposits count: ${deposits.length}`);
+    console.log(
+      `Student ID: ${studentId}, Monthly payments count: ${monthlyPayments.length}`
+    );
+    if (deposits.length > 0) {
+      console.log("Sample deposit:", deposits[0]);
+    }
+    if (monthlyPayments.length > 0) {
+      console.log("Sample monthly payment:", monthlyPayments[0]);
+    }
+
     return NextResponse.json({
       success: true,
       student: {
         ...student,
+        classfee: student.classfee || 0,
         attendance: {
           totalDays,
           presentDays,
@@ -276,6 +397,82 @@ export async function GET(
                     testSummary.length
                 )
               : 0,
+        },
+        occupiedTimes: occupiedTimes.map((time) => {
+          // Convert 24-hour format to 12-hour format
+          const convertTo12Hour = (timeStr: string) => {
+            if (!timeStr) return "Unknown";
+
+            // Handle different time formats
+            let time = timeStr;
+
+            // If it's just time (HH:MM), add a date for parsing
+            if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
+              time = `2000-01-01 ${timeStr}`;
+            }
+
+            try {
+              const date = new Date(time);
+              if (isNaN(date.getTime())) return timeStr;
+
+              return date.toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              });
+            } catch {
+              return timeStr;
+            }
+          };
+
+          return {
+            timeSlot: convertTo12Hour(time.time_slot),
+            dayPackage: time.daypackage,
+            occupiedAt:
+              time.occupied_at?.toISOString().split("T")[0] || "Unknown",
+            endAt: time.end_at?.toISOString().split("T")[0] || null,
+            teacher: time.teacher?.ustazname || "Unknown",
+          };
+        }),
+        payments: {
+          summary: {
+            totalDeposits,
+            totalMonthlyPayments,
+            remainingBalance,
+            paidMonths: paidMonths.length,
+            unpaidMonths: unpaidMonths.length,
+          },
+          deposits: deposits.slice(0, 10).map((deposit) => ({
+            id: deposit.id,
+            amount: Number(deposit.paidamount),
+            reason: deposit.reason,
+            date: deposit.paymentdate.toISOString().split("T")[0],
+            status: deposit.status,
+            transactionId: deposit.transactionid,
+          })),
+          monthlyPayments: monthlyPayments.slice(0, 12).map((payment) => ({
+            id: payment.id,
+            month: payment.month,
+            amount: Number(payment.paid_amount),
+            status: payment.payment_status,
+            type: payment.payment_type,
+            startDate: payment.start_date?.toISOString().split("T")[0] || null,
+            endDate: payment.end_date?.toISOString().split("T")[0] || null,
+            isFreeMonth: payment.is_free_month,
+            freeReason: payment.free_month_reason,
+          })),
+          paidMonths: paidMonths.map((payment) => ({
+            month: payment.month,
+            amount: Number(payment.paid_amount),
+            type: payment.payment_type,
+            isFreeMonth: payment.is_free_month,
+            freeReason: payment.free_month_reason,
+          })),
+          unpaidMonths: unpaidMonths.map((payment) => ({
+            month: payment.month,
+            amount: Number(payment.paid_amount),
+            status: payment.payment_status,
+          })),
         },
       },
     });
