@@ -396,9 +396,9 @@ export default function ParentDashboard() {
             </div>
             <div className="flex items-center space-x-1 sm:space-x-3">
               {view === "details" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
+              <Button
+                variant="ghost"
+                size="sm"
                   onClick={toggleTheme}
                   className="text-gray-600 hover:text-gray-900 p-2"
                 >
@@ -546,42 +546,42 @@ export default function ParentDashboard() {
                     }`}
                   >
                     <div className="flex items-center space-x-3 sm:space-x-4">
-                      <div className="relative">
+                    <div className="relative">
                         <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white text-xl sm:text-2xl font-bold shadow-lg">
-                          {studentData.student.name.charAt(0).toUpperCase()}
-                        </div>
+                              {studentData.student.name.charAt(0).toUpperCase()}
+                            </div>
                         <div className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
-                        </div>
-                      </div>
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            </div>
+                          </div>
                       <div className="flex-1 min-w-0">
                         <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-                          {studentData.student.name}
-                        </h2>
+                              {studentData.student.name}
+                            </h2>
                         <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                          <Badge
-                            className={`${getStatusColor(
-                              studentData.student.status
+                              <Badge
+                                className={`${getStatusColor(
+                                  studentData.student.status
                             )} px-2 py-1 text-xs font-medium`}
-                          >
-                            {getStatusIcon(studentData.student.status)}
+                              >
+                                {getStatusIcon(studentData.student.status)}
                             <span className="ml-1">
-                              {studentData.student.status}
-                            </span>
-                          </Badge>
+                                  {studentData.student.status}
+                                </span>
+                              </Badge>
                           <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
-                            <span className="font-medium">ID:</span>
+                                <span className="font-medium">ID:</span>
                             <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">
-                              {studentData.student.wdt_ID}
-                            </span>
-                          </div>
-                        </div>
+                                  {studentData.student.wdt_ID}
+                                </span>
+                              </div>
+                            </div>
                         <div className="mt-2 flex items-center space-x-3 text-xs sm:text-sm text-gray-600">
-                          <div className="flex items-center space-x-1">
+                              <div className="flex items-center space-x-1">
                             <BookOpen className="w-3 h-3 sm:w-4 sm:h-4" />
                             <span className="truncate">{studentData.student.package}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
+                              </div>
+                              <div className="flex items-center space-x-1">
                             <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                             <span className="truncate">{studentData.student.daypackages}</span>
                           </div>
@@ -632,7 +632,7 @@ export default function ParentDashboard() {
                   <div className="space-y-4">
                     {/* Overview Tab */}
                     {currentTab === "overview" && (
-                      <motion.div
+                    <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-4"
@@ -655,23 +655,23 @@ export default function ParentDashboard() {
                                     isDarkMode ? "text-white" : "text-green-600"
                                   }`}
                                 />
-                              </div>
-                            </div>
+                        </div>
+                        </div>
                             <div
                               className={`text-2xl font-bold ${
                                 isDarkMode ? "text-white" : "text-gray-900"
                               }`}
                             >
                               {studentData.student.attendance.percentage}%
-                            </div>
+                        </div>
                             <div
                               className={`text-xs ${
                                 isDarkMode ? "text-gray-400" : "text-gray-500"
                               }`}
                             >
-                              Attendance
-                            </div>
-                          </div>
+                          Attendance
+                        </div>
+                      </div>
 
                           <div
                             className={`p-4 rounded-2xl ${
@@ -689,23 +689,23 @@ export default function ParentDashboard() {
                                     isDarkMode ? "text-white" : "text-blue-600"
                                   }`}
                                 />
-                              </div>
-                            </div>
+                        </div>
+                        </div>
                             <div
                               className={`text-2xl font-bold ${
                                 isDarkMode ? "text-white" : "text-gray-900"
                               }`}
                             >
                               {studentData.student.summary.totalZoomSessions}
-                            </div>
+                        </div>
                             <div
                               className={`text-xs ${
                                 isDarkMode ? "text-gray-400" : "text-gray-500"
                               }`}
                             >
                               Zoom Sessions
-                            </div>
-                          </div>
+                        </div>
+                      </div>
 
                           <div
                             className={`p-4 rounded-2xl ${
@@ -723,23 +723,23 @@ export default function ParentDashboard() {
                                     isDarkMode ? "text-white" : "text-purple-600"
                                   }`}
                                 />
-                              </div>
-                            </div>
+                        </div>
+                        </div>
                             <div
                               className={`text-2xl font-bold ${
                                 isDarkMode ? "text-white" : "text-gray-900"
                               }`}
                             >
                               {studentData.student.summary.totalTests}
-                            </div>
+                        </div>
                             <div
                               className={`text-xs ${
                                 isDarkMode ? "text-gray-400" : "text-gray-500"
                               }`}
                             >
                               Total Tests
-                            </div>
-                          </div>
+                        </div>
+                      </div>
 
                           <div
                             className={`p-4 rounded-2xl ${
@@ -757,15 +757,15 @@ export default function ParentDashboard() {
                                     isDarkMode ? "text-white" : "text-orange-600"
                                   }`}
                                 />
-                              </div>
-                            </div>
+                        </div>
+                        </div>
                             <div
                               className={`text-2xl font-bold ${
                                 isDarkMode ? "text-white" : "text-gray-900"
                               }`}
                             >
                               {studentData.terbiaProgress?.overallProgress?.overallPercent || 0}%
-                            </div>
+                        </div>
                             <div
                               className={`text-xs ${
                                 isDarkMode ? "text-gray-400" : "text-gray-500"
@@ -773,14 +773,14 @@ export default function ParentDashboard() {
                             >
                               Terbia Progress
                             </div>
-                          </div>
                         </div>
-                      </motion.div>
+                      </div>
+                    </motion.div>
                     )}
 
                     {/* Attendance Tab */}
                     {currentTab === "attendance" && (
-                      <motion.div
+                    <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-4"
@@ -817,7 +817,7 @@ export default function ParentDashboard() {
                                 />
                               )}
                             </button>
-                          </div>
+                        </div>
 
                           <div className="grid grid-cols-3 gap-4 mb-4">
                             <div className="text-center">
@@ -827,15 +827,15 @@ export default function ParentDashboard() {
                                 }`}
                               >
                                 {studentData.student.attendance.presentDays}
-                              </div>
+                        </div>
                               <div
                                 className={`text-xs ${
                                   isDarkMode ? "text-gray-400" : "text-gray-500"
                                 }`}
                               >
                                 Present
-                              </div>
-                            </div>
+                        </div>
+                        </div>
                             <div className="text-center">
                               <div
                                 className={`text-2xl font-bold ${
@@ -843,15 +843,15 @@ export default function ParentDashboard() {
                                 }`}
                               >
                                 {studentData.student.attendance.absentDays}
-                              </div>
+                      </div>
                               <div
                                 className={`text-xs ${
                                   isDarkMode ? "text-gray-400" : "text-gray-500"
                                 }`}
                               >
                                 Absent
-                              </div>
-                            </div>
+                        </div>
+                        </div>
                             <div className="text-center">
                               <div
                                 className={`text-2xl font-bold ${
@@ -859,29 +859,29 @@ export default function ParentDashboard() {
                                 }`}
                               >
                                 {studentData.student.attendance.totalDays}
-                              </div>
+                        </div>
                               <div
                                 className={`text-xs ${
                                   isDarkMode ? "text-gray-400" : "text-gray-500"
                                 }`}
                               >
                                 Total Days
-                              </div>
-                            </div>
+                        </div>
+                      </div>
                           </div>
 
                           {expandedSections.attendance && (
                             <div className="space-y-2">
                               {studentData.student.attendance.recentRecords.slice(0, 5).map((record, index) => (
                                 <div
-                                  key={record.id}
+                              key={record.id}
                                   className={`flex items-center justify-between p-3 rounded-xl ${
                                     isDarkMode ? "bg-gray-700/50" : "bg-gray-50"
                                   }`}
                                 >
                                   <div className="flex items-center space-x-3">
-                                    <div
-                                      className={`w-2 h-2 rounded-full ${
+                                  <div
+                                    className={`w-2 h-2 rounded-full ${
                                         record.status?.toLowerCase() === "present" ||
                                         record.status?.toLowerCase() === "attended"
                                           ? isDarkMode
@@ -889,8 +889,8 @@ export default function ParentDashboard() {
                                             : "bg-green-500"
                                           : isDarkMode
                                           ? "bg-red-400"
-                                          : "bg-red-500"
-                                      }`}
+                                        : "bg-red-500"
+                                    }`}
                                     />
                                     <div>
                                       <span
@@ -898,8 +898,8 @@ export default function ParentDashboard() {
                                           isDarkMode ? "text-white" : "text-gray-900"
                                         }`}
                                       >
-                                        {formatDate(record.date)}
-                                      </span>
+                                    {formatDate(record.date)}
+                                  </span>
                                       <div
                                         className={`text-xs ${
                                           isDarkMode ? "text-gray-400" : "text-gray-500"
@@ -908,36 +908,36 @@ export default function ParentDashboard() {
                                         {new Date(record.date).toLocaleDateString("en-US", {
                                           weekday: "long",
                                         })}
-                                      </div>
+                                </div>
                                     </div>
                                   </div>
                                   <div
                                     className={`text-xs font-medium px-2 py-1 rounded-full ${
                                       record.status?.toLowerCase() === "present" ||
-                                      record.status?.toLowerCase() === "attended"
+                                    record.status?.toLowerCase() === "attended"
                                         ? isDarkMode
                                           ? "bg-green-900/30 text-green-300"
                                           : "bg-green-100 text-green-700"
                                         : isDarkMode
                                         ? "bg-red-900/30 text-red-300"
                                         : "bg-red-100 text-red-700"
-                                    }`}
-                                  >
-                                    {record.status}
-                                  </div>
-                                </div>
+                                  }`}
+                                >
+                                  {record.status}
+                              </div>
+                                    </div>
                               ))}
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
+                                    </div>
+                                  )}
+                                    </div>
+                            </motion.div>
                     )}
 
                     {/* Tests Tab */}
                     {currentTab === "tests" && studentData.student.testResults.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
                         className="space-y-4"
                       >
                         <div
@@ -951,8 +951,8 @@ export default function ParentDashboard() {
                                 isDarkMode ? "text-white" : "text-gray-900"
                               }`}
                             >
-                              Test Results
-                            </h3>
+                      Test Results
+                    </h3>
                             <button onClick={() => toggleSection("tests")} className="p-1">
                               {expandedSections.tests ? (
                                 <ChevronUp
@@ -974,7 +974,7 @@ export default function ParentDashboard() {
                             <div className="space-y-3">
                               {studentData.student.testResults.map((test, index) => (
                                 <div
-                                  key={test.testId}
+                            key={test.testId}
                                   className={`flex items-center justify-between p-3 rounded-xl ${
                                     isDarkMode ? "bg-gray-700/50" : "bg-gray-50"
                                   }`}
@@ -1003,8 +1003,8 @@ export default function ParentDashboard() {
                                             isDarkMode ? "text-white" : "text-red-600"
                                           }`}
                                         />
-                                      )}
-                                    </div>
+                                )}
+                              </div>
                                     <div>
                                       <div
                                         className={`font-medium ${
@@ -1012,30 +1012,30 @@ export default function ParentDashboard() {
                                         }`}
                                       >
                                         {test.testName}
-                                      </div>
-                                      <div
+                                </div>
+                                <div
                                         className={`text-xs ${
                                           isDarkMode ? "text-gray-400" : "text-gray-500"
                                         }`}
                                       >
                                         {formatDate(test.appointmentDate || test.testId)}
-                                      </div>
-                                    </div>
-                                  </div>
+                                </div>
+                              </div>
+                            </div>
                                   <div className="text-right">
                                     <div
                                       className={`text-lg font-bold ${
-                                        test.passed
+                                    test.passed
                                           ? isDarkMode
                                             ? "text-green-400"
                                             : "text-green-600"
                                           : isDarkMode
                                           ? "text-red-400"
-                                          : "text-red-600"
-                                      }`}
-                                    >
-                                      {test.score}%
-                                    </div>
+                                      : "text-red-600"
+                                  }`}
+                                >
+                                  {test.score}%
+                                </div>
                                     <div
                                       className={`text-xs ${
                                         test.passed
@@ -1048,21 +1048,21 @@ export default function ParentDashboard() {
                                       }`}
                                     >
                                       {test.passed ? "Passed" : "Failed"}
-                                    </div>
-                                  </div>
+                              </div>
+                            </div>
                                 </div>
                               ))}
-                            </div>
-                          )}
                         </div>
-                      </motion.div>
+                      )}
+                    </div>
+                  </motion.div>
                     )}
 
                     {/* Terbia Tab */}
                     {currentTab === "terbia" && studentData.terbiaProgress && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
                         className="space-y-4"
                       >
                         <div
@@ -1077,7 +1077,7 @@ export default function ParentDashboard() {
                               }`}
                             >
                               Terbia Progress
-                            </h3>
+                      </h3>
                             <button onClick={() => toggleSection("terbia")} className="p-1">
                               {expandedSections.terbia ? (
                                 <ChevronUp
@@ -1104,7 +1104,7 @@ export default function ParentDashboard() {
                                       isDarkMode ? "text-white" : "text-gray-900"
                                     }`}
                                   >
-                                    {studentData.terbiaProgress.activePackage}
+                                  {studentData.terbiaProgress.activePackage}
                                   </span>
                                   <div
                                     className={`px-3 py-1 rounded-full ${
@@ -1116,7 +1116,7 @@ export default function ParentDashboard() {
                                     <span className="text-sm font-bold">
                                       {studentData.terbiaProgress.overallProgress?.overallPercent || 0}%
                                     </span>
-                                  </div>
+                              </div>
                                 </div>
                                 <div
                                   className={`w-full rounded-full h-2 ${
@@ -1133,8 +1133,8 @@ export default function ParentDashboard() {
                                       isDarkMode ? "bg-orange-500" : "bg-orange-500"
                                     }`}
                                   />
-                                </div>
                               </div>
+                            </div>
 
                               <div className="grid grid-cols-2 gap-4">
                                 <div className="text-center">
@@ -1144,15 +1144,15 @@ export default function ParentDashboard() {
                                     }`}
                                   >
                                     {studentData.terbiaProgress.overallProgress?.completedCourses || 0}
-                                  </div>
+                            </div>
                                   <div
                                     className={`text-xs ${
                                       isDarkMode ? "text-gray-400" : "text-gray-500"
                                     }`}
                                   >
-                                    Completed
-                                  </div>
+                                  Completed
                                 </div>
+                              </div>
                                 <div className="text-center">
                                   <div
                                     className={`text-xl font-bold ${
@@ -1160,19 +1160,19 @@ export default function ParentDashboard() {
                                     }`}
                                   >
                                     {studentData.terbiaProgress.overallProgress?.totalCourses || 0}
-                                  </div>
+                                </div>
                                   <div
                                     className={`text-xs ${
                                       isDarkMode ? "text-gray-400" : "text-gray-500"
                                     }`}
                                   >
                                     Total Courses
-                                  </div>
                                 </div>
                               </div>
+                                </div>
                             </>
                           )}
-                        </div>
+                                </div>
                       </motion.div>
                     )}
 
@@ -1218,7 +1218,7 @@ export default function ParentDashboard() {
                               >
                                 ETB {studentData.student.payments?.summary?.totalDeposits || 0}
                               </p>
-                            </div>
+                              </div>
                             <div
                               className={`p-3 rounded-lg ${
                                 isDarkMode ? "bg-gray-700" : "bg-blue-50"
@@ -1238,7 +1238,7 @@ export default function ParentDashboard() {
                               >
                                 ETB {studentData.student.payments?.summary?.totalMonthlyPayments || 0}
                               </p>
-                            </div>
+                                </div>
                             <div
                               className={`p-3 rounded-lg ${
                                 isDarkMode ? "bg-gray-700" : "bg-purple-50"
@@ -1258,7 +1258,7 @@ export default function ParentDashboard() {
                               >
                                 ETB {studentData.student.payments?.summary?.remainingBalance || 0}
                               </p>
-                            </div>
+                                </div>
                             <div
                               className={`p-3 rounded-lg ${
                                 isDarkMode ? "bg-gray-700" : "bg-orange-50"
@@ -1278,9 +1278,9 @@ export default function ParentDashboard() {
                               >
                                 {studentData.student.payments?.summary?.paidMonths || 0}
                               </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
                         {/* Recent Deposits */}
                         {studentData.student.payments?.deposits && studentData.student.payments.deposits.length > 0 && (
@@ -1306,7 +1306,7 @@ export default function ParentDashboard() {
                                       isDarkMode ? "bg-gray-700" : "bg-gray-50"
                                     }`}
                                   >
-                                    <div>
+                              <div>
                                       <p
                                         className={`text-sm font-medium ${
                                           isDarkMode ? "text-white" : "text-gray-900"
@@ -1323,17 +1323,17 @@ export default function ParentDashboard() {
                                       </p>
                                     </div>
                                     <div className="text-right">
-                                      <span
+                                            <span
                                         className={`px-2 py-1 rounded-full text-xs ${
                                           deposit.status === "Approved"
-                                            ? "bg-green-100 text-green-800"
+                                                  ? "bg-green-100 text-green-800"
                                             : deposit.status === "pending"
-                                            ? "bg-yellow-100 text-yellow-800"
+                                                  ? "bg-yellow-100 text-yellow-800"
                                             : "bg-red-100 text-red-800"
                                         }`}
                                       >
                                         {deposit.status}
-                                      </span>
+                                            </span>
                                       <p
                                         className={`text-xs mt-1 ${
                                           isDarkMode ? "text-gray-400" : "text-gray-500"
@@ -1341,8 +1341,8 @@ export default function ParentDashboard() {
                                       >
                                         {deposit.date}
                                       </p>
-                                    </div>
-                                  </div>
+                                          </div>
+                                        </div>
                                 ))}
                             </div>
                           </div>
@@ -1372,7 +1372,7 @@ export default function ParentDashboard() {
                                       isDarkMode ? "bg-gray-700" : "bg-gray-50"
                                     }`}
                                   >
-                                    <div>
+                                          <div>
                                       <p
                                         className={`text-sm font-medium ${
                                           isDarkMode ? "text-white" : "text-gray-900"
@@ -1387,7 +1387,7 @@ export default function ParentDashboard() {
                                       >
                                         {payment.type} - ETB {payment.amount}
                                       </p>
-                                    </div>
+                                            </div>
                                     <div className="text-right">
                                       <span
                                         className={`px-2 py-1 rounded-full text-xs ${
@@ -1407,11 +1407,11 @@ export default function ParentDashboard() {
                                           Free Month
                                         </p>
                                       )}
-                                    </div>
-                                  </div>
+                                            </div>
+                                          </div>
                                 ))}
-                            </div>
-                          </div>
+                                            </div>
+                                            </div>
                         )}
                       </motion.div>
                     )}
@@ -1462,7 +1462,7 @@ export default function ParentDashboard() {
                                           >
                                             {time.timeSlot}
                                           </p>
-                                        </div>
+                                          </div>
                                         <p
                                           className={`text-xs ${
                                             isDarkMode ? "text-gray-400" : "text-gray-500"
@@ -1470,7 +1470,7 @@ export default function ParentDashboard() {
                                         >
                                           {time.dayPackage} • {time.teacher}
                                         </p>
-                                      </div>
+                                            </div>
                                       <div className="text-right">
                                         <div
                                           className={`px-2 py-1 rounded-full text-xs ${
@@ -1480,7 +1480,7 @@ export default function ParentDashboard() {
                                           }`}
                                         >
                                           {time.occupiedAt}
-                                        </div>
+                                            </div>
                                         {time.endAt && (
                                           <p
                                             className={`text-xs mt-1 ${
@@ -1489,21 +1489,21 @@ export default function ParentDashboard() {
                                           >
                                             Until {time.endAt}
                                           </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
+                                  )}
+                                </div>
+                              </div>
+                        </div>
                                 ))
                             ) : (
                               <div className="text-center py-6 text-gray-500">
                                 <Clock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
                                 <p className="text-sm">No scheduled times found</p>
-                              </div>
-                            )}
+                        </div>
+                      )}
                           </div>
                         </div>
-                      </motion.div>
-                    )}
+                    </motion.div>
+                  )}
                   </div>
                 </div>
               )}
