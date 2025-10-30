@@ -203,6 +203,28 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
     return () => window.removeEventListener("dk:setTab", handler);
   }, []);
 
+  // Dynamic header top padding based on Telegram WebApp context (MUST be before any returns)
+  const [extraTopPad, setExtraTopPad] = useState(30);
+  useEffect(() => {
+    try {
+      const tg = (window as any)?.Telegram?.WebApp;
+      if (tg) {
+        tg.ready?.();
+        const isExpanded = !!tg.isExpanded;
+        const platform = tg.platform || "";
+        if (isExpanded && (platform === "ios" || platform === "macos")) {
+          setExtraTopPad(6);
+        } else {
+          setExtraTopPad(30);
+        }
+      } else {
+        setExtraTopPad(6);
+      }
+    } catch {
+      setExtraTopPad(30);
+    }
+  }, []);
+
   const goBack = () => {
     // In a real app, this would navigate back
     window.history.back();
@@ -265,31 +287,6 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
       </div>
     );
   }
-
-  // Dynamic header top padding based on Telegram WebApp context
-  const [extraTopPad, setExtraTopPad] = useState(30);
-  useEffect(() => {
-    try {
-      const tg = (window as any)?.Telegram?.WebApp;
-      if (tg) {
-        tg.ready?.();
-        const isExpanded = !!tg.isExpanded;
-        const platform = tg.platform || "";
-        // If opened via in-chat expanded webapp (common on iOS/macOS), use smaller pad
-        if (isExpanded && (platform === "ios" || platform === "macos")) {
-          setExtraTopPad(6);
-        } else {
-          // Chat list open or non-expanded webview gets larger pad
-          setExtraTopPad(30);
-        }
-      } else {
-        // Non-Telegram webview: small padding
-        setExtraTopPad(6);
-      }
-    } catch {
-      setExtraTopPad(30);
-    }
-  }, []);
 
   return (
     <div
