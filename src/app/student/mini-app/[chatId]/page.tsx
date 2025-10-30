@@ -1370,7 +1370,7 @@ function BottomNav() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white/95 backdrop-blur md:hidden">
-      <div className="grid grid-cols-5 text-xs">
+      <div className="grid grid-cols-6 text-xs">
         <button
           onClick={() => setTab("overview")}
           className={btnCls("overview")}
@@ -1391,6 +1391,22 @@ function BottomNav() {
             <path d="M3 14h7v7H3z" />
           </svg>
           <span>{t("overview")}</span>
+        </button>
+        <button onClick={() => setTab("terbia")} className={btnCls("terbia")}>
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 19.5V6a2 2 0 0 1 2-2h9" />
+            <path d="M16 6l3 3-9 9H7l-3 3v-3Z" />
+          </svg>
+          <span>{t("terbia")}</span>
         </button>
         <button
           onClick={() => setTab("attendance")}
