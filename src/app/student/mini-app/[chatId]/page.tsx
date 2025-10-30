@@ -204,7 +204,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   }, []);
 
   // Dynamic header top padding based on Telegram WebApp context (MUST be before any returns)
-  const [extraTopPad, setExtraTopPad] = useState(30);
+  const [extraTopPad, setExtraTopPad] = useState(48);
   useEffect(() => {
     try {
       const tg = (window as any)?.Telegram?.WebApp;
@@ -213,15 +213,15 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         const isExpanded = !!tg.isExpanded;
         const platform = tg.platform || "";
         if (isExpanded && (platform === "ios" || platform === "macos")) {
-          setExtraTopPad(6);
+          setExtraTopPad(12);
         } else {
-          setExtraTopPad(30);
+          setExtraTopPad(48);
         }
       } else {
-        setExtraTopPad(6);
+        setExtraTopPad(12);
       }
     } catch {
-      setExtraTopPad(30);
+      setExtraTopPad(48);
     }
   }, []);
 
