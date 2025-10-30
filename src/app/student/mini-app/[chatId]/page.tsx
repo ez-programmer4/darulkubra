@@ -399,36 +399,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
           </div>
         </div>
 
-        {/* Responsive Tab Navigation */}
-        <div className="px-4 pb-3">
-          <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 overflow-x-auto scrollbar-thin">
-            {[
-              { id: "overview", label: "Overview", icon: BarChart3 },
-              { id: "attendance", label: "Attendance", icon: Calendar },
-              { id: "tests", label: "Tests", icon: Trophy },
-              { id: "terbia", label: "Terbia", icon: Brain },
-              { id: "payments", label: "Payments", icon: CreditCard },
-              { id: "schedule", label: "Schedule", icon: Clock },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setCurrentTab(tab.id)}
-                className={`flex-shrink-0 flex items-center justify-center space-x-1 py-2 px-4 rounded-md text-xs font-medium transition-all duration-200 min-w-fit ${
-                  currentTab === tab.id
-                    ? isDarkMode
-                      ? "bg-gray-700 text-white shadow-lg"
-                      : "bg-white text-gray-900 shadow-sm"
-                    : isDarkMode
-                    ? "text-gray-400 hover:text-white hover:bg-gray-700/50"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
-                }`}
-              >
-                <tab.icon className="w-3 h-3" />
-                <span className="whitespace-nowrap">{tab.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Tab navigation removed in favor of sticky bottom navigation */}
       </div>
 
       {/* Tab Content */}
@@ -618,7 +589,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
           >
             {/* Attendance Summary Card */}
             <div
-              className={`p-4 rounded-2xl ${
+              className={`p-4 rounded-2xl shadow-sm ${
                 isDarkMode ? "bg-gray-800" : "bg-white"
               }`}
             >
@@ -804,8 +775,8 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                   {studentData.recentTests.map((test, index) => (
                     <div
                       key={index}
-                      className={`flex items-center justify-between p-3 rounded-xl ${
-                        isDarkMode ? "bg-gray-700/50" : "bg-gray-50"
+                      className={`flex items-center justify-between p-4 rounded-xl shadow-sm ${
+                        isDarkMode ? "bg-gray-700" : "bg-gray-50"
                       }`}
                     >
                       <div className="flex items-center space-x-3">
