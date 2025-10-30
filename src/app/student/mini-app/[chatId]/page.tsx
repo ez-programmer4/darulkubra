@@ -279,7 +279,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
             ? "bg-gray-800 border-gray-700"
             : "bg-white border-gray-200"
         }`}
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 20px)" }}
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 30px)" }}
       >
         <div className="px-4 py-3">
           {/* Top Navigation */}
