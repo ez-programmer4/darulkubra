@@ -266,6 +266,31 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
     );
   }
 
+  // Dynamic header top padding based on Telegram WebApp context
+  const [extraTopPad, setExtraTopPad] = useState(30);
+  useEffect(() => {
+    try {
+      const tg = (window as any)?.Telegram?.WebApp;
+      if (tg) {
+        tg.ready?.();
+        const isExpanded = !!tg.isExpanded;
+        const platform = tg.platform || "";
+        // If opened via in-chat expanded webapp (common on iOS/macOS), use smaller pad
+        if (isExpanded && (platform === "ios" || platform === "macos")) {
+          setExtraTopPad(6);
+        } else {
+          // Chat list open or non-expanded webview gets larger pad
+          setExtraTopPad(30);
+        }
+      } else {
+        // Non-Telegram webview: small padding
+        setExtraTopPad(6);
+      }
+    } catch {
+      setExtraTopPad(30);
+    }
+  }, []);
+
   return (
     <div
       className={`min-h-screen transition-all duration-300 pb-20 ${
@@ -279,7 +304,9 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
             ? "bg-gray-800 border-gray-700"
             : "bg-white border-gray-200"
         }`}
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 6px)" }}
+        style={{
+          paddingTop: `calc(env(safe-area-inset-top, 0px) + ${extraTopPad}px)`,
+        }}
       >
         <div className="px-4 py-3">
           {/* Top Navigation */}
