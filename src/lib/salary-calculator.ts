@@ -1871,6 +1871,40 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
         }
       }
 
+      // NEW: For active students as well, widen periods to cover actual zoom-link range
+      // so that assignment date glitches don't cut earlier valid teaching days.
+      if (!student.teacherChangePeriod) {
+        const zoomDates = (student.zoom_links || [])
+          .filter((link: any) => link?.sent_time)
+          .map((link: any) => new Date(link.sent_time))
+          .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+
+        if (zoomDates.length > 0) {
+          const firstZoom = zoomDates[0];
+          const lastZoom = zoomDates[zoomDates.length - 1];
+
+          // If no periods or if the zoom range extends beyond the current period(s),
+          // collapse to a single, zoom-bounded period. We'll clamp to the month window later.
+          const hasNoPeriods = periods.length === 0;
+          const currentStart = periods[0]?.start as Date | undefined;
+          const currentEnd = (periods[0]?.end as Date | undefined) || undefined;
+          const zoomExtendsBefore = currentStart
+            ? firstZoom < currentStart
+            : true;
+          const zoomExtendsAfter = currentEnd ? lastZoom > currentEnd : true;
+
+          if (hasNoPeriods || zoomExtendsBefore || zoomExtendsAfter) {
+            periods = [
+              {
+                start: firstZoom,
+                end: lastZoom,
+                student: student,
+              },
+            ];
+          }
+        }
+      }
+
       // CRITICAL FIX: For "Leave", "Completed", and "Not Succeed" status students,
       // occupied_times records may be deleted or student status changed mid-month
       // So we MUST use zoom links as the source of truth for teaching period
