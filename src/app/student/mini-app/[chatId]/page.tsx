@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { I18nProvider, useI18n } from "@/lib/i18n";
 import {
   Calendar,
   BookOpen,
@@ -132,11 +133,8 @@ interface StudentData {
   };
 }
 
-export default function StudentMiniApp({
-  params,
-}: {
-  params: { chatId: string };
-}) {
+function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
+  const { t, lang, setLang } = useI18n();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -196,6 +194,15 @@ export default function StudentMiniApp({
     }));
   };
 
+  // Listen for bottom nav tab changes
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (e?.detail) setCurrentTab(e.detail);
+    };
+    window.addEventListener("dk:setTab", handler);
+    return () => window.removeEventListener("dk:setTab", handler);
+  }, []);
+
   const goBack = () => {
     // In a real app, this would navigate back
     window.history.back();
@@ -224,7 +231,7 @@ export default function StudentMiniApp({
               isDarkMode ? "text-white" : "text-gray-900"
             }`}
           >
-            Loading your progress...
+            {t ? t("loadingProgress") : "Loading your progress..."}
           </p>
         </div>
       </div>
@@ -249,9 +256,11 @@ export default function StudentMiniApp({
         <div className="text-center">
           <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">
-            No Data Found
+            {t ? t("noDataTitle") : "No Data Found"}
           </h2>
-          <p className="text-gray-600">Unable to load your progress data.</p>
+          <p className="text-gray-600">
+            {t ? t("noDataSubtitle") : "Unable to load your progress data."}
+          </p>
         </div>
       </div>
     );
@@ -259,7 +268,7 @@ export default function StudentMiniApp({
 
   return (
     <div
-      className={`min-h-screen transition-all duration-300 ${
+      className={`min-h-screen transition-all duration-300 pb-20 ${
         isDarkMode ? "bg-gray-900" : "bg-gray-50"
       }`}
     >
@@ -291,19 +300,31 @@ export default function StudentMiniApp({
                     isDarkMode ? "text-white" : "text-gray-900"
                   }`}
                 >
-                  My Progress
+                  {t ? t("studentDashboard") : "Student Dashboard"}
                 </h1>
                 <p
                   className={`text-xs ${
                     isDarkMode ? "text-gray-400" : "text-gray-500"
                   }`}
                 >
-                  Student Dashboard
+                  {t ? t("overview") : "Overview"}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center space-x-2">
+              <button
+                onClick={() =>
+                  setLang ? setLang((lang === "en" ? "am" : "en") as any) : null
+                }
+                className={`px-2 py-1 rounded text-xs border ${
+                  isDarkMode
+                    ? "border-gray-700 text-gray-200"
+                    : "border-gray-300 text-gray-700"
+                }`}
+              >
+                {lang === "en" ? "AM" : "EN"}
+              </button>
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
@@ -355,7 +376,7 @@ export default function StudentMiniApp({
                   <span>{studentData.student.daypackages}</span>
                 </div>
                 <div className="text-xs text-white/70 mt-1">
-                  Teacher: {studentData.student.teacher}
+                  {t ? t("teacher") : "Teacher"}: {studentData.student.teacher}
                 </div>
               </div>
             </div>
@@ -974,7 +995,7 @@ export default function StudentMiniApp({
                           isDarkMode ? "text-gray-400" : "text-gray-500"
                         }`}
                       >
-                        Total Chapters
+                        {t ? t("totalChapters") : "Total Chapters"}
                       </div>
                     </div>
                   </div>
@@ -1003,7 +1024,7 @@ export default function StudentMiniApp({
                 }`}
               >
                 <CreditCard className="w-5 h-5" />
-                Payment Summary
+                {t("paymentSummary")}
               </h3>
 
               <div className="grid grid-cols-2 gap-3 mb-4">
@@ -1017,7 +1038,7 @@ export default function StudentMiniApp({
                       isDarkMode ? "text-gray-400" : "text-green-600"
                     }`}
                   >
-                    Total Deposits
+                    {t("totalDeposits")}
                   </p>
                   <p
                     className={`text-lg font-bold ${
@@ -1037,7 +1058,7 @@ export default function StudentMiniApp({
                       isDarkMode ? "text-gray-400" : "text-blue-600"
                     }`}
                   >
-                    Monthly Payments
+                    {t("monthlyPayments")}
                   </p>
                   <p
                     className={`text-lg font-bold ${
@@ -1057,7 +1078,7 @@ export default function StudentMiniApp({
                       isDarkMode ? "text-gray-400" : "text-purple-600"
                     }`}
                   >
-                    Remaining Balance
+                    {t("remainingBalance")}
                   </p>
                   <p
                     className={`text-lg font-bold ${
@@ -1077,7 +1098,7 @@ export default function StudentMiniApp({
                       isDarkMode ? "text-gray-400" : "text-orange-600"
                     }`}
                   >
-                    Paid Months
+                    {t("paidMonths")}
                   </p>
                   <p
                     className={`text-lg font-bold ${
@@ -1101,7 +1122,7 @@ export default function StudentMiniApp({
                   isDarkMode ? "text-white" : "text-gray-900"
                 }`}
               >
-                Recent Deposits
+                {t("recentDeposits")}
               </h3>
               <div className="space-y-2">
                 {studentData?.payments?.deposits
@@ -1109,7 +1130,7 @@ export default function StudentMiniApp({
                   .map((deposit: any, index: number) => (
                     <div
                       key={index}
-                      className={`flex justify-between items-center p-3 rounded-lg ${
+                      className={`flex justify-between items-center p-4 rounded-xl shadow-sm ${
                         isDarkMode ? "bg-gray-700" : "bg-gray-50"
                       }`}
                     >
@@ -1151,6 +1172,18 @@ export default function StudentMiniApp({
                       </div>
                     </div>
                   ))}
+                {(!studentData?.payments?.deposits ||
+                  studentData.payments.deposits.length === 0) && (
+                  <div
+                    className={`p-4 rounded-xl text-center ${
+                      isDarkMode
+                        ? "bg-gray-700 text-gray-300"
+                        : "bg-gray-50 text-gray-600"
+                    }`}
+                  >
+                    {t ? t("noPayments") : "No payment data available"}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1165,7 +1198,7 @@ export default function StudentMiniApp({
                   isDarkMode ? "text-white" : "text-gray-900"
                 }`}
               >
-                Monthly Payments
+                {t("monthlyPayments")}
               </h3>
               <div className="space-y-2">
                 {studentData?.payments?.monthlyPayments
@@ -1173,7 +1206,7 @@ export default function StudentMiniApp({
                   .map((payment: any, index: number) => (
                     <div
                       key={index}
-                      className={`flex justify-between items-center p-3 rounded-lg ${
+                      className={`flex justify-between items-center p-4 rounded-xl shadow-sm ${
                         isDarkMode ? "bg-gray-700" : "bg-gray-50"
                       }`}
                     >
@@ -1209,12 +1242,24 @@ export default function StudentMiniApp({
                               isDarkMode ? "text-purple-400" : "text-purple-600"
                             }`}
                           >
-                            Free Month
+                            {t ? t("freeMonth") : "Free Month"}
                           </p>
                         )}
                       </div>
                     </div>
                   ))}
+                {(!studentData?.payments?.monthlyPayments ||
+                  studentData.payments.monthlyPayments.length === 0) && (
+                  <div
+                    className={`p-4 rounded-xl text-center ${
+                      isDarkMode
+                        ? "bg-gray-700 text-gray-300"
+                        : "bg-gray-50 text-gray-600"
+                    }`}
+                  >
+                    {t ? t("noPayments") : "No payment data available"}
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
@@ -1238,7 +1283,7 @@ export default function StudentMiniApp({
                 }`}
               >
                 <Clock className="w-5 h-5" />
-                Scheduled Times
+                {t("scheduledTimes")}
               </h3>
               <div className="space-y-2">
                 {studentData?.occupiedTimes
@@ -1246,7 +1291,7 @@ export default function StudentMiniApp({
                   .map((time: any, index: number) => (
                     <div
                       key={index}
-                      className={`p-3 rounded-lg ${
+                      className={`p-4 rounded-xl shadow-sm ${
                         isDarkMode ? "bg-gray-700" : "bg-gray-50"
                       }`}
                     >
@@ -1290,17 +1335,167 @@ export default function StudentMiniApp({
                                 isDarkMode ? "text-gray-400" : "text-gray-500"
                               }`}
                             >
-                              Until {time.endAt}
+                              {t ? t("until") : "Until"} {time.endAt}
                             </p>
                           )}
                         </div>
                       </div>
                     </div>
                   ))}
+                {(!studentData?.occupiedTimes ||
+                  studentData.occupiedTimes.length === 0) && (
+                  <div
+                    className={`p-4 rounded-xl text-center ${
+                      isDarkMode
+                        ? "bg-gray-700 text-gray-300"
+                        : "bg-gray-50 text-gray-600"
+                    }`}
+                  >
+                    {t ? t("noSchedule") : "No scheduled times found"}
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
         )}
+      </div>
+    </div>
+  );
+}
+
+export default function StudentMiniApp({
+  params,
+}: {
+  params: { chatId: string };
+}) {
+  return (
+    <I18nProvider>
+      <StudentMiniAppInner params={params} />
+      {/* Sticky Bottom Navigation */}
+      <BottomNav />
+    </I18nProvider>
+  );
+}
+
+function BottomNav() {
+  const { t } = useI18n();
+  const [active, setActive] = React.useState<string>("overview");
+  const setTab = (tab: string) => {
+    setActive(tab);
+    window.dispatchEvent(new CustomEvent("dk:setTab", { detail: tab }));
+  };
+  React.useEffect(() => {
+    const handler = (e: any) => {
+      if (e?.detail) setActive(e.detail);
+    };
+    window.addEventListener("dk:setTab", handler);
+    return () => window.removeEventListener("dk:setTab", handler);
+  }, []);
+
+  const btnCls = (tab: string) =>
+    `py-2 flex flex-col items-center gap-1 ${
+      active === tab ? "text-blue-600" : "text-gray-600"
+    }`;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white/95 backdrop-blur md:hidden">
+      <div className="grid grid-cols-5 text-xs">
+        <button
+          onClick={() => setTab("overview")}
+          className={btnCls("overview")}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 3h7v7H3z" />
+            <path d="M14 3h7v7h-7z" />
+            <path d="M14 14h7v7h-7z" />
+            <path d="M3 14h7v7H3z" />
+          </svg>
+          <span>{t("overview")}</span>
+        </button>
+        <button
+          onClick={() => setTab("attendance")}
+          className={btnCls("attendance")}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4" />
+            <path d="M8 2v4" />
+            <path d="M3 10h18" />
+          </svg>
+          <span>{t("attendance")}</span>
+        </button>
+        <button onClick={() => setTab("tests")} className={btnCls("tests")}>
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m12 15 3.5 3.5 7-7" />
+            <path d="M19 3H5a2 2 0 0 0-2 2v14l4-4h12a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z" />
+          </svg>
+          <span>{t("tests")}</span>
+        </button>
+        <button
+          onClick={() => setTab("payments")}
+          className={btnCls("payments")}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="2" y="5" width="20" height="14" rx="2" />
+            <path d="M2 10h20" />
+          </svg>
+          <span>{t("payments")}</span>
+        </button>
+        <button
+          onClick={() => setTab("schedule")}
+          className={btnCls("schedule")}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" />
+          </svg>
+          <span>{t("schedule")}</span>
+        </button>
       </div>
     </div>
   );
