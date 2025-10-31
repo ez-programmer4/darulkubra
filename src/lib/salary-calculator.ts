@@ -2682,7 +2682,13 @@ Day Package: ${studentDaypackage} (from teacher change period)
       // Don't process future dates
       const today = new Date();
       today.setHours(23, 59, 59, 999);
-      const effectiveToDate = toDate > today ? today : toDate;
+
+      // CRITICAL FIX: Ensure effectiveToDate includes the full last day of the month
+      // Set to end of day (23:59:59.999) to include all zoom links sent on the last day
+      let effectiveToDate = toDate > today ? today : new Date(toDate);
+      if (effectiveToDate <= today) {
+        effectiveToDate.setHours(23, 59, 59, 999);
+      }
 
       // Get teacher change history for this teacher
       const teacherChanges = await prisma.teacher_change_history.findMany({
@@ -3014,9 +3020,12 @@ Day Package: ${studentDaypackage} (from teacher change period)
           }
 
           // Check if student has zoom link for this date
+          // CRITICAL FIX: Use timezone-aware date comparison to match the processing date
           const hasZoomLink = student.zoom_links?.some((link: any) => {
             if (!link.sent_time) return false;
-            const linkDate = format(new Date(link.sent_time), "yyyy-MM-dd");
+            // Convert zoom link time to same timezone as processing date
+            const linkZonedDate = toZonedTime(new Date(link.sent_time), TZ);
+            const linkDate = format(linkZonedDate, "yyyy-MM-dd");
             return linkDate === dateStr;
           });
 
@@ -3025,9 +3034,13 @@ Day Package: ${studentDaypackage} (from teacher change period)
           }
 
           // Check attendance permission
+          // CRITICAL FIX: Use timezone-aware date comparison for consistency
           const attendanceRecord = student.attendance_progress?.find(
             (att: any) => {
-              const attDate = format(new Date(att.date), "yyyy-MM-dd");
+              if (!att.date) return false;
+              // Convert attendance date to same timezone as processing date
+              const attZonedDate = toZonedTime(new Date(att.date), TZ);
+              const attDate = format(attZonedDate, "yyyy-MM-dd");
               return attDate === dateStr;
             }
           );
