@@ -633,7 +633,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
 
   return (
     <div
-      className="min-h-screen transition-all duration-300 pb-20"
+      className="min-h-screen transition-all duration-300 pb-[320px]"
       style={{
         backgroundColor:
           themeParams.bg_color || (isDarkMode ? "#111827" : "#f9fafb"),
@@ -688,7 +688,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                       (isDarkMode ? "#ffffff" : "#111827"),
                   }}
                 >
-                  Settings
+                  {studentData?.student?.name || "Dashboard"}
                 </h1>
               </div>
             </div>
@@ -778,10 +778,10 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                 <button
                   key={student.id}
                   onClick={() => setSelectedStudentId(student.id)}
-                  className="flex-shrink-0 flex flex-col items-center gap-2"
+                  className="flex-shrink-0 flex flex-col items-center gap-2 active:scale-95 transition-transform"
                 >
                   <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold relative"
+                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold relative shadow-md transition-all active:scale-95"
                     style={{
                       backgroundColor:
                         student.id === selectedStudentId
@@ -789,7 +789,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                             themeParams.accent_text_color ||
                             "rgba(59, 130, 246, 0.2)"
                           : getAvatarColor(index),
-                      border: `2px solid ${
+                      border: `3px solid ${
                         student.id === selectedStudentId
                           ? themeParams.button_color ||
                             themeParams.accent_text_color ||
@@ -806,13 +806,13 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                   >
                     {student.name.charAt(0).toUpperCase()}
                     {student.id === selectedStudentId && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
-                        <CheckCircle className="w-3 h-3 text-white" />
+                      <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow-lg border-2 border-white">
+                        <CheckCircle className="w-4 h-4 text-white" />
                       </div>
                     )}
                   </div>
                   <span
-                    className="text-xs font-medium text-center max-w-[80px] truncate"
+                    className="text-xs font-semibold text-center max-w-[80px] truncate"
                     style={{
                       color:
                         themeParams.text_color ||
@@ -820,6 +820,17 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                     }}
                   >
                     {student.name}
+                  </span>
+                  <span
+                    className="text-[10px] text-center max-w-[80px] truncate"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    {student.package}
                   </span>
                 </button>
               ))}
@@ -835,96 +846,6 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                 (isDarkMode ? "#374151" : "#e5e7eb"),
             }}
           />
-
-          {/* Profile Settings Section */}
-          <div className="mb-4">
-            <h2
-              className="text-lg font-bold mb-4"
-              style={{
-                color:
-                  themeParams.text_color ||
-                  themeParams.section_header_text_color ||
-                  (isDarkMode ? "#ffffff" : "#111827"),
-              }}
-            >
-              Profile settings
-            </h2>
-            <div className="space-y-2">
-              {[
-                {
-                  icon: Bell,
-                  label: "Notifications",
-                  color: "#ef4444",
-                  bgColor: "rgba(239, 68, 68, 0.1)",
-                },
-                {
-                  icon: Clock,
-                  label: "Date & Time",
-                  color: "#22c55e",
-                  bgColor: "rgba(34, 197, 94, 0.1)",
-                },
-                {
-                  icon: Shield,
-                  label: "Privacy",
-                  color: "#eab308",
-                  bgColor: "rgba(234, 179, 8, 0.1)",
-                },
-                {
-                  icon: CreditCard,
-                  label: "My cards",
-                  color: "#3b82f6",
-                  bgColor: "rgba(59, 130, 246, 0.1)",
-                },
-                {
-                  icon: HelpCircle,
-                  label: "Help centre",
-                  color: "#a855f7",
-                  bgColor: "rgba(168, 85, 247, 0.1)",
-                },
-              ].map((item, index) => (
-                <button
-                  key={index}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
-                  style={{
-                    backgroundColor:
-                      themeParams.section_bg_color ||
-                      themeParams.secondary_bg_color ||
-                      themeParams.bg_color ||
-                      (isDarkMode ? "#1f2937" : "#ffffff"),
-                  }}
-                >
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center"
-                    style={{
-                      backgroundColor: item.bgColor,
-                      color: item.color,
-                    }}
-                  >
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <span
-                    className="text-base font-medium flex-1 text-left"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    {item.label}
-                  </span>
-                  <ChevronRight
-                    className="w-5 h-5"
-                    style={{
-                      color:
-                        themeParams.hint_color ||
-                        themeParams.subtitle_text_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -2286,7 +2207,7 @@ function StudentSelectionScreen({
                   (isDarkMode ? "#ffffff" : "#111827"),
               }}
             >
-              Settings
+              Select Student
             </h1>
           </div>
 
@@ -2323,25 +2244,25 @@ function StudentSelectionScreen({
                 <button
                   key={student.id}
                   onClick={() => onSelectStudent(student.id)}
-                  className="flex-shrink-0 flex flex-col items-center gap-2"
+                  className="flex-shrink-0 flex flex-col items-center gap-2 active:scale-95 transition-transform"
                 >
                   <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold relative"
+                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold relative shadow-md transition-all hover:scale-105"
                     style={{
                       backgroundColor: getAvatarColor(index),
-                      border: `2px solid ${getAvatarBorderColor(index)}`,
+                      border: `3px solid ${getAvatarBorderColor(index)}`,
                       color: getAvatarBorderColor(index),
                     }}
                   >
                     {student.name.charAt(0).toUpperCase()}
                     {index === 0 && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
-                        <CheckCircle className="w-3 h-3 text-white" />
+                      <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow-lg border-2 border-white">
+                        <CheckCircle className="w-4 h-4 text-white" />
                       </div>
                     )}
                   </div>
                   <span
-                    className="text-xs font-medium text-center max-w-[80px] truncate"
+                    className="text-xs font-semibold text-center max-w-[80px] truncate"
                     style={{
                       color:
                         themeParams.text_color ||
@@ -2349,6 +2270,17 @@ function StudentSelectionScreen({
                     }}
                   >
                     {student.name}
+                  </span>
+                  <span
+                    className="text-[10px] text-center max-w-[80px] truncate"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    {student.package}
                   </span>
                 </button>
               ))}
@@ -2468,13 +2400,13 @@ export default function StudentMiniApp({
   return (
     <I18nProvider>
       <StudentMiniAppInner params={params} />
-      {/* Sticky Bottom Navigation */}
-      <BottomNav />
+      {/* Profile Settings Navigation (replaces bottom nav) */}
+      <ProfileSettingsNav />
     </I18nProvider>
   );
 }
 
-function BottomNav() {
+function ProfileSettingsNav() {
   const { t } = useI18n();
   const [active, setActive] = React.useState<string>("overview");
   const [safeAreaInset, setSafeAreaInset] = React.useState({
@@ -2484,6 +2416,7 @@ function BottomNav() {
     right: 0,
   });
   const [themeParams, setThemeParams] = React.useState<ThemeParams>({});
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
 
   React.useEffect(() => {
     try {
@@ -2517,7 +2450,7 @@ function BottomNav() {
         }
       };
     } catch (error) {
-      console.error("Error setting up bottom nav safe area:", error);
+      console.error("Error setting up profile nav safe area:", error);
     }
   }, []);
 
@@ -2534,202 +2467,156 @@ function BottomNav() {
     return () => window.removeEventListener("dk:setTab", handler);
   }, []);
 
-  const btnCls = (tab: string) => `py-2 flex flex-col items-center gap-1`;
+  const navItems = [
+    {
+      id: "overview",
+      icon: Home,
+      label: t("overview") || "Overview",
+      color: "#3b82f6",
+      bgColor: "rgba(59, 130, 246, 0.1)",
+    },
+    {
+      id: "terbia",
+      icon: BookOpen,
+      label: t("terbia") || "Terbia",
+      color: "#8b5cf6",
+      bgColor: "rgba(139, 92, 246, 0.1)",
+    },
+    {
+      id: "attendance",
+      icon: Calendar,
+      label: t("attendance") || "Attendance",
+      color: "#10b981",
+      bgColor: "rgba(16, 185, 129, 0.1)",
+    },
+    {
+      id: "tests",
+      icon: Trophy,
+      label: t("tests") || "Tests",
+      color: "#f59e0b",
+      bgColor: "rgba(245, 158, 11, 0.1)",
+    },
+    {
+      id: "payments",
+      icon: CreditCard,
+      label: t("payments") || "Payments",
+      color: "#ef4444",
+      bgColor: "rgba(239, 68, 68, 0.1)",
+    },
+    {
+      id: "schedule",
+      icon: Clock,
+      label: t("schedule") || "Schedule",
+      color: "#06b6d4",
+      bgColor: "rgba(6, 182, 212, 0.1)",
+    },
+  ];
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
       style={{
         backgroundColor:
           themeParams.bottom_bar_bg_color ||
+          themeParams.section_bg_color ||
           themeParams.bg_color ||
-          "rgba(255, 255, 255, 0.95)",
-        borderColor:
-          themeParams.section_separator_color || "rgba(229, 231, 235, 1)",
-        paddingBottom: `${safeAreaInset.bottom || 0}px`,
+          (isDarkMode ? "#1f2937" : "#ffffff"),
+        borderTop: `1px solid ${
+          themeParams.section_separator_color ||
+          (isDarkMode ? "#374151" : "#e5e7eb")
+        }`,
+        paddingBottom: `${safeAreaInset.bottom || 16}px`,
         paddingLeft: `${safeAreaInset.left || 0}px`,
         paddingRight: `${safeAreaInset.right || 0}px`,
+        paddingTop: "12px",
       }}
     >
-      <div className="grid grid-cols-6 text-xs">
-        <button
-          onClick={() => setTab("overview")}
-          className={btnCls("overview")}
+      <div className="px-4 space-y-1">
+        <div
+          className="text-xs font-semibold mb-2 px-2"
           style={{
             color:
-              active === "overview"
-                ? themeParams.accent_text_color ||
-                  themeParams.link_color ||
-                  "#2563eb"
-                : themeParams.hint_color ||
-                  themeParams.subtitle_text_color ||
-                  "#4b5563",
+              themeParams.section_header_text_color ||
+              themeParams.hint_color ||
+              themeParams.subtitle_text_color ||
+              (isDarkMode ? "#9ca3af" : "#6b7280"),
           }}
         >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          Navigation
+        </div>
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setTab(item.id)}
+            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all active:scale-[0.98]"
+            style={{
+              backgroundColor:
+                active === item.id
+                  ? themeParams.button_color || item.bgColor
+                  : themeParams.section_bg_color ||
+                    themeParams.secondary_bg_color ||
+                    themeParams.bg_color ||
+                    (isDarkMode ? "#1f2937" : "#ffffff"),
+              border:
+                active === item.id
+                  ? `1px solid ${item.color}20`
+                  : "1px solid transparent",
+            }}
           >
-            <path d="M3 3h7v7H3z" />
-            <path d="M14 3h7v7h-7z" />
-            <path d="M14 14h7v7h-7z" />
-            <path d="M3 14h7v7H3z" />
-          </svg>
-          <span>{t("overview")}</span>
-        </button>
-        <button
-          onClick={() => setTab("terbia")}
-          className={btnCls("terbia")}
-          style={{
-            color:
-              active === "terbia"
-                ? themeParams.accent_text_color ||
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center transition-all"
+              style={{
+                backgroundColor:
+                  active === item.id
+                    ? item.bgColor
+                    : themeParams.secondary_bg_color ||
+                      (isDarkMode ? "#374151" : "#f3f4f6"),
+                color: active === item.id ? item.color : undefined,
+                transform: active === item.id ? "scale(1.05)" : "scale(1)",
+              }}
+            >
+              <item.icon
+                className="w-5 h-5"
+                style={{
+                  color:
+                    active === item.id
+                      ? item.color
+                      : themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                }}
+              />
+            </div>
+            <span
+              className="text-sm font-medium flex-1 text-left"
+              style={{
+                color:
+                  active === item.id
+                    ? themeParams.accent_text_color ||
+                      themeParams.link_color ||
+                      themeParams.text_color ||
+                      item.color
+                    : themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+              }}
+            >
+              {item.label}
+            </span>
+            <ChevronRight
+              className={`w-4 h-4 transition-transform ${
+                active === item.id
+                  ? "translate-x-0 opacity-100"
+                  : "translate-x-1 opacity-0"
+              }`}
+              style={{
+                color:
+                  themeParams.accent_text_color ||
                   themeParams.link_color ||
-                  "#2563eb"
-                : themeParams.hint_color ||
-                  themeParams.subtitle_text_color ||
-                  "#4b5563",
-          }}
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M4 19.5V6a2 2 0 0 1 2-2h9" />
-            <path d="M16 6l3 3-9 9H7l-3 3v-3Z" />
-          </svg>
-          <span>{t("terbia")}</span>
-        </button>
-        <button
-          onClick={() => setTab("attendance")}
-          className={btnCls("attendance")}
-          style={{
-            color:
-              active === "attendance"
-                ? themeParams.accent_text_color ||
-                  themeParams.link_color ||
-                  "#2563eb"
-                : themeParams.hint_color ||
-                  themeParams.subtitle_text_color ||
-                  "#4b5563",
-          }}
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <path d="M16 2v4" />
-            <path d="M8 2v4" />
-            <path d="M3 10h18" />
-          </svg>
-          <span>{t("attendance")}</span>
-        </button>
-        <button
-          onClick={() => setTab("tests")}
-          className={btnCls("tests")}
-          style={{
-            color:
-              active === "tests"
-                ? themeParams.accent_text_color ||
-                  themeParams.link_color ||
-                  "#2563eb"
-                : themeParams.hint_color ||
-                  themeParams.subtitle_text_color ||
-                  "#4b5563",
-          }}
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="m12 15 3.5 3.5 7-7" />
-            <path d="M19 3H5a2 2 0 0 0-2 2v14l4-4h12a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z" />
-          </svg>
-          <span>{t("tests")}</span>
-        </button>
-        <button
-          onClick={() => setTab("payments")}
-          className={btnCls("payments")}
-          style={{
-            color:
-              active === "payments"
-                ? themeParams.accent_text_color ||
-                  themeParams.link_color ||
-                  "#2563eb"
-                : themeParams.hint_color ||
-                  themeParams.subtitle_text_color ||
-                  "#4b5563",
-          }}
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="2" y="5" width="20" height="14" rx="2" />
-            <path d="M2 10h20" />
-          </svg>
-          <span>{t("payments")}</span>
-        </button>
-        <button
-          onClick={() => setTab("schedule")}
-          className={btnCls("schedule")}
-          style={{
-            color:
-              active === "schedule"
-                ? themeParams.accent_text_color ||
-                  themeParams.link_color ||
-                  "#2563eb"
-                : themeParams.hint_color ||
-                  themeParams.subtitle_text_color ||
-                  "#4b5563",
-          }}
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 6v6l4 2" />
-          </svg>
-          <span>{t("schedule")}</span>
-        </button>
+                  item.color,
+              }}
+            />
+          </button>
+        ))}
       </div>
     </div>
   );
