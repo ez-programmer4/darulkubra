@@ -155,37 +155,6 @@ interface ThemeParams {
   destructive_text_color?: string;
 }
 
-// Telegram BottomButton interface
-interface BottomButton {
-  type: "main" | "secondary";
-  text: string;
-  color: string;
-  textColor: string;
-  isVisible: boolean;
-  isActive: boolean;
-  hasShineEffect: boolean;
-  position?: "left" | "right" | "top" | "bottom";
-  isProgressVisible: boolean;
-  setText: (text: string) => BottomButton;
-  onClick: (callback: () => void) => BottomButton;
-  offClick: (callback: () => void) => BottomButton;
-  show: () => BottomButton;
-  hide: () => BottomButton;
-  enable: () => BottomButton;
-  disable: () => BottomButton;
-  showProgress: (leaveActive?: boolean) => BottomButton;
-  hideProgress: () => BottomButton;
-  setParams: (params: {
-    text?: string;
-    color?: string;
-    text_color?: string;
-    has_shine_effect?: boolean;
-    position?: "left" | "right" | "top" | "bottom";
-    is_active?: boolean;
-    is_visible?: boolean;
-  }) => BottomButton;
-}
-
 // Telegram WebApp interface
 interface TelegramWebApp {
   ready: () => void;
@@ -210,8 +179,6 @@ interface TelegramWebApp {
     right: number;
   };
   themeParams: ThemeParams;
-  mainButton: BottomButton;
-  secondaryButton?: BottomButton;
   onEvent: (event: string, handler: () => void) => void;
   offEvent: (event: string, handler: () => void) => void;
 }
@@ -385,46 +352,6 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
     }
   };
 
-  // Apply safe area insets to document root as CSS variables
-  const applySafeAreaInsets = (inset: {
-    top: number;
-    bottom: number;
-    left: number;
-    right: number;
-  }) => {
-    const root = document.documentElement;
-    root.style.setProperty("--tg-safe-area-inset-top", `${inset.top}px`);
-    root.style.setProperty("--tg-safe-area-inset-bottom", `${inset.bottom}px`);
-    root.style.setProperty("--tg-safe-area-inset-left", `${inset.left}px`);
-    root.style.setProperty("--tg-safe-area-inset-right", `${inset.right}px`);
-  };
-
-  // Apply content safe area insets to document root as CSS variables
-  const applyContentSafeAreaInsets = (inset: {
-    top: number;
-    bottom: number;
-    left: number;
-    right: number;
-  }) => {
-    const root = document.documentElement;
-    root.style.setProperty(
-      "--tg-content-safe-area-inset-top",
-      `${inset.top}px`
-    );
-    root.style.setProperty(
-      "--tg-content-safe-area-inset-bottom",
-      `${inset.bottom}px`
-    );
-    root.style.setProperty(
-      "--tg-content-safe-area-inset-left",
-      `${inset.left}px`
-    );
-    root.style.setProperty(
-      "--tg-content-safe-area-inset-right",
-      `${inset.right}px`
-    );
-  };
-
   // Initialize Telegram WebApp
   useEffect(() => {
     try {
@@ -442,11 +369,9 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         // Initialize safe area insets
         if (tg.safeAreaInset) {
           setSafeAreaInset(tg.safeAreaInset);
-          applySafeAreaInsets(tg.safeAreaInset);
         }
         if (tg.contentSafeAreaInset) {
           setContentSafeAreaInset(tg.contentSafeAreaInset);
-          applyContentSafeAreaInsets(tg.contentSafeAreaInset);
         }
 
         // Initialize theme params
@@ -455,67 +380,15 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
           applyThemeToDocument(tg.themeParams);
         }
 
-        // Initialize bottom buttons
-        if (tg.mainButton) {
-          // Set up main button with default configuration
-          tg.mainButton.setText("Continue");
-
-          // Set button colors from theme if available
-          if (
-            tg.themeParams?.button_color &&
-            tg.themeParams?.button_text_color
-          ) {
-            tg.mainButton.setParams({
-              color: tg.themeParams.button_color,
-              text_color: tg.themeParams.button_text_color,
-            });
-          }
-
-          // Set main button click handler
-          tg.mainButton.onClick(() => {
-            console.log("Main button clicked");
-            // Add your main button action here
-            // For example: handleSubmit(), navigate(), etc.
-          });
-        }
-
-        if (tg.secondaryButton) {
-          // Set up secondary button with default configuration
-          tg.secondaryButton.setText("Cancel");
-
-          // Set button colors from theme if available
-          if (
-            tg.themeParams?.bottom_bar_bg_color &&
-            tg.themeParams?.button_color
-          ) {
-            tg.secondaryButton.setParams({
-              color: tg.themeParams.bottom_bar_bg_color,
-              text_color: tg.themeParams.button_color,
-            });
-          }
-
-          // Set secondary button click handler
-          tg.secondaryButton.onClick(() => {
-            console.log("Secondary button clicked");
-            // Add your secondary button action here
-            // For example: handleCancel(), goBack(), etc.
-          });
-        }
-
         // Event handlers
         const handleActivated = () => setIsActive(true);
         const handleDeactivated = () => setIsActive(false);
         const handleSafeAreaChanged = () => {
-          if (tg.safeAreaInset) {
-            setSafeAreaInset(tg.safeAreaInset);
-            applySafeAreaInsets(tg.safeAreaInset);
-          }
+          if (tg.safeAreaInset) setSafeAreaInset(tg.safeAreaInset);
         };
         const handleContentSafeAreaChanged = () => {
-          if (tg.contentSafeAreaInset) {
+          if (tg.contentSafeAreaInset)
             setContentSafeAreaInset(tg.contentSafeAreaInset);
-            applyContentSafeAreaInsets(tg.contentSafeAreaInset);
-          }
         };
         const handleFullscreenChanged = () => {
           setIsFullscreen(!!tg.isFullscreen);
@@ -528,31 +401,6 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
           if (tg.themeParams) {
             setThemeParams(tg.themeParams);
             applyThemeToDocument(tg.themeParams);
-
-            // Update button colors to match new theme
-            // Main button uses button_color and button_text_color by default
-            if (
-              tg.mainButton &&
-              tg.themeParams.button_color &&
-              tg.themeParams.button_text_color
-            ) {
-              tg.mainButton.setParams({
-                color: tg.themeParams.button_color,
-                text_color: tg.themeParams.button_text_color,
-              });
-            }
-
-            // Secondary button uses bottom_bar_bg_color and button_color by default
-            if (
-              tg.secondaryButton &&
-              tg.themeParams.bottom_bar_bg_color &&
-              tg.themeParams.button_color
-            ) {
-              tg.secondaryButton.setParams({
-                color: tg.themeParams.bottom_bar_bg_color,
-                text_color: tg.themeParams.button_color,
-              });
-            }
           }
         };
 
@@ -595,94 +443,6 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   const handleExitFullscreen = () => {
     if (tgWebApp?.exitFullscreen) {
       tgWebApp.exitFullscreen();
-    }
-  };
-
-  // Bottom Button helper functions
-  const setMainButtonText = (text: string) => {
-    if (tgWebApp?.mainButton) {
-      tgWebApp.mainButton.setText(text);
-    }
-  };
-
-  const showMainButton = () => {
-    if (tgWebApp?.mainButton) {
-      tgWebApp.mainButton.show();
-    }
-  };
-
-  const hideMainButton = () => {
-    if (tgWebApp?.mainButton) {
-      tgWebApp.mainButton.hide();
-    }
-  };
-
-  const enableMainButton = () => {
-    if (tgWebApp?.mainButton) {
-      tgWebApp.mainButton.enable();
-    }
-  };
-
-  const disableMainButton = () => {
-    if (tgWebApp?.mainButton) {
-      tgWebApp.mainButton.disable();
-    }
-  };
-
-  const showMainButtonProgress = (leaveActive = false) => {
-    if (tgWebApp?.mainButton) {
-      tgWebApp.mainButton.showProgress(leaveActive);
-    }
-  };
-
-  const hideMainButtonProgress = () => {
-    if (tgWebApp?.mainButton) {
-      tgWebApp.mainButton.hideProgress();
-    }
-  };
-
-  const setMainButtonParams = (params: {
-    text?: string;
-    color?: string;
-    text_color?: string;
-    has_shine_effect?: boolean;
-    is_active?: boolean;
-    is_visible?: boolean;
-  }) => {
-    if (tgWebApp?.mainButton) {
-      tgWebApp.mainButton.setParams(params);
-    }
-  };
-
-  const setSecondaryButtonText = (text: string) => {
-    if (tgWebApp?.secondaryButton) {
-      tgWebApp.secondaryButton.setText(text);
-    }
-  };
-
-  const showSecondaryButton = () => {
-    if (tgWebApp?.secondaryButton) {
-      tgWebApp.secondaryButton.show();
-    }
-  };
-
-  const hideSecondaryButton = () => {
-    if (tgWebApp?.secondaryButton) {
-      tgWebApp.secondaryButton.hide();
-    }
-  };
-
-  const setSecondaryButtonParams = (params: {
-    text?: string;
-    color?: string;
-    text_color?: string;
-    has_shine_effect?: boolean;
-    position?: "left" | "right" | "top" | "bottom";
-    is_active?: boolean;
-    is_visible?: boolean;
-  }) => {
-    if (tgWebApp?.secondaryButton) {
-      tgWebApp.secondaryButton.setParams(params);
     }
   };
 
@@ -1943,14 +1703,6 @@ function BottomNav() {
     right: 0,
   });
   const [themeParams, setThemeParams] = React.useState<ThemeParams>({});
-  const navItems = [
-    { id: "overview", label: t("overview"), icon: Home },
-    { id: "terbia", label: t("terbia"), icon: BookMarked },
-    { id: "attendance", label: t("attendance"), icon: Calendar },
-    { id: "tests", label: t("tests"), icon: Award },
-    { id: "payments", label: t("payments"), icon: CreditCard },
-    { id: "schedule", label: t("schedule"), icon: Clock },
-  ];
 
   React.useEffect(() => {
     try {
@@ -2001,99 +1753,202 @@ function BottomNav() {
     return () => window.removeEventListener("dk:setTab", handler);
   }, []);
 
-  // Get active/inactive colors from theme
-  const activeColor =
-    themeParams.accent_text_color ||
-    themeParams.link_color ||
-    themeParams.button_color ||
-    "#2563eb";
-  const inactiveColor =
-    themeParams.hint_color || themeParams.subtitle_text_color || "#6b7280";
-  const bgColor =
-    themeParams.bottom_bar_bg_color || themeParams.bg_color || "#ffffff";
-  const borderColor = themeParams.section_separator_color || "#e5e7eb";
-
-  // Helper to convert hex to rgba with opacity
-  const hexToRgba = (hex: string, opacity: number) => {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-  };
-
-  // Get active background color
-  const getActiveBgColor = () => {
-    if (activeColor === "#2563eb") {
-      return "rgba(37, 99, 235, 0.1)";
-    }
-    if (activeColor.startsWith("#")) {
-      return hexToRgba(activeColor, 0.1);
-    }
-    return "rgba(37, 99, 235, 0.1)";
-  };
+  const btnCls = (tab: string) => `py-2 flex flex-col items-center gap-1`;
 
   return (
     <div
-      className="fixed z-50 w-full md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur md:hidden"
       style={{
-        bottom: `${16 + (safeAreaInset.bottom || 0)}px`,
+        backgroundColor:
+          themeParams.bottom_bar_bg_color ||
+          themeParams.bg_color ||
+          "rgba(255, 255, 255, 0.95)",
+        borderColor:
+          themeParams.section_separator_color || "rgba(229, 231, 235, 1)",
+        paddingBottom: `${safeAreaInset.bottom || 0}px`,
         paddingLeft: `${safeAreaInset.left || 0}px`,
         paddingRight: `${safeAreaInset.right || 0}px`,
       }}
     >
-      <div
-        className="w-full h-16 max-w-lg -translate-x-1/2 border rounded-full left-1/2 mx-auto"
-        style={{
-          backgroundColor: bgColor,
-          borderColor: borderColor,
-        }}
-      >
-        <div className="grid h-full max-w-lg grid-cols-6 mx-auto">
-          {navItems.map((item, index) => {
-            const Icon = item.icon;
-            const isActive = active === item.id;
-            const isFirst = index === 0;
-            const isLast = index === navItems.length - 1;
-
-            return (
-              <button
-                key={item.id}
-                onClick={() => setTab(item.id)}
-                type="button"
-                className={`inline-flex flex-col items-center justify-center px-3 transition-all duration-200 group ${
-                  isFirst ? "rounded-s-full" : ""
-                } ${isLast ? "rounded-e-full" : ""}`}
-                style={{
-                  backgroundColor: isActive
-                    ? getActiveBgColor()
-                    : "transparent",
-                  color: isActive ? activeColor : inactiveColor,
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.backgroundColor =
-                      bgColor === "#ffffff"
-                        ? "rgba(0, 0, 0, 0.02)"
-                        : "rgba(255, 255, 255, 0.05)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                  }
-                }}
-              >
-                <Icon
-                  className={`w-5 h-5 mb-1 transition-colors duration-200 ${
-                    isActive ? "" : "group-hover:opacity-80"
-                  }`}
-                  strokeWidth={isActive ? 2.5 : 2}
-                />
-                <span className="sr-only">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
+      <div className="grid grid-cols-6 text-xs">
+        <button
+          onClick={() => setTab("overview")}
+          className={btnCls("overview")}
+          style={{
+            color:
+              active === "overview"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 3h7v7H3z" />
+            <path d="M14 3h7v7h-7z" />
+            <path d="M14 14h7v7h-7z" />
+            <path d="M3 14h7v7H3z" />
+          </svg>
+          <span>{t("overview")}</span>
+        </button>
+        <button
+          onClick={() => setTab("terbia")}
+          className={btnCls("terbia")}
+          style={{
+            color:
+              active === "terbia"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 19.5V6a2 2 0 0 1 2-2h9" />
+            <path d="M16 6l3 3-9 9H7l-3 3v-3Z" />
+          </svg>
+          <span>{t("terbia")}</span>
+        </button>
+        <button
+          onClick={() => setTab("attendance")}
+          className={btnCls("attendance")}
+          style={{
+            color:
+              active === "attendance"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4" />
+            <path d="M8 2v4" />
+            <path d="M3 10h18" />
+          </svg>
+          <span>{t("attendance")}</span>
+        </button>
+        <button
+          onClick={() => setTab("tests")}
+          className={btnCls("tests")}
+          style={{
+            color:
+              active === "tests"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m12 15 3.5 3.5 7-7" />
+            <path d="M19 3H5a2 2 0 0 0-2 2v14l4-4h12a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z" />
+          </svg>
+          <span>{t("tests")}</span>
+        </button>
+        <button
+          onClick={() => setTab("payments")}
+          className={btnCls("payments")}
+          style={{
+            color:
+              active === "payments"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="2" y="5" width="20" height="14" rx="2" />
+            <path d="M2 10h20" />
+          </svg>
+          <span>{t("payments")}</span>
+        </button>
+        <button
+          onClick={() => setTab("schedule")}
+          className={btnCls("schedule")}
+          style={{
+            color:
+              active === "schedule"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" />
+          </svg>
+          <span>{t("schedule")}</span>
+        </button>
       </div>
     </div>
   );
