@@ -208,6 +208,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [currentTab, setCurrentTab] = useState("overview");
+  const [showContentSection, setShowContentSection] = useState(false);
   const [expandedSections, setExpandedSections] = useState<{
     [key: string]: boolean;
   }>({
@@ -320,11 +321,18 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   // Listen for bottom nav tab changes
   useEffect(() => {
     const handler = (e: any) => {
-      if (e?.detail) setCurrentTab(e.detail);
+      if (e?.detail) {
+        setCurrentTab(e.detail);
+        setShowContentSection(true);
+      }
     };
     window.addEventListener("dk:setTab", handler);
     return () => window.removeEventListener("dk:setTab", handler);
   }, []);
+
+  const handleBackFromContent = () => {
+    setShowContentSection(false);
+  };
 
   // Apply Telegram theme to document root as CSS variables
   const applyThemeToDocument = (params: ThemeParams) => {
@@ -781,7 +789,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                   className="flex-shrink-0 flex flex-col items-center gap-2 active:scale-95 transition-transform"
                 >
                   <div
-                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold relative shadow-md transition-all active:scale-95"
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold relative shadow-lg transition-all active:scale-95"
                     style={{
                       backgroundColor:
                         student.id === selectedStudentId
@@ -856,8 +864,52 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
           paddingBottom: `${contentSafeAreaInset.bottom || 0}px`,
         }}
       >
+        {/* Content Section Header with Back Button */}
+        {showContentSection && (
+          <div className="mb-4 flex items-center gap-3">
+            <button
+              onClick={handleBackFromContent}
+              className="p-2 rounded-full transition-all active:scale-95"
+              style={{
+                backgroundColor:
+                  themeParams.secondary_bg_color ||
+                  themeParams.section_bg_color ||
+                  (isDarkMode ? "#374151" : "#f3f4f6"),
+                color:
+                  themeParams.text_color ||
+                  (isDarkMode ? "#ffffff" : "#111827"),
+              }}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h2
+              className="text-lg font-bold"
+              style={{
+                color:
+                  themeParams.text_color ||
+                  themeParams.section_header_text_color ||
+                  (isDarkMode ? "#ffffff" : "#111827"),
+              }}
+            >
+              {currentTab === "overview"
+                ? "Overview"
+                : currentTab === "terbia"
+                ? "Terbia Progress"
+                : currentTab === "attendance"
+                ? "Attendance"
+                : currentTab === "tests"
+                ? "Test Results"
+                : currentTab === "payments"
+                ? "Payments"
+                : currentTab === "schedule"
+                ? "Schedule"
+                : "Dashboard"}
+            </h2>
+          </div>
+        )}
+
         {/* Overview Tab */}
-        {currentTab === "overview" && (
+        {currentTab === "overview" && showContentSection && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1113,7 +1165,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         )}
 
         {/* Attendance Tab */}
-        {currentTab === "attendance" && (
+        {currentTab === "attendance" && showContentSection && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1309,7 +1361,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         )}
 
         {/* Tests Tab */}
-        {currentTab === "tests" && studentData.recentTests.length > 0 && (
+        {currentTab === "tests" && showContentSection && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1452,160 +1504,165 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         )}
 
         {/* Terbia Tab */}
-        {currentTab === "terbia" && studentData.terbia && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
-          >
-            <div
-              className="p-4 rounded-2xl"
-              style={{
-                backgroundColor:
-                  themeParams.section_bg_color ||
-                  themeParams.secondary_bg_color ||
-                  themeParams.bg_color ||
-                  (isDarkMode ? "#1f2937" : "#ffffff"),
-              }}
+        {currentTab === "terbia" &&
+          showContentSection &&
+          studentData.terbia && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-4"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3
-                  className="text-lg font-semibold"
-                  style={{
-                    color:
-                      themeParams.text_color ||
-                      themeParams.section_header_text_color ||
-                      (isDarkMode ? "#ffffff" : "#111827"),
-                  }}
-                >
-                  Terbia Progress
-                </h3>
-                <button onClick={() => toggleSection("terbia")} className="p-1">
-                  {expandedSections.terbia ? (
-                    <ChevronUp
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
-                    />
-                  ) : (
-                    <ChevronDown
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
-                    />
-                  )}
-                </button>
-              </div>
-
-              {expandedSections.terbia && (
-                <>
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span
-                        className="font-medium"
-                        style={{
-                          color:
-                            themeParams.text_color ||
-                            (isDarkMode ? "#ffffff" : "#111827"),
-                        }}
-                      >
-                        {studentData.terbia.courseName}
-                      </span>
-                      <div
-                        className={`px-3 py-1 rounded-full ${
-                          isDarkMode
-                            ? "bg-orange-600 text-white"
-                            : "bg-orange-100 text-orange-700"
+              <div
+                className="p-4 rounded-2xl"
+                style={{
+                  backgroundColor:
+                    themeParams.section_bg_color ||
+                    themeParams.secondary_bg_color ||
+                    themeParams.bg_color ||
+                    (isDarkMode ? "#1f2937" : "#ffffff"),
+                }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3
+                    className="text-lg font-semibold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        themeParams.section_header_text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    Terbia Progress
+                  </h3>
+                  <button
+                    onClick={() => toggleSection("terbia")}
+                    className="p-1"
+                  >
+                    {expandedSections.terbia ? (
+                      <ChevronUp
+                        className={`w-4 h-4 ${
+                          isDarkMode ? "text-gray-400" : "text-gray-500"
                         }`}
-                      >
-                        <span className="text-sm font-bold">
-                          {studentData.terbia.progressPercent}%
+                      />
+                    ) : (
+                      <ChevronDown
+                        className={`w-4 h-4 ${
+                          isDarkMode ? "text-gray-400" : "text-gray-500"
+                        }`}
+                      />
+                    )}
+                  </button>
+                </div>
+
+                {expandedSections.terbia && (
+                  <>
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span
+                          className="font-medium"
+                          style={{
+                            color:
+                              themeParams.text_color ||
+                              (isDarkMode ? "#ffffff" : "#111827"),
+                          }}
+                        >
+                          {studentData.terbia.courseName}
                         </span>
+                        <div
+                          className={`px-3 py-1 rounded-full ${
+                            isDarkMode
+                              ? "bg-orange-600 text-white"
+                              : "bg-orange-100 text-orange-700"
+                          }`}
+                        >
+                          <span className="text-sm font-bold">
+                            {studentData.terbia.progressPercent}%
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div
-                      className="w-full rounded-full h-2"
-                      style={{
-                        backgroundColor:
-                          themeParams.secondary_bg_color ||
-                          themeParams.bg_color ||
-                          (isDarkMode ? "#374151" : "#e5e7eb"),
-                      }}
-                    >
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{
-                          width: `${studentData.terbia.progressPercent}%`,
-                        }}
-                        transition={{ duration: 1.5, delay: 0.5 }}
-                        className="h-2 rounded-full"
+                      <div
+                        className="w-full rounded-full h-2"
                         style={{
                           backgroundColor:
-                            themeParams.button_color ||
-                            themeParams.accent_text_color ||
-                            themeParams.link_color ||
-                            "#f97316",
+                            themeParams.secondary_bg_color ||
+                            themeParams.bg_color ||
+                            (isDarkMode ? "#374151" : "#e5e7eb"),
                         }}
-                      />
+                      >
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{
+                            width: `${studentData.terbia.progressPercent}%`,
+                          }}
+                          transition={{ duration: 1.5, delay: 0.5 }}
+                          className="h-2 rounded-full"
+                          style={{
+                            backgroundColor:
+                              themeParams.button_color ||
+                              themeParams.accent_text_color ||
+                              themeParams.link_color ||
+                              "#f97316",
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <div
-                        className="text-xl font-bold"
-                        style={{
-                          color:
-                            themeParams.text_color ||
-                            (isDarkMode ? "#ffffff" : "#111827"),
-                        }}
-                      >
-                        {studentData.terbia.completedChapters}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <div
+                          className="text-xl font-bold"
+                          style={{
+                            color:
+                              themeParams.text_color ||
+                              (isDarkMode ? "#ffffff" : "#111827"),
+                          }}
+                        >
+                          {studentData.terbia.completedChapters}
+                        </div>
+                        <div
+                          className="text-xs"
+                          style={{
+                            color:
+                              themeParams.hint_color ||
+                              themeParams.subtitle_text_color ||
+                              (isDarkMode ? "#9ca3af" : "#6b7280"),
+                          }}
+                        >
+                          Completed
+                        </div>
                       </div>
-                      <div
-                        className="text-xs"
-                        style={{
-                          color:
-                            themeParams.hint_color ||
-                            themeParams.subtitle_text_color ||
-                            (isDarkMode ? "#9ca3af" : "#6b7280"),
-                        }}
-                      >
-                        Completed
+                      <div className="text-center">
+                        <div
+                          className="text-xl font-bold"
+                          style={{
+                            color:
+                              themeParams.text_color ||
+                              (isDarkMode ? "#ffffff" : "#111827"),
+                          }}
+                        >
+                          {studentData.terbia.totalChapters}
+                        </div>
+                        <div
+                          className="text-xs"
+                          style={{
+                            color:
+                              themeParams.hint_color ||
+                              themeParams.subtitle_text_color ||
+                              (isDarkMode ? "#9ca3af" : "#6b7280"),
+                          }}
+                        >
+                          {t ? t("totalChapters") : "Total Chapters"}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-center">
-                      <div
-                        className="text-xl font-bold"
-                        style={{
-                          color:
-                            themeParams.text_color ||
-                            (isDarkMode ? "#ffffff" : "#111827"),
-                        }}
-                      >
-                        {studentData.terbia.totalChapters}
-                      </div>
-                      <div
-                        className="text-xs"
-                        style={{
-                          color:
-                            themeParams.hint_color ||
-                            themeParams.subtitle_text_color ||
-                            (isDarkMode ? "#9ca3af" : "#6b7280"),
-                        }}
-                      >
-                        {t ? t("totalChapters") : "Total Chapters"}
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
 
         {/* Payments Tab */}
-        {currentTab === "payments" && (
+        {currentTab === "payments" && showContentSection && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1966,7 +2023,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         )}
 
         {/* Schedule Tab */}
-        {currentTab === "schedule" && (
+        {currentTab === "schedule" && showContentSection && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -2247,7 +2304,7 @@ function StudentSelectionScreen({
                   className="flex-shrink-0 flex flex-col items-center gap-2 active:scale-95 transition-transform"
                 >
                   <div
-                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold relative shadow-md transition-all hover:scale-105"
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold relative shadow-lg transition-all hover:scale-105"
                     style={{
                       backgroundColor: getAvatarColor(index),
                       border: `3px solid ${getAvatarBorderColor(index)}`,
@@ -2467,48 +2524,68 @@ function ProfileSettingsNav() {
     return () => window.removeEventListener("dk:setTab", handler);
   }, []);
 
+  // Get colors from themeParams with fallbacks
+  const getNavItemColors = (defaultColor: string, defaultBg: string) => {
+    const isActiveNav =
+      active === "overview" ||
+      active === "terbia" ||
+      active === "attendance" ||
+      active === "tests" ||
+      active === "payments" ||
+      active === "schedule";
+    return {
+      color:
+        themeParams.accent_text_color || themeParams.link_color || defaultColor,
+      bgColor: themeParams.button_color
+        ? `${themeParams.button_color}20`
+        : themeParams.secondary_bg_color
+        ? `${themeParams.secondary_bg_color}40`
+        : defaultBg,
+    };
+  };
+
   const navItems = [
     {
       id: "overview",
       icon: Home,
       label: t("overview") || "Overview",
-      color: "#3b82f6",
-      bgColor: "rgba(59, 130, 246, 0.1)",
+      defaultColor: "#3b82f6",
+      defaultBgColor: "rgba(59, 130, 246, 0.15)",
     },
     {
       id: "terbia",
       icon: BookOpen,
       label: t("terbia") || "Terbia",
-      color: "#8b5cf6",
-      bgColor: "rgba(139, 92, 246, 0.1)",
+      defaultColor: "#8b5cf6",
+      defaultBgColor: "rgba(139, 92, 246, 0.15)",
     },
     {
       id: "attendance",
       icon: Calendar,
       label: t("attendance") || "Attendance",
-      color: "#10b981",
-      bgColor: "rgba(16, 185, 129, 0.1)",
+      defaultColor: "#10b981",
+      defaultBgColor: "rgba(16, 185, 129, 0.15)",
     },
     {
       id: "tests",
       icon: Trophy,
       label: t("tests") || "Tests",
-      color: "#f59e0b",
-      bgColor: "rgba(245, 158, 11, 0.1)",
+      defaultColor: "#f59e0b",
+      defaultBgColor: "rgba(245, 158, 11, 0.15)",
     },
     {
       id: "payments",
       icon: CreditCard,
       label: t("payments") || "Payments",
-      color: "#ef4444",
-      bgColor: "rgba(239, 68, 68, 0.1)",
+      defaultColor: "#ef4444",
+      defaultBgColor: "rgba(239, 68, 68, 0.15)",
     },
     {
       id: "schedule",
       icon: Clock,
       label: t("schedule") || "Schedule",
-      color: "#06b6d4",
-      bgColor: "rgba(6, 182, 212, 0.1)",
+      defaultColor: "#06b6d4",
+      defaultBgColor: "rgba(6, 182, 212, 0.15)",
     },
   ];
 
@@ -2531,9 +2608,9 @@ function ProfileSettingsNav() {
         paddingTop: "12px",
       }}
     >
-      <div className="px-4 space-y-1">
+      <div className="px-4 space-y-1.5">
         <div
-          className="text-xs font-semibold mb-2 px-2"
+          className="text-xs font-bold mb-3 px-2 uppercase tracking-wider"
           style={{
             color:
               themeParams.section_header_text_color ||
@@ -2544,79 +2621,102 @@ function ProfileSettingsNav() {
         >
           Navigation
         </div>
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setTab(item.id)}
-            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all active:scale-[0.98]"
-            style={{
-              backgroundColor:
-                active === item.id
-                  ? themeParams.button_color || item.bgColor
+        {navItems.map((item) => {
+          const isActive = active === item.id;
+          const itemColors = getNavItemColors(
+            item.defaultColor,
+            item.defaultBgColor
+          );
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => setTab(item.id)}
+              className="w-full flex items-center gap-3 p-3.5 rounded-2xl transition-all active:scale-[0.97] shadow-sm"
+              style={{
+                backgroundColor: isActive
+                  ? themeParams.button_color
+                    ? `${themeParams.button_color}15`
+                    : themeParams.secondary_bg_color
+                    ? `${themeParams.secondary_bg_color}50`
+                    : item.defaultBgColor
                   : themeParams.section_bg_color ||
                     themeParams.secondary_bg_color ||
                     themeParams.bg_color ||
                     (isDarkMode ? "#1f2937" : "#ffffff"),
-              border:
-                active === item.id
-                  ? `1px solid ${item.color}20`
-                  : "1px solid transparent",
-            }}
-          >
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center transition-all"
-              style={{
-                backgroundColor:
-                  active === item.id
-                    ? item.bgColor
-                    : themeParams.secondary_bg_color ||
-                      (isDarkMode ? "#374151" : "#f3f4f6"),
-                color: active === item.id ? item.color : undefined,
-                transform: active === item.id ? "scale(1.05)" : "scale(1)",
+                border: isActive
+                  ? `2px solid ${
+                      themeParams.accent_text_color ||
+                      themeParams.link_color ||
+                      themeParams.button_color ||
+                      `${item.defaultColor}40`
+                    }`
+                  : `1px solid ${
+                      themeParams.section_separator_color ||
+                      (isDarkMode ? "#374151" : "#e5e7eb")
+                    }`,
+                boxShadow: isActive
+                  ? `0 2px 8px ${
+                      themeParams.button_color ||
+                      themeParams.accent_text_color ||
+                      `${item.defaultColor}20`
+                    }`
+                  : undefined,
               }}
             >
-              <item.icon
-                className="w-5 h-5"
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center transition-all"
                 style={{
-                  color:
-                    active === item.id
-                      ? item.color
-                      : themeParams.hint_color ||
-                        themeParams.subtitle_text_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  backgroundColor: isActive
+                    ? themeParams.button_color
+                      ? `${themeParams.button_color}20`
+                      : item.defaultBgColor
+                    : themeParams.secondary_bg_color ||
+                      (isDarkMode ? "#374151" : "#f3f4f6"),
+                  color: isActive
+                    ? themeParams.accent_text_color ||
+                      themeParams.link_color ||
+                      themeParams.button_color ||
+                      item.defaultColor
+                    : themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  transform: isActive ? "scale(1.08)" : "scale(1)",
                 }}
-              />
-            </div>
-            <span
-              className="text-sm font-medium flex-1 text-left"
-              style={{
-                color:
-                  active === item.id
+              >
+                <item.icon className="w-5 h-5" />
+              </div>
+              <span
+                className="text-sm font-semibold flex-1 text-left"
+                style={{
+                  color: isActive
                     ? themeParams.accent_text_color ||
                       themeParams.link_color ||
                       themeParams.text_color ||
-                      item.color
+                      item.defaultColor
                     : themeParams.text_color ||
                       (isDarkMode ? "#ffffff" : "#111827"),
-              }}
-            >
-              {item.label}
-            </span>
-            <ChevronRight
-              className={`w-4 h-4 transition-transform ${
-                active === item.id
-                  ? "translate-x-0 opacity-100"
-                  : "translate-x-1 opacity-0"
-              }`}
-              style={{
-                color:
-                  themeParams.accent_text_color ||
-                  themeParams.link_color ||
-                  item.color,
-              }}
-            />
-          </button>
-        ))}
+                }}
+              >
+                {item.label}
+              </span>
+              <ChevronRight
+                className={`w-5 h-5 transition-all ${
+                  isActive
+                    ? "translate-x-0 opacity-100"
+                    : "translate-x-2 opacity-0"
+                }`}
+                style={{
+                  color:
+                    themeParams.accent_text_color ||
+                    themeParams.link_color ||
+                    themeParams.button_color ||
+                    item.defaultColor,
+                }}
+              />
+            </button>
+          );
+        })}
       </div>
     </div>
   );
