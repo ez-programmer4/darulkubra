@@ -195,15 +195,40 @@ interface StudentListItem {
   teacher: string;
 }
 
-function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
+function StudentMiniAppInner({
+  params,
+  selectedStudentId: externalSelectedStudentId,
+  onStudentSelected,
+  students: externalStudents,
+  loadingStudents: externalLoadingStudents,
+}: {
+  params: { chatId: string };
+  selectedStudentId?: number | null;
+  onStudentSelected?: (id: number | null) => void;
+  students?: StudentListItem[];
+  loadingStudents?: boolean;
+}) {
   const { t, lang, setLang } = useI18n();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
-  const [students, setStudents] = useState<StudentListItem[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
-    null
+  const [internalStudents, setInternalStudents] = useState<StudentListItem[]>(
+    []
   );
+  const students = externalStudents ?? internalStudents;
+  const [internalSelectedStudentId, setInternalSelectedStudentId] = useState<
+    number | null
+  >(null);
+  const selectedStudentId =
+    externalSelectedStudentId ?? internalSelectedStudentId;
+  const setSelectedStudentId = (id: number | null) => {
+    if (onStudentSelected) {
+      onStudentSelected(id);
+    } else {
+      setInternalSelectedStudentId(id);
+    }
+  };
   const [loading, setLoading] = useState(true);
-  const [loadingStudents, setLoadingStudents] = useState(true);
+  const [internalLoadingStudents, setInternalLoadingStudents] = useState(true);
+  const loadingStudents = externalLoadingStudents ?? internalLoadingStudents;
   const [error, setError] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -236,10 +261,14 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   const [themeParams, setThemeParams] = useState<ThemeParams>({});
   const [tgWebApp, setTgWebApp] = useState<TelegramWebApp | null>(null);
 
-  // Load students list first
+  // Load students list first (only if not provided externally)
   useEffect(() => {
-    loadStudentsList();
-  }, [params.chatId]);
+    if (!externalStudents) {
+      loadStudentsList();
+    } else {
+      setInternalLoadingStudents(false);
+    }
+  }, [params.chatId, externalStudents]);
 
   // Load student data when a student is selected
   useEffect(() => {
@@ -249,7 +278,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   }, [selectedStudentId, params.chatId]);
 
   const loadStudentsList = async () => {
-    setLoadingStudents(true);
+    setInternalLoadingStudents(true);
     setError("");
 
     try {
@@ -259,10 +288,11 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
       const data = await response.json();
 
       if (data.success) {
-        setStudents(data.students || []);
-        // Auto-select if only one student
-        if (data.students && data.students.length === 1) {
-          setSelectedStudentId(data.students[0].id);
+        const studentsList = data.students || [];
+        setInternalStudents(studentsList);
+        // Auto-select if only one student (and not already selected externally)
+        if (studentsList.length === 1 && !externalSelectedStudentId) {
+          setSelectedStudentId(studentsList[0].id);
         }
       } else {
         setError(data.error || "Failed to load students");
@@ -270,7 +300,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
     } catch (err) {
       setError("Network error. Please try again.");
     } finally {
-      setLoadingStudents(false);
+      setInternalLoadingStudents(false);
     }
   };
 
@@ -548,17 +578,25 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   };
 
   // Show student selection screen if multiple students and none selected
-  if (!selectedStudentId && !loadingStudents && students.length > 1) {
-    return (
-      <StudentSelectionScreen
-        students={students}
-        onSelectStudent={(id) => setSelectedStudentId(id)}
-        themeParams={themeParams}
-        isDarkMode={isDarkMode}
-        safeAreaInset={safeAreaInset}
-        contentSafeAreaInset={contentSafeAreaInset}
-      />
-    );
+  // OR if no student selected at all
+  if (!selectedStudentId && !loadingStudents) {
+    if (students.length > 1) {
+      return (
+        <StudentSelectionScreen
+          students={students}
+          onSelectStudent={(id) => setSelectedStudentId(id)}
+          themeParams={themeParams}
+          isDarkMode={isDarkMode}
+          safeAreaInset={safeAreaInset}
+          contentSafeAreaInset={contentSafeAreaInset}
+        />
+      );
+    }
+    // If only one student but not selected yet, auto-select it
+    if (students.length === 1) {
+      setSelectedStudentId(students[0].id);
+      return null; // Will re-render with selected student
+    }
   }
 
   if (loadingStudents || loading) {
@@ -750,113 +788,6 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
               </button>
             </div>
           </div>
-
-          {/* Accounts Section */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2
-                className="text-lg font-bold"
-                style={{
-                  color:
-                    themeParams.text_color ||
-                    themeParams.section_header_text_color ||
-                    (isDarkMode ? "#ffffff" : "#111827"),
-                }}
-              >
-                Accounts
-              </h2>
-              <button
-                className="p-1.5 rounded-lg"
-                style={{
-                  color:
-                    themeParams.hint_color ||
-                    themeParams.subtitle_text_color ||
-                    (isDarkMode ? "#9ca3af" : "#6b7280"),
-                }}
-                onClick={() => {
-                  if (students.length > 1) {
-                    setSelectedStudentId(null);
-                  }
-                }}
-              >
-                <Filter className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Horizontal scrolling student list */}
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
-              {students.map((student, index) => (
-                <button
-                  key={student.id}
-                  onClick={() => setSelectedStudentId(student.id)}
-                  className="flex-shrink-0 flex flex-col items-center gap-2 active:scale-95 transition-transform"
-                >
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold relative shadow-lg transition-all active:scale-95"
-                    style={{
-                      backgroundColor:
-                        student.id === selectedStudentId
-                          ? themeParams.button_color ||
-                            themeParams.accent_text_color ||
-                            "rgba(59, 130, 246, 0.2)"
-                          : getAvatarColor(index),
-                      border: `3px solid ${
-                        student.id === selectedStudentId
-                          ? themeParams.button_color ||
-                            themeParams.accent_text_color ||
-                            "#2563eb"
-                          : getAvatarBorderColor(index)
-                      }`,
-                      color:
-                        student.id === selectedStudentId
-                          ? themeParams.button_text_color ||
-                            themeParams.button_color ||
-                            "#2563eb"
-                          : getAvatarBorderColor(index),
-                    }}
-                  >
-                    {student.name.charAt(0).toUpperCase()}
-                    {student.id === selectedStudentId && (
-                      <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow-lg border-2 border-white">
-                        <CheckCircle className="w-4 h-4 text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <span
-                    className="text-xs font-semibold text-center max-w-[80px] truncate"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    {student.name}
-                  </span>
-                  <span
-                    className="text-[10px] text-center max-w-[80px] truncate"
-                    style={{
-                      color:
-                        themeParams.hint_color ||
-                        themeParams.subtitle_text_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  >
-                    {student.package}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Separator */}
-          <div
-            className="h-px mb-6"
-            style={{
-              backgroundColor:
-                themeParams.section_separator_color ||
-                (isDarkMode ? "#374151" : "#e5e7eb"),
-            }}
-          />
         </div>
       </div>
 
@@ -2339,106 +2270,6 @@ function StudentSelectionScreen({
               ))}
             </div>
           </div>
-
-          {/* Separator */}
-          <div
-            className="h-px mb-6"
-            style={{
-              backgroundColor:
-                themeParams.section_separator_color ||
-                (isDarkMode ? "#374151" : "#e5e7eb"),
-            }}
-          />
-
-          {/* Profile Settings Section */}
-          <div>
-            <h2
-              className="text-lg font-bold mb-4"
-              style={{
-                color:
-                  themeParams.text_color ||
-                  themeParams.section_header_text_color ||
-                  (isDarkMode ? "#ffffff" : "#111827"),
-              }}
-            >
-              Profile settings
-            </h2>
-            <div className="space-y-2">
-              {[
-                {
-                  icon: Bell,
-                  label: "Notifications",
-                  color: "#ef4444",
-                  bgColor: "rgba(239, 68, 68, 0.1)",
-                },
-                {
-                  icon: Clock,
-                  label: "Date & Time",
-                  color: "#22c55e",
-                  bgColor: "rgba(34, 197, 94, 0.1)",
-                },
-                {
-                  icon: Shield,
-                  label: "Privacy",
-                  color: "#eab308",
-                  bgColor: "rgba(234, 179, 8, 0.1)",
-                },
-                {
-                  icon: CreditCard,
-                  label: "My cards",
-                  color: "#3b82f6",
-                  bgColor: "rgba(59, 130, 246, 0.1)",
-                },
-                {
-                  icon: HelpCircle,
-                  label: "Help centre",
-                  color: "#a855f7",
-                  bgColor: "rgba(168, 85, 247, 0.1)",
-                },
-              ].map((item, index) => (
-                <button
-                  key={index}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
-                  style={{
-                    backgroundColor:
-                      themeParams.section_bg_color ||
-                      themeParams.secondary_bg_color ||
-                      themeParams.bg_color ||
-                      (isDarkMode ? "#1f2937" : "#ffffff"),
-                  }}
-                >
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center"
-                    style={{
-                      backgroundColor: item.bgColor,
-                      color: item.color,
-                    }}
-                  >
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <span
-                    className="text-base font-medium flex-1 text-left"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    {item.label}
-                  </span>
-                  <ChevronRight
-                    className="w-5 h-5"
-                    style={{
-                      color:
-                        themeParams.hint_color ||
-                        themeParams.subtitle_text_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -2450,11 +2281,43 @@ export default function StudentMiniApp({
 }: {
   params: { chatId: string };
 }) {
+  const [selectedStudentId, setSelectedStudentId] = React.useState<
+    number | null
+  >(null);
+  const [students, setStudents] = React.useState<any[]>([]);
+  const [loadingStudents, setLoadingStudents] = React.useState(true);
+
+  React.useEffect(() => {
+    const loadStudents = async () => {
+      try {
+        const response = await fetch(
+          `/api/student/mini-app/${params.chatId}?list=true`
+        );
+        const data = await response.json();
+        if (data.success) {
+          setStudents(data.students || []);
+          if (data.students && data.students.length === 1) {
+            setSelectedStudentId(data.students[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load students:", err);
+      } finally {
+        setLoadingStudents(false);
+      }
+    };
+    loadStudents();
+  }, [params.chatId]);
+
   return (
     <I18nProvider>
-      <StudentMiniAppInner params={params} />
-      {/* Profile Settings Navigation (replaces bottom nav) */}
-      <ProfileSettingsNav />
+      <StudentMiniAppInner
+        params={params}
+        selectedStudentId={selectedStudentId}
+        onStudentSelected={setSelectedStudentId}
+      />
+      {/* Only show navigation when a student is selected */}
+      {selectedStudentId && !loadingStudents && <ProfileSettingsNav />}
     </I18nProvider>
   );
 }
@@ -2593,10 +2456,7 @@ function ProfileSettingsNav() {
           return (
             <button
               key={item.id}
-              onClick={() => {
-                console.log("Nav item clicked:", item.id);
-                setTab(item.id);
-              }}
+              onClick={() => setTab(item.id)}
               className="flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all active:scale-95"
               style={{
                 backgroundColor: isActive
