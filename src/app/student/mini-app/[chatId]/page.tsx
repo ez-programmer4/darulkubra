@@ -44,6 +44,10 @@ import {
   X,
   Maximize2,
   Minimize2,
+  Filter,
+  Bell,
+  Shield,
+  HelpCircle,
 } from "lucide-react";
 
 interface StudentData {
@@ -183,10 +187,23 @@ interface TelegramWebApp {
   offEvent: (event: string, handler: () => void) => void;
 }
 
+interface StudentListItem {
+  id: number;
+  name: string;
+  package: string;
+  subject: string;
+  teacher: string;
+}
+
 function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   const { t, lang, setLang } = useI18n();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
+  const [students, setStudents] = useState<StudentListItem[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
+  const [loadingStudents, setLoadingStudents] = useState(true);
   const [error, setError] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -218,11 +235,47 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   const [themeParams, setThemeParams] = useState<ThemeParams>({});
   const [tgWebApp, setTgWebApp] = useState<TelegramWebApp | null>(null);
 
+  // Load students list first
   useEffect(() => {
-    loadStudentData();
+    loadStudentsList();
   }, [params.chatId]);
 
+  // Load student data when a student is selected
+  useEffect(() => {
+    if (selectedStudentId) {
+      loadStudentData();
+    }
+  }, [selectedStudentId, params.chatId]);
+
+  const loadStudentsList = async () => {
+    setLoadingStudents(true);
+    setError("");
+
+    try {
+      const response = await fetch(
+        `/api/student/mini-app/${params.chatId}?list=true`
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setStudents(data.students || []);
+        // Auto-select if only one student
+        if (data.students && data.students.length === 1) {
+          setSelectedStudentId(data.students[0].id);
+        }
+      } else {
+        setError(data.error || "Failed to load students");
+      }
+    } catch (err) {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
   const loadStudentData = async (isRefresh = false) => {
+    if (!selectedStudentId) return;
+
     if (isRefresh) {
       setRefreshing(true);
     } else {
@@ -231,7 +284,9 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
     setError("");
 
     try {
-      const response = await fetch(`/api/student/mini-app/${params.chatId}`);
+      const response = await fetch(
+        `/api/student/mini-app/${params.chatId}?studentId=${selectedStudentId}`
+      );
       const data = await response.json();
 
       if (data.success) {
@@ -458,12 +513,55 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
     });
   };
 
-  if (loading) {
+  // Generate colors for avatars
+  const getAvatarColor = (index: number) => {
+    const colors = [
+      "rgba(59, 130, 246, 0.2)", // blue
+      "rgba(236, 72, 153, 0.2)", // pink
+      "rgba(34, 197, 94, 0.2)", // green
+      "rgba(249, 115, 22, 0.2)", // orange
+      "rgba(168, 85, 247, 0.2)", // purple
+    ];
+    return colors[index % colors.length];
+  };
+
+  const getAvatarBorderColor = (index: number) => {
+    const colors = [
+      "#2563eb", // blue
+      "#ec4899", // pink
+      "#22c55e", // green
+      "#f97316", // orange
+      "#a855f7", // purple
+    ];
+    return colors[index % colors.length];
+  };
+
+  // Show student selection screen if multiple students and none selected
+  if (!selectedStudentId && !loadingStudents && students.length > 1) {
+    return (
+      <StudentSelectionScreen
+        students={students}
+        onSelectStudent={(id) => setSelectedStudentId(id)}
+        themeParams={themeParams}
+        isDarkMode={isDarkMode}
+        safeAreaInset={safeAreaInset}
+        contentSafeAreaInset={contentSafeAreaInset}
+      />
+    );
+  }
+
+  if (loadingStudents || loading) {
     return (
       <div
         className={`min-h-screen flex items-center justify-center p-4 ${
           isDarkMode ? "bg-gray-900" : "bg-gray-50"
         }`}
+        style={{
+          backgroundColor:
+            themeParams.bg_color || (isDarkMode ? "#111827" : "#f9fafb"),
+          paddingLeft: `${contentSafeAreaInset.left || 0}px`,
+          paddingRight: `${contentSafeAreaInset.right || 0}px`,
+        }}
       >
         <div className="text-center">
           <div
@@ -473,6 +571,10 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
             className={`text-lg font-medium ${
               isDarkMode ? "text-white" : "text-gray-900"
             }`}
+            style={{
+              color:
+                themeParams.text_color || (isDarkMode ? "#ffffff" : "#111827"),
+            }}
           >
             {t ? t("loadingProgress") : "Loading your progress..."}
           </p>
@@ -483,7 +585,13 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-rose-100 flex items-center justify-center p-4">
+      <div
+        className="min-h-screen bg-gradient-to-br from-red-50 to-rose-100 flex items-center justify-center p-4"
+        style={{
+          paddingLeft: `${contentSafeAreaInset.left || 0}px`,
+          paddingRight: `${contentSafeAreaInset.right || 0}px`,
+        }}
+      >
         <div className="text-center">
           <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">Error</h2>
@@ -495,7 +603,13 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
 
   if (!studentData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+      <div
+        className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4"
+        style={{
+          paddingLeft: `${contentSafeAreaInset.left || 0}px`,
+          paddingRight: `${contentSafeAreaInset.right || 0}px`,
+        }}
+      >
         <div className="text-center">
           <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">
@@ -547,28 +661,36 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         <div className="px-4 py-3">
           {/* Top Navigation */}
           <div className="flex items-center justify-between mb-3">
-            <div>
-              <h1
-                className="text-lg font-semibold"
+            <div className="flex items-center gap-3 flex-1">
+              <button
+                onClick={() => {
+                  if (students.length > 1) {
+                    setSelectedStudentId(null);
+                  } else {
+                    window.history.back();
+                  }
+                }}
+                className="p-1"
                 style={{
                   color:
                     themeParams.text_color ||
                     (isDarkMode ? "#ffffff" : "#111827"),
                 }}
               >
-                {t ? t("studentDashboard") : "Student Dashboard"}
-              </h1>
-              <p
-                className="text-xs"
-                style={{
-                  color:
-                    themeParams.hint_color ||
-                    themeParams.subtitle_text_color ||
-                    (isDarkMode ? "#9ca3af" : "#6b7280"),
-                }}
-              >
-                {t ? t("overview") : "Overview"}
-              </p>
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="flex-1">
+                <h1
+                  className="text-xl font-bold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
+                >
+                  Settings
+                </h1>
+              </div>
             </div>
 
             <div className="flex items-center space-x-2">
@@ -618,143 +740,192 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
             </div>
           </div>
 
-          {/* Student Profile Card */}
-          <div
-            className="rounded-2xl p-4"
-            style={{
-              backgroundColor:
-                themeParams.section_bg_color ||
-                themeParams.secondary_bg_color ||
-                themeParams.bg_color ||
-                (isDarkMode ? "#1f2937" : "#ffffff"),
-            }}
-          >
-            <div className="flex items-center space-x-3 mb-3">
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
+          {/* Accounts Section */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2
+                className="text-lg font-bold"
                 style={{
-                  backgroundColor:
-                    themeParams.button_color ||
-                    themeParams.accent_text_color ||
-                    "rgba(59, 130, 246, 0.2)",
                   color:
-                    themeParams.button_color ||
-                    themeParams.accent_text_color ||
                     themeParams.text_color ||
-                    "#2563eb",
+                    themeParams.section_header_text_color ||
+                    (isDarkMode ? "#ffffff" : "#111827"),
                 }}
               >
-                {studentData.student.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1">
-                <h2
-                  className="text-lg font-bold"
-                  style={{
-                    color:
-                      themeParams.text_color ||
-                      (isDarkMode ? "#ffffff" : "#111827"),
-                  }}
-                >
-                  {studentData.student.name}
-                </h2>
-                <div
-                  className="flex items-center space-x-4 text-xs"
-                  style={{
-                    color:
-                      themeParams.hint_color ||
-                      themeParams.subtitle_text_color ||
-                      (isDarkMode ? "#9ca3af" : "#6b7280"),
-                  }}
-                >
-                  <span>{studentData.student.package}</span>
-                  <span>•</span>
-                  <span>{studentData.student.daypackages}</span>
-                </div>
-                <div
-                  className="text-xs mt-1"
-                  style={{
-                    color:
-                      themeParams.hint_color ||
-                      themeParams.subtitle_text_color ||
-                      (isDarkMode ? "#9ca3af" : "#6b7280"),
-                  }}
-                >
-                  {t ? t("teacher") : "Teacher"}: {studentData.student.teacher}
-                </div>
-              </div>
+                Accounts
+              </h2>
+              <button
+                className="p-1.5 rounded-lg"
+                style={{
+                  color:
+                    themeParams.hint_color ||
+                    themeParams.subtitle_text_color ||
+                    (isDarkMode ? "#9ca3af" : "#6b7280"),
+                }}
+                onClick={() => {
+                  if (students.length > 1) {
+                    setSelectedStudentId(null);
+                  }
+                }}
+              >
+                <Filter className="w-4 h-4" />
+              </button>
             </div>
 
-            {/* Student Information Grid */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div
-                className="rounded-lg p-2"
-                style={{
-                  backgroundColor:
-                    themeParams.secondary_bg_color ||
-                    themeParams.bg_color ||
-                    (isDarkMode
-                      ? "rgba(255, 255, 255, 0.05)"
-                      : "rgba(0, 0, 0, 0.02)"),
-                }}
-              >
-                <p
+            {/* Horizontal scrolling student list */}
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+              {students.map((student, index) => (
+                <button
+                  key={student.id}
+                  onClick={() => setSelectedStudentId(student.id)}
+                  className="flex-shrink-0 flex flex-col items-center gap-2"
+                >
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold relative"
+                    style={{
+                      backgroundColor:
+                        student.id === selectedStudentId
+                          ? themeParams.button_color ||
+                            themeParams.accent_text_color ||
+                            "rgba(59, 130, 246, 0.2)"
+                          : getAvatarColor(index),
+                      border: `2px solid ${
+                        student.id === selectedStudentId
+                          ? themeParams.button_color ||
+                            themeParams.accent_text_color ||
+                            "#2563eb"
+                          : getAvatarBorderColor(index)
+                      }`,
+                      color:
+                        student.id === selectedStudentId
+                          ? themeParams.button_text_color ||
+                            themeParams.button_color ||
+                            "#2563eb"
+                          : getAvatarBorderColor(index),
+                    }}
+                  >
+                    {student.name.charAt(0).toUpperCase()}
+                    {student.id === selectedStudentId && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                        <CheckCircle className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className="text-xs font-medium text-center max-w-[80px] truncate"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {student.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Separator */}
+          <div
+            className="h-px mb-6"
+            style={{
+              backgroundColor:
+                themeParams.section_separator_color ||
+                (isDarkMode ? "#374151" : "#e5e7eb"),
+            }}
+          />
+
+          {/* Profile Settings Section */}
+          <div className="mb-4">
+            <h2
+              className="text-lg font-bold mb-4"
+              style={{
+                color:
+                  themeParams.text_color ||
+                  themeParams.section_header_text_color ||
+                  (isDarkMode ? "#ffffff" : "#111827"),
+              }}
+            >
+              Profile settings
+            </h2>
+            <div className="space-y-2">
+              {[
+                {
+                  icon: Bell,
+                  label: "Notifications",
+                  color: "#ef4444",
+                  bgColor: "rgba(239, 68, 68, 0.1)",
+                },
+                {
+                  icon: Clock,
+                  label: "Date & Time",
+                  color: "#22c55e",
+                  bgColor: "rgba(34, 197, 94, 0.1)",
+                },
+                {
+                  icon: Shield,
+                  label: "Privacy",
+                  color: "#eab308",
+                  bgColor: "rgba(234, 179, 8, 0.1)",
+                },
+                {
+                  icon: CreditCard,
+                  label: "My cards",
+                  color: "#3b82f6",
+                  bgColor: "rgba(59, 130, 246, 0.1)",
+                },
+                {
+                  icon: HelpCircle,
+                  label: "Help centre",
+                  color: "#a855f7",
+                  bgColor: "rgba(168, 85, 247, 0.1)",
+                },
+              ].map((item, index) => (
+                <button
+                  key={index}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
                   style={{
-                    color:
-                      themeParams.hint_color ||
-                      themeParams.subtitle_text_color ||
-                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    backgroundColor:
+                      themeParams.section_bg_color ||
+                      themeParams.secondary_bg_color ||
+                      themeParams.bg_color ||
+                      (isDarkMode ? "#1f2937" : "#ffffff"),
                   }}
                 >
-                  Subject
-                </p>
-                <p
-                  className="font-semibold"
-                  style={{
-                    color:
-                      themeParams.text_color ||
-                      (isDarkMode ? "#ffffff" : "#111827"),
-                  }}
-                >
-                  {studentData.student.subject || "N/A"}
-                </p>
-              </div>
-              <div
-                className="rounded-lg p-2"
-                style={{
-                  backgroundColor:
-                    themeParams.secondary_bg_color ||
-                    themeParams.bg_color ||
-                    (isDarkMode
-                      ? "rgba(255, 255, 255, 0.05)"
-                      : "rgba(0, 0, 0, 0.02)"),
-                }}
-              >
-                <p
-                  style={{
-                    color:
-                      themeParams.hint_color ||
-                      themeParams.subtitle_text_color ||
-                      (isDarkMode ? "#9ca3af" : "#6b7280"),
-                  }}
-                >
-                  Class Fee
-                </p>
-                <p
-                  className="font-semibold"
-                  style={{
-                    color:
-                      themeParams.text_color ||
-                      (isDarkMode ? "#ffffff" : "#111827"),
-                  }}
-                >
-                  ETB {studentData.student.classfee || 0}
-                </p>
-              </div>
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center"
+                    style={{
+                      backgroundColor: item.bgColor,
+                      color: item.color,
+                    }}
+                  >
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <span
+                    className="text-base font-medium flex-1 text-left"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                  <ChevronRight
+                    className="w-5 h-5"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  />
+                </button>
+              ))}
             </div>
           </div>
         </div>
-
-        {/* Tab navigation removed in favor of sticky bottom navigation */}
       </div>
 
       {/* Tab Content */}
@@ -2017,6 +2188,274 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
           <X className="w-5 h-5" />
         </button>
       )}
+    </div>
+  );
+}
+
+// Student Selection Screen Component
+function StudentSelectionScreen({
+  students,
+  onSelectStudent,
+  themeParams,
+  isDarkMode,
+  safeAreaInset,
+  contentSafeAreaInset,
+}: {
+  students: StudentListItem[];
+  onSelectStudent: (id: number) => void;
+  themeParams: ThemeParams;
+  isDarkMode: boolean;
+  safeAreaInset: { top: number; bottom: number; left: number; right: number };
+  contentSafeAreaInset: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+}) {
+  const headerPaddingTop = safeAreaInset.top > 0 ? safeAreaInset.top + 16 : 16;
+
+  // Generate colors for avatars
+  const getAvatarColor = (index: number) => {
+    const colors = [
+      "rgba(59, 130, 246, 0.2)", // blue
+      "rgba(236, 72, 153, 0.2)", // pink
+      "rgba(34, 197, 94, 0.2)", // green
+      "rgba(249, 115, 22, 0.2)", // orange
+      "rgba(168, 85, 247, 0.2)", // purple
+    ];
+    return colors[index % colors.length];
+  };
+
+  const getAvatarBorderColor = (index: number) => {
+    const colors = [
+      "#2563eb", // blue
+      "#ec4899", // pink
+      "#22c55e", // green
+      "#f97316", // orange
+      "#a855f7", // purple
+    ];
+    return colors[index % colors.length];
+  };
+
+  return (
+    <div
+      className="min-h-screen transition-all duration-300"
+      style={{
+        backgroundColor:
+          themeParams.bg_color || (isDarkMode ? "#111827" : "#f9fafb"),
+        color: themeParams.text_color || (isDarkMode ? "#ffffff" : "#111827"),
+        paddingLeft: `${contentSafeAreaInset.left || 0}px`,
+        paddingRight: `${contentSafeAreaInset.right || 0}px`,
+      }}
+    >
+      {/* Header */}
+      <div
+        className="sticky top-0 z-50 border-b transition-all duration-300"
+        style={{
+          backgroundColor:
+            themeParams.header_bg_color ||
+            themeParams.bg_color ||
+            (isDarkMode ? "#1f2937" : "#ffffff"),
+          borderColor:
+            themeParams.section_separator_color ||
+            (isDarkMode ? "#374151" : "#e5e7eb"),
+          paddingTop: `${headerPaddingTop}px`,
+          paddingLeft: `${safeAreaInset.left || 0}px`,
+          paddingRight: `${safeAreaInset.right || 0}px`,
+        }}
+      >
+        <div className="px-4 py-4">
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => window.history.back()}
+              className="p-1"
+              style={{
+                color:
+                  themeParams.text_color ||
+                  (isDarkMode ? "#ffffff" : "#111827"),
+              }}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1
+              className="text-xl font-bold flex-1"
+              style={{
+                color:
+                  themeParams.text_color ||
+                  (isDarkMode ? "#ffffff" : "#111827"),
+              }}
+            >
+              Settings
+            </h1>
+          </div>
+
+          {/* Accounts Section */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2
+                className="text-lg font-bold"
+                style={{
+                  color:
+                    themeParams.text_color ||
+                    themeParams.section_header_text_color ||
+                    (isDarkMode ? "#ffffff" : "#111827"),
+                }}
+              >
+                Accounts
+              </h2>
+              <button
+                className="p-1.5 rounded-lg"
+                style={{
+                  color:
+                    themeParams.hint_color ||
+                    themeParams.subtitle_text_color ||
+                    (isDarkMode ? "#9ca3af" : "#6b7280"),
+                }}
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Horizontal scrolling student list */}
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+              {students.map((student, index) => (
+                <button
+                  key={student.id}
+                  onClick={() => onSelectStudent(student.id)}
+                  className="flex-shrink-0 flex flex-col items-center gap-2"
+                >
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold relative"
+                    style={{
+                      backgroundColor: getAvatarColor(index),
+                      border: `2px solid ${getAvatarBorderColor(index)}`,
+                      color: getAvatarBorderColor(index),
+                    }}
+                  >
+                    {student.name.charAt(0).toUpperCase()}
+                    {index === 0 && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                        <CheckCircle className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className="text-xs font-medium text-center max-w-[80px] truncate"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {student.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Separator */}
+          <div
+            className="h-px mb-6"
+            style={{
+              backgroundColor:
+                themeParams.section_separator_color ||
+                (isDarkMode ? "#374151" : "#e5e7eb"),
+            }}
+          />
+
+          {/* Profile Settings Section */}
+          <div>
+            <h2
+              className="text-lg font-bold mb-4"
+              style={{
+                color:
+                  themeParams.text_color ||
+                  themeParams.section_header_text_color ||
+                  (isDarkMode ? "#ffffff" : "#111827"),
+              }}
+            >
+              Profile settings
+            </h2>
+            <div className="space-y-2">
+              {[
+                {
+                  icon: Bell,
+                  label: "Notifications",
+                  color: "#ef4444",
+                  bgColor: "rgba(239, 68, 68, 0.1)",
+                },
+                {
+                  icon: Clock,
+                  label: "Date & Time",
+                  color: "#22c55e",
+                  bgColor: "rgba(34, 197, 94, 0.1)",
+                },
+                {
+                  icon: Shield,
+                  label: "Privacy",
+                  color: "#eab308",
+                  bgColor: "rgba(234, 179, 8, 0.1)",
+                },
+                {
+                  icon: CreditCard,
+                  label: "My cards",
+                  color: "#3b82f6",
+                  bgColor: "rgba(59, 130, 246, 0.1)",
+                },
+                {
+                  icon: HelpCircle,
+                  label: "Help centre",
+                  color: "#a855f7",
+                  bgColor: "rgba(168, 85, 247, 0.1)",
+                },
+              ].map((item, index) => (
+                <button
+                  key={index}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+                  style={{
+                    backgroundColor:
+                      themeParams.section_bg_color ||
+                      themeParams.secondary_bg_color ||
+                      themeParams.bg_color ||
+                      (isDarkMode ? "#1f2937" : "#ffffff"),
+                  }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center"
+                    style={{
+                      backgroundColor: item.bgColor,
+                      color: item.color,
+                    }}
+                  >
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <span
+                    className="text-base font-medium flex-1 text-left"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                  <ChevronRight
+                    className="w-5 h-5"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

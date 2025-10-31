@@ -7,10 +7,52 @@ export async function GET(
 ) {
   try {
     const { chatId } = params;
+    const { searchParams } = new URL(req.url);
+    const studentId = searchParams.get("studentId");
+    const listOnly = searchParams.get("list") === "true";
 
-    // Find student by chatId
+    // If listOnly is true, return just the list of students for this chatId
+    if (listOnly) {
+      const students = await prisma.wpos_wpdatatable_23.findMany({
+        where: { chatId: chatId },
+        select: {
+          wdt_ID: true,
+          name: true,
+          package: true,
+          subject: true,
+          classfee: true,
+          daypackages: true,
+          status: true,
+          startdate: true,
+          teacher: {
+            select: {
+              ustazname: true,
+            },
+          },
+        },
+        orderBy: { name: "asc" },
+      });
+
+      return NextResponse.json({
+        success: true,
+        students: students.map((s) => ({
+          id: s.wdt_ID,
+          name: s.name,
+          package: s.package,
+          subject: s.subject,
+          teacher: s.teacher?.ustazname || "Not assigned",
+        })),
+      });
+    }
+
+    // Find student by chatId and optionally studentId
+    const whereClause: any = { chatId: chatId };
+    if (studentId) {
+      whereClause.wdt_ID = Number(studentId);
+    }
+
     const student = await prisma.wpos_wpdatatable_23.findFirst({
-      where: { chatId: chatId },
+      where: whereClause,
       select: {
         wdt_ID: true,
         name: true,
