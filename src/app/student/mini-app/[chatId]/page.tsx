@@ -2001,144 +2001,99 @@ function BottomNav() {
     return () => window.removeEventListener("dk:setTab", handler);
   }, []);
 
-  // Calculate active button index for indicator animation
-  const activeIndex = navItems.findIndex((item) => item.id === active);
+  // Get active/inactive colors from theme
+  const activeColor =
+    themeParams.accent_text_color ||
+    themeParams.link_color ||
+    themeParams.button_color ||
+    "#2563eb";
+  const inactiveColor =
+    themeParams.hint_color || themeParams.subtitle_text_color || "#6b7280";
+  const bgColor =
+    themeParams.bottom_bar_bg_color || themeParams.bg_color || "#ffffff";
+  const borderColor = themeParams.section_separator_color || "#e5e7eb";
+
+  // Helper to convert hex to rgba with opacity
+  const hexToRgba = (hex: string, opacity: number) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  };
+
+  // Get active background color
+  const getActiveBgColor = () => {
+    if (activeColor === "#2563eb") {
+      return "rgba(37, 99, 235, 0.1)";
+    }
+    if (activeColor.startsWith("#")) {
+      return hexToRgba(activeColor, 0.1);
+    }
+    return "rgba(37, 99, 235, 0.1)";
+  };
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
+      className="fixed z-50 w-full md:hidden"
       style={{
-        paddingBottom: `${safeAreaInset.bottom || 0}px`,
+        bottom: `${16 + (safeAreaInset.bottom || 0)}px`,
         paddingLeft: `${safeAreaInset.left || 0}px`,
         paddingRight: `${safeAreaInset.right || 0}px`,
       }}
     >
-      {/* Background with blur effect */}
       <div
-        className="absolute inset-0 backdrop-blur-xl"
+        className="w-full h-16 max-w-lg -translate-x-1/2 border rounded-full left-1/2 mx-auto"
         style={{
-          backgroundColor:
-            themeParams.bottom_bar_bg_color ||
-            themeParams.bg_color ||
-            "rgba(255, 255, 255, 0.8)",
-          borderTop: `1px solid ${
-            themeParams.section_separator_color || "rgba(229, 231, 235, 0.5)"
-          }`,
+          backgroundColor: bgColor,
+          borderColor: borderColor,
         }}
-      />
+      >
+        <div className="grid h-full max-w-lg grid-cols-6 mx-auto">
+          {navItems.map((item, index) => {
+            const Icon = item.icon;
+            const isActive = active === item.id;
+            const isFirst = index === 0;
+            const isLast = index === navItems.length - 1;
 
-      {/* Gradient overlay for modern look */}
-      <div
-        className="absolute inset-0 opacity-5"
-        style={{
-          background:
-            "linear-gradient(to top, rgba(59, 130, 246, 0.3), transparent)",
-        }}
-      />
-
-      {/* Navigation container */}
-      <div className="relative flex items-center justify-around px-2 py-3">
-        {/* Active indicator background */}
-        <motion.div
-          className="absolute h-12 rounded-2xl"
-          style={{
-            backgroundColor:
-              themeParams.button_color ||
-              themeParams.accent_text_color ||
-              "rgba(59, 130, 246, 0.1)",
-            left: `${(100 / navItems.length) * activeIndex}%`,
-            width: `${100 / navItems.length}%`,
-          }}
-          layoutId="activeTab"
-          transition={{
-            type: "spring",
-            stiffness: 300,
-            damping: 30,
-          }}
-        />
-
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = active === item.id;
-          const activeColor =
-            themeParams.accent_text_color ||
-            themeParams.link_color ||
-            themeParams.button_color ||
-            "#2563eb";
-          const inactiveColor =
-            themeParams.hint_color ||
-            themeParams.subtitle_text_color ||
-            "#6b7280";
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => setTab(item.id)}
-              className="relative flex flex-col items-center justify-center gap-1.5 px-3 py-2 rounded-2xl transition-all duration-200 flex-1 min-w-0"
-              style={{
-                color: isActive ? activeColor : inactiveColor,
-              }}
-            >
-              {/* Icon container with animation */}
-              <motion.div
-                animate={{
-                  scale: isActive ? 1.1 : 1,
-                  y: isActive ? -2 : 0,
+            return (
+              <button
+                key={item.id}
+                onClick={() => setTab(item.id)}
+                type="button"
+                className={`inline-flex flex-col items-center justify-center px-3 transition-all duration-200 group ${
+                  isFirst ? "rounded-s-full" : ""
+                } ${isLast ? "rounded-e-full" : ""}`}
+                style={{
+                  backgroundColor: isActive
+                    ? getActiveBgColor()
+                    : "transparent",
+                  color: isActive ? activeColor : inactiveColor,
                 }}
-                transition={{
-                  type: "spring",
-                  stiffness: 400,
-                  damping: 25,
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.backgroundColor =
+                      bgColor === "#ffffff"
+                        ? "rgba(0, 0, 0, 0.02)"
+                        : "rgba(255, 255, 255, 0.05)";
+                  }
                 }}
-                className="relative"
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }
+                }}
               >
                 <Icon
-                  className={`w-5 h-5 transition-all duration-200 ${
-                    isActive ? "drop-shadow-sm" : ""
+                  className={`w-5 h-5 mb-1 transition-colors duration-200 ${
+                    isActive ? "" : "group-hover:opacity-80"
                   }`}
                   strokeWidth={isActive ? 2.5 : 2}
                 />
-
-                {/* Active dot indicator */}
-                {isActive && (
-                  <motion.div
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
-                    style={{
-                      backgroundColor: activeColor,
-                    }}
-                  />
-                )}
-              </motion.div>
-
-              {/* Label */}
-              <motion.span
-                animate={{
-                  fontSize: isActive ? "0.7rem" : "0.65rem",
-                  fontWeight: isActive ? 600 : 500,
-                }}
-                className="text-center leading-tight truncate w-full"
-              >
-                {item.label}
-              </motion.span>
-
-              {/* Ripple effect on click */}
-              {isActive && (
-                <motion.div
-                  className="absolute inset-0 rounded-2xl"
-                  style={{
-                    backgroundColor: activeColor,
-                    opacity: 0.1,
-                  }}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.3 }}
-                />
-              )}
-            </button>
-          );
-        })}
+                <span className="sr-only">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
