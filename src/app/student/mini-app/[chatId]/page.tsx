@@ -644,7 +644,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
 
   return (
     <div
-      className="min-h-screen transition-all duration-300 pb-[320px]"
+      className="min-h-screen transition-all duration-300 pb-24"
       style={{
         backgroundColor:
           themeParams.bg_color || (isDarkMode ? "#111827" : "#f9fafb"),
@@ -2509,6 +2509,7 @@ function ProfileSettingsNav() {
 
   const setTab = (tab: string) => {
     setActive(tab);
+    // Force update the main component
     window.dispatchEvent(new CustomEvent("dk:setTab", { detail: tab }));
   };
 
@@ -2520,196 +2521,151 @@ function ProfileSettingsNav() {
     return () => window.removeEventListener("dk:setTab", handler);
   }, []);
 
-  // Get colors from themeParams with fallbacks
-  const getNavItemColors = (defaultColor: string, defaultBg: string) => {
-    const isActiveNav =
-      active === "overview" ||
-      active === "terbia" ||
-      active === "attendance" ||
-      active === "tests" ||
-      active === "payments" ||
-      active === "schedule";
-    return {
-      color:
-        themeParams.accent_text_color || themeParams.link_color || defaultColor,
-      bgColor: themeParams.button_color
-        ? `${themeParams.button_color}20`
-        : themeParams.secondary_bg_color
-        ? `${themeParams.secondary_bg_color}40`
-        : defaultBg,
-    };
-  };
-
   const navItems = [
     {
       id: "overview",
       icon: Home,
       label: t("overview") || "Overview",
-      defaultColor: "#3b82f6",
-      defaultBgColor: "rgba(59, 130, 246, 0.15)",
+      color: "#3b82f6",
     },
     {
       id: "terbia",
       icon: BookOpen,
       label: t("terbia") || "Terbia",
-      defaultColor: "#8b5cf6",
-      defaultBgColor: "rgba(139, 92, 246, 0.15)",
+      color: "#8b5cf6",
     },
     {
       id: "attendance",
       icon: Calendar,
       label: t("attendance") || "Attendance",
-      defaultColor: "#10b981",
-      defaultBgColor: "rgba(16, 185, 129, 0.15)",
+      color: "#10b981",
     },
     {
       id: "tests",
       icon: Trophy,
       label: t("tests") || "Tests",
-      defaultColor: "#f59e0b",
-      defaultBgColor: "rgba(245, 158, 11, 0.15)",
+      color: "#f59e0b",
     },
     {
       id: "payments",
       icon: CreditCard,
       label: t("payments") || "Payments",
-      defaultColor: "#ef4444",
-      defaultBgColor: "rgba(239, 68, 68, 0.15)",
+      color: "#ef4444",
     },
     {
       id: "schedule",
       icon: Clock,
       label: t("schedule") || "Schedule",
-      defaultColor: "#06b6d4",
-      defaultBgColor: "rgba(6, 182, 212, 0.15)",
+      color: "#06b6d4",
     },
   ];
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden backdrop-blur-xl"
       style={{
         backgroundColor:
           themeParams.bottom_bar_bg_color ||
           themeParams.section_bg_color ||
-          themeParams.bg_color ||
-          (isDarkMode ? "#1f2937" : "#ffffff"),
+          (isDarkMode ? "rgba(31, 41, 55, 0.95)" : "rgba(255, 255, 255, 0.95)"),
         borderTop: `1px solid ${
           themeParams.section_separator_color ||
-          (isDarkMode ? "#374151" : "#e5e7eb")
+          (isDarkMode ? "rgba(55, 65, 81, 0.5)" : "rgba(229, 231, 235, 0.5)")
         }`,
-        paddingBottom: `${safeAreaInset.bottom || 16}px`,
+        paddingBottom: `${safeAreaInset.bottom || 8}px`,
         paddingLeft: `${safeAreaInset.left || 0}px`,
         paddingRight: `${safeAreaInset.right || 0}px`,
-        paddingTop: "12px",
+        paddingTop: "8px",
+        boxShadow: isDarkMode
+          ? "0 -4px 24px rgba(0, 0, 0, 0.3)"
+          : "0 -4px 24px rgba(0, 0, 0, 0.08)",
       }}
     >
-      <div className="px-4 space-y-1.5">
-        <div
-          className="text-xs font-bold mb-3 px-2 uppercase tracking-wider"
-          style={{
-            color:
-              themeParams.section_header_text_color ||
-              themeParams.hint_color ||
-              themeParams.subtitle_text_color ||
-              (isDarkMode ? "#9ca3af" : "#6b7280"),
-          }}
-        >
-          Navigation
-        </div>
+      <div className="grid grid-cols-3 gap-2 px-3">
         {navItems.map((item) => {
           const isActive = active === item.id;
-          const itemColors = getNavItemColors(
-            item.defaultColor,
-            item.defaultBgColor
-          );
+          const activeColor =
+            themeParams.accent_text_color ||
+            themeParams.link_color ||
+            themeParams.button_color ||
+            item.color;
 
           return (
             <button
               key={item.id}
-              onClick={() => setTab(item.id)}
-              className="w-full flex items-center gap-3 p-3.5 rounded-2xl transition-all active:scale-[0.97] shadow-sm"
+              onClick={() => {
+                console.log("Nav item clicked:", item.id);
+                setTab(item.id);
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all active:scale-95"
               style={{
                 backgroundColor: isActive
                   ? themeParams.button_color
-                    ? `${themeParams.button_color}15`
-                    : themeParams.secondary_bg_color
-                    ? `${themeParams.secondary_bg_color}50`
-                    : item.defaultBgColor
-                  : themeParams.section_bg_color ||
-                    themeParams.secondary_bg_color ||
-                    themeParams.bg_color ||
-                    (isDarkMode ? "#1f2937" : "#ffffff"),
-                border: isActive
-                  ? `2px solid ${
-                      themeParams.accent_text_color ||
-                      themeParams.link_color ||
-                      themeParams.button_color ||
-                      `${item.defaultColor}40`
-                    }`
-                  : `1px solid ${
-                      themeParams.section_separator_color ||
-                      (isDarkMode ? "#374151" : "#e5e7eb")
-                    }`,
-                boxShadow: isActive
-                  ? `0 2px 8px ${
-                      themeParams.button_color ||
-                      themeParams.accent_text_color ||
-                      `${item.defaultColor}20`
-                    }`
-                  : undefined,
+                    ? `${themeParams.button_color}20`
+                    : `${item.color}20`
+                  : "transparent",
               }}
             >
               <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center transition-all"
+                className="relative flex items-center justify-center"
                 style={{
-                  backgroundColor: isActive
-                    ? themeParams.button_color
-                      ? `${themeParams.button_color}20`
-                      : item.defaultBgColor
-                    : themeParams.secondary_bg_color ||
-                      (isDarkMode ? "#374151" : "#f3f4f6"),
+                  transform: isActive ? "scale(1.15)" : "scale(1)",
+                  transition: "transform 0.2s ease",
+                }}
+              >
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center shadow-sm"
+                  style={{
+                    backgroundColor: isActive
+                      ? themeParams.button_color
+                        ? `${themeParams.button_color}30`
+                        : `${item.color}30`
+                      : themeParams.secondary_bg_color ||
+                        (isDarkMode
+                          ? "rgba(55, 65, 81, 0.6)"
+                          : "rgba(243, 244, 246, 0.9)"),
+                    border: isActive
+                      ? `2px solid ${activeColor}`
+                      : `1px solid ${
+                          themeParams.section_separator_color ||
+                          (isDarkMode
+                            ? "rgba(55, 65, 81, 0.3)"
+                            : "rgba(229, 231, 235, 0.5)")
+                        }`,
+                  }}
+                >
+                  <item.icon
+                    className="w-5 h-5 transition-colors"
+                    style={{
+                      color: isActive
+                        ? activeColor
+                        : themeParams.hint_color ||
+                          themeParams.subtitle_text_color ||
+                          (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  />
+                </div>
+                {isActive && (
+                  <div
+                    className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full shadow-sm"
+                    style={{
+                      backgroundColor: activeColor,
+                    }}
+                  />
+                )}
+              </div>
+              <span
+                className="text-[11px] font-semibold text-center leading-tight max-w-full truncate px-1"
+                style={{
                   color: isActive
-                    ? themeParams.accent_text_color ||
-                      themeParams.link_color ||
-                      themeParams.button_color ||
-                      item.defaultColor
+                    ? activeColor
                     : themeParams.hint_color ||
                       themeParams.subtitle_text_color ||
                       (isDarkMode ? "#9ca3af" : "#6b7280"),
-                  transform: isActive ? "scale(1.08)" : "scale(1)",
-                }}
-              >
-                <item.icon className="w-5 h-5" />
-              </div>
-              <span
-                className="text-sm font-semibold flex-1 text-left"
-                style={{
-                  color: isActive
-                    ? themeParams.accent_text_color ||
-                      themeParams.link_color ||
-                      themeParams.text_color ||
-                      item.defaultColor
-                    : themeParams.text_color ||
-                      (isDarkMode ? "#ffffff" : "#111827"),
                 }}
               >
                 {item.label}
               </span>
-              <ChevronRight
-                className={`w-5 h-5 transition-all ${
-                  isActive
-                    ? "translate-x-0 opacity-100"
-                    : "translate-x-2 opacity-0"
-                }`}
-                style={{
-                  color:
-                    themeParams.accent_text_color ||
-                    themeParams.link_color ||
-                    themeParams.button_color ||
-                    item.defaultColor,
-                }}
-              />
             </button>
           );
         })}
