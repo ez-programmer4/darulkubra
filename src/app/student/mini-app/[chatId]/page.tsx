@@ -41,6 +41,9 @@ import {
   Plus,
   Minus,
   CreditCard,
+  X,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 
 interface StudentData {
@@ -133,6 +136,53 @@ interface StudentData {
   };
 }
 
+// Telegram ThemeParams interface
+interface ThemeParams {
+  bg_color?: string;
+  text_color?: string;
+  hint_color?: string;
+  link_color?: string;
+  button_color?: string;
+  button_text_color?: string;
+  secondary_bg_color?: string;
+  header_bg_color?: string;
+  bottom_bar_bg_color?: string;
+  accent_text_color?: string;
+  section_bg_color?: string;
+  section_header_text_color?: string;
+  section_separator_color?: string;
+  subtitle_text_color?: string;
+  destructive_text_color?: string;
+}
+
+// Telegram WebApp interface
+interface TelegramWebApp {
+  ready: () => void;
+  expand: () => void;
+  close: () => void;
+  requestFullscreen: () => void;
+  exitFullscreen: () => void;
+  platform: string;
+  isExpanded: boolean;
+  isActive: boolean;
+  isFullscreen: boolean;
+  safeAreaInset: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+  contentSafeAreaInset: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+  themeParams: ThemeParams;
+  onEvent: (event: string, handler: () => void) => void;
+  offEvent: (event: string, handler: () => void) => void;
+}
+
 function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   const { t, lang, setLang } = useI18n();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
@@ -149,6 +199,24 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
     terbia: true,
     zoom: true,
   });
+
+  // Telegram WebApp state
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isActive, setIsActive] = useState(true);
+  const [safeAreaInset, setSafeAreaInset] = useState({
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  });
+  const [contentSafeAreaInset, setContentSafeAreaInset] = useState({
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  });
+  const [themeParams, setThemeParams] = useState<ThemeParams>({});
+  const [tgWebApp, setTgWebApp] = useState<TelegramWebApp | null>(null);
 
   useEffect(() => {
     loadStudentData();
@@ -203,27 +271,180 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
     return () => window.removeEventListener("dk:setTab", handler);
   }, []);
 
-  // Dynamic header top padding based on Telegram WebApp context (MUST be before any returns)
-  const [extraTopPad, setExtraTopPad] = useState(48);
+  // Apply Telegram theme to document root as CSS variables
+  const applyThemeToDocument = (params: ThemeParams) => {
+    const root = document.documentElement;
+
+    if (params.bg_color) {
+      root.style.setProperty("--tg-theme-bg-color", params.bg_color);
+    }
+    if (params.text_color) {
+      root.style.setProperty("--tg-theme-text-color", params.text_color);
+    }
+    if (params.hint_color) {
+      root.style.setProperty("--tg-theme-hint-color", params.hint_color);
+    }
+    if (params.link_color) {
+      root.style.setProperty("--tg-theme-link-color", params.link_color);
+    }
+    if (params.button_color) {
+      root.style.setProperty("--tg-theme-button-color", params.button_color);
+    }
+    if (params.button_text_color) {
+      root.style.setProperty(
+        "--tg-theme-button-text-color",
+        params.button_text_color
+      );
+    }
+    if (params.secondary_bg_color) {
+      root.style.setProperty(
+        "--tg-theme-secondary-bg-color",
+        params.secondary_bg_color
+      );
+    }
+    if (params.header_bg_color) {
+      root.style.setProperty(
+        "--tg-theme-header-bg-color",
+        params.header_bg_color
+      );
+    }
+    if (params.bottom_bar_bg_color) {
+      root.style.setProperty(
+        "--tg-theme-bottom-bar-bg-color",
+        params.bottom_bar_bg_color
+      );
+    }
+    if (params.accent_text_color) {
+      root.style.setProperty(
+        "--tg-theme-accent-text-color",
+        params.accent_text_color
+      );
+    }
+    if (params.section_bg_color) {
+      root.style.setProperty(
+        "--tg-theme-section-bg-color",
+        params.section_bg_color
+      );
+    }
+    if (params.section_header_text_color) {
+      root.style.setProperty(
+        "--tg-theme-section-header-text-color",
+        params.section_header_text_color
+      );
+    }
+    if (params.section_separator_color) {
+      root.style.setProperty(
+        "--tg-theme-section-separator-color",
+        params.section_separator_color
+      );
+    }
+    if (params.subtitle_text_color) {
+      root.style.setProperty(
+        "--tg-theme-subtitle-text-color",
+        params.subtitle_text_color
+      );
+    }
+    if (params.destructive_text_color) {
+      root.style.setProperty(
+        "--tg-theme-destructive-text-color",
+        params.destructive_text_color
+      );
+    }
+  };
+
+  // Initialize Telegram WebApp
   useEffect(() => {
     try {
-      const tg = (window as any)?.Telegram?.WebApp;
+      const tg = (window as any)?.Telegram?.WebApp as
+        | TelegramWebApp
+        | undefined;
       if (tg) {
         tg.ready?.();
-        const isExpanded = !!tg.isExpanded;
-        const platform = tg.platform || "";
-        if (isExpanded && (platform === "ios" || platform === "macos")) {
-          setExtraTopPad(12);
-        } else {
-          setExtraTopPad(48);
+        setTgWebApp(tg);
+
+        // Initialize state from WebApp
+        setIsFullscreen(!!tg.isFullscreen);
+        setIsActive(!!tg.isActive);
+
+        // Initialize safe area insets
+        if (tg.safeAreaInset) {
+          setSafeAreaInset(tg.safeAreaInset);
         }
-      } else {
-        setExtraTopPad(12);
+        if (tg.contentSafeAreaInset) {
+          setContentSafeAreaInset(tg.contentSafeAreaInset);
+        }
+
+        // Initialize theme params
+        if (tg.themeParams) {
+          setThemeParams(tg.themeParams);
+          applyThemeToDocument(tg.themeParams);
+        }
+
+        // Event handlers
+        const handleActivated = () => setIsActive(true);
+        const handleDeactivated = () => setIsActive(false);
+        const handleSafeAreaChanged = () => {
+          if (tg.safeAreaInset) setSafeAreaInset(tg.safeAreaInset);
+        };
+        const handleContentSafeAreaChanged = () => {
+          if (tg.contentSafeAreaInset)
+            setContentSafeAreaInset(tg.contentSafeAreaInset);
+        };
+        const handleFullscreenChanged = () => {
+          setIsFullscreen(!!tg.isFullscreen);
+        };
+        const handleFullscreenFailed = () => {
+          console.warn("Fullscreen request failed");
+          setIsFullscreen(false);
+        };
+        const handleThemeChanged = () => {
+          if (tg.themeParams) {
+            setThemeParams(tg.themeParams);
+            applyThemeToDocument(tg.themeParams);
+          }
+        };
+
+        // Subscribe to events
+        if (tg.onEvent) {
+          tg.onEvent("activated", handleActivated);
+          tg.onEvent("deactivated", handleDeactivated);
+          tg.onEvent("safeAreaChanged", handleSafeAreaChanged);
+          tg.onEvent("contentSafeAreaChanged", handleContentSafeAreaChanged);
+          tg.onEvent("fullscreenChanged", handleFullscreenChanged);
+          tg.onEvent("fullscreenFailed", handleFullscreenFailed);
+          tg.onEvent("themeChanged", handleThemeChanged);
+        }
+
+        // Cleanup
+        return () => {
+          if (tg.offEvent) {
+            tg.offEvent("activated", handleActivated);
+            tg.offEvent("deactivated", handleDeactivated);
+            tg.offEvent("safeAreaChanged", handleSafeAreaChanged);
+            tg.offEvent("contentSafeAreaChanged", handleContentSafeAreaChanged);
+            tg.offEvent("fullscreenChanged", handleFullscreenChanged);
+            tg.offEvent("fullscreenFailed", handleFullscreenFailed);
+            tg.offEvent("themeChanged", handleThemeChanged);
+          }
+        };
       }
-    } catch {
-      setExtraTopPad(48);
+    } catch (error) {
+      console.error("Error initializing Telegram WebApp:", error);
     }
   }, []);
+
+  // Fullscreen functions
+  const handleRequestFullscreen = () => {
+    if (tgWebApp?.requestFullscreen) {
+      tgWebApp.requestFullscreen();
+    }
+  };
+
+  const handleExitFullscreen = () => {
+    if (tgWebApp?.exitFullscreen) {
+      tgWebApp.exitFullscreen();
+    }
+  };
 
   const goBack = () => {
     // In a real app, this would navigate back
@@ -288,21 +509,39 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
     );
   }
 
+  // Calculate header padding using safe area insets
+  const headerPaddingTop =
+    safeAreaInset.top > 0
+      ? safeAreaInset.top + (tgWebApp?.isExpanded ? 12 : 48)
+      : tgWebApp?.isExpanded
+      ? 12
+      : 48;
+
   return (
     <div
-      className={`min-h-screen transition-all duration-300 pb-20 ${
-        isDarkMode ? "bg-gray-900" : "bg-gray-50"
-      }`}
+      className="min-h-screen transition-all duration-300 pb-20"
+      style={{
+        backgroundColor:
+          themeParams.bg_color || (isDarkMode ? "#111827" : "#f9fafb"),
+        color: themeParams.text_color || (isDarkMode ? "#ffffff" : "#111827"),
+        paddingLeft: `${contentSafeAreaInset.left || 0}px`,
+        paddingRight: `${contentSafeAreaInset.right || 0}px`,
+      }}
     >
       {/* Mobile App Header */}
       <div
-        className={`sticky top-0 z-50 border-b transition-all duration-300 ${
-          isDarkMode
-            ? "bg-gray-800 border-gray-700"
-            : "bg-white border-gray-200"
-        }`}
+        className="sticky top-0 z-50 border-b transition-all duration-300"
         style={{
-          paddingTop: `calc(env(safe-area-inset-top, 0px) + ${extraTopPad}px)`,
+          backgroundColor:
+            themeParams.header_bg_color ||
+            themeParams.bg_color ||
+            (isDarkMode ? "#1f2937" : "#ffffff"),
+          borderColor:
+            themeParams.section_separator_color ||
+            (isDarkMode ? "#374151" : "#e5e7eb"),
+          paddingTop: `${headerPaddingTop}px`,
+          paddingLeft: `${safeAreaInset.left || 0}px`,
+          paddingRight: `${safeAreaInset.right || 0}px`,
         }}
       >
         <div className="px-4 py-3">
@@ -311,26 +550,37 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
             <div className="flex items-center space-x-3">
               <button
                 onClick={goBack}
-                className={`p-2 rounded-full transition-all duration-200 ${
-                  isDarkMode
-                    ? "bg-gray-700 hover:bg-gray-600 text-white"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                }`}
+                className="p-2 rounded-full transition-all duration-200"
+                style={{
+                  backgroundColor:
+                    themeParams.secondary_bg_color ||
+                    (isDarkMode ? "#374151" : "#f3f4f6"),
+                  color:
+                    themeParams.text_color ||
+                    (isDarkMode ? "#ffffff" : "#374151"),
+                }}
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
               <div>
                 <h1
-                  className={`text-lg font-semibold ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  }`}
+                  className="text-lg font-semibold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
                 >
                   {t ? t("studentDashboard") : "Student Dashboard"}
                 </h1>
                 <p
-                  className={`text-xs ${
-                    isDarkMode ? "text-gray-400" : "text-gray-500"
-                  }`}
+                  className="text-xs"
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
                 >
                   {t ? t("overview") : "Overview"}
                 </p>
@@ -338,15 +588,46 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
             </div>
 
             <div className="flex items-center space-x-2">
+              {/* Fullscreen toggle button */}
+              {tgWebApp && (
+                <button
+                  onClick={
+                    isFullscreen
+                      ? handleExitFullscreen
+                      : handleRequestFullscreen
+                  }
+                  className="p-2 rounded-full transition-all duration-200"
+                  style={{
+                    backgroundColor:
+                      themeParams.secondary_bg_color ||
+                      (isDarkMode ? "#374151" : "#f3f4f6"),
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#374151"),
+                  }}
+                  title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                >
+                  {isFullscreen ? (
+                    <Minimize2 className="w-4 h-4" />
+                  ) : (
+                    <Maximize2 className="w-4 h-4" />
+                  )}
+                </button>
+              )}
+
               <button
                 onClick={() =>
                   setLang ? setLang((lang === "en" ? "am" : "en") as any) : null
                 }
-                className={`px-2 py-1 rounded text-xs border ${
-                  isDarkMode
-                    ? "border-gray-700 text-gray-200"
-                    : "border-gray-300 text-gray-700"
-                }`}
+                className="px-2 py-1 rounded text-xs border"
+                style={{
+                  borderColor:
+                    themeParams.section_separator_color ||
+                    (isDarkMode ? "#374151" : "#d1d5db"),
+                  color:
+                    themeParams.text_color ||
+                    (isDarkMode ? "#e5e7eb" : "#374151"),
+                }}
               >
                 {lang === "en" ? "AM" : "EN"}
               </button>
@@ -354,21 +635,31 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                 onClick={handleRefresh}
                 disabled={refreshing}
                 className={`p-2 rounded-full transition-all duration-200 ${
-                  isDarkMode
-                    ? "bg-gray-700 hover:bg-gray-600 text-white"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                } ${refreshing ? "animate-spin" : ""}`}
+                  refreshing ? "animate-spin" : ""
+                }`}
+                style={{
+                  backgroundColor:
+                    themeParams.secondary_bg_color ||
+                    (isDarkMode ? "#374151" : "#f3f4f6"),
+                  color:
+                    themeParams.text_color ||
+                    (isDarkMode ? "#ffffff" : "#374151"),
+                }}
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
 
               <button
                 onClick={toggleTheme}
-                className={`p-2 rounded-full transition-all duration-200 ${
-                  isDarkMode
-                    ? "bg-gray-700 hover:bg-gray-600 text-white"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                }`}
+                className="p-2 rounded-full transition-all duration-200"
+                style={{
+                  backgroundColor:
+                    themeParams.secondary_bg_color ||
+                    (isDarkMode ? "#374151" : "#f3f4f6"),
+                  color:
+                    themeParams.text_color ||
+                    (isDarkMode ? "#ffffff" : "#374151"),
+                }}
               >
                 {isDarkMode ? (
                   <Sun className="w-4 h-4" />
@@ -428,7 +719,12 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
       </div>
 
       {/* Tab Content */}
-      <div className="px-4 py-4">
+      <div
+        className="px-4 py-4"
+        style={{
+          paddingBottom: `${contentSafeAreaInset.bottom || 0}px`,
+        }}
+      >
         {/* Overview Tab */}
         {currentTab === "overview" && (
           <motion.div
@@ -1355,6 +1651,30 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
           </motion.div>
         )}
       </div>
+
+      {/* Floating Exit Fullscreen Button - Only visible in fullscreen mode */}
+      {isFullscreen && tgWebApp && (
+        <button
+          onClick={handleExitFullscreen}
+          className="fixed bottom-24 right-4 z-50 p-3 rounded-full shadow-lg transition-all duration-200 border"
+          style={{
+            backgroundColor:
+              themeParams.secondary_bg_color ||
+              themeParams.section_bg_color ||
+              (isDarkMode ? "#1f2937" : "#ffffff"),
+            color:
+              themeParams.text_color || (isDarkMode ? "#ffffff" : "#111827"),
+            borderColor:
+              themeParams.section_separator_color ||
+              (isDarkMode ? "#4b5563" : "#e5e7eb"),
+            bottom: `${(safeAreaInset.bottom || 0) + 80}px`,
+            right: `${(safeAreaInset.right || 0) + 16}px`,
+          }}
+          title="Exit Fullscreen"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      )}
     </div>
   );
 }
@@ -1376,10 +1696,55 @@ export default function StudentMiniApp({
 function BottomNav() {
   const { t } = useI18n();
   const [active, setActive] = React.useState<string>("overview");
+  const [safeAreaInset, setSafeAreaInset] = React.useState({
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  });
+  const [themeParams, setThemeParams] = React.useState<ThemeParams>({});
+
+  React.useEffect(() => {
+    try {
+      const tg = (window as any)?.Telegram?.WebApp;
+      if (tg?.safeAreaInset) {
+        setSafeAreaInset(tg.safeAreaInset);
+      }
+      if (tg?.themeParams) {
+        setThemeParams(tg.themeParams);
+      }
+
+      // Listen for safe area changes
+      const handleSafeAreaChanged = () => {
+        if (tg?.safeAreaInset) setSafeAreaInset(tg.safeAreaInset);
+      };
+
+      // Listen for theme changes
+      const handleThemeChanged = () => {
+        if (tg?.themeParams) setThemeParams(tg.themeParams);
+      };
+
+      if (tg?.onEvent) {
+        tg.onEvent("safeAreaChanged", handleSafeAreaChanged);
+        tg.onEvent("themeChanged", handleThemeChanged);
+      }
+
+      return () => {
+        if (tg?.offEvent) {
+          tg.offEvent("safeAreaChanged", handleSafeAreaChanged);
+          tg.offEvent("themeChanged", handleThemeChanged);
+        }
+      };
+    } catch (error) {
+      console.error("Error setting up bottom nav safe area:", error);
+    }
+  }, []);
+
   const setTab = (tab: string) => {
     setActive(tab);
     window.dispatchEvent(new CustomEvent("dk:setTab", { detail: tab }));
   };
+
   React.useEffect(() => {
     const handler = (e: any) => {
       if (e?.detail) setActive(e.detail);
@@ -1388,17 +1753,37 @@ function BottomNav() {
     return () => window.removeEventListener("dk:setTab", handler);
   }, []);
 
-  const btnCls = (tab: string) =>
-    `py-2 flex flex-col items-center gap-1 ${
-      active === tab ? "text-blue-600" : "text-gray-600"
-    }`;
+  const btnCls = (tab: string) => `py-2 flex flex-col items-center gap-1`;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white/95 backdrop-blur md:hidden">
+    <div
+      className="fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur md:hidden"
+      style={{
+        backgroundColor:
+          themeParams.bottom_bar_bg_color ||
+          themeParams.bg_color ||
+          "rgba(255, 255, 255, 0.95)",
+        borderColor:
+          themeParams.section_separator_color || "rgba(229, 231, 235, 1)",
+        paddingBottom: `${safeAreaInset.bottom || 0}px`,
+        paddingLeft: `${safeAreaInset.left || 0}px`,
+        paddingRight: `${safeAreaInset.right || 0}px`,
+      }}
+    >
       <div className="grid grid-cols-6 text-xs">
         <button
           onClick={() => setTab("overview")}
           className={btnCls("overview")}
+          style={{
+            color:
+              active === "overview"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
         >
           <svg
             width="22"
@@ -1417,7 +1802,20 @@ function BottomNav() {
           </svg>
           <span>{t("overview")}</span>
         </button>
-        <button onClick={() => setTab("terbia")} className={btnCls("terbia")}>
+        <button
+          onClick={() => setTab("terbia")}
+          className={btnCls("terbia")}
+          style={{
+            color:
+              active === "terbia"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
+        >
           <svg
             width="22"
             height="22"
@@ -1436,6 +1834,16 @@ function BottomNav() {
         <button
           onClick={() => setTab("attendance")}
           className={btnCls("attendance")}
+          style={{
+            color:
+              active === "attendance"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
         >
           <svg
             width="22"
@@ -1454,7 +1862,20 @@ function BottomNav() {
           </svg>
           <span>{t("attendance")}</span>
         </button>
-        <button onClick={() => setTab("tests")} className={btnCls("tests")}>
+        <button
+          onClick={() => setTab("tests")}
+          className={btnCls("tests")}
+          style={{
+            color:
+              active === "tests"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
+        >
           <svg
             width="22"
             height="22"
@@ -1473,6 +1894,16 @@ function BottomNav() {
         <button
           onClick={() => setTab("payments")}
           className={btnCls("payments")}
+          style={{
+            color:
+              active === "payments"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
         >
           <svg
             width="22"
@@ -1492,6 +1923,16 @@ function BottomNav() {
         <button
           onClick={() => setTab("schedule")}
           className={btnCls("schedule")}
+          style={{
+            color:
+              active === "schedule"
+                ? themeParams.accent_text_color ||
+                  themeParams.link_color ||
+                  "#2563eb"
+                : themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  "#4b5563",
+          }}
         >
           <svg
             width="22"
