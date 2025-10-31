@@ -509,13 +509,13 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
     );
   }
 
-  // Calculate header padding using safe area insets
+  // Calculate header padding using safe area insets - increased for better spacing
   const headerPaddingTop =
     safeAreaInset.top > 0
-      ? safeAreaInset.top + (tgWebApp?.isExpanded ? 12 : 48)
+      ? safeAreaInset.top + (tgWebApp?.isExpanded ? 16 : 56)
       : tgWebApp?.isExpanded
-      ? 12
-      : 48;
+      ? 16
+      : 56;
 
   return (
     <div
@@ -547,44 +547,28 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         <div className="px-4 py-3">
           {/* Top Navigation */}
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={goBack}
-                className="p-2 rounded-full transition-all duration-200"
+            <div>
+              <h1
+                className="text-lg font-semibold"
                 style={{
-                  backgroundColor:
-                    themeParams.secondary_bg_color ||
-                    (isDarkMode ? "#374151" : "#f3f4f6"),
                   color:
                     themeParams.text_color ||
-                    (isDarkMode ? "#ffffff" : "#374151"),
+                    (isDarkMode ? "#ffffff" : "#111827"),
                 }}
               >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-              <div>
-                <h1
-                  className="text-lg font-semibold"
-                  style={{
-                    color:
-                      themeParams.text_color ||
-                      (isDarkMode ? "#ffffff" : "#111827"),
-                  }}
-                >
-                  {t ? t("studentDashboard") : "Student Dashboard"}
-                </h1>
-                <p
-                  className="text-xs"
-                  style={{
-                    color:
-                      themeParams.hint_color ||
-                      themeParams.subtitle_text_color ||
-                      (isDarkMode ? "#9ca3af" : "#6b7280"),
-                  }}
-                >
-                  {t ? t("overview") : "Overview"}
-                </p>
-              </div>
+                {t ? t("studentDashboard") : "Student Dashboard"}
+              </h1>
+              <p
+                className="text-xs"
+                style={{
+                  color:
+                    themeParams.hint_color ||
+                    themeParams.subtitle_text_color ||
+                    (isDarkMode ? "#9ca3af" : "#6b7280"),
+                }}
+              >
+                {t ? t("overview") : "Overview"}
+              </p>
             </div>
 
             <div className="flex items-center space-x-2">
@@ -619,7 +603,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                 onClick={() =>
                   setLang ? setLang((lang === "en" ? "am" : "en") as any) : null
                 }
-                className="px-2 py-1 rounded text-xs border"
+                className="px-3 py-1.5 rounded text-xs border"
                 style={{
                   borderColor:
                     themeParams.section_separator_color ||
@@ -629,69 +613,72 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                     (isDarkMode ? "#e5e7eb" : "#374151"),
                 }}
               >
-                {lang === "en" ? "AM" : "EN"}
-              </button>
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className={`p-2 rounded-full transition-all duration-200 ${
-                  refreshing ? "animate-spin" : ""
-                }`}
-                style={{
-                  backgroundColor:
-                    themeParams.secondary_bg_color ||
-                    (isDarkMode ? "#374151" : "#f3f4f6"),
-                  color:
-                    themeParams.text_color ||
-                    (isDarkMode ? "#ffffff" : "#374151"),
-                }}
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={toggleTheme}
-                className="p-2 rounded-full transition-all duration-200"
-                style={{
-                  backgroundColor:
-                    themeParams.secondary_bg_color ||
-                    (isDarkMode ? "#374151" : "#f3f4f6"),
-                  color:
-                    themeParams.text_color ||
-                    (isDarkMode ? "#ffffff" : "#374151"),
-                }}
-              >
-                {isDarkMode ? (
-                  <Sun className="w-4 h-4" />
-                ) : (
-                  <Moon className="w-4 h-4" />
-                )}
+                {lang === "en" ? "አማርኛ" : "EN"}
               </button>
             </div>
           </div>
 
           {/* Student Profile Card */}
           <div
-            className={`rounded-2xl p-4 ${
-              isDarkMode
-                ? "bg-gradient-to-r from-blue-600 to-purple-600"
-                : "bg-gradient-to-r from-blue-500 to-purple-500"
-            }`}
+            className="rounded-2xl p-4"
+            style={{
+              backgroundColor:
+                themeParams.section_bg_color ||
+                themeParams.secondary_bg_color ||
+                themeParams.bg_color ||
+                (isDarkMode ? "#1f2937" : "#ffffff"),
+            }}
           >
             <div className="flex items-center space-x-3 mb-3">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-xl font-bold text-white">
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
+                style={{
+                  backgroundColor:
+                    themeParams.button_color ||
+                    themeParams.accent_text_color ||
+                    "rgba(59, 130, 246, 0.2)",
+                  color:
+                    themeParams.button_color ||
+                    themeParams.accent_text_color ||
+                    themeParams.text_color ||
+                    "#2563eb",
+                }}
+              >
                 {studentData.student.name.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold text-white">
+                <h2
+                  className="text-lg font-bold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
+                >
                   {studentData.student.name}
                 </h2>
-                <div className="flex items-center space-x-4 text-xs text-white/80">
+                <div
+                  className="flex items-center space-x-4 text-xs"
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
+                >
                   <span>{studentData.student.package}</span>
                   <span>•</span>
                   <span>{studentData.student.daypackages}</span>
                 </div>
-                <div className="text-xs text-white/70 mt-1">
+                <div
+                  className="text-xs mt-1"
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
+                >
                   {t ? t("teacher") : "Teacher"}: {studentData.student.teacher}
                 </div>
               </div>
@@ -699,15 +686,67 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
 
             {/* Student Information Grid */}
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-white/10 rounded-lg p-2">
-                <p className="text-white/70">Subject</p>
-                <p className="font-semibold text-white">
+              <div
+                className="rounded-lg p-2"
+                style={{
+                  backgroundColor:
+                    themeParams.secondary_bg_color ||
+                    themeParams.bg_color ||
+                    (isDarkMode
+                      ? "rgba(255, 255, 255, 0.05)"
+                      : "rgba(0, 0, 0, 0.02)"),
+                }}
+              >
+                <p
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
+                >
+                  Subject
+                </p>
+                <p
+                  className="font-semibold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
+                >
                   {studentData.student.subject || "N/A"}
                 </p>
               </div>
-              <div className="bg-white/10 rounded-lg p-2">
-                <p className="text-white/70">Class Fee</p>
-                <p className="font-semibold text-white">
+              <div
+                className="rounded-lg p-2"
+                style={{
+                  backgroundColor:
+                    themeParams.secondary_bg_color ||
+                    themeParams.bg_color ||
+                    (isDarkMode
+                      ? "rgba(255, 255, 255, 0.05)"
+                      : "rgba(0, 0, 0, 0.02)"),
+                }}
+              >
+                <p
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
+                >
+                  Class Fee
+                </p>
+                <p
+                  className="font-semibold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
+                >
                   ETB {studentData.student.classfee || 0}
                 </p>
               </div>
