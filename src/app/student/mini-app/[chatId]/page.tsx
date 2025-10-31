@@ -208,7 +208,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [currentTab, setCurrentTab] = useState("overview");
-  const [showContentSection, setShowContentSection] = useState(false);
+  const [showContentSection, setShowContentSection] = useState(true); // Start with content visible
   const [expandedSections, setExpandedSections] = useState<{
     [key: string]: boolean;
   }>({
@@ -331,7 +331,10 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
   }, []);
 
   const handleBackFromContent = () => {
-    setShowContentSection(false);
+    // Go back to overview
+    setCurrentTab("overview");
+    setShowContentSection(true);
+    window.dispatchEvent(new CustomEvent("dk:setTab", { detail: "overview" }));
   };
 
   // Apply Telegram theme to document root as CSS variables
@@ -864,8 +867,8 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
           paddingBottom: `${contentSafeAreaInset.bottom || 0}px`,
         }}
       >
-        {/* Content Section Header with Back Button */}
-        {showContentSection && (
+        {/* Content Section Header with Back Button - Show for all tabs except default overview */}
+        {showContentSection && currentTab !== "overview" && (
           <div className="mb-4 flex items-center gap-3">
             <button
               onClick={handleBackFromContent}
@@ -891,9 +894,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                   (isDarkMode ? "#ffffff" : "#111827"),
               }}
             >
-              {currentTab === "overview"
-                ? "Overview"
-                : currentTab === "terbia"
+              {currentTab === "terbia"
                 ? "Terbia Progress"
                 : currentTab === "attendance"
                 ? "Attendance"
@@ -908,8 +909,8 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
           </div>
         )}
 
-        {/* Overview Tab */}
-        {currentTab === "overview" && showContentSection && (
+        {/* Overview Tab - Show by default */}
+        {currentTab === "overview" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1165,7 +1166,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         )}
 
         {/* Attendance Tab */}
-        {currentTab === "attendance" && showContentSection && (
+        {currentTab === "attendance" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1361,7 +1362,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         )}
 
         {/* Tests Tab */}
-        {currentTab === "tests" && showContentSection && (
+        {currentTab === "tests" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1504,165 +1505,160 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         )}
 
         {/* Terbia Tab */}
-        {currentTab === "terbia" &&
-          showContentSection &&
-          studentData.terbia && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
+        {currentTab === "terbia" && studentData.terbia && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-4"
+          >
+            <div
+              className="p-4 rounded-2xl"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  themeParams.bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+              }}
             >
-              <div
-                className="p-4 rounded-2xl"
-                style={{
-                  backgroundColor:
-                    themeParams.section_bg_color ||
-                    themeParams.secondary_bg_color ||
-                    themeParams.bg_color ||
-                    (isDarkMode ? "#1f2937" : "#ffffff"),
-                }}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h3
-                    className="text-lg font-semibold"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        themeParams.section_header_text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    Terbia Progress
-                  </h3>
-                  <button
-                    onClick={() => toggleSection("terbia")}
-                    className="p-1"
-                  >
-                    {expandedSections.terbia ? (
-                      <ChevronUp
-                        className={`w-4 h-4 ${
-                          isDarkMode ? "text-gray-400" : "text-gray-500"
-                        }`}
-                      />
-                    ) : (
-                      <ChevronDown
-                        className={`w-4 h-4 ${
-                          isDarkMode ? "text-gray-400" : "text-gray-500"
-                        }`}
-                      />
-                    )}
-                  </button>
-                </div>
+              <div className="flex items-center justify-between mb-4">
+                <h3
+                  className="text-lg font-semibold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      themeParams.section_header_text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
+                >
+                  Terbia Progress
+                </h3>
+                <button onClick={() => toggleSection("terbia")} className="p-1">
+                  {expandedSections.terbia ? (
+                    <ChevronUp
+                      className={`w-4 h-4 ${
+                        isDarkMode ? "text-gray-400" : "text-gray-500"
+                      }`}
+                    />
+                  ) : (
+                    <ChevronDown
+                      className={`w-4 h-4 ${
+                        isDarkMode ? "text-gray-400" : "text-gray-500"
+                      }`}
+                    />
+                  )}
+                </button>
+              </div>
 
-                {expandedSections.terbia && (
-                  <>
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span
-                          className="font-medium"
-                          style={{
-                            color:
-                              themeParams.text_color ||
-                              (isDarkMode ? "#ffffff" : "#111827"),
-                          }}
-                        >
-                          {studentData.terbia.courseName}
-                        </span>
-                        <div
-                          className={`px-3 py-1 rounded-full ${
-                            isDarkMode
-                              ? "bg-orange-600 text-white"
-                              : "bg-orange-100 text-orange-700"
-                          }`}
-                        >
-                          <span className="text-sm font-bold">
-                            {studentData.terbia.progressPercent}%
-                          </span>
-                        </div>
-                      </div>
-                      <div
-                        className="w-full rounded-full h-2"
+              {expandedSections.terbia && (
+                <>
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className="font-medium"
                         style={{
-                          backgroundColor:
-                            themeParams.secondary_bg_color ||
-                            themeParams.bg_color ||
-                            (isDarkMode ? "#374151" : "#e5e7eb"),
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
                         }}
                       >
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{
-                            width: `${studentData.terbia.progressPercent}%`,
-                          }}
-                          transition={{ duration: 1.5, delay: 0.5 }}
-                          className="h-2 rounded-full"
-                          style={{
-                            backgroundColor:
-                              themeParams.button_color ||
-                              themeParams.accent_text_color ||
-                              themeParams.link_color ||
-                              "#f97316",
-                          }}
-                        />
+                        {studentData.terbia.courseName}
+                      </span>
+                      <div
+                        className={`px-3 py-1 rounded-full ${
+                          isDarkMode
+                            ? "bg-orange-600 text-white"
+                            : "bg-orange-100 text-orange-700"
+                        }`}
+                      >
+                        <span className="text-sm font-bold">
+                          {studentData.terbia.progressPercent}%
+                        </span>
                       </div>
                     </div>
+                    <div
+                      className="w-full rounded-full h-2"
+                      style={{
+                        backgroundColor:
+                          themeParams.secondary_bg_color ||
+                          themeParams.bg_color ||
+                          (isDarkMode ? "#374151" : "#e5e7eb"),
+                      }}
+                    >
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{
+                          width: `${studentData.terbia.progressPercent}%`,
+                        }}
+                        transition={{ duration: 1.5, delay: 0.5 }}
+                        className="h-2 rounded-full"
+                        style={{
+                          backgroundColor:
+                            themeParams.button_color ||
+                            themeParams.accent_text_color ||
+                            themeParams.link_color ||
+                            "#f97316",
+                        }}
+                      />
+                    </div>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center">
-                        <div
-                          className="text-xl font-bold"
-                          style={{
-                            color:
-                              themeParams.text_color ||
-                              (isDarkMode ? "#ffffff" : "#111827"),
-                          }}
-                        >
-                          {studentData.terbia.completedChapters}
-                        </div>
-                        <div
-                          className="text-xs"
-                          style={{
-                            color:
-                              themeParams.hint_color ||
-                              themeParams.subtitle_text_color ||
-                              (isDarkMode ? "#9ca3af" : "#6b7280"),
-                          }}
-                        >
-                          Completed
-                        </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <div
+                        className="text-xl font-bold"
+                        style={{
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
+                        }}
+                      >
+                        {studentData.terbia.completedChapters}
                       </div>
-                      <div className="text-center">
-                        <div
-                          className="text-xl font-bold"
-                          style={{
-                            color:
-                              themeParams.text_color ||
-                              (isDarkMode ? "#ffffff" : "#111827"),
-                          }}
-                        >
-                          {studentData.terbia.totalChapters}
-                        </div>
-                        <div
-                          className="text-xs"
-                          style={{
-                            color:
-                              themeParams.hint_color ||
-                              themeParams.subtitle_text_color ||
-                              (isDarkMode ? "#9ca3af" : "#6b7280"),
-                          }}
-                        >
-                          {t ? t("totalChapters") : "Total Chapters"}
-                        </div>
+                      <div
+                        className="text-xs"
+                        style={{
+                          color:
+                            themeParams.hint_color ||
+                            themeParams.subtitle_text_color ||
+                            (isDarkMode ? "#9ca3af" : "#6b7280"),
+                        }}
+                      >
+                        Completed
                       </div>
                     </div>
-                  </>
-                )}
-              </div>
-            </motion.div>
-          )}
+                    <div className="text-center">
+                      <div
+                        className="text-xl font-bold"
+                        style={{
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
+                        }}
+                      >
+                        {studentData.terbia.totalChapters}
+                      </div>
+                      <div
+                        className="text-xs"
+                        style={{
+                          color:
+                            themeParams.hint_color ||
+                            themeParams.subtitle_text_color ||
+                            (isDarkMode ? "#9ca3af" : "#6b7280"),
+                        }}
+                      >
+                        {t ? t("totalChapters") : "Total Chapters"}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         {/* Payments Tab */}
-        {currentTab === "payments" && showContentSection && (
+        {currentTab === "payments" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -2023,7 +2019,7 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
         )}
 
         {/* Schedule Tab */}
-        {currentTab === "schedule" && showContentSection && (
+        {currentTab === "schedule" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
