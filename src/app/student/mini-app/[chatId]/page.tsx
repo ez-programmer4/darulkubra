@@ -774,164 +774,244 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
             {/* Quick Stats Cards */}
             <div className="grid grid-cols-2 gap-3">
               <div
-                className={`p-4 rounded-2xl ${
-                  isDarkMode ? "bg-gray-800" : "bg-white"
-                }`}
+                className="p-4 rounded-2xl"
+                style={{
+                  backgroundColor:
+                    themeParams.section_bg_color ||
+                    themeParams.secondary_bg_color ||
+                    themeParams.bg_color ||
+                    (isDarkMode ? "#1f2937" : "#ffffff"),
+                }}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                      isDarkMode ? "bg-green-600" : "bg-green-100"
-                    }`}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{
+                      backgroundColor:
+                        themeParams.button_color ||
+                        themeParams.accent_text_color ||
+                        "rgba(34, 197, 94, 0.1)",
+                      color:
+                        themeParams.button_color ||
+                        themeParams.accent_text_color ||
+                        "#22c55e",
+                    }}
                   >
-                    <CheckCircle
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-white" : "text-green-600"
-                      }`}
-                    />
+                    <CheckCircle className="w-4 h-4" />
                   </div>
                   <button className="p-1">
                     <Eye
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
+                      className="w-4 h-4"
+                      style={{
+                        color:
+                          themeParams.hint_color ||
+                          themeParams.subtitle_text_color ||
+                          (isDarkMode ? "#9ca3af" : "#6b7280"),
+                      }}
                     />
                   </button>
                 </div>
                 <div
-                  className={`text-2xl font-bold ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  }`}
+                  className="text-2xl font-bold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
                 >
                   {studentData.stats.attendancePercent}%
                 </div>
                 <div
-                  className={`text-xs ${
-                    isDarkMode ? "text-gray-400" : "text-gray-500"
-                  }`}
+                  className="text-xs"
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
                 >
                   Attendance
                 </div>
               </div>
 
               <div
-                className={`p-4 rounded-2xl ${
-                  isDarkMode ? "bg-gray-800" : "bg-white"
-                }`}
+                className="p-4 rounded-2xl"
+                style={{
+                  backgroundColor:
+                    themeParams.section_bg_color ||
+                    themeParams.secondary_bg_color ||
+                    themeParams.bg_color ||
+                    (isDarkMode ? "#1f2937" : "#ffffff"),
+                }}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                      isDarkMode ? "bg-blue-600" : "bg-blue-100"
-                    }`}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{
+                      backgroundColor:
+                        themeParams.button_color ||
+                        themeParams.accent_text_color ||
+                        "rgba(59, 130, 246, 0.1)",
+                      color:
+                        themeParams.button_color ||
+                        themeParams.accent_text_color ||
+                        "#3b82f6",
+                    }}
                   >
-                    <BarChart3
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-white" : "text-blue-600"
-                      }`}
-                    />
+                    <BarChart3 className="w-4 h-4" />
                   </div>
                   <button className="p-1">
                     <Eye
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
+                      className="w-4 h-4"
+                      style={{
+                        color:
+                          themeParams.hint_color ||
+                          themeParams.subtitle_text_color ||
+                          (isDarkMode ? "#9ca3af" : "#6b7280"),
+                      }}
                     />
                   </button>
                 </div>
                 <div
-                  className={`text-2xl font-bold ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  }`}
+                  className="text-2xl font-bold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
                 >
                   {studentData.stats.totalZoomSessions}
                 </div>
                 <div
-                  className={`text-xs ${
-                    isDarkMode ? "text-gray-400" : "text-gray-500"
-                  }`}
+                  className="text-xs"
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
                 >
                   Zoom Sessions
                 </div>
               </div>
 
               <div
-                className={`p-4 rounded-2xl ${
-                  isDarkMode ? "bg-gray-800" : "bg-white"
-                }`}
+                className="p-4 rounded-2xl"
+                style={{
+                  backgroundColor:
+                    themeParams.section_bg_color ||
+                    themeParams.secondary_bg_color ||
+                    themeParams.bg_color ||
+                    (isDarkMode ? "#1f2937" : "#ffffff"),
+                }}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                      isDarkMode ? "bg-purple-600" : "bg-purple-100"
-                    }`}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{
+                      backgroundColor:
+                        themeParams.button_color ||
+                        themeParams.accent_text_color ||
+                        "rgba(168, 85, 247, 0.1)",
+                      color:
+                        themeParams.button_color ||
+                        themeParams.accent_text_color ||
+                        "#a855f7",
+                    }}
                   >
-                    <Trophy
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-white" : "text-purple-600"
-                      }`}
-                    />
+                    <Trophy className="w-4 h-4" />
                   </div>
                   <button className="p-1">
                     <Eye
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
+                      className="w-4 h-4"
+                      style={{
+                        color:
+                          themeParams.hint_color ||
+                          themeParams.subtitle_text_color ||
+                          (isDarkMode ? "#9ca3af" : "#6b7280"),
+                      }}
                     />
                   </button>
                 </div>
                 <div
-                  className={`text-2xl font-bold ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  }`}
+                  className="text-2xl font-bold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
                 >
                   {studentData.stats.testsThisMonth}
                 </div>
                 <div
-                  className={`text-xs ${
-                    isDarkMode ? "text-gray-400" : "text-gray-500"
-                  }`}
+                  className="text-xs"
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
                 >
                   Tests Taken
                 </div>
               </div>
 
               <div
-                className={`p-4 rounded-2xl ${
-                  isDarkMode ? "bg-gray-800" : "bg-white"
-                }`}
+                className="p-4 rounded-2xl"
+                style={{
+                  backgroundColor:
+                    themeParams.section_bg_color ||
+                    themeParams.secondary_bg_color ||
+                    themeParams.bg_color ||
+                    (isDarkMode ? "#1f2937" : "#ffffff"),
+                }}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                      isDarkMode ? "bg-orange-600" : "bg-orange-100"
-                    }`}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{
+                      backgroundColor:
+                        themeParams.button_color ||
+                        themeParams.accent_text_color ||
+                        "rgba(249, 115, 22, 0.1)",
+                      color:
+                        themeParams.button_color ||
+                        themeParams.accent_text_color ||
+                        "#f97316",
+                    }}
                   >
-                    <Brain
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-white" : "text-orange-600"
-                      }`}
-                    />
+                    <Brain className="w-4 h-4" />
                   </div>
                   <button className="p-1">
                     <Eye
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
+                      className="w-4 h-4"
+                      style={{
+                        color:
+                          themeParams.hint_color ||
+                          themeParams.subtitle_text_color ||
+                          (isDarkMode ? "#9ca3af" : "#6b7280"),
+                      }}
                     />
                   </button>
                 </div>
                 <div
-                  className={`text-2xl font-bold ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  }`}
+                  className="text-2xl font-bold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
                 >
                   {studentData.stats.terbiaProgress}%
                 </div>
                 <div
-                  className={`text-xs ${
-                    isDarkMode ? "text-gray-400" : "text-gray-500"
-                  }`}
+                  className="text-xs"
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
                 >
                   Terbia Progress
                 </div>
@@ -949,15 +1029,24 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
           >
             {/* Attendance Summary Card */}
             <div
-              className={`p-4 rounded-2xl shadow-sm ${
-                isDarkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className="p-4 rounded-2xl shadow-sm"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  themeParams.bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+              }}
             >
               <div className="flex items-center justify-between mb-4">
                 <h3
-                  className={`text-lg font-semibold ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  }`}
+                  className="text-lg font-semibold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      themeParams.section_header_text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
                 >
                   Attendance Record
                 </h3>
@@ -967,15 +1056,23 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                 >
                   {expandedSections.attendance ? (
                     <ChevronUp
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
+                      className="w-4 h-4"
+                      style={{
+                        color:
+                          themeParams.hint_color ||
+                          themeParams.subtitle_text_color ||
+                          (isDarkMode ? "#9ca3af" : "#6b7280"),
+                      }}
                     />
                   ) : (
                     <ChevronDown
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
+                      className="w-4 h-4"
+                      style={{
+                        color:
+                          themeParams.hint_color ||
+                          themeParams.subtitle_text_color ||
+                          (isDarkMode ? "#9ca3af" : "#6b7280"),
+                      }}
                     />
                   )}
                 </button>
@@ -991,9 +1088,13 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                     {studentData.attendance.presentDays}
                   </div>
                   <div
-                    className={`text-xs ${
-                      isDarkMode ? "text-gray-400" : "text-gray-500"
-                    }`}
+                    className="text-xs"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
                   >
                     Present
                   </div>
@@ -1007,25 +1108,36 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                     {studentData.attendance.absentDays}
                   </div>
                   <div
-                    className={`text-xs ${
-                      isDarkMode ? "text-gray-400" : "text-gray-500"
-                    }`}
+                    className="text-xs"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
                   >
                     Absent
                   </div>
                 </div>
                 <div className="text-center">
                   <div
-                    className={`text-2xl font-bold ${
-                      isDarkMode ? "text-white" : "text-gray-900"
-                    }`}
+                    className="text-2xl font-bold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
                   >
                     {studentData.attendance.totalDays}
                   </div>
                   <div
-                    className={`text-xs ${
-                      isDarkMode ? "text-gray-400" : "text-gray-500"
-                    }`}
+                    className="text-xs"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
                   >
                     Total Days
                   </div>
@@ -1037,9 +1149,15 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                   {studentData.attendance.thisMonth.map((day, index) => (
                     <div
                       key={index}
-                      className={`flex items-center justify-between p-3 rounded-xl ${
-                        isDarkMode ? "bg-gray-700/50" : "bg-gray-50"
-                      }`}
+                      className="flex items-center justify-between p-3 rounded-xl"
+                      style={{
+                        backgroundColor:
+                          themeParams.secondary_bg_color ||
+                          themeParams.bg_color ||
+                          (isDarkMode
+                            ? "rgba(55, 65, 81, 0.5)"
+                            : "rgba(249, 250, 251, 1)"),
+                      }}
                     >
                       <div className="flex items-center space-x-3">
                         <div
@@ -1055,15 +1173,20 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                         />
                         <div>
                           <span
-                            className={`text-sm font-medium ${
-                              isDarkMode ? "text-white" : "text-gray-900"
-                            }`}
+                            className="text-sm font-medium"
+                            style={{
+                              color:
+                                themeParams.text_color ||
+                                (isDarkMode ? "#ffffff" : "#111827"),
+                            }}
                           >
                             {formatDate(day.date)}
                           </span>
                           <div
                             className={`text-xs ${
-                              isDarkMode ? "text-gray-400" : "text-gray-500"
+                              themeParams.hint_color ||
+                              themeParams.subtitle_text_color ||
+                              (isDarkMode ? "#9ca3af" : "#6b7280")
                             }`}
                           >
                             {new Date(day.date).toLocaleDateString("en-US", {
@@ -1101,15 +1224,24 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
             className="space-y-4"
           >
             <div
-              className={`p-4 rounded-2xl ${
-                isDarkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className="p-4 rounded-2xl"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  themeParams.bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+              }}
             >
               <div className="flex items-center justify-between mb-4">
                 <h3
-                  className={`text-lg font-semibold ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  }`}
+                  className="text-lg font-semibold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      themeParams.section_header_text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
                 >
                   Test Results
                 </h3>
@@ -1135,9 +1267,13 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                   {studentData.recentTests.map((test, index) => (
                     <div
                       key={index}
-                      className={`flex items-center justify-between p-4 rounded-xl shadow-sm ${
-                        isDarkMode ? "bg-gray-700" : "bg-gray-50"
-                      }`}
+                      className="flex items-center justify-between p-4 rounded-xl shadow-sm"
+                      style={{
+                        backgroundColor:
+                          themeParams.secondary_bg_color ||
+                          themeParams.bg_color ||
+                          (isDarkMode ? "#374151" : "#f9fafb"),
+                      }}
                     >
                       <div className="flex items-center space-x-3">
                         <div
@@ -1167,15 +1303,20 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                         </div>
                         <div>
                           <div
-                            className={`font-medium ${
-                              isDarkMode ? "text-white" : "text-gray-900"
-                            }`}
+                            className="font-medium"
+                            style={{
+                              color:
+                                themeParams.text_color ||
+                                (isDarkMode ? "#ffffff" : "#111827"),
+                            }}
                           >
                             {test.testName}
                           </div>
                           <div
                             className={`text-xs ${
-                              isDarkMode ? "text-gray-400" : "text-gray-500"
+                              themeParams.hint_color ||
+                              themeParams.subtitle_text_color ||
+                              (isDarkMode ? "#9ca3af" : "#6b7280")
                             }`}
                           >
                             {formatDate(test.date)}
@@ -1226,15 +1367,24 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
             className="space-y-4"
           >
             <div
-              className={`p-4 rounded-2xl ${
-                isDarkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className="p-4 rounded-2xl"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  themeParams.bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+              }}
             >
               <div className="flex items-center justify-between mb-4">
                 <h3
-                  className={`text-lg font-semibold ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  }`}
+                  className="text-lg font-semibold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      themeParams.section_header_text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
                 >
                   Terbia Progress
                 </h3>
@@ -1260,9 +1410,12 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <span
-                        className={`font-medium ${
-                          isDarkMode ? "text-white" : "text-gray-900"
-                        }`}
+                        className="font-medium"
+                        style={{
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
+                        }}
                       >
                         {studentData.terbia.courseName}
                       </span>
@@ -1279,9 +1432,13 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                       </div>
                     </div>
                     <div
-                      className={`w-full rounded-full h-2 ${
-                        isDarkMode ? "bg-gray-700" : "bg-gray-200"
-                      }`}
+                      className="w-full rounded-full h-2"
+                      style={{
+                        backgroundColor:
+                          themeParams.secondary_bg_color ||
+                          themeParams.bg_color ||
+                          (isDarkMode ? "#374151" : "#e5e7eb"),
+                      }}
                     >
                       <motion.div
                         initial={{ width: 0 }}
@@ -1289,9 +1446,14 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                           width: `${studentData.terbia.progressPercent}%`,
                         }}
                         transition={{ duration: 1.5, delay: 0.5 }}
-                        className={`h-2 rounded-full ${
-                          isDarkMode ? "bg-orange-500" : "bg-orange-500"
-                        }`}
+                        className="h-2 rounded-full"
+                        style={{
+                          backgroundColor:
+                            themeParams.button_color ||
+                            themeParams.accent_text_color ||
+                            themeParams.link_color ||
+                            "#f97316",
+                        }}
                       />
                     </div>
                   </div>
@@ -1299,32 +1461,46 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center">
                       <div
-                        className={`text-xl font-bold ${
-                          isDarkMode ? "text-white" : "text-gray-900"
-                        }`}
+                        className="text-xl font-bold"
+                        style={{
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
+                        }}
                       >
                         {studentData.terbia.completedChapters}
                       </div>
                       <div
-                        className={`text-xs ${
-                          isDarkMode ? "text-gray-400" : "text-gray-500"
-                        }`}
+                        className="text-xs"
+                        style={{
+                          color:
+                            themeParams.hint_color ||
+                            themeParams.subtitle_text_color ||
+                            (isDarkMode ? "#9ca3af" : "#6b7280"),
+                        }}
                       >
                         Completed
                       </div>
                     </div>
                     <div className="text-center">
                       <div
-                        className={`text-xl font-bold ${
-                          isDarkMode ? "text-white" : "text-gray-900"
-                        }`}
+                        className="text-xl font-bold"
+                        style={{
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
+                        }}
                       >
                         {studentData.terbia.totalChapters}
                       </div>
                       <div
-                        className={`text-xs ${
-                          isDarkMode ? "text-gray-400" : "text-gray-500"
-                        }`}
+                        className="text-xs"
+                        style={{
+                          color:
+                            themeParams.hint_color ||
+                            themeParams.subtitle_text_color ||
+                            (isDarkMode ? "#9ca3af" : "#6b7280"),
+                        }}
                       >
                         {t ? t("totalChapters") : "Total Chapters"}
                       </div>
@@ -1345,14 +1521,23 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
           >
             {/* Payment Summary */}
             <div
-              className={`p-4 rounded-2xl ${
-                isDarkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className="p-4 rounded-2xl"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  themeParams.bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+              }}
             >
               <h3
-                className={`text-lg font-semibold mb-4 flex items-center gap-2 ${
-                  isDarkMode ? "text-white" : "text-gray-900"
-                }`}
+                className="text-lg font-semibold mb-4 flex items-center gap-2"
+                style={{
+                  color:
+                    themeParams.text_color ||
+                    themeParams.section_header_text_color ||
+                    (isDarkMode ? "#ffffff" : "#111827"),
+                }}
               >
                 <CreditCard className="w-5 h-5" />
                 {t("paymentSummary")}
@@ -1360,81 +1545,129 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div
-                  className={`p-3 rounded-lg ${
-                    isDarkMode ? "bg-gray-700" : "bg-green-50"
-                  }`}
+                  className="p-3 rounded-lg"
+                  style={{
+                    backgroundColor:
+                      themeParams.secondary_bg_color ||
+                      themeParams.bg_color ||
+                      (isDarkMode ? "#374151" : "rgba(34, 197, 94, 0.1)"),
+                  }}
                 >
                   <p
-                    className={`text-xs ${
-                      isDarkMode ? "text-gray-400" : "text-green-600"
-                    }`}
+                    className="text-xs"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#16a34a"),
+                    }}
                   >
                     {t("totalDeposits")}
                   </p>
                   <p
-                    className={`text-lg font-bold ${
-                      isDarkMode ? "text-white" : "text-green-700"
-                    }`}
+                    className="text-lg font-bold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        themeParams.accent_text_color ||
+                        (isDarkMode ? "#ffffff" : "#15803d"),
+                    }}
                   >
                     ${studentData?.payments?.summary?.totalDeposits || 0}
                   </p>
                 </div>
                 <div
-                  className={`p-3 rounded-lg ${
-                    isDarkMode ? "bg-gray-700" : "bg-blue-50"
-                  }`}
+                  className="p-3 rounded-lg"
+                  style={{
+                    backgroundColor:
+                      themeParams.secondary_bg_color ||
+                      themeParams.bg_color ||
+                      (isDarkMode ? "#374151" : "rgba(59, 130, 246, 0.1)"),
+                  }}
                 >
                   <p
-                    className={`text-xs ${
-                      isDarkMode ? "text-gray-400" : "text-blue-600"
-                    }`}
+                    className="text-xs"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#2563eb"),
+                    }}
                   >
                     {t("monthlyPayments")}
                   </p>
                   <p
-                    className={`text-lg font-bold ${
-                      isDarkMode ? "text-white" : "text-blue-700"
-                    }`}
+                    className="text-lg font-bold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        themeParams.accent_text_color ||
+                        (isDarkMode ? "#ffffff" : "#1d4ed8"),
+                    }}
                   >
                     ${studentData?.payments?.summary?.totalMonthlyPayments || 0}
                   </p>
                 </div>
                 <div
-                  className={`p-3 rounded-lg ${
-                    isDarkMode ? "bg-gray-700" : "bg-purple-50"
-                  }`}
+                  className="p-3 rounded-lg"
+                  style={{
+                    backgroundColor:
+                      themeParams.secondary_bg_color ||
+                      themeParams.bg_color ||
+                      (isDarkMode ? "#374151" : "rgba(168, 85, 247, 0.1)"),
+                  }}
                 >
                   <p
-                    className={`text-xs ${
-                      isDarkMode ? "text-gray-400" : "text-purple-600"
-                    }`}
+                    className="text-xs"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#9333ea"),
+                    }}
                   >
                     {t("remainingBalance")}
                   </p>
                   <p
-                    className={`text-lg font-bold ${
-                      isDarkMode ? "text-white" : "text-purple-700"
-                    }`}
+                    className="text-lg font-bold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        themeParams.accent_text_color ||
+                        (isDarkMode ? "#ffffff" : "#7e22ce"),
+                    }}
                   >
                     ${studentData?.payments?.summary?.remainingBalance || 0}
                   </p>
                 </div>
                 <div
-                  className={`p-3 rounded-lg ${
-                    isDarkMode ? "bg-gray-700" : "bg-orange-50"
-                  }`}
+                  className="p-3 rounded-lg"
+                  style={{
+                    backgroundColor:
+                      themeParams.secondary_bg_color ||
+                      themeParams.bg_color ||
+                      (isDarkMode ? "#374151" : "rgba(249, 115, 22, 0.1)"),
+                  }}
                 >
                   <p
-                    className={`text-xs ${
-                      isDarkMode ? "text-gray-400" : "text-orange-600"
-                    }`}
+                    className="text-xs"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#ea580c"),
+                    }}
                   >
                     {t("paidMonths")}
                   </p>
                   <p
-                    className={`text-lg font-bold ${
-                      isDarkMode ? "text-white" : "text-orange-700"
-                    }`}
+                    className="text-lg font-bold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        themeParams.accent_text_color ||
+                        (isDarkMode ? "#ffffff" : "#c2410c"),
+                    }}
                   >
                     {studentData?.payments?.summary?.paidMonths || 0}
                   </p>
@@ -1444,14 +1677,23 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
 
             {/* Recent Deposits */}
             <div
-              className={`p-4 rounded-2xl ${
-                isDarkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className="p-4 rounded-2xl"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  themeParams.bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+              }}
             >
               <h3
-                className={`text-lg font-semibold mb-4 ${
-                  isDarkMode ? "text-white" : "text-gray-900"
-                }`}
+                className="text-lg font-semibold mb-4"
+                style={{
+                  color:
+                    themeParams.text_color ||
+                    themeParams.section_header_text_color ||
+                    (isDarkMode ? "#ffffff" : "#111827"),
+                }}
               >
                 {t("recentDeposits")}
               </h3>
@@ -1461,15 +1703,22 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                   .map((deposit: any, index: number) => (
                     <div
                       key={index}
-                      className={`flex justify-between items-center p-4 rounded-xl shadow-sm ${
-                        isDarkMode ? "bg-gray-700" : "bg-gray-50"
-                      }`}
+                      className="flex justify-between items-center p-4 rounded-xl shadow-sm"
+                      style={{
+                        backgroundColor:
+                          themeParams.secondary_bg_color ||
+                          themeParams.bg_color ||
+                          (isDarkMode ? "#374151" : "#f9fafb"),
+                      }}
                     >
                       <div>
                         <p
-                          className={`text-sm font-medium ${
-                            isDarkMode ? "text-white" : "text-gray-900"
-                          }`}
+                          className="text-sm font-medium"
+                          style={{
+                            color:
+                              themeParams.text_color ||
+                              (isDarkMode ? "#ffffff" : "#111827"),
+                          }}
                         >
                           ${deposit.amount}
                         </p>
@@ -1506,11 +1755,17 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                 {(!studentData?.payments?.deposits ||
                   studentData.payments.deposits.length === 0) && (
                   <div
-                    className={`p-4 rounded-xl text-center ${
-                      isDarkMode
-                        ? "bg-gray-700 text-gray-300"
-                        : "bg-gray-50 text-gray-600"
-                    }`}
+                    className="p-4 rounded-xl text-center"
+                    style={{
+                      backgroundColor:
+                        themeParams.secondary_bg_color ||
+                        themeParams.bg_color ||
+                        (isDarkMode ? "#374151" : "#f9fafb"),
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#d1d5db" : "#4b5563"),
+                    }}
                   >
                     {t ? t("noPayments") : "No payment data available"}
                   </div>
@@ -1520,14 +1775,23 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
 
             {/* Monthly Payments */}
             <div
-              className={`p-4 rounded-2xl ${
-                isDarkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className="p-4 rounded-2xl"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  themeParams.bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+              }}
             >
               <h3
-                className={`text-lg font-semibold mb-4 ${
-                  isDarkMode ? "text-white" : "text-gray-900"
-                }`}
+                className="text-lg font-semibold mb-4"
+                style={{
+                  color:
+                    themeParams.text_color ||
+                    themeParams.section_header_text_color ||
+                    (isDarkMode ? "#ffffff" : "#111827"),
+                }}
               >
                 {t("monthlyPayments")}
               </h3>
@@ -1537,15 +1801,22 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                   .map((payment: any, index: number) => (
                     <div
                       key={index}
-                      className={`flex justify-between items-center p-4 rounded-xl shadow-sm ${
-                        isDarkMode ? "bg-gray-700" : "bg-gray-50"
-                      }`}
+                      className="flex justify-between items-center p-4 rounded-xl shadow-sm"
+                      style={{
+                        backgroundColor:
+                          themeParams.secondary_bg_color ||
+                          themeParams.bg_color ||
+                          (isDarkMode ? "#374151" : "#f9fafb"),
+                      }}
                     >
                       <div>
                         <p
-                          className={`text-sm font-medium ${
-                            isDarkMode ? "text-white" : "text-gray-900"
-                          }`}
+                          className="text-sm font-medium"
+                          style={{
+                            color:
+                              themeParams.text_color ||
+                              (isDarkMode ? "#ffffff" : "#111827"),
+                          }}
                         >
                           {payment.month}
                         </p>
@@ -1582,11 +1853,17 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                 {(!studentData?.payments?.monthlyPayments ||
                   studentData.payments.monthlyPayments.length === 0) && (
                   <div
-                    className={`p-4 rounded-xl text-center ${
-                      isDarkMode
-                        ? "bg-gray-700 text-gray-300"
-                        : "bg-gray-50 text-gray-600"
-                    }`}
+                    className="p-4 rounded-xl text-center"
+                    style={{
+                      backgroundColor:
+                        themeParams.secondary_bg_color ||
+                        themeParams.bg_color ||
+                        (isDarkMode ? "#374151" : "#f9fafb"),
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#d1d5db" : "#4b5563"),
+                    }}
                   >
                     {t ? t("noPayments") : "No payment data available"}
                   </div>
@@ -1604,14 +1881,23 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
             className="space-y-4"
           >
             <div
-              className={`p-4 rounded-2xl ${
-                isDarkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className="p-4 rounded-2xl"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  themeParams.bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+              }}
             >
               <h3
-                className={`text-lg font-semibold mb-4 flex items-center gap-2 ${
-                  isDarkMode ? "text-white" : "text-gray-900"
-                }`}
+                className="text-lg font-semibold mb-4 flex items-center gap-2"
+                style={{
+                  color:
+                    themeParams.text_color ||
+                    themeParams.section_header_text_color ||
+                    (isDarkMode ? "#ffffff" : "#111827"),
+                }}
               >
                 <Clock className="w-5 h-5" />
                 {t("scheduledTimes")}
@@ -1622,9 +1908,13 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                   .map((time: any, index: number) => (
                     <div
                       key={index}
-                      className={`p-4 rounded-xl shadow-sm ${
-                        isDarkMode ? "bg-gray-700" : "bg-gray-50"
-                      }`}
+                      className="p-4 rounded-xl shadow-sm"
+                      style={{
+                        backgroundColor:
+                          themeParams.secondary_bg_color ||
+                          themeParams.bg_color ||
+                          (isDarkMode ? "#374151" : "#f9fafb"),
+                      }}
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
@@ -1635,16 +1925,21 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                               }`}
                             />
                             <p
-                              className={`text-sm font-semibold ${
-                                isDarkMode ? "text-white" : "text-gray-900"
-                              }`}
+                              className="text-sm font-semibold"
+                              style={{
+                                color:
+                                  themeParams.text_color ||
+                                  (isDarkMode ? "#ffffff" : "#111827"),
+                              }}
                             >
                               {time.timeSlot}
                             </p>
                           </div>
                           <p
                             className={`text-xs ${
-                              isDarkMode ? "text-gray-400" : "text-gray-500"
+                              themeParams.hint_color ||
+                              themeParams.subtitle_text_color ||
+                              (isDarkMode ? "#9ca3af" : "#6b7280")
                             }`}
                           >
                             {time.dayPackage} • {time.teacher}
@@ -1663,7 +1958,9 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                           {time.endAt && (
                             <p
                               className={`text-xs mt-1 ${
-                                isDarkMode ? "text-gray-400" : "text-gray-500"
+                                themeParams.hint_color ||
+                                themeParams.subtitle_text_color ||
+                                (isDarkMode ? "#9ca3af" : "#6b7280")
                               }`}
                             >
                               {t ? t("until") : "Until"} {time.endAt}
@@ -1676,11 +1973,17 @@ function StudentMiniAppInner({ params }: { params: { chatId: string } }) {
                 {(!studentData?.occupiedTimes ||
                   studentData.occupiedTimes.length === 0) && (
                   <div
-                    className={`p-4 rounded-xl text-center ${
-                      isDarkMode
-                        ? "bg-gray-700 text-gray-300"
-                        : "bg-gray-50 text-gray-600"
-                    }`}
+                    className="p-4 rounded-xl text-center"
+                    style={{
+                      backgroundColor:
+                        themeParams.secondary_bg_color ||
+                        themeParams.bg_color ||
+                        (isDarkMode ? "#374151" : "#f9fafb"),
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#d1d5db" : "#4b5563"),
+                    }}
                   >
                     {t ? t("noSchedule") : "No scheduled times found"}
                   </div>
