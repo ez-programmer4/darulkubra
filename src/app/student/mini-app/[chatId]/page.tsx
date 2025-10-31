@@ -788,14 +788,168 @@ function StudentMiniAppInner({
               </button>
             </div>
           </div>
+
+          {/* Student Info Card */}
+          {studentData && (
+            <div
+              className="rounded-2xl p-4 mb-4 shadow-sm"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  themeParams.bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+                border: `1px solid ${
+                  themeParams.section_separator_color ||
+                  (isDarkMode
+                    ? "rgba(55, 65, 81, 0.3)"
+                    : "rgba(229, 231, 235, 0.5)")
+                }`,
+              }}
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <div
+                  className="p-3 rounded-xl"
+                  style={{
+                    backgroundColor:
+                      themeParams.secondary_bg_color ||
+                      (isDarkMode
+                        ? "rgba(255, 255, 255, 0.05)"
+                        : "rgba(59, 130, 246, 0.05)"),
+                  }}
+                >
+                  <p
+                    className="text-xs font-medium mb-1"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    Subject
+                  </p>
+                  <p
+                    className="text-sm font-semibold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {studentData.student.subject || "N/A"}
+                  </p>
+                </div>
+
+                <div
+                  className="p-3 rounded-xl"
+                  style={{
+                    backgroundColor:
+                      themeParams.secondary_bg_color ||
+                      (isDarkMode
+                        ? "rgba(255, 255, 255, 0.05)"
+                        : "rgba(34, 197, 94, 0.05)"),
+                  }}
+                >
+                  <p
+                    className="text-xs font-medium mb-1"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    Class Fee
+                  </p>
+                  <p
+                    className="text-sm font-semibold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    ETB {studentData.student.classfee?.toLocaleString() || 0}
+                  </p>
+                </div>
+
+                <div
+                  className="p-3 rounded-xl"
+                  style={{
+                    backgroundColor:
+                      themeParams.secondary_bg_color ||
+                      (isDarkMode
+                        ? "rgba(255, 255, 255, 0.05)"
+                        : "rgba(168, 85, 247, 0.05)"),
+                  }}
+                >
+                  <p
+                    className="text-xs font-medium mb-1"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    Days
+                  </p>
+                  <p
+                    className="text-sm font-semibold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {studentData.student.daypackages || "N/A"}
+                  </p>
+                </div>
+
+                <div
+                  className="p-3 rounded-xl"
+                  style={{
+                    backgroundColor:
+                      themeParams.secondary_bg_color ||
+                      (isDarkMode
+                        ? "rgba(255, 255, 255, 0.05)"
+                        : "rgba(249, 115, 22, 0.05)"),
+                  }}
+                >
+                  <p
+                    className="text-xs font-medium mb-1"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    Teacher
+                  </p>
+                  <p
+                    className="text-sm font-semibold truncate"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {studentData.student.teacher || "N/A"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content - Scrollable */}
       <div
         className="px-4 py-4"
         style={{
-          paddingBottom: `${contentSafeAreaInset.bottom || 0}px`,
+          paddingBottom: `${(contentSafeAreaInset.bottom || 0) + 140}px`,
         }}
       >
         {/* Content Section Header with Back Button - Show for all tabs except default overview */}
@@ -850,13 +1004,17 @@ function StudentMiniAppInner({
             {/* Quick Stats Cards */}
             <div className="grid grid-cols-2 gap-3">
               <div
-                className="p-4 rounded-2xl"
+                className="p-4 rounded-2xl shadow-sm border"
                 style={{
                   backgroundColor:
                     themeParams.section_bg_color ||
                     themeParams.secondary_bg_color ||
-                    themeParams.bg_color ||
                     (isDarkMode ? "#1f2937" : "#ffffff"),
+                  borderColor:
+                    themeParams.section_separator_color ||
+                    (isDarkMode
+                      ? "rgba(55, 65, 81, 0.3)"
+                      : "rgba(229, 231, 235, 0.5)"),
                 }}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -911,13 +1069,17 @@ function StudentMiniAppInner({
               </div>
 
               <div
-                className="p-4 rounded-2xl"
+                className="p-4 rounded-2xl shadow-sm border"
                 style={{
                   backgroundColor:
                     themeParams.section_bg_color ||
                     themeParams.secondary_bg_color ||
-                    themeParams.bg_color ||
                     (isDarkMode ? "#1f2937" : "#ffffff"),
+                  borderColor:
+                    themeParams.section_separator_color ||
+                    (isDarkMode
+                      ? "rgba(55, 65, 81, 0.3)"
+                      : "rgba(229, 231, 235, 0.5)"),
                 }}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -972,13 +1134,17 @@ function StudentMiniAppInner({
               </div>
 
               <div
-                className="p-4 rounded-2xl"
+                className="p-4 rounded-2xl shadow-sm border"
                 style={{
                   backgroundColor:
                     themeParams.section_bg_color ||
                     themeParams.secondary_bg_color ||
-                    themeParams.bg_color ||
                     (isDarkMode ? "#1f2937" : "#ffffff"),
+                  borderColor:
+                    themeParams.section_separator_color ||
+                    (isDarkMode
+                      ? "rgba(55, 65, 81, 0.3)"
+                      : "rgba(229, 231, 235, 0.5)"),
                 }}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -1033,13 +1199,17 @@ function StudentMiniAppInner({
               </div>
 
               <div
-                className="p-4 rounded-2xl"
+                className="p-4 rounded-2xl shadow-sm border"
                 style={{
                   backgroundColor:
                     themeParams.section_bg_color ||
                     themeParams.secondary_bg_color ||
-                    themeParams.bg_color ||
                     (isDarkMode ? "#1f2937" : "#ffffff"),
+                  borderColor:
+                    themeParams.section_separator_color ||
+                    (isDarkMode
+                      ? "rgba(55, 65, 81, 0.3)"
+                      : "rgba(229, 231, 235, 0.5)"),
                 }}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -1105,13 +1275,17 @@ function StudentMiniAppInner({
           >
             {/* Attendance Summary Card */}
             <div
-              className="p-4 rounded-2xl shadow-sm"
+              className="p-4 rounded-2xl shadow-sm border"
               style={{
                 backgroundColor:
                   themeParams.section_bg_color ||
                   themeParams.secondary_bg_color ||
-                  themeParams.bg_color ||
                   (isDarkMode ? "#1f2937" : "#ffffff"),
+                borderColor:
+                  themeParams.section_separator_color ||
+                  (isDarkMode
+                    ? "rgba(55, 65, 81, 0.3)"
+                    : "rgba(229, 231, 235, 0.5)"),
               }}
             >
               <div className="flex items-center justify-between mb-4">
@@ -1225,14 +1399,17 @@ function StudentMiniAppInner({
                   {studentData.attendance.thisMonth.map((day, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 rounded-xl"
+                      className="flex items-center justify-between p-3 rounded-xl border shadow-sm"
                       style={{
                         backgroundColor:
+                          themeParams.section_bg_color ||
                           themeParams.secondary_bg_color ||
-                          themeParams.bg_color ||
+                          (isDarkMode ? "#1f2937" : "#ffffff"),
+                        borderColor:
+                          themeParams.section_separator_color ||
                           (isDarkMode
-                            ? "rgba(55, 65, 81, 0.5)"
-                            : "rgba(249, 250, 251, 1)"),
+                            ? "rgba(55, 65, 81, 0.3)"
+                            : "rgba(229, 231, 235, 0.5)"),
                       }}
                     >
                       <div className="flex items-center space-x-3">
@@ -1343,12 +1520,17 @@ function StudentMiniAppInner({
                   {studentData.recentTests.map((test, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-4 rounded-xl shadow-sm"
+                      className="flex items-center justify-between p-4 rounded-xl shadow-sm border"
                       style={{
                         backgroundColor:
+                          themeParams.section_bg_color ||
                           themeParams.secondary_bg_color ||
-                          themeParams.bg_color ||
-                          (isDarkMode ? "#374151" : "#f9fafb"),
+                          (isDarkMode ? "#1f2937" : "#ffffff"),
+                        borderColor:
+                          themeParams.section_separator_color ||
+                          (isDarkMode
+                            ? "rgba(55, 65, 81, 0.3)"
+                            : "rgba(229, 231, 235, 0.5)"),
                       }}
                     >
                       <div className="flex items-center space-x-3">
@@ -1621,12 +1803,17 @@ function StudentMiniAppInner({
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div
-                  className="p-3 rounded-lg"
+                  className="p-3 rounded-lg border shadow-sm"
                   style={{
                     backgroundColor:
+                      themeParams.section_bg_color ||
                       themeParams.secondary_bg_color ||
-                      themeParams.bg_color ||
-                      (isDarkMode ? "#374151" : "rgba(34, 197, 94, 0.1)"),
+                      (isDarkMode ? "#1f2937" : "#ffffff"),
+                    borderColor:
+                      themeParams.section_separator_color ||
+                      (isDarkMode
+                        ? "rgba(55, 65, 81, 0.3)"
+                        : "rgba(34, 197, 94, 0.2)"),
                   }}
                 >
                   <p
@@ -1653,12 +1840,17 @@ function StudentMiniAppInner({
                   </p>
                 </div>
                 <div
-                  className="p-3 rounded-lg"
+                  className="p-3 rounded-lg border shadow-sm"
                   style={{
                     backgroundColor:
+                      themeParams.section_bg_color ||
                       themeParams.secondary_bg_color ||
-                      themeParams.bg_color ||
-                      (isDarkMode ? "#374151" : "rgba(59, 130, 246, 0.1)"),
+                      (isDarkMode ? "#1f2937" : "#ffffff"),
+                    borderColor:
+                      themeParams.section_separator_color ||
+                      (isDarkMode
+                        ? "rgba(55, 65, 81, 0.3)"
+                        : "rgba(59, 130, 246, 0.2)"),
                   }}
                 >
                   <p
@@ -1685,12 +1877,17 @@ function StudentMiniAppInner({
                   </p>
                 </div>
                 <div
-                  className="p-3 rounded-lg"
+                  className="p-3 rounded-lg border shadow-sm"
                   style={{
                     backgroundColor:
+                      themeParams.section_bg_color ||
                       themeParams.secondary_bg_color ||
-                      themeParams.bg_color ||
-                      (isDarkMode ? "#374151" : "rgba(168, 85, 247, 0.1)"),
+                      (isDarkMode ? "#1f2937" : "#ffffff"),
+                    borderColor:
+                      themeParams.section_separator_color ||
+                      (isDarkMode
+                        ? "rgba(55, 65, 81, 0.3)"
+                        : "rgba(168, 85, 247, 0.2)"),
                   }}
                 >
                   <p
@@ -1717,12 +1914,17 @@ function StudentMiniAppInner({
                   </p>
                 </div>
                 <div
-                  className="p-3 rounded-lg"
+                  className="p-3 rounded-lg border shadow-sm"
                   style={{
                     backgroundColor:
+                      themeParams.section_bg_color ||
                       themeParams.secondary_bg_color ||
-                      themeParams.bg_color ||
-                      (isDarkMode ? "#374151" : "rgba(249, 115, 22, 0.1)"),
+                      (isDarkMode ? "#1f2937" : "#ffffff"),
+                    borderColor:
+                      themeParams.section_separator_color ||
+                      (isDarkMode
+                        ? "rgba(55, 65, 81, 0.3)"
+                        : "rgba(249, 115, 22, 0.2)"),
                   }}
                 >
                   <p
@@ -1779,12 +1981,17 @@ function StudentMiniAppInner({
                   .map((deposit: any, index: number) => (
                     <div
                       key={index}
-                      className="flex justify-between items-center p-4 rounded-xl shadow-sm"
+                      className="flex justify-between items-center p-4 rounded-xl shadow-sm border"
                       style={{
                         backgroundColor:
+                          themeParams.section_bg_color ||
                           themeParams.secondary_bg_color ||
-                          themeParams.bg_color ||
-                          (isDarkMode ? "#374151" : "#f9fafb"),
+                          (isDarkMode ? "#1f2937" : "#ffffff"),
+                        borderColor:
+                          themeParams.section_separator_color ||
+                          (isDarkMode
+                            ? "rgba(55, 65, 81, 0.3)"
+                            : "rgba(229, 231, 235, 0.5)"),
                       }}
                     >
                       <div>
@@ -1831,12 +2038,17 @@ function StudentMiniAppInner({
                 {(!studentData?.payments?.deposits ||
                   studentData.payments.deposits.length === 0) && (
                   <div
-                    className="p-4 rounded-xl text-center"
+                    className="p-4 rounded-xl text-center border shadow-sm"
                     style={{
                       backgroundColor:
+                        themeParams.section_bg_color ||
                         themeParams.secondary_bg_color ||
-                        themeParams.bg_color ||
-                        (isDarkMode ? "#374151" : "#f9fafb"),
+                        (isDarkMode ? "#1f2937" : "#ffffff"),
+                      borderColor:
+                        themeParams.section_separator_color ||
+                        (isDarkMode
+                          ? "rgba(55, 65, 81, 0.3)"
+                          : "rgba(229, 231, 235, 0.5)"),
                       color:
                         themeParams.hint_color ||
                         themeParams.subtitle_text_color ||
@@ -1877,12 +2089,17 @@ function StudentMiniAppInner({
                   .map((payment: any, index: number) => (
                     <div
                       key={index}
-                      className="flex justify-between items-center p-4 rounded-xl shadow-sm"
+                      className="flex justify-between items-center p-4 rounded-xl shadow-sm border"
                       style={{
                         backgroundColor:
+                          themeParams.section_bg_color ||
                           themeParams.secondary_bg_color ||
-                          themeParams.bg_color ||
-                          (isDarkMode ? "#374151" : "#f9fafb"),
+                          (isDarkMode ? "#1f2937" : "#ffffff"),
+                        borderColor:
+                          themeParams.section_separator_color ||
+                          (isDarkMode
+                            ? "rgba(55, 65, 81, 0.3)"
+                            : "rgba(229, 231, 235, 0.5)"),
                       }}
                     >
                       <div>
@@ -1929,12 +2146,17 @@ function StudentMiniAppInner({
                 {(!studentData?.payments?.monthlyPayments ||
                   studentData.payments.monthlyPayments.length === 0) && (
                   <div
-                    className="p-4 rounded-xl text-center"
+                    className="p-4 rounded-xl text-center border shadow-sm"
                     style={{
                       backgroundColor:
+                        themeParams.section_bg_color ||
                         themeParams.secondary_bg_color ||
-                        themeParams.bg_color ||
-                        (isDarkMode ? "#374151" : "#f9fafb"),
+                        (isDarkMode ? "#1f2937" : "#ffffff"),
+                      borderColor:
+                        themeParams.section_separator_color ||
+                        (isDarkMode
+                          ? "rgba(55, 65, 81, 0.3)"
+                          : "rgba(229, 231, 235, 0.5)"),
                       color:
                         themeParams.hint_color ||
                         themeParams.subtitle_text_color ||
@@ -1984,12 +2206,17 @@ function StudentMiniAppInner({
                   .map((time: any, index: number) => (
                     <div
                       key={index}
-                      className="p-4 rounded-xl shadow-sm"
+                      className="p-4 rounded-xl shadow-sm border"
                       style={{
                         backgroundColor:
+                          themeParams.section_bg_color ||
                           themeParams.secondary_bg_color ||
-                          themeParams.bg_color ||
-                          (isDarkMode ? "#374151" : "#f9fafb"),
+                          (isDarkMode ? "#1f2937" : "#ffffff"),
+                        borderColor:
+                          themeParams.section_separator_color ||
+                          (isDarkMode
+                            ? "rgba(55, 65, 81, 0.3)"
+                            : "rgba(229, 231, 235, 0.5)"),
                       }}
                     >
                       <div className="flex justify-between items-start">
@@ -2049,12 +2276,17 @@ function StudentMiniAppInner({
                 {(!studentData?.occupiedTimes ||
                   studentData.occupiedTimes.length === 0) && (
                   <div
-                    className="p-4 rounded-xl text-center"
+                    className="p-4 rounded-xl text-center border shadow-sm"
                     style={{
                       backgroundColor:
+                        themeParams.section_bg_color ||
                         themeParams.secondary_bg_color ||
-                        themeParams.bg_color ||
-                        (isDarkMode ? "#374151" : "#f9fafb"),
+                        (isDarkMode ? "#1f2937" : "#ffffff"),
+                      borderColor:
+                        themeParams.section_separator_color ||
+                        (isDarkMode
+                          ? "rgba(55, 65, 81, 0.3)"
+                          : "rgba(229, 231, 235, 0.5)"),
                       color:
                         themeParams.hint_color ||
                         themeParams.subtitle_text_color ||
