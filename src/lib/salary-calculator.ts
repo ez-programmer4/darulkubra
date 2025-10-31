@@ -6,6 +6,8 @@ import {
   TeacherChangePeriod,
 } from "@/lib/teacher-change-utils";
 
+// Timezone: UTC+3 (Saudi Arabia Standard Time - Asia/Riyadh)
+// This timezone does not observe daylight saving time, so it's always UTC+3
 const TZ = "Asia/Riyadh";
 
 export interface SalaryCalculationConfig {
@@ -2797,10 +2799,9 @@ Day Package: ${studentDaypackage} (from teacher change period)
           zoom_links: {
             where: {
               ustazid: teacherId,
-              sent_time: {
-                gte: fromDate,
-                lte: effectiveToDate,
-              },
+              // CRITICAL FIX: Don't filter by date range here - fetch all zoom links
+              // Date filtering will be done in the code using timezone-aware comparison
+              // This ensures we don't miss zoom links due to timezone differences in database queries
             },
             select: { sent_time: true },
           },
@@ -3021,10 +3022,18 @@ Day Package: ${studentDaypackage} (from teacher change period)
 
           // Check if student has zoom link for this date
           // CRITICAL FIX: Use timezone-aware date comparison to match the processing date
+          // Also filter by date range in code (not in database query) to handle timezone correctly
           const hasZoomLink = student.zoom_links?.some((link: any) => {
             if (!link.sent_time) return false;
-            // Convert zoom link time to same timezone as processing date
-            const linkZonedDate = toZonedTime(new Date(link.sent_time), TZ);
+            const linkDateObj = new Date(link.sent_time);
+
+            // First check if link is within the processing date range
+            if (linkDateObj < fromDate || linkDateObj > effectiveToDate) {
+              return false;
+            }
+
+            // Convert zoom link time to same timezone as processing date for exact date match
+            const linkZonedDate = toZonedTime(linkDateObj, TZ);
             const linkDate = format(linkZonedDate, "yyyy-MM-dd");
             return linkDate === dateStr;
           });
