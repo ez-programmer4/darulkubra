@@ -3021,7 +3021,9 @@ Day Package: ${studentDaypackage} (from teacher change period)
           // Check if student has zoom link for this date
           const hasZoomLink = student.zoom_links?.some((link: any) => {
             if (!link.sent_time) return false;
-            const linkDate = format(new Date(link.sent_time), "yyyy-MM-dd");
+            // CRITICAL FIX: Convert zoom link time to Riyadh timezone for accurate date comparison
+            const linkZonedDate = toZonedTime(new Date(link.sent_time), TZ);
+            const linkDate = format(linkZonedDate, "yyyy-MM-dd");
             return linkDate === dateStr;
           });
 
