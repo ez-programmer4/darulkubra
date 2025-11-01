@@ -186,6 +186,13 @@ interface TelegramWebApp {
     right: number;
   };
   themeParams: ThemeParams;
+  HapticFeedback?: {
+    impactOccurred: (
+      style: "light" | "medium" | "heavy" | "rigid" | "soft"
+    ) => void;
+    notificationOccurred: (type: "error" | "success" | "warning") => void;
+    selectionChanged: () => void;
+  };
   onEvent: (event: string, handler: () => void) => void;
   offEvent: (event: string, handler: () => void) => void;
 }
@@ -555,6 +562,32 @@ function StudentMiniAppInner({
       month: "short",
       day: "numeric",
     });
+  };
+
+  // Helper function to open external links properly in Telegram
+  const openExternalLink = (url: string) => {
+    try {
+      // Trigger haptic feedback if available
+      if (tgWebApp?.HapticFeedback?.impactOccurred) {
+        tgWebApp.HapticFeedback.impactOccurred("light");
+      }
+
+      if (tgWebApp?.openLink) {
+        // Use Telegram's openLink method for Mini Apps
+        tgWebApp.openLink(url);
+      } else if (typeof window !== "undefined") {
+        // Fallback for development/testing
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    } catch (error) {
+      console.error("Failed to open external link:", error);
+      // Last resort fallback
+      try {
+        window.location.href = url;
+      } catch (e) {
+        console.error("All link opening methods failed:", e);
+      }
+    }
   };
 
   // Generate colors for avatars
@@ -1500,12 +1533,9 @@ function StudentMiniAppInner({
                   </button>
                   <button
                     onClick={() => {
-                      const url = `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`;
-                      if (tgWebApp) {
-                        tgWebApp.openLink(url);
-                      } else {
-                        window.open(url, "_blank");
-                      }
+                      openExternalLink(
+                        `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`
+                      );
                     }}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-medium text-sm transition-all active:scale-95 shadow-sm border"
                     style={{
@@ -2033,12 +2063,9 @@ function StudentMiniAppInner({
                   {/* Open Terbia Button */}
                   <button
                     onClick={() => {
-                      const url = `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`;
-                      if (tgWebApp) {
-                        tgWebApp.openLink(url);
-                      } else {
-                        window.open(url, "_blank");
-                      }
+                      openExternalLink(
+                        `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`
+                      );
                     }}
                     className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold shadow-lg transition-all active:scale-95 border"
                     style={{
