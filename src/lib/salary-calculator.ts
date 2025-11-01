@@ -2164,22 +2164,27 @@ Teacher Change Period: ${student.teacherChangePeriod ? "Yes" : "No"}`;
 
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
-            const linkDate = new Date(link.sent_time);
+            // Ensure sent_time is a Date object
+            const sentTime =
+              link.sent_time instanceof Date
+                ? link.sent_time
+                : new Date(link.sent_time);
 
-            // Debug Sunday inclusion
-            const isSunday = linkDate.getDay() === 0;
+            // ⚠️ CRITICAL FIX: Convert UTC to Riyadh timezone
+            // DB shows: 2025-10-30 21:00:02 UTC → this is actually Oct 31 00:00:02 Riyadh!
+            // Without this conversion, Oct 31 classes show as Oct 30 → teacher not paid!
+            const zonedDateTime = toZonedTime(sentTime, TZ);
+
+            // Debug Sunday inclusion - use Riyadh timezone day
+            const isSunday = zonedDateTime.getDay() === 0;
             const shouldInclude = this.config.includeSundays || !isSunday;
 
             if (!shouldInclude) {
               return;
             }
 
-            // Ensure sent_time is a Date object
-            const sentTime =
-              link.sent_time instanceof Date
-                ? link.sent_time
-                : new Date(link.sent_time);
-            const dateStr = sentTime.toISOString().split("T")[0];
+            // Extract date in Riyadh timezone (2025-10-31, not 2025-10-30!)
+            const dateStr = format(zonedDateTime, "yyyy-MM-dd");
 
             if (
               !dailyLinks.has(dateStr) ||
@@ -2881,12 +2886,17 @@ Day Package: ${studentDaypackage} (from teacher change period)
       // Calculate working days for this period
       const workingDays = this.calculateWorkingDays(fromDate, effectiveToDate);
 
-      // Safe date iteration to avoid invalid dates like Sept 31st
+      // Safe date iteration - ensures 31st day is always included
       const safeDateIterator = (startDate: Date, endDate: Date) => {
         const dates: Date[] = [];
         const current = new Date(startDate);
+        current.setHours(0, 0, 0, 0); // Reset to midnight for date-only comparison
 
-        while (current <= endDate) {
+        const end = new Date(endDate);
+        end.setHours(0, 0, 0, 0); // Reset to midnight for date-only comparison
+
+        // Use getTime() comparison to avoid time-of-day issues with 31st
+        while (current.getTime() <= end.getTime()) {
           // Validate the date to avoid invalid dates like Sept 31st
           const year = current.getFullYear();
           const month = current.getMonth();
@@ -3016,7 +3026,11 @@ Day Package: ${studentDaypackage} (from teacher change period)
           // Check if student has zoom link for this date
           const hasZoomLink = student.zoom_links?.some((link: any) => {
             if (!link.sent_time) return false;
-            const linkDate = format(new Date(link.sent_time), "yyyy-MM-dd");
+            // ⚠️ CRITICAL FIX: Convert UTC to Riyadh timezone
+            // DB: 2025-10-30 21:00 UTC = 2025-10-31 00:00 Riyadh
+            // Without this, Oct 31 zoom links show as Oct 30 → false absence deduction!
+            const linkZonedDate = toZonedTime(new Date(link.sent_time), TZ);
+            const linkDate = format(linkZonedDate, "yyyy-MM-dd");
             return linkDate === dateStr;
           });
 
