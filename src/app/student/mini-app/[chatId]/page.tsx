@@ -168,6 +168,7 @@ interface TelegramWebApp {
   close: () => void;
   requestFullscreen: () => void;
   exitFullscreen: () => void;
+  openLink: (url: string, options?: { try_instant_view?: boolean }) => void;
   platform: string;
   isExpanded: boolean;
   isActive: boolean;
@@ -1497,10 +1498,15 @@ function StudentMiniAppInner({
                   >
                     View Progress
                   </button>
-                  <a
-                    href={`https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => {
+                      const url = `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`;
+                      if (tgWebApp) {
+                        tgWebApp.openLink(url);
+                      } else {
+                        window.open(url, "_blank");
+                      }
+                    }}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-medium text-sm transition-all active:scale-95 shadow-sm border"
                     style={{
                       backgroundColor:
@@ -1518,7 +1524,7 @@ function StudentMiniAppInner({
                   >
                     <ExternalLink className="w-4 h-4" />
                     <span>Open Terbia</span>
-                  </a>
+                  </button>
                 </div>
               </div>
             )}
@@ -2025,10 +2031,15 @@ function StudentMiniAppInner({
                   </div>
 
                   {/* Open Terbia Button */}
-                  <a
-                    href={`https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => {
+                      const url = `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`;
+                      if (tgWebApp) {
+                        tgWebApp.openLink(url);
+                      } else {
+                        window.open(url, "_blank");
+                      }
+                    }}
                     className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold shadow-lg transition-all active:scale-95 border"
                     style={{
                       backgroundColor:
@@ -2046,7 +2057,7 @@ function StudentMiniAppInner({
                   >
                     <ExternalLink className="w-5 h-5" />
                     <span>Open Full Terbia System</span>
-                  </a>
+                  </button>
                 </>
               )}
             </div>
