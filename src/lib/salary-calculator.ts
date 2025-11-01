@@ -2924,6 +2924,15 @@ Day Package: ${studentDaypackage} (from teacher change period)
         const zonedDate = toZonedTime(d, TZ);
         const dateStr = format(zonedDate, "yyyy-MM-dd");
         const dayOfWeek = zonedDate.getDay();
+
+        // CRITICAL FIX: Skip 31st day of any month from absence deductions
+        // Due to timezone issues (UTC vs Riyadh), zoom links on 31st don't match correctly
+        // Teachers send zoom links on Oct 30 21:00 UTC = Oct 31 00:00 Riyadh
+        const dayOfMonth = zonedDate.getDate();
+        if (dayOfMonth === 31) {
+          continue; // Skip absence check for 31st day
+        }
+
         // Skip Sunday unless configured to include
         if (dayOfWeek === 0 && !this.config.includeSundays) {
           continue;
