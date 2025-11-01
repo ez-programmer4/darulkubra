@@ -252,6 +252,8 @@ function StudentMiniAppInner({
     terbia: true,
     zoom: true,
   });
+  const [showTerbiaIframe, setShowTerbiaIframe] = useState(false);
+  const [terbiaLoading, setTerbiaLoading] = useState(true);
 
   // Telegram WebApp state
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -564,29 +566,28 @@ function StudentMiniAppInner({
     });
   };
 
-  // Helper function to open external links properly in Telegram
-  const openExternalLink = (url: string) => {
+  // Helper function to open Terbia in iframe
+  const openTerbiaInApp = () => {
     try {
       // Trigger haptic feedback if available
       if (tgWebApp?.HapticFeedback?.impactOccurred) {
         tgWebApp.HapticFeedback.impactOccurred("light");
       }
-
-      if (tgWebApp?.openLink) {
-        // Use Telegram's openLink method for Mini Apps
-        tgWebApp.openLink(url);
-      } else if (typeof window !== "undefined") {
-        // Fallback for development/testing
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
+      setTerbiaLoading(true);
+      setShowTerbiaIframe(true);
     } catch (error) {
-      console.error("Failed to open external link:", error);
-      // Last resort fallback
-      try {
-        window.location.href = url;
-      } catch (e) {
-        console.error("All link opening methods failed:", e);
+      console.error("Failed to open Terbia:", error);
+    }
+  };
+
+  const closeTerbiaIframe = () => {
+    try {
+      if (tgWebApp?.HapticFeedback?.impactOccurred) {
+        tgWebApp.HapticFeedback.impactOccurred("light");
       }
+      setShowTerbiaIframe(false);
+    } catch (error) {
+      console.error("Failed to close Terbia:", error);
     }
   };
 
@@ -1453,11 +1454,7 @@ function StudentMiniAppInner({
                       View Progress
                     </button>
                     <button
-                      onClick={() => {
-                        openExternalLink(
-                          `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`
-                        );
-                      }}
+                      onClick={openTerbiaInApp}
                       className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-medium text-sm transition-all active:scale-95 shadow-sm border"
                       style={{
                         backgroundColor:
@@ -1473,7 +1470,7 @@ function StudentMiniAppInner({
                           "#f97316",
                       }}
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <BookOpen className="w-4 h-4" />
                       <span>Open Terbia</span>
                     </button>
                   </div>
@@ -1525,11 +1522,7 @@ function StudentMiniAppInner({
                   </div>
 
                   <button
-                    onClick={() => {
-                      openExternalLink(
-                        `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`
-                      );
-                    }}
+                    onClick={openTerbiaInApp}
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all active:scale-95 shadow-md border"
                     style={{
                       backgroundColor:
@@ -1545,7 +1538,7 @@ function StudentMiniAppInner({
                         "#f97316",
                     }}
                   >
-                    <ExternalLink className="w-5 h-5" />
+                    <BookOpen className="w-5 h-5" />
                     <span>Open Terbia Learning System</span>
                   </button>
                 </>
@@ -2060,11 +2053,7 @@ function StudentMiniAppInner({
 
                   {/* Open Terbia Button */}
                   <button
-                    onClick={() => {
-                      openExternalLink(
-                        `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`
-                      );
-                    }}
+                    onClick={openTerbiaInApp}
                     className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold shadow-lg transition-all active:scale-95 border"
                     style={{
                       backgroundColor:
@@ -2080,7 +2069,7 @@ function StudentMiniAppInner({
                         "#f97316",
                     }}
                   >
-                    <ExternalLink className="w-5 h-5" />
+                    <BookOpen className="w-5 h-5" />
                     <span>Open Full Terbia System</span>
                   </button>
                 </>
@@ -2101,11 +2090,7 @@ function StudentMiniAppInner({
                     Start your learning journey on the Terbia platform
                   </p>
                   <button
-                    onClick={() => {
-                      openExternalLink(
-                        `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`
-                      );
-                    }}
+                    onClick={openTerbiaInApp}
                     className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold shadow-lg transition-all active:scale-95 border"
                     style={{
                       backgroundColor:
@@ -2121,7 +2106,7 @@ function StudentMiniAppInner({
                         "#f97316",
                     }}
                   >
-                    <ExternalLink className="w-5 h-5" />
+                    <BookOpen className="w-5 h-5" />
                     <span>Open Terbia Learning System</span>
                   </button>
                 </div>
@@ -2686,6 +2671,155 @@ function StudentMiniAppInner({
         >
           <X className="w-3.5 h-3.5" />
         </button>
+      )}
+
+      {/* Terbia Iframe Overlay */}
+      {showTerbiaIframe && studentData && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex flex-col"
+          style={{
+            backgroundColor:
+              themeParams.bg_color || (isDarkMode ? "#111827" : "#ffffff"),
+            paddingTop: `${safeAreaInset.top || 0}px`,
+            paddingBottom: `${safeAreaInset.bottom || 0}px`,
+            paddingLeft: `${safeAreaInset.left || 0}px`,
+            paddingRight: `${safeAreaInset.right || 0}px`,
+          }}
+        >
+          {/* Terbia Header */}
+          <div
+            className="flex items-center justify-between p-3 border-b backdrop-blur-lg"
+            style={{
+              backgroundColor:
+                themeParams.header_bg_color ||
+                (isDarkMode
+                  ? "rgba(31, 41, 55, 0.95)"
+                  : "rgba(255, 255, 255, 0.95)"),
+              borderColor:
+                themeParams.section_separator_color ||
+                (isDarkMode
+                  ? "rgba(55, 65, 81, 0.5)"
+                  : "rgba(229, 231, 235, 0.5)"),
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <button
+                onClick={closeTerbiaIframe}
+                className="p-1.5 rounded-lg active:scale-95 transition-transform"
+                style={{
+                  color:
+                    themeParams.text_color ||
+                    (isDarkMode ? "#ffffff" : "#111827"),
+                }}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h2
+                  className="text-base font-bold"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
+                >
+                  Terbia Learning
+                </h2>
+                <p
+                  className="text-[10px]"
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
+                >
+                  {studentData.student.name}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={closeTerbiaIframe}
+              className="p-1.5 rounded-lg transition-all active:scale-95"
+              style={{
+                backgroundColor:
+                  themeParams.secondary_bg_color ||
+                  (isDarkMode
+                    ? "rgba(55, 65, 81, 0.6)"
+                    : "rgba(243, 244, 246, 0.8)"),
+                color:
+                  themeParams.text_color ||
+                  (isDarkMode ? "#ffffff" : "#374151"),
+              }}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Iframe Container */}
+          <div className="flex-1 relative overflow-hidden">
+            {/* Loading Indicator */}
+            {terbiaLoading && (
+              <div
+                className="absolute inset-0 flex items-center justify-center z-10"
+                style={{
+                  backgroundColor:
+                    themeParams.bg_color ||
+                    (isDarkMode ? "#111827" : "#f9fafb"),
+                }}
+              >
+                <div className="text-center">
+                  <div className="relative w-16 h-16 mx-auto mb-4">
+                    <div
+                      className="absolute inset-0 rounded-full animate-ping opacity-20"
+                      style={{
+                        backgroundColor:
+                          themeParams.button_color ||
+                          themeParams.accent_text_color ||
+                          "#f97316",
+                      }}
+                    />
+                    <div
+                      className="absolute inset-0 rounded-full animate-spin border-4 border-transparent"
+                      style={{
+                        borderTopColor:
+                          themeParams.button_color ||
+                          themeParams.accent_text_color ||
+                          "#f97316",
+                        borderRightColor:
+                          themeParams.button_color ||
+                          themeParams.accent_text_color ||
+                          "#f97316",
+                      }}
+                    />
+                  </div>
+                  <p
+                    className="text-sm font-semibold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    Loading Terbia...
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <iframe
+              src={`https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`}
+              className="w-full h-full border-0"
+              title="Terbia Learning System"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+              onLoad={() => setTerbiaLoading(false)}
+            />
+          </div>
+        </motion.div>
       )}
     </div>
   );
