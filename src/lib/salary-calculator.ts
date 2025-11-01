@@ -1578,7 +1578,6 @@ Teacher ID: ${teacherId}
 
   /**
    * Calculate expected teaching days based on student's daypackage
-   * Returns dates in Riyadh timezone format (YYYY-MM-DD) for business logic
    */
   private calculateExpectedTeachingDays(
     fromDate: Date,
@@ -1591,7 +1590,6 @@ Teacher ID: ${teacherId}
       // If no daypackage, use all days (let Sunday setting decide)
       const current = new Date(fromDate);
       while (current <= toDate) {
-        // Use Riyadh timezone for business logic
         const zonedDate = toZonedTime(current, TZ);
         const isSunday = zonedDate.getDay() === 0;
         const shouldInclude = this.config.includeSundays || !isSunday;
@@ -1614,7 +1612,6 @@ Teacher ID: ${teacherId}
     // Calculate all days in the period that match the daypackage
     const current = new Date(fromDate);
     while (current <= toDate) {
-      // Use Riyadh timezone for business logic
       const zonedDate = toZonedTime(current, TZ);
       const dayOfWeek = zonedDate.getDay();
 
@@ -2167,30 +2164,22 @@ Teacher Change Period: ${student.teacherChangePeriod ? "Yes" : "No"}`;
 
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
-            // Ensure sent_time is a Date object
-            const sentTime =
-              link.sent_time instanceof Date
-                ? link.sent_time
-                : new Date(link.sent_time);
+            const linkDate = new Date(link.sent_time);
 
-            // Convert zoom link UTC time to Riyadh date
-            // DB: 2025-10-30 21:00 UTC = 2025-10-31 Riyadh
-            // expectedTeachingDays returns Riyadh dates, so zoom links must match
-            const zonedDateTime = toZonedTime(sentTime, TZ);
-
-            // Debug Sunday inclusion - check in Riyadh timezone
-            const isSunday = zonedDateTime.getDay() === 0;
+            // Debug Sunday inclusion
+            const isSunday = linkDate.getDay() === 0;
             const shouldInclude = this.config.includeSundays || !isSunday;
 
             if (!shouldInclude) {
               return;
             }
 
-            // Extract Riyadh date to match expectedTeachingDays format
-            const year = zonedDateTime.getFullYear();
-            const month = String(zonedDateTime.getMonth() + 1).padStart(2, "0");
-            const day = String(zonedDateTime.getDate()).padStart(2, "0");
-            const dateStr = `${year}-${month}-${day}`;
+            // Ensure sent_time is a Date object
+            const sentTime =
+              link.sent_time instanceof Date
+                ? link.sent_time
+                : new Date(link.sent_time);
+            const dateStr = sentTime.toISOString().split("T")[0];
 
             if (
               !dailyLinks.has(dateStr) ||
@@ -2923,8 +2912,7 @@ Day Package: ${studentDaypackage} (from teacher change period)
       const datesToProcess = safeDateIterator(fromDate, effectiveToDate);
 
       for (const d of datesToProcess) {
-        // Convert to Riyadh timezone for business logic
-        // Teachers work on Riyadh dates (Oct 31 Riyadh, not Oct 30 UTC)
+        // Convert to timezone-aware date for proper day calculation
         const zonedDate = toZonedTime(d, TZ);
         const dateStr = format(zonedDate, "yyyy-MM-dd");
         const dayOfWeek = zonedDate.getDay();
@@ -3028,11 +3016,7 @@ Day Package: ${studentDaypackage} (from teacher change period)
           // Check if student has zoom link for this date
           const hasZoomLink = student.zoom_links?.some((link: any) => {
             if (!link.sent_time) return false;
-            // Convert zoom link UTC time to Riyadh date
-            // DB: 2025-10-30 21:00 UTC = 2025-10-31 Riyadh
-            // dateStr is in Riyadh timezone, so convert link to match
-            const linkZonedDate = toZonedTime(new Date(link.sent_time), TZ);
-            const linkDate = format(linkZonedDate, "yyyy-MM-dd");
+            const linkDate = format(new Date(link.sent_time), "yyyy-MM-dd");
             return linkDate === dateStr;
           });
 
