@@ -2881,19 +2881,17 @@ Day Package: ${studentDaypackage} (from teacher change period)
       // Calculate working days for this period
       const workingDays = this.calculateWorkingDays(fromDate, effectiveToDate);
 
-      // Safe date iteration to include all days including 31st
+      // Safe date iteration to avoid invalid dates like Sept 31st
       const safeDateIterator = (startDate: Date, endDate: Date) => {
         const dates: Date[] = [];
-        // Normalize to start of day for consistent comparison
         const current = new Date(startDate);
-        current.setHours(0, 0, 0, 0);
+        current.setHours(0, 0, 0, 0); // Normalize to midnight for date-only comparison
 
-        // Normalize end date to start of day for date-only comparison
+        // Normalize end date to midnight for proper date comparison
         const end = new Date(endDate);
         end.setHours(0, 0, 0, 0);
 
-        // Use date-only comparison to ensure we include the last day (31st)
-        while (current.getTime() <= end.getTime()) {
+        while (current <= end) {
           // Validate the date to avoid invalid dates like Sept 31st
           const year = current.getFullYear();
           const month = current.getMonth();
