@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { I18nProvider, useI18n } from "@/lib/i18n";
 import {
@@ -568,22 +569,6 @@ function StudentMiniAppInner({
       month: "short",
       day: "numeric",
     });
-  };
-
-  // Helper function to redirect to Terbia within the same Mini App window
-  const openTerbiaInApp = () => {
-    try {
-      // Trigger haptic feedback if available
-      if (tgWebApp?.HapticFeedback?.impactOccurred) {
-        tgWebApp.HapticFeedback.impactOccurred("medium");
-      }
-
-      // Direct redirect within the same window to maintain Telegram Mini App context
-      const terbiaUrl = `https://terbia.darelkubra.com/en/student/${studentData?.student?.wdt_ID}`;
-      window.location.href = terbiaUrl;
-    } catch (error) {
-      console.error("Failed to redirect to Terbia:", error);
-    }
   };
 
   // Generate colors for avatars
@@ -2333,10 +2318,10 @@ function StudentMiniAppInner({
                     </div>
                   </div>
 
-                  {/* Beautifulاتtractive Terbia Button */}
-                  <button
-                    onClick={openTerbiaInApp}
-                    className="relative w-full overflow-hidden rounded-2xl p-5 shadow-2xl transition-all active:scale-98 border-2 group"
+                  {/* Beautiful Terbia Button */}
+                  <Link
+                    href={`https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`}
+                    className="relative w-full overflow-hidden rounded-2xl p-5 shadow-2xl transition-all active:scale-98 border-2 group block no-underline"
                     style={{
                       background: themeParams.button_color
                         ? `linear-gradient(135deg, ${themeParams.button_color} 0%, ${themeParams.button_color}dd 100%)`
@@ -2399,7 +2384,7 @@ function StudentMiniAppInner({
                     >
                       <Sparkles className="w-5 h-5" />
                     </div>
-                  </button>
+                  </Link>
                 </>
               )}
 
@@ -2417,9 +2402,9 @@ function StudentMiniAppInner({
                   >
                     🎓 Start your learning journey on Terbia
                   </p>
-                  <button
-                    onClick={openTerbiaInApp}
-                    className="relative w-full overflow-hidden rounded-2xl p-5 shadow-2xl transition-all active:scale-98 border-2 group"
+                  <Link
+                    href={`https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`}
+                    className="relative w-full overflow-hidden rounded-2xl p-5 shadow-2xl transition-all active:scale-98 border-2 group block no-underline"
                     style={{
                       background: themeParams.button_color
                         ? `linear-gradient(135deg, ${themeParams.button_color} 0%, ${themeParams.button_color}dd 100%)`
@@ -2482,7 +2467,7 @@ function StudentMiniAppInner({
                     >
                       <Sparkles className="w-5 h-5" />
                     </div>
-                  </button>
+                  </Link>
                 </div>
               )}
             </div>
