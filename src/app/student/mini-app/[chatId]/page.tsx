@@ -1412,132 +1412,205 @@ function StudentMiniAppInner({
               </div>
             </div>
 
-            {/* Terbia Quick Access Card - Only show if terbia data exists */}
-            {studentData.terbia && (
-              <div
-                className="p-5 rounded-2xl shadow-md border"
-                style={{
-                  backgroundColor:
-                    themeParams.section_bg_color ||
-                    themeParams.secondary_bg_color ||
-                    (isDarkMode ? "#1f2937" : "#ffffff"),
-                  borderColor:
-                    themeParams.section_separator_color ||
-                    (isDarkMode
-                      ? "rgba(55, 65, 81, 0.3)"
-                      : "rgba(249, 115, 22, 0.3)"),
-                }}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
+            {/* Terbia Quick Access Card */}
+            <div
+              className="p-5 rounded-2xl shadow-md border"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+                borderColor:
+                  themeParams.section_separator_color ||
+                  (isDarkMode
+                    ? "rgba(55, 65, 81, 0.3)"
+                    : "rgba(249, 115, 22, 0.3)"),
+              }}
+            >
+              {studentData.terbia ? (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"
+                        style={{
+                          backgroundColor:
+                            themeParams.button_color ||
+                            themeParams.accent_text_color ||
+                            "rgba(249, 115, 22, 0.15)",
+                          color:
+                            themeParams.button_color ||
+                            themeParams.accent_text_color ||
+                            "#f97316",
+                        }}
+                      >
+                        <BookOpen className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3
+                          className="font-bold text-base"
+                          style={{
+                            color:
+                              themeParams.text_color ||
+                              (isDarkMode ? "#ffffff" : "#111827"),
+                          }}
+                        >
+                          Terbia Learning
+                        </h3>
+                        <p
+                          className="text-xs"
+                          style={{
+                            color:
+                              themeParams.hint_color ||
+                              themeParams.subtitle_text_color ||
+                              (isDarkMode ? "#9ca3af" : "#6b7280"),
+                          }}
+                        >
+                          {studentData.terbia.courseName}
+                        </p>
+                      </div>
+                    </div>
                     <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"
+                      className="text-2xl font-bold"
                       style={{
-                        backgroundColor:
-                          themeParams.button_color ||
-                          themeParams.accent_text_color ||
-                          "rgba(249, 115, 22, 0.15)",
                         color:
                           themeParams.button_color ||
                           themeParams.accent_text_color ||
                           "#f97316",
                       }}
                     >
-                      <BookOpen className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3
-                        className="font-bold text-base"
-                        style={{
-                          color:
-                            themeParams.text_color ||
-                            (isDarkMode ? "#ffffff" : "#111827"),
-                        }}
-                      >
-                        Terbia Learning
-                      </h3>
-                      <p
-                        className="text-xs"
-                        style={{
-                          color:
-                            themeParams.hint_color ||
-                            themeParams.subtitle_text_color ||
-                            (isDarkMode ? "#9ca3af" : "#6b7280"),
-                        }}
-                      >
-                        {studentData.terbia.courseName}
-                      </p>
+                      {studentData.terbia.progressPercent}%
                     </div>
                   </div>
+
                   <div
-                    className="text-2xl font-bold"
-                    style={{
-                      color:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "#f97316",
-                    }}
-                  >
-                    {studentData.terbia.progressPercent}%
-                  </div>
-                </div>
-
-                <div
-                  className="w-full rounded-full h-2.5 mb-4"
-                  style={{
-                    backgroundColor:
-                      themeParams.secondary_bg_color ||
-                      themeParams.bg_color ||
-                      (isDarkMode ? "#374151" : "#e5e7eb"),
-                  }}
-                >
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${studentData.terbia.progressPercent}%`,
-                    }}
-                    transition={{ duration: 1.5, delay: 0.3 }}
-                    className="h-2.5 rounded-full shadow-sm"
-                    style={{
-                      backgroundColor:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        themeParams.link_color ||
-                        "#f97316",
-                    }}
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setCurrentTab("terbia");
-                      window.dispatchEvent(
-                        new CustomEvent("dk:setTab", { detail: "terbia" })
-                      );
-                    }}
-                    className="flex-1 py-2.5 px-3 rounded-lg font-medium text-sm transition-all active:scale-95 border"
+                    className="w-full rounded-full h-2.5 mb-4"
                     style={{
                       backgroundColor:
                         themeParams.secondary_bg_color ||
-                        (isDarkMode ? "#374151" : "#f3f4f6"),
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                      borderColor:
-                        themeParams.section_separator_color ||
-                        (isDarkMode ? "#4b5563" : "#d1d5db"),
+                        themeParams.bg_color ||
+                        (isDarkMode ? "#374151" : "#e5e7eb"),
                     }}
                   >
-                    View Progress
-                  </button>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{
+                        width: `${studentData.terbia.progressPercent}%`,
+                      }}
+                      transition={{ duration: 1.5, delay: 0.3 }}
+                      className="h-2.5 rounded-full shadow-sm"
+                      style={{
+                        backgroundColor:
+                          themeParams.button_color ||
+                          themeParams.accent_text_color ||
+                          themeParams.link_color ||
+                          "#f97316",
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setCurrentTab("terbia");
+                        window.dispatchEvent(
+                          new CustomEvent("dk:setTab", { detail: "terbia" })
+                        );
+                      }}
+                      className="flex-1 py-2.5 px-3 rounded-lg font-medium text-sm transition-all active:scale-95 border"
+                      style={{
+                        backgroundColor:
+                          themeParams.secondary_bg_color ||
+                          (isDarkMode ? "#374151" : "#f3f4f6"),
+                        color:
+                          themeParams.text_color ||
+                          (isDarkMode ? "#ffffff" : "#111827"),
+                        borderColor:
+                          themeParams.section_separator_color ||
+                          (isDarkMode ? "#4b5563" : "#d1d5db"),
+                      }}
+                    >
+                      View Progress
+                    </button>
+                    <button
+                      onClick={() => {
+                        openExternalLink(
+                          `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`
+                        );
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-medium text-sm transition-all active:scale-95 shadow-sm border"
+                      style={{
+                        backgroundColor:
+                          themeParams.button_color ||
+                          themeParams.accent_text_color ||
+                          "#f97316",
+                        color:
+                          themeParams.button_text_color ||
+                          (isDarkMode ? "#ffffff" : "#ffffff"),
+                        borderColor:
+                          themeParams.button_color ||
+                          themeParams.accent_text_color ||
+                          "#f97316",
+                      }}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span>Open Terbia</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* No Terbia progress yet - Just show the button */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"
+                        style={{
+                          backgroundColor:
+                            themeParams.button_color ||
+                            themeParams.accent_text_color ||
+                            "rgba(249, 115, 22, 0.15)",
+                          color:
+                            themeParams.button_color ||
+                            themeParams.accent_text_color ||
+                            "#f97316",
+                        }}
+                      >
+                        <BookOpen className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3
+                          className="font-bold text-base"
+                          style={{
+                            color:
+                              themeParams.text_color ||
+                              (isDarkMode ? "#ffffff" : "#111827"),
+                          }}
+                        >
+                          Terbia Learning System
+                        </h3>
+                        <p
+                          className="text-xs"
+                          style={{
+                            color:
+                              themeParams.hint_color ||
+                              themeParams.subtitle_text_color ||
+                              (isDarkMode ? "#9ca3af" : "#6b7280"),
+                          }}
+                        >
+                          Access your learning platform
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <button
                     onClick={() => {
                       openExternalLink(
                         `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`
                       );
                     }}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-medium text-sm transition-all active:scale-95 shadow-sm border"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all active:scale-95 shadow-md border"
                     style={{
                       backgroundColor:
                         themeParams.button_color ||
@@ -1552,12 +1625,12 @@ function StudentMiniAppInner({
                         "#f97316",
                     }}
                   >
-                    <ExternalLink className="w-4 h-4" />
-                    <span>Open Terbia</span>
+                    <ExternalLink className="w-5 h-5" />
+                    <span>Open Terbia Learning System</span>
                   </button>
-                </div>
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </motion.div>
         )}
 
@@ -1913,7 +1986,7 @@ function StudentMiniAppInner({
         )}
 
         {/* Terbia Tab */}
-        {currentTab === "terbia" && studentData.terbia && (
+        {currentTab === "terbia" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1939,26 +2012,31 @@ function StudentMiniAppInner({
                       (isDarkMode ? "#ffffff" : "#111827"),
                   }}
                 >
-                  Terbia Progress
+                  Terbia Learning
                 </h3>
-                <button onClick={() => toggleSection("terbia")} className="p-1">
-                  {expandedSections.terbia ? (
-                    <ChevronUp
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
-                    />
-                  ) : (
-                    <ChevronDown
-                      className={`w-4 h-4 ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
-                    />
-                  )}
-                </button>
+                {studentData.terbia && (
+                  <button
+                    onClick={() => toggleSection("terbia")}
+                    className="p-1"
+                  >
+                    {expandedSections.terbia ? (
+                      <ChevronUp
+                        className={`w-4 h-4 ${
+                          isDarkMode ? "text-gray-400" : "text-gray-500"
+                        }`}
+                      />
+                    ) : (
+                      <ChevronDown
+                        className={`w-4 h-4 ${
+                          isDarkMode ? "text-gray-400" : "text-gray-500"
+                        }`}
+                      />
+                    )}
+                  </button>
+                )}
               </div>
 
-              {expandedSections.terbia && (
+              {studentData.terbia && expandedSections.terbia && (
                 <>
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
@@ -2086,6 +2164,47 @@ function StudentMiniAppInner({
                     <span>Open Full Terbia System</span>
                   </button>
                 </>
+              )}
+
+              {/* Show button even when no terbia data */}
+              {!studentData.terbia && (
+                <div className="text-center py-4">
+                  <p
+                    className="text-sm mb-4"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    Start your learning journey on the Terbia platform
+                  </p>
+                  <button
+                    onClick={() => {
+                      openExternalLink(
+                        `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`
+                      );
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold shadow-lg transition-all active:scale-95 border"
+                    style={{
+                      backgroundColor:
+                        themeParams.button_color ||
+                        themeParams.accent_text_color ||
+                        "#f97316",
+                      color:
+                        themeParams.button_text_color ||
+                        (isDarkMode ? "#ffffff" : "#ffffff"),
+                      borderColor:
+                        themeParams.button_color ||
+                        themeParams.accent_text_color ||
+                        "#f97316",
+                    }}
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                    <span>Open Terbia Learning System</span>
+                  </button>
+                </div>
               )}
             </div>
           </motion.div>
