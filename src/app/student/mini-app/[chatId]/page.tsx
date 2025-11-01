@@ -2319,9 +2319,22 @@ function StudentMiniAppInner({
                   </div>
 
                   {/* Beautiful Terbia Button */}
-                  <Link
-                    href={`https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`}
-                    className="relative w-full overflow-hidden rounded-2xl p-5 shadow-2xl transition-all active:scale-98 border-2 group block no-underline"
+                  <button
+                    onClick={() => {
+                      const url = `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`;
+
+                      // Use Telegram WebApp API to open the link
+                      if ((window as any).Telegram?.WebApp?.openLink) {
+                        // Opens the link in an in-app browser within Telegram
+                        (window as any).Telegram.WebApp.openLink(url, {
+                          try_instant_view: true,
+                        });
+                      } else {
+                        // Fallback to regular navigation
+                        window.location.href = url;
+                      }
+                    }}
+                    className="relative w-full overflow-hidden rounded-2xl p-5 shadow-2xl transition-all active:scale-98 border-2 group block no-underline cursor-pointer"
                     style={{
                       background: themeParams.button_color
                         ? `linear-gradient(135deg, ${themeParams.button_color} 0%, ${themeParams.button_color}dd 100%)`
@@ -2384,7 +2397,7 @@ function StudentMiniAppInner({
                     >
                       <Sparkles className="w-5 h-5" />
                     </div>
-                  </Link>
+                  </button>
                 </>
               )}
 
@@ -2402,9 +2415,22 @@ function StudentMiniAppInner({
                   >
                     🎓 Start your learning journey on Terbia
                   </p>
-                  <Link
-                    href={`https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`}
-                    className="relative w-full overflow-hidden rounded-2xl p-5 shadow-2xl transition-all active:scale-98 border-2 group block no-underline"
+                  <button
+                    onClick={() => {
+                      const url = `https://terbia.darelkubra.com/en/student/${studentData.student.wdt_ID}`;
+
+                      // Use Telegram WebApp API to open the link
+                      if ((window as any).Telegram?.WebApp?.openLink) {
+                        // Opens the link in an in-app browser within Telegram
+                        (window as any).Telegram.WebApp.openLink(url, {
+                          try_instant_view: true,
+                        });
+                      } else {
+                        // Fallback to regular navigation
+                        window.location.href = url;
+                      }
+                    }}
+                    className="relative w-full overflow-hidden rounded-2xl p-5 shadow-2xl transition-all active:scale-98 border-2 group block no-underline cursor-pointer"
                     style={{
                       background: themeParams.button_color
                         ? `linear-gradient(135deg, ${themeParams.button_color} 0%, ${themeParams.button_color}dd 100%)`
@@ -2467,7 +2493,7 @@ function StudentMiniAppInner({
                     >
                       <Sparkles className="w-5 h-5" />
                     </div>
-                  </Link>
+                  </button>
                 </div>
               )}
             </div>
@@ -3005,7 +3031,6 @@ function StudentMiniAppInner({
           </motion.div>
         )}
       </div>
-
     </div>
   );
 }
