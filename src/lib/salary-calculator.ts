@@ -6,8 +6,6 @@ import {
   TeacherChangePeriod,
 } from "@/lib/teacher-change-utils";
 
-// Timezone: UTC+3 (Saudi Arabia Standard Time - Asia/Riyadh)
-// This timezone does not observe daylight saving time, so it's always UTC+3
 const TZ = "Asia/Riyadh";
 
 export interface SalaryCalculationConfig {
@@ -2684,13 +2682,7 @@ Day Package: ${studentDaypackage} (from teacher change period)
       // Don't process future dates
       const today = new Date();
       today.setHours(23, 59, 59, 999);
-
-      // CRITICAL FIX: Ensure effectiveToDate includes the full last day of the month
-      // Set to end of day (23:59:59.999) to include all zoom links sent on the last day
-      let effectiveToDate = toDate > today ? today : new Date(toDate);
-      if (effectiveToDate <= today) {
-        effectiveToDate.setHours(23, 59, 59, 999);
-      }
+      const effectiveToDate = toDate > today ? today : toDate;
 
       // Get teacher change history for this teacher
       const teacherChanges = await prisma.teacher_change_history.findMany({
@@ -2799,9 +2791,10 @@ Day Package: ${studentDaypackage} (from teacher change period)
           zoom_links: {
             where: {
               ustazid: teacherId,
-              // CRITICAL FIX: Don't filter by date range here - fetch all zoom links
-              // Date filtering will be done in the code using timezone-aware comparison
-              // This ensures we don't miss zoom links due to timezone differences in database queries
+              sent_time: {
+                gte: fromDate,
+                lte: effectiveToDate,
+              },
             },
             select: { sent_time: true },
           },
@@ -3021,20 +3014,9 @@ Day Package: ${studentDaypackage} (from teacher change period)
           }
 
           // Check if student has zoom link for this date
-          // CRITICAL FIX: Use timezone-aware date comparison to match the processing date
-          // Also filter by date range in code (not in database query) to handle timezone correctly
           const hasZoomLink = student.zoom_links?.some((link: any) => {
             if (!link.sent_time) return false;
-            const linkDateObj = new Date(link.sent_time);
-
-            // First check if link is within the processing date range
-            if (linkDateObj < fromDate || linkDateObj > effectiveToDate) {
-              return false;
-            }
-
-            // Convert zoom link time to same timezone as processing date for exact date match
-            const linkZonedDate = toZonedTime(linkDateObj, TZ);
-            const linkDate = format(linkZonedDate, "yyyy-MM-dd");
+            const linkDate = format(new Date(link.sent_time), "yyyy-MM-dd");
             return linkDate === dateStr;
           });
 
@@ -3043,13 +3025,9 @@ Day Package: ${studentDaypackage} (from teacher change period)
           }
 
           // Check attendance permission
-          // CRITICAL FIX: Use timezone-aware date comparison for consistency
           const attendanceRecord = student.attendance_progress?.find(
             (att: any) => {
-              if (!att.date) return false;
-              // Convert attendance date to same timezone as processing date
-              const attZonedDate = toZonedTime(new Date(att.date), TZ);
-              const attDate = format(attZonedDate, "yyyy-MM-dd");
+              const attDate = format(new Date(att.date), "yyyy-MM-dd");
               return attDate === dateStr;
             }
           );
