@@ -912,6 +912,12 @@ ${i + 1}. Student: ${p.studentName} (ID: ${p.studentId})
           },
           select: { sent_time: true },
         },
+        attendance_progress: {
+          where: {
+            date: { gte: fromDate, lte: toDate },
+          },
+          select: { date: true, attendance_status: true },
+        },
       },
     });
 
@@ -979,6 +985,12 @@ ${i + 1}. Student: ${p.studentName} (ID: ${p.studentId})
                   // The date filtering should only happen during the absence calculation loop
                 },
                 select: { sent_time: true },
+              },
+              attendance_progress: {
+                where: {
+                  date: { gte: fromDate, lte: toDate },
+                },
+                select: { date: true, attendance_status: true },
               },
             },
           })
@@ -1123,6 +1135,7 @@ Teacher ID: ${teacherId}
           status: student.status,
           occupiedTimes: student.occupiedTimes || [], // ✅ ADDED: Include occupied_times
           zoom_links: zoomLink.zoom_links,
+          attendance_progress: [], // Initialize empty - not loaded in this query
         });
       }
     }
@@ -1178,6 +1191,12 @@ Found ${teacherChangePeriods.length} teacher change periods
                 sent_time: { gte: fromDate, lte: toDate },
               },
               select: { sent_time: true },
+            },
+            attendance_progress: {
+              where: {
+                date: { gte: fromDate, lte: toDate },
+              },
+              select: { date: true, attendance_status: true },
             },
           },
         });
@@ -1380,6 +1399,12 @@ This means either:
           },
           select: { sent_time: true },
         },
+        attendance_progress: {
+          where: {
+            date: { gte: fromDate, lte: toDate },
+          },
+          select: { date: true, attendance_status: true },
+        },
       },
     });
 
@@ -1429,6 +1454,7 @@ ${i + 1}. ${s.name} (ID: ${s.wdt_ID})
           status: student.status,
           occupiedTimes: student.occupiedTimes || [],
           zoom_links: student.zoom_links || [],
+          attendance_progress: student.attendance_progress || [],
         };
 
         allStudents.push(studentWithRequiredFields);
@@ -1516,6 +1542,12 @@ Looking for students with "Completed" status who have zoom links from this teach
           },
           select: { sent_time: true },
         },
+        attendance_progress: {
+          where: {
+            date: { gte: fromDate, lte: toDate },
+          },
+          select: { date: true, attendance_status: true },
+        },
       },
     });
 
@@ -1531,6 +1563,7 @@ Looking for students with "Completed" status who have zoom links from this teach
           status: student.status,
           occupiedTimes: student.occupiedTimes || [],
           zoom_links: student.zoom_links || [],
+          attendance_progress: student.attendance_progress || [],
         };
 
         allStudents.push(studentWithRequiredFields);
@@ -2247,9 +2280,22 @@ Day Package: ${studentDaypackage} (from teacher change period)
           studentDaypackage
         );
 
-        // Use expected teaching days based on daypackage, but only count days with zoom links
+        // Use expected teaching days based on daypackage, but only count days with zoom links OR "Permission" status
         expectedTeachingDays.forEach((dateStr) => {
-          if (dailyLinks.has(dateStr)) {
+          const hasZoomLink = dailyLinks.has(dateStr);
+
+          // Check if this date has "Permission" in attendance_progress
+          const hasPermission = student.attendance_progress?.some(
+            (att: any) => {
+              const attDate = format(new Date(att.date), "yyyy-MM-dd");
+              return (
+                attDate === dateStr && att.attendance_status === "Permission"
+              );
+            }
+          );
+
+          // Count day if zoom link exists OR has permission
+          if (hasZoomLink || hasPermission) {
             teachingDates.add(dateStr);
           }
         });
