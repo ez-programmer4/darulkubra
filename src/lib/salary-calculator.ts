@@ -2164,22 +2164,30 @@ Teacher Change Period: ${student.teacherChangePeriod ? "Yes" : "No"}`;
 
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
-            const linkDate = new Date(link.sent_time);
+            // Ensure sent_time is a Date object
+            const sentTime =
+              link.sent_time instanceof Date
+                ? link.sent_time
+                : new Date(link.sent_time);
 
-            // Debug Sunday inclusion
-            const isSunday = linkDate.getDay() === 0;
+            // CRITICAL: Convert zoom link to Riyadh timezone to match expectedTeachingDays
+            // expectedTeachingDays (line 1600, 1623) returns Riyadh dates
+            // So zoom links must also be converted to Riyadh dates to match
+            const zonedDateTime = toZonedTime(sentTime, TZ);
+
+            // Debug Sunday inclusion - check in Riyadh timezone
+            const isSunday = zonedDateTime.getDay() === 0;
             const shouldInclude = this.config.includeSundays || !isSunday;
 
             if (!shouldInclude) {
               return;
             }
 
-            // Ensure sent_time is a Date object
-            const sentTime =
-              link.sent_time instanceof Date
-                ? link.sent_time
-                : new Date(link.sent_time);
-            const dateStr = sentTime.toISOString().split("T")[0];
+            // Extract date in Riyadh timezone to match expectedTeachingDays format
+            const year = zonedDateTime.getFullYear();
+            const month = String(zonedDateTime.getMonth() + 1).padStart(2, "0");
+            const day = String(zonedDateTime.getDate()).padStart(2, "0");
+            const dateStr = `${year}-${month}-${day}`;
 
             if (
               !dailyLinks.has(dateStr) ||
@@ -3016,7 +3024,10 @@ Day Package: ${studentDaypackage} (from teacher change period)
           // Check if student has zoom link for this date
           const hasZoomLink = student.zoom_links?.some((link: any) => {
             if (!link.sent_time) return false;
-            const linkDate = format(new Date(link.sent_time), "yyyy-MM-dd");
+            // CRITICAL: Convert zoom link to Riyadh timezone to match dateStr (line 2917)
+            // dateStr is in Riyadh timezone, so zoom link must also be converted
+            const linkZonedDate = toZonedTime(new Date(link.sent_time), TZ);
+            const linkDate = format(linkZonedDate, "yyyy-MM-dd");
             return linkDate === dateStr;
           });
 
