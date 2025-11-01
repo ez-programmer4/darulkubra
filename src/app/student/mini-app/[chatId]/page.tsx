@@ -175,7 +175,6 @@ interface TelegramWebApp {
   requestFullscreen: () => void;
   exitFullscreen: () => void;
   openLink: (url: string, options?: { try_instant_view?: boolean }) => void;
-  openTelegramLink: (url: string) => void;
   platform: string;
   isExpanded: boolean;
   isActive: boolean;
@@ -571,7 +570,7 @@ function StudentMiniAppInner({
     });
   };
 
-  // Helper function to open Terbia in Telegram browser with Mini App context
+  // Helper function to redirect to Terbia within the same Mini App window
   const openTerbiaInApp = () => {
     try {
       // Trigger haptic feedback if available
@@ -579,23 +578,11 @@ function StudentMiniAppInner({
         tgWebApp.HapticFeedback.impactOccurred("medium");
       }
 
+      // Direct redirect within the same window to maintain Telegram Mini App context
       const terbiaUrl = `https://terbia.darelkubra.com/en/student/${studentData?.student?.wdt_ID}`;
-
-      if (tgWebApp?.openTelegramLink) {
-        // Try to open as a Telegram link (keeps Mini App context)
-        tgWebApp.openTelegramLink(terbiaUrl);
-      } else if (tgWebApp?.openLink) {
-        // Fallback to openLink (opens in Telegram's in-app browser)
-        tgWebApp.openLink(terbiaUrl);
-      } else {
-        // Final fallback - open in new tab
-        window.open(terbiaUrl, "_blank", "noopener,noreferrer");
-      }
+      window.location.href = terbiaUrl;
     } catch (error) {
-      console.error("Failed to open Terbia:", error);
-      // Last resort - try direct navigation
-      const terbiaUrl = `https://terbia.darelkubra.com/en/student/${studentData?.student?.wdt_ID}`;
-      window.open(terbiaUrl, "_blank", "noopener,noreferrer");
+      console.error("Failed to redirect to Terbia:", error);
     }
   };
 
