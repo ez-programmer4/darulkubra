@@ -2881,12 +2881,19 @@ Day Package: ${studentDaypackage} (from teacher change period)
       // Calculate working days for this period
       const workingDays = this.calculateWorkingDays(fromDate, effectiveToDate);
 
-      // Safe date iteration to avoid invalid dates like Sept 31st
+      // Safe date iteration to include all days including 31st
       const safeDateIterator = (startDate: Date, endDate: Date) => {
         const dates: Date[] = [];
+        // Normalize to start of day for consistent comparison
         const current = new Date(startDate);
+        current.setHours(0, 0, 0, 0);
 
-        while (current <= endDate) {
+        // Normalize end date to start of day for date-only comparison
+        const end = new Date(endDate);
+        end.setHours(0, 0, 0, 0);
+
+        // Use date-only comparison to ensure we include the last day (31st)
+        while (current.getTime() <= end.getTime()) {
           // Validate the date to avoid invalid dates like Sept 31st
           const year = current.getFullYear();
           const month = current.getMonth();
@@ -3016,9 +3023,7 @@ Day Package: ${studentDaypackage} (from teacher change period)
           // Check if student has zoom link for this date
           const hasZoomLink = student.zoom_links?.some((link: any) => {
             if (!link.sent_time) return false;
-            // CRITICAL FIX: Convert zoom link time to same timezone for accurate comparison
-            const linkZonedDate = toZonedTime(new Date(link.sent_time), TZ);
-            const linkDate = format(linkZonedDate, "yyyy-MM-dd");
+            const linkDate = format(new Date(link.sent_time), "yyyy-MM-dd");
             return linkDate === dateStr;
           });
 
