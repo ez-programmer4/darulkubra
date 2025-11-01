@@ -2164,30 +2164,22 @@ Teacher Change Period: ${student.teacherChangePeriod ? "Yes" : "No"}`;
 
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
-            // Ensure sent_time is a Date object
-            const sentTime =
-              link.sent_time instanceof Date
-                ? link.sent_time
-                : new Date(link.sent_time);
+            const linkDate = new Date(link.sent_time);
 
-            // CRITICAL: Convert zoom link to Riyadh timezone to match expectedTeachingDays
-            // expectedTeachingDays (line 1600, 1623) returns Riyadh dates
-            // So zoom links must also be converted to Riyadh dates to match
-            const zonedDateTime = toZonedTime(sentTime, TZ);
-
-            // Debug Sunday inclusion - check in Riyadh timezone
-            const isSunday = zonedDateTime.getDay() === 0;
+            // Debug Sunday inclusion
+            const isSunday = linkDate.getDay() === 0;
             const shouldInclude = this.config.includeSundays || !isSunday;
 
             if (!shouldInclude) {
               return;
             }
 
-            // Extract date in Riyadh timezone to match expectedTeachingDays format
-            const year = zonedDateTime.getFullYear();
-            const month = String(zonedDateTime.getMonth() + 1).padStart(2, "0");
-            const day = String(zonedDateTime.getDate()).padStart(2, "0");
-            const dateStr = `${year}-${month}-${day}`;
+            // Ensure sent_time is a Date object
+            const sentTime =
+              link.sent_time instanceof Date
+                ? link.sent_time
+                : new Date(link.sent_time);
+            const dateStr = sentTime.toISOString().split("T")[0];
 
             if (
               !dailyLinks.has(dateStr) ||
@@ -2925,12 +2917,11 @@ Day Package: ${studentDaypackage} (from teacher change period)
         const dateStr = format(zonedDate, "yyyy-MM-dd");
         const dayOfWeek = zonedDate.getDay();
 
-        // CRITICAL FIX: Skip 31st day of any month from absence deductions
-        // Due to timezone issues (UTC vs Riyadh), zoom links on 31st don't match correctly
-        // Teachers send zoom links on Oct 30 21:00 UTC = Oct 31 00:00 Riyadh
+        // CRITICAL FIX: Skip 31st day from absence deductions
+        // Timezone mismatch between UTC storage and Riyadh business hours
         const dayOfMonth = zonedDate.getDate();
         if (dayOfMonth === 31) {
-          continue; // Skip absence check for 31st day
+          continue; // No absence deductions for 31st day
         }
 
         // Skip Sunday unless configured to include
@@ -3033,10 +3024,7 @@ Day Package: ${studentDaypackage} (from teacher change period)
           // Check if student has zoom link for this date
           const hasZoomLink = student.zoom_links?.some((link: any) => {
             if (!link.sent_time) return false;
-            // CRITICAL: Convert zoom link to Riyadh timezone to match dateStr (line 2917)
-            // dateStr is in Riyadh timezone, so zoom link must also be converted
-            const linkZonedDate = toZonedTime(new Date(link.sent_time), TZ);
-            const linkDate = format(linkZonedDate, "yyyy-MM-dd");
+            const linkDate = format(new Date(link.sent_time), "yyyy-MM-dd");
             return linkDate === dateStr;
           });
 
