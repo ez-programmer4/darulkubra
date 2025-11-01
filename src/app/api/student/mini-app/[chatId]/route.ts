@@ -62,6 +62,9 @@ export async function GET(
         daypackages: true,
         status: true,
         startdate: true,
+        registrationdate: true,
+        phoneno: true,
+        country: true,
         teacher: {
           select: {
             ustazname: true,
@@ -324,6 +327,10 @@ export async function GET(
         classfee: student.classfee,
         daypackages: student.daypackages,
         startdate: student.startdate,
+        registrationdate: student.registrationdate,
+        status: student.status,
+        phoneno: student.phoneno,
+        country: student.country,
         teacher: student.teacher?.ustazname || "Not assigned",
       },
       stats: {

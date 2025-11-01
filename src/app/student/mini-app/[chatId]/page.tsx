@@ -49,6 +49,7 @@ import {
   Shield,
   HelpCircle,
   ExternalLink,
+  MapPin,
 } from "lucide-react";
 
 interface StudentData {
@@ -59,6 +60,11 @@ interface StudentData {
     subject: string;
     classfee: number;
     daypackages: string;
+    startdate: string | null;
+    registrationdate: string | null;
+    status: string | null;
+    phoneno: string | null;
+    country: string | null;
     teacher: string;
   };
   stats: {
@@ -1112,54 +1118,134 @@ function StudentMiniAppInner({
             animate={{ opacity: 1, y: 0 }}
             className="space-y-4"
           >
-            {/* Hero Stats Banner */}
+            {/* Student Details Card */}
             <div
-              className="relative overflow-hidden rounded-3xl p-6 shadow-lg"
+              className="relative overflow-hidden rounded-3xl p-5 shadow-lg"
               style={{
                 background: themeParams.button_color
-                  ? `linear-gradient(135deg, ${themeParams.button_color}20 0%, ${themeParams.button_color}05 100%)`
+                  ? `linear-gradient(135deg, ${themeParams.button_color}25 0%, ${themeParams.button_color}08 100%)`
                   : isDarkMode
-                  ? "linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%)"
-                  : "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)",
+                  ? "linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(59, 130, 246, 0.08) 100%)"
+                  : "linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0.05) 100%)",
                 border: `1px solid ${
                   themeParams.section_separator_color ||
                   (isDarkMode
-                    ? "rgba(59, 130, 246, 0.3)"
-                    : "rgba(59, 130, 246, 0.2)")
+                    ? "rgba(59, 130, 246, 0.4)"
+                    : "rgba(59, 130, 246, 0.25)")
                 }`,
               }}
             >
               <div className="flex items-start justify-between mb-4">
-                <div>
-                  <p
-                    className="text-xs font-medium mb-1"
-                    style={{
-                      color:
-                        themeParams.hint_color ||
-                        themeParams.subtitle_text_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  >
-                    Overall Performance
-                  </p>
-                  <h2
-                    className="text-3xl font-bold"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    {Math.round(
-                      (studentData.stats.attendancePercent +
-                        studentData.stats.terbiaProgress) /
-                        2
-                    )}
-                    %
-                  </h2>
+                <div className="flex-1 space-y-2.5">
+                  {studentData.student.phoneno && (
+                    <div className="flex items-center gap-2">
+                      <Phone
+                        className="w-4 h-4"
+                        style={{
+                          color:
+                            themeParams.button_color ||
+                            themeParams.accent_text_color ||
+                            (isDarkMode ? "#60a5fa" : "#3b82f6"),
+                        }}
+                      />
+                      <span
+                        className="text-sm font-medium"
+                        style={{
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
+                        }}
+                      >
+                        {studentData.student.phoneno}
+                      </span>
+                    </div>
+                  )}
+                  {studentData.student.country && (
+                    <div className="flex items-center gap-2">
+                      <MapPin
+                        className="w-4 h-4"
+                        style={{
+                          color:
+                            themeParams.button_color ||
+                            themeParams.accent_text_color ||
+                            (isDarkMode ? "#60a5fa" : "#3b82f6"),
+                        }}
+                      />
+                      <span
+                        className="text-sm font-medium"
+                        style={{
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
+                        }}
+                      >
+                        {studentData.student.country}
+                      </span>
+                    </div>
+                  )}
+                  {studentData.student.startdate && (
+                    <div className="flex items-center gap-2">
+                      <Calendar
+                        className="w-4 h-4"
+                        style={{
+                          color:
+                            themeParams.button_color ||
+                            themeParams.accent_text_color ||
+                            (isDarkMode ? "#60a5fa" : "#3b82f6"),
+                        }}
+                      />
+                      <span
+                        className="text-sm font-medium"
+                        style={{
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
+                        }}
+                      >
+                        Started{" "}
+                        {new Date(
+                          studentData.student.startdate
+                        ).toLocaleDateString("en-US", {
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  {studentData.student.status && (
+                    <div className="inline-flex">
+                      <div
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                        style={{
+                          backgroundColor:
+                            studentData.student.status.toLowerCase() ===
+                            "active"
+                              ? isDarkMode
+                                ? "rgba(34, 197, 94, 0.25)"
+                                : "rgba(34, 197, 94, 0.2)"
+                              : isDarkMode
+                              ? "rgba(249, 115, 22, 0.25)"
+                              : "rgba(249, 115, 22, 0.2)",
+                          color:
+                            studentData.student.status.toLowerCase() ===
+                            "active"
+                              ? isDarkMode
+                                ? "#22c55e"
+                                : "#15803d"
+                              : isDarkMode
+                              ? "#f97316"
+                              : "#ea580c",
+                        }}
+                      >
+                        <div className="w-2 h-2 rounded-full bg-current animate-pulse" />
+                        {studentData.student.status}
+                      </div>
+                    </div>
+                  )}
                 </div>
+
                 <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg"
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl"
                   style={{
                     backgroundColor:
                       themeParams.button_color ||
@@ -1168,76 +1254,7 @@ function StudentMiniAppInner({
                     color: themeParams.button_text_color || "#ffffff",
                   }}
                 >
-                  <GraduationCap className="w-8 h-8" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center">
-                  <div
-                    className="text-xl font-bold"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    {studentData.attendance.presentDays}
-                  </div>
-                  <div
-                    className="text-[10px]"
-                    style={{
-                      color:
-                        themeParams.hint_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  >
-                    Days Present
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div
-                    className="text-xl font-bold"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    {studentData.stats.totalZoomSessions}
-                  </div>
-                  <div
-                    className="text-[10px]"
-                    style={{
-                      color:
-                        themeParams.hint_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  >
-                    Zoom Classes
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div
-                    className="text-xl font-bold"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    {studentData.stats.testsThisMonth}
-                  </div>
-                  <div
-                    className="text-[10px]"
-                    style={{
-                      color:
-                        themeParams.hint_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  >
-                    Tests
-                  </div>
+                  <GraduationCap className="w-9 h-9" />
                 </div>
               </div>
             </div>
@@ -1820,214 +1837,6 @@ function StudentMiniAppInner({
                 </div>
               </div>
             </div>
-
-            {/* Terbia Quick Access Card */}
-            <div
-              className="p-5 rounded-2xl shadow-md border"
-              style={{
-                backgroundColor:
-                  themeParams.section_bg_color ||
-                  themeParams.secondary_bg_color ||
-                  (isDarkMode ? "#1f2937" : "#ffffff"),
-                borderColor:
-                  themeParams.section_separator_color ||
-                  (isDarkMode
-                    ? "rgba(249, 115, 22, 0.4)"
-                    : "rgba(249, 115, 22, 0.3)"),
-              }}
-            >
-              {studentData.terbia ? (
-                <>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"
-                        style={{
-                          backgroundColor:
-                            themeParams.button_color ||
-                            themeParams.accent_text_color ||
-                            "rgba(249, 115, 22, 0.15)",
-                          color:
-                            themeParams.button_color ||
-                            themeParams.accent_text_color ||
-                            "#f97316",
-                        }}
-                      >
-                        <BookOpen className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h3
-                          className="font-bold text-base"
-                          style={{
-                            color:
-                              themeParams.text_color ||
-                              (isDarkMode ? "#ffffff" : "#111827"),
-                          }}
-                        >
-                          Terbia Learning
-                        </h3>
-                        <p
-                          className="text-xs"
-                          style={{
-                            color:
-                              themeParams.hint_color ||
-                              themeParams.subtitle_text_color ||
-                              (isDarkMode ? "#9ca3af" : "#6b7280"),
-                          }}
-                        >
-                          {studentData.terbia.courseName}
-                        </p>
-                      </div>
-                    </div>
-                    <div
-                      className="text-2xl font-bold"
-                      style={{
-                        color:
-                          themeParams.button_color ||
-                          themeParams.accent_text_color ||
-                          "#f97316",
-                      }}
-                    >
-                      {studentData.terbia.progressPercent}%
-                    </div>
-                  </div>
-
-                  <div
-                    className="w-full rounded-full h-2.5 mb-4"
-                    style={{
-                      backgroundColor:
-                        themeParams.secondary_bg_color ||
-                        themeParams.bg_color ||
-                        (isDarkMode ? "#374151" : "#e5e7eb"),
-                    }}
-                  >
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{
-                        width: `${studentData.terbia.progressPercent}%`,
-                      }}
-                      transition={{ duration: 1.5, delay: 0.3 }}
-                      className="h-2.5 rounded-full shadow-sm"
-                      style={{
-                        backgroundColor:
-                          themeParams.button_color ||
-                          themeParams.accent_text_color ||
-                          themeParams.link_color ||
-                          "#f97316",
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setCurrentTab("terbia");
-                        window.dispatchEvent(
-                          new CustomEvent("dk:setTab", { detail: "terbia" })
-                        );
-                      }}
-                      className="flex-1 py-2.5 px-3 rounded-lg font-medium text-sm transition-all active:scale-95 border"
-                      style={{
-                        backgroundColor:
-                          themeParams.secondary_bg_color ||
-                          (isDarkMode ? "#374151" : "#f3f4f6"),
-                        color:
-                          themeParams.text_color ||
-                          (isDarkMode ? "#ffffff" : "#111827"),
-                        borderColor:
-                          themeParams.section_separator_color ||
-                          (isDarkMode ? "#4b5563" : "#d1d5db"),
-                      }}
-                    >
-                      View Progress
-                    </button>
-                    <button
-                      onClick={openTerbiaInApp}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-medium text-sm transition-all active:scale-95 shadow-sm border"
-                      style={{
-                        backgroundColor:
-                          themeParams.button_color ||
-                          themeParams.accent_text_color ||
-                          "#f97316",
-                        color:
-                          themeParams.button_text_color ||
-                          (isDarkMode ? "#ffffff" : "#ffffff"),
-                        borderColor:
-                          themeParams.button_color ||
-                          themeParams.accent_text_color ||
-                          "#f97316",
-                      }}
-                    >
-                      <BookOpen className="w-4 h-4" />
-                      <span>Open Terbia</span>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* No Terbia progress yet - Just show the button */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"
-                        style={{
-                          color:
-                            themeParams.button_color ||
-                            themeParams.accent_text_color ||
-                            "#f97316",
-                        }}
-                      >
-                        <BookOpen className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h3
-                          className="font-bold text-base"
-                          style={{
-                            color:
-                              themeParams.text_color ||
-                              (isDarkMode ? "#ffffff" : "#111827"),
-                          }}
-                        >
-                          Terbia Learning System
-                        </h3>
-                        <p
-                          className="text-xs"
-                          style={{
-                            color:
-                              themeParams.hint_color ||
-                              themeParams.subtitle_text_color ||
-                              (isDarkMode ? "#9ca3af" : "#6b7280"),
-                          }}
-                        >
-                          Access your learning platform
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={openTerbiaInApp}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all active:scale-95 shadow-md border"
-                    style={{
-                      backgroundColor:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "#f97316",
-                      color:
-                        themeParams.button_text_color ||
-                        (isDarkMode ? "#ffffff" : "#ffffff"),
-                      borderColor:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "#f97316",
-                    }}
-                  >
-                    <BookOpen className="w-5 h-5" />
-                    <span>Open Terbia Learning System</span>
-                  </button>
-                </>
-              )}
-            </div>
           </motion.div>
         )}
 
@@ -2535,35 +2344,81 @@ function StudentMiniAppInner({
                     </div>
                   </div>
 
-                  {/* Open Terbia Button */}
+                  {/* Beautifulاتtractive Terbia Button */}
                   <button
                     onClick={openTerbiaInApp}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold shadow-lg transition-all active:scale-95 border"
+                    className="relative w-full overflow-hidden rounded-2xl p-5 shadow-2xl transition-all active:scale-98 border-2 group"
                     style={{
-                      backgroundColor:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "#f97316",
-                      color:
-                        themeParams.button_text_color ||
-                        (isDarkMode ? "#ffffff" : "#ffffff"),
-                      borderColor:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "#f97316",
+                      background: themeParams.button_color
+                        ? `linear-gradient(135deg, ${themeParams.button_color} 0%, ${themeParams.button_color}dd 100%)`
+                        : "linear-gradient(135deg, #f97316 0%, #fb923c 100%)",
+                      borderColor: themeParams.button_color || "#fb923c",
                     }}
                   >
-                    <BookOpen className="w-5 h-5" />
-                    <span>Open Full Terbia System</span>
+                    {/* Animated background effect */}
+                    <div
+                      className="absolute inset-0 opacity-20"
+                      style={{
+                        background:
+                          "radial-gradient(circle at 20% 50%, white 0%, transparent 50%)",
+                        animation: "pulse 2s ease-in-out infinite",
+                      }}
+                    />
+
+                    <div className="relative z-10 flex items-center justify-center gap-3">
+                      <div className="flex items-center justify-center">
+                        <BookOpen
+                          className="w-7 h-7 transition-transform group-active:rotate-12"
+                          style={{
+                            color: themeParams.button_text_color || "#ffffff",
+                          }}
+                        />
+                      </div>
+                      <div className="text-left">
+                        <div
+                          className="text-lg font-bold"
+                          style={{
+                            color: themeParams.button_text_color || "#ffffff",
+                          }}
+                        >
+                          Launch Terbia
+                        </div>
+                        <div
+                          className="text-xs opacity-90"
+                          style={{
+                            color: themeParams.button_text_color || "#ffffff",
+                          }}
+                        >
+                          Start learning now
+                        </div>
+                      </div>
+                      <ChevronRight
+                        className="w-6 h-6 ml-auto transition-transform group-active:translate-x-1"
+                        style={{
+                          color: themeParams.button_text_color || "#ffffff",
+                        }}
+                      />
+                    </div>
+
+                    {/* Sparkle effects */}
+                    <div
+                      className="absolute top-2 right-2"
+                      style={{
+                        color: themeParams.button_text_color || "#ffffff",
+                        opacity: 0.6,
+                      }}
+                    >
+                      <Sparkles className="w-5 h-5" />
+                    </div>
                   </button>
                 </>
               )}
 
-              {/* Show button even when no terbia data */}
+              {/* Show attractive button even when no terbia data */}
               {!studentData.terbia && (
                 <div className="text-center py-4">
                   <p
-                    className="text-sm mb-4"
+                    className="text-sm mb-5 font-medium"
                     style={{
                       color:
                         themeParams.hint_color ||
@@ -2571,27 +2426,73 @@ function StudentMiniAppInner({
                         (isDarkMode ? "#9ca3af" : "#6b7280"),
                     }}
                   >
-                    Start your learning journey on the Terbia platform
+                    🎓 Start your learning journey on Terbia
                   </p>
                   <button
                     onClick={openTerbiaInApp}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold shadow-lg transition-all active:scale-95 border"
+                    className="relative w-full overflow-hidden rounded-2xl p-5 shadow-2xl transition-all active:scale-98 border-2 group"
                     style={{
-                      backgroundColor:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "#f97316",
-                      color:
-                        themeParams.button_text_color ||
-                        (isDarkMode ? "#ffffff" : "#ffffff"),
-                      borderColor:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "#f97316",
+                      background: themeParams.button_color
+                        ? `linear-gradient(135deg, ${themeParams.button_color} 0%, ${themeParams.button_color}dd 100%)`
+                        : "linear-gradient(135deg, #f97316 0%, #fb923c 100%)",
+                      borderColor: themeParams.button_color || "#fb923c",
                     }}
                   >
-                    <BookOpen className="w-5 h-5" />
-                    <span>Open Terbia Learning System</span>
+                    {/* Animated background effect */}
+                    <div
+                      className="absolute inset-0 opacity-20"
+                      style={{
+                        background:
+                          "radial-gradient(circle at 80% 50%, white 0%, transparent 50%)",
+                        animation: "pulse 2s ease-in-out infinite",
+                      }}
+                    />
+
+                    <div className="relative z-10 flex items-center justify-center gap-3">
+                      <div className="flex items-center justify-center">
+                        <BookOpen
+                          className="w-7 h-7 transition-transform group-active:rotate-12"
+                          style={{
+                            color: themeParams.button_text_color || "#ffffff",
+                          }}
+                        />
+                      </div>
+                      <div className="text-left">
+                        <div
+                          className="text-lg font-bold"
+                          style={{
+                            color: themeParams.button_text_color || "#ffffff",
+                          }}
+                        >
+                          Launch Terbia
+                        </div>
+                        <div
+                          className="text-xs opacity-90"
+                          style={{
+                            color: themeParams.button_text_color || "#ffffff",
+                          }}
+                        >
+                          Begin your courses
+                        </div>
+                      </div>
+                      <ChevronRight
+                        className="w-6 h-6 ml-auto transition-transform group-active:translate-x-1"
+                        style={{
+                          color: themeParams.button_text_color || "#ffffff",
+                        }}
+                      />
+                    </div>
+
+                    {/* Sparkle effects */}
+                    <div
+                      className="absolute top-2 right-2"
+                      style={{
+                        color: themeParams.button_text_color || "#ffffff",
+                        opacity: 0.6,
+                      }}
+                    >
+                      <Sparkles className="w-5 h-5" />
+                    </div>
                   </button>
                 </div>
               )}
