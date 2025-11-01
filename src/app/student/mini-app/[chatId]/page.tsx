@@ -626,6 +626,7 @@ function StudentMiniAppInner({
           isDarkMode={isDarkMode}
           safeAreaInset={safeAreaInset}
           contentSafeAreaInset={contentSafeAreaInset}
+          tgWebApp={tgWebApp}
         />
       );
     }
@@ -831,8 +832,8 @@ function StudentMiniAppInner({
         backgroundColor:
           themeParams.bg_color || (isDarkMode ? "#111827" : "#f9fafb"),
         color: themeParams.text_color || (isDarkMode ? "#ffffff" : "#111827"),
-        paddingTop: `${safeAreaInset.top || 0}px`,
-        paddingBottom: `${(safeAreaInset.bottom || 0) + 140}px`,
+        paddingTop: `${(safeAreaInset.top || 0) + 16}px`,
+        paddingBottom: `${(safeAreaInset.bottom || 0) + 145}px`,
         paddingLeft: `${contentSafeAreaInset.left || 0}px`,
         paddingRight: `${contentSafeAreaInset.right || 0}px`,
       }}
@@ -864,6 +865,9 @@ function StudentMiniAppInner({
               <button
                 onClick={() => {
                   if (students.length > 1) {
+                    if (tgWebApp?.HapticFeedback?.impactOccurred) {
+                      tgWebApp.HapticFeedback.impactOccurred("light");
+                    }
                     setSelectedStudentId(null);
                   }
                 }}
@@ -871,29 +875,63 @@ function StudentMiniAppInner({
                 disabled={students.length <= 1}
               >
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold shadow-lg border-2 transition-all active:scale-95"
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold shadow-lg border-3 transition-all active:scale-95 relative overflow-hidden"
                   style={{
                     backgroundColor:
-                      themeParams.button_color ||
-                      themeParams.accent_text_color ||
-                      getAvatarColor(0),
+                      students.length > 0
+                        ? `${getAvatarBorderColor(
+                            students.findIndex(
+                              (s) => s.id === selectedStudentId
+                            )
+                          )}30`
+                        : themeParams.button_color ||
+                          themeParams.accent_text_color ||
+                          "#3b82f6",
                     borderColor:
-                      themeParams.button_color ||
-                      themeParams.accent_text_color ||
-                      "#3b82f6",
+                      students.length > 0
+                        ? getAvatarBorderColor(
+                            students.findIndex(
+                              (s) => s.id === selectedStudentId
+                            )
+                          )
+                        : themeParams.button_color ||
+                          themeParams.accent_text_color ||
+                          "#3b82f6",
+                    borderWidth: "3px",
                     color:
-                      themeParams.button_text_color ||
-                      (isDarkMode ? "#ffffff" : "#ffffff"),
+                      students.length > 0
+                        ? getAvatarBorderColor(
+                            students.findIndex(
+                              (s) => s.id === selectedStudentId
+                            )
+                          )
+                        : themeParams.button_text_color || "#ffffff",
                   }}
                 >
-                  {studentData?.student?.name?.charAt(0).toUpperCase() || "S"}
+                  <span className="relative z-10 font-extrabold">
+                    {studentData?.student?.name?.charAt(0).toUpperCase() || "S"}
+                  </span>
+                  {/* Gradient shimmer */}
+                  <div
+                    className="absolute inset-0 opacity-10"
+                    style={{
+                      background:
+                        students.length > 0
+                          ? `radial-gradient(circle at 30% 30%, ${getAvatarBorderColor(
+                              students.findIndex(
+                                (s) => s.id === selectedStudentId
+                              )
+                            )} 0%, transparent 70%)`
+                          : "radial-gradient(circle at 30% 30%, #3b82f6 0%, transparent 70%)",
+                    }}
+                  />
                 </div>
                 {students.length > 1 && (
                   <div
-                    className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shadow-md border-2"
+                    className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shadow-lg border-2 animate-pulse"
                     style={{
                       backgroundColor:
-                        themeParams.accent_text_color || "#ef4444",
+                        themeParams.destructive_text_color || "#ef4444",
                       borderColor:
                         themeParams.bottom_bar_bg_color ||
                         (isDarkMode ? "#111827" : "#ffffff"),
@@ -1074,10 +1112,147 @@ function StudentMiniAppInner({
             animate={{ opacity: 1, y: 0 }}
             className="space-y-4"
           >
-            {/* Quick Stats Cards */}
+            {/* Hero Stats Banner */}
+            <div
+              className="relative overflow-hidden rounded-3xl p-6 shadow-lg"
+              style={{
+                background: themeParams.button_color
+                  ? `linear-gradient(135deg, ${themeParams.button_color}20 0%, ${themeParams.button_color}05 100%)`
+                  : isDarkMode
+                  ? "linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%)"
+                  : "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)",
+                border: `1px solid ${
+                  themeParams.section_separator_color ||
+                  (isDarkMode
+                    ? "rgba(59, 130, 246, 0.3)"
+                    : "rgba(59, 130, 246, 0.2)")
+                }`,
+              }}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <p
+                    className="text-xs font-medium mb-1"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    Overall Performance
+                  </p>
+                  <h2
+                    className="text-3xl font-bold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {Math.round(
+                      (studentData.stats.attendancePercent +
+                        studentData.stats.terbiaProgress) /
+                        2
+                    )}
+                    %
+                  </h2>
+                </div>
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg"
+                  style={{
+                    backgroundColor:
+                      themeParams.button_color ||
+                      themeParams.accent_text_color ||
+                      "#3b82f6",
+                    color: themeParams.button_text_color || "#ffffff",
+                  }}
+                >
+                  <GraduationCap className="w-8 h-8" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center">
+                  <div
+                    className="text-xl font-bold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {studentData.attendance.presentDays}
+                  </div>
+                  <div
+                    className="text-[10px]"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    Days Present
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div
+                    className="text-xl font-bold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {studentData.stats.totalZoomSessions}
+                  </div>
+                  <div
+                    className="text-[10px]"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    Zoom Classes
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div
+                    className="text-xl font-bold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {studentData.stats.testsThisMonth}
+                  </div>
+                  <div
+                    className="text-[10px]"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    Tests
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Access Grid - More detailed */}
             <div className="grid grid-cols-2 gap-3">
-              <div
-                className="p-4 rounded-2xl shadow-sm border"
+              {/* Attendance Card */}
+              <button
+                onClick={() => {
+                  setCurrentTab("attendance");
+                  window.dispatchEvent(
+                    new CustomEvent("dk:setTab", { detail: "attendance" })
+                  );
+                }}
+                className="p-4 rounded-2xl shadow-sm border text-left transition-all active:scale-95"
                 style={{
                   backgroundColor:
                     themeParams.section_bg_color ||
@@ -1086,40 +1261,18 @@ function StudentMiniAppInner({
                   borderColor:
                     themeParams.section_separator_color ||
                     (isDarkMode
-                      ? "rgba(55, 65, 81, 0.3)"
-                      : "rgba(229, 231, 235, 0.5)"),
+                      ? "rgba(34, 197, 94, 0.3)"
+                      : "rgba(34, 197, 94, 0.2)"),
                 }}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{
-                      backgroundColor:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "rgba(34, 197, 94, 0.1)",
-                      color:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "#22c55e",
-                    }}
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                  </div>
-                  <button className="p-1">
-                    <Eye
-                      className="w-4 h-4"
-                      style={{
-                        color:
-                          themeParams.hint_color ||
-                          themeParams.subtitle_text_color ||
-                          (isDarkMode ? "#9ca3af" : "#6b7280"),
-                      }}
-                    />
-                  </button>
-                </div>
+                <CheckCircle
+                  className="w-8 h-8 mb-2"
+                  style={{
+                    color: isDarkMode ? "#22c55e" : "#16a34a",
+                  }}
+                />
                 <div
-                  className="text-2xl font-bold"
+                  className="text-2xl font-bold mb-1"
                   style={{
                     color:
                       themeParams.text_color ||
@@ -1129,7 +1282,7 @@ function StudentMiniAppInner({
                   {studentData.stats.attendancePercent}%
                 </div>
                 <div
-                  className="text-xs"
+                  className="text-xs font-medium mb-2"
                   style={{
                     color:
                       themeParams.hint_color ||
@@ -1137,12 +1290,35 @@ function StudentMiniAppInner({
                       (isDarkMode ? "#9ca3af" : "#6b7280"),
                   }}
                 >
-                  Attendance
+                  Attendance Rate
                 </div>
-              </div>
+                <div className="flex items-center justify-between text-[10px]">
+                  <span
+                    style={{
+                      color: isDarkMode ? "#22c55e" : "#16a34a",
+                    }}
+                  >
+                    {studentData.attendance.presentDays} Present
+                  </span>
+                  <span
+                    style={{
+                      color: isDarkMode ? "#ef4444" : "#dc2626",
+                    }}
+                  >
+                    {studentData.attendance.absentDays} Absent
+                  </span>
+                </div>
+              </button>
 
-              <div
-                className="p-4 rounded-2xl shadow-sm border"
+              {/* Tests Card */}
+              <button
+                onClick={() => {
+                  setCurrentTab("tests");
+                  window.dispatchEvent(
+                    new CustomEvent("dk:setTab", { detail: "tests" })
+                  );
+                }}
+                className="p-4 rounded-2xl shadow-sm border text-left transition-all active:scale-95"
                 style={{
                   backgroundColor:
                     themeParams.section_bg_color ||
@@ -1151,105 +1327,18 @@ function StudentMiniAppInner({
                   borderColor:
                     themeParams.section_separator_color ||
                     (isDarkMode
-                      ? "rgba(55, 65, 81, 0.3)"
-                      : "rgba(229, 231, 235, 0.5)"),
+                      ? "rgba(168, 85, 247, 0.3)"
+                      : "rgba(168, 85, 247, 0.2)"),
                 }}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{
-                      backgroundColor:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "rgba(59, 130, 246, 0.1)",
-                      color:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "#3b82f6",
-                    }}
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                  </div>
-                  <button className="p-1">
-                    <Eye
-                      className="w-4 h-4"
-                      style={{
-                        color:
-                          themeParams.hint_color ||
-                          themeParams.subtitle_text_color ||
-                          (isDarkMode ? "#9ca3af" : "#6b7280"),
-                      }}
-                    />
-                  </button>
-                </div>
-                <div
-                  className="text-2xl font-bold"
+                <Trophy
+                  className="w-8 h-8 mb-2"
                   style={{
-                    color:
-                      themeParams.text_color ||
-                      (isDarkMode ? "#ffffff" : "#111827"),
+                    color: isDarkMode ? "#a855f7" : "#9333ea",
                   }}
-                >
-                  {studentData.stats.totalZoomSessions}
-                </div>
+                />
                 <div
-                  className="text-xs"
-                  style={{
-                    color:
-                      themeParams.hint_color ||
-                      themeParams.subtitle_text_color ||
-                      (isDarkMode ? "#9ca3af" : "#6b7280"),
-                  }}
-                >
-                  Zoom Sessions
-                </div>
-              </div>
-
-              <div
-                className="p-4 rounded-2xl shadow-sm border"
-                style={{
-                  backgroundColor:
-                    themeParams.section_bg_color ||
-                    themeParams.secondary_bg_color ||
-                    (isDarkMode ? "#1f2937" : "#ffffff"),
-                  borderColor:
-                    themeParams.section_separator_color ||
-                    (isDarkMode
-                      ? "rgba(55, 65, 81, 0.3)"
-                      : "rgba(229, 231, 235, 0.5)"),
-                }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{
-                      backgroundColor:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "rgba(168, 85, 247, 0.1)",
-                      color:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "#a855f7",
-                    }}
-                  >
-                    <Trophy className="w-4 h-4" />
-                  </div>
-                  <button className="p-1">
-                    <Eye
-                      className="w-4 h-4"
-                      style={{
-                        color:
-                          themeParams.hint_color ||
-                          themeParams.subtitle_text_color ||
-                          (isDarkMode ? "#9ca3af" : "#6b7280"),
-                      }}
-                    />
-                  </button>
-                </div>
-                <div
-                  className="text-2xl font-bold"
+                  className="text-2xl font-bold mb-1"
                   style={{
                     color:
                       themeParams.text_color ||
@@ -1259,7 +1348,7 @@ function StudentMiniAppInner({
                   {studentData.stats.testsThisMonth}
                 </div>
                 <div
-                  className="text-xs"
+                  className="text-xs font-medium mb-2"
                   style={{
                     color:
                       themeParams.hint_color ||
@@ -1267,12 +1356,29 @@ function StudentMiniAppInner({
                       (isDarkMode ? "#9ca3af" : "#6b7280"),
                   }}
                 >
-                  Tests Taken
+                  Tests This Month
                 </div>
-              </div>
+                <div className="text-[10px]">
+                  <span
+                    style={{
+                      color: isDarkMode ? "#a855f7" : "#9333ea",
+                    }}
+                  >
+                    {studentData.recentTests.filter((t) => t.passed).length}{" "}
+                    Passed
+                  </span>
+                </div>
+              </button>
 
-              <div
-                className="p-4 rounded-2xl shadow-sm border"
+              {/* Zoom Sessions Card */}
+              <button
+                onClick={() => {
+                  setCurrentTab("schedule");
+                  window.dispatchEvent(
+                    new CustomEvent("dk:setTab", { detail: "schedule" })
+                  );
+                }}
+                className="p-4 rounded-2xl shadow-sm border text-left transition-all active:scale-95"
                 style={{
                   backgroundColor:
                     themeParams.section_bg_color ||
@@ -1281,50 +1387,28 @@ function StudentMiniAppInner({
                   borderColor:
                     themeParams.section_separator_color ||
                     (isDarkMode
-                      ? "rgba(55, 65, 81, 0.3)"
-                      : "rgba(229, 231, 235, 0.5)"),
+                      ? "rgba(59, 130, 246, 0.3)"
+                      : "rgba(59, 130, 246, 0.2)"),
                 }}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{
-                      backgroundColor:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "rgba(249, 115, 22, 0.1)",
-                      color:
-                        themeParams.button_color ||
-                        themeParams.accent_text_color ||
-                        "#f97316",
-                    }}
-                  >
-                    <Brain className="w-4 h-4" />
-                  </div>
-                  <button className="p-1">
-                    <Eye
-                      className="w-4 h-4"
-                      style={{
-                        color:
-                          themeParams.hint_color ||
-                          themeParams.subtitle_text_color ||
-                          (isDarkMode ? "#9ca3af" : "#6b7280"),
-                      }}
-                    />
-                  </button>
-                </div>
+                <BarChart3
+                  className="w-8 h-8 mb-2"
+                  style={{
+                    color: isDarkMode ? "#3b82f6" : "#2563eb",
+                  }}
+                />
                 <div
-                  className="text-2xl font-bold"
+                  className="text-2xl font-bold mb-1"
                   style={{
                     color:
                       themeParams.text_color ||
                       (isDarkMode ? "#ffffff" : "#111827"),
                   }}
                 >
-                  {studentData.stats.terbiaProgress}%
+                  {studentData.stats.totalZoomSessions}
                 </div>
                 <div
-                  className="text-xs"
+                  className="text-xs font-medium mb-2"
                   style={{
                     color:
                       themeParams.hint_color ||
@@ -1332,7 +1416,411 @@ function StudentMiniAppInner({
                       (isDarkMode ? "#9ca3af" : "#6b7280"),
                   }}
                 >
-                  Terbia Progress
+                  Zoom Sessions
+                </div>
+                <div className="text-[10px]">
+                  <span
+                    style={{
+                      color: isDarkMode ? "#3b82f6" : "#2563eb",
+                    }}
+                  >
+                    Last 30 days
+                  </span>
+                </div>
+              </button>
+
+              {/* Payments Card */}
+              <button
+                onClick={() => {
+                  setCurrentTab("payments");
+                  window.dispatchEvent(
+                    new CustomEvent("dk:setTab", { detail: "payments" })
+                  );
+                }}
+                className="p-4 rounded-2xl shadow-sm border text-left transition-all active:scale-95"
+                style={{
+                  backgroundColor:
+                    themeParams.section_bg_color ||
+                    themeParams.secondary_bg_color ||
+                    (isDarkMode ? "#1f2937" : "#ffffff"),
+                  borderColor:
+                    themeParams.section_separator_color ||
+                    (isDarkMode
+                      ? "rgba(239, 68, 68, 0.3)"
+                      : "rgba(239, 68, 68, 0.2)"),
+                }}
+              >
+                <CreditCard
+                  className="w-8 h-8 mb-2"
+                  style={{
+                    color: isDarkMode ? "#ef4444" : "#dc2626",
+                  }}
+                />
+                <div
+                  className="text-xl font-bold mb-1"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
+                >
+                  ${studentData.payments.summary.remainingBalance}
+                </div>
+                <div
+                  className="text-xs font-medium mb-2"
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
+                >
+                  Balance
+                </div>
+                <div className="text-[10px]">
+                  <span
+                    style={{
+                      color: isDarkMode ? "#10b981" : "#059669",
+                    }}
+                  >
+                    {studentData.payments.summary.paidMonths} months paid
+                  </span>
+                </div>
+              </button>
+            </div>
+
+            {/* Recent Activity Timeline */}
+            <div
+              className="p-5 rounded-2xl shadow-md border"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+                borderColor:
+                  themeParams.section_separator_color ||
+                  (isDarkMode
+                    ? "rgba(55, 65, 81, 0.3)"
+                    : "rgba(229, 231, 235, 0.5)"),
+              }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3
+                  className="text-base font-bold flex items-center gap-2"
+                  style={{
+                    color:
+                      themeParams.text_color ||
+                      (isDarkMode ? "#ffffff" : "#111827"),
+                  }}
+                >
+                  <Activity className="w-5 h-5" />
+                  Recent Activity
+                </h3>
+              </div>
+
+              <div className="space-y-3">
+                {/* Recent Test */}
+                {studentData.recentTests[0] && (
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{
+                        backgroundColor: studentData.recentTests[0].passed
+                          ? isDarkMode
+                            ? "rgba(34, 197, 94, 0.2)"
+                            : "rgba(34, 197, 94, 0.15)"
+                          : isDarkMode
+                          ? "rgba(239, 68, 68, 0.2)"
+                          : "rgba(239, 68, 68, 0.15)",
+                      }}
+                    >
+                      {studentData.recentTests[0].passed ? (
+                        <CheckCircle
+                          className="w-5 h-5"
+                          style={{
+                            color: isDarkMode ? "#22c55e" : "#16a34a",
+                          }}
+                        />
+                      ) : (
+                        <XCircle
+                          className="w-5 h-5"
+                          style={{
+                            color: isDarkMode ? "#ef4444" : "#dc2626",
+                          }}
+                        />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="text-sm font-semibold truncate"
+                        style={{
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
+                        }}
+                      >
+                        {studentData.recentTests[0].testName}
+                      </p>
+                      <p
+                        className="text-xs"
+                        style={{
+                          color:
+                            themeParams.hint_color ||
+                            (isDarkMode ? "#9ca3af" : "#6b7280"),
+                        }}
+                      >
+                        Score: {studentData.recentTests[0].score}% •{" "}
+                        {formatDate(studentData.recentTests[0].date)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Zoom Session */}
+                {studentData.recentZoomSessions[0] && (
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{
+                        backgroundColor: isDarkMode
+                          ? "rgba(59, 130, 246, 0.2)"
+                          : "rgba(59, 130, 246, 0.15)",
+                      }}
+                    >
+                      <BarChart3
+                        className="w-5 h-5"
+                        style={{
+                          color: isDarkMode ? "#3b82f6" : "#2563eb",
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="text-sm font-semibold"
+                        style={{
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
+                        }}
+                      >
+                        Zoom Session
+                      </p>
+                      <p
+                        className="text-xs truncate"
+                        style={{
+                          color:
+                            themeParams.hint_color ||
+                            (isDarkMode ? "#9ca3af" : "#6b7280"),
+                        }}
+                      >
+                        {studentData.recentZoomSessions[0].teacher} •{" "}
+                        {formatDate(studentData.recentZoomSessions[0].date)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Attendance */}
+                {studentData.attendance.thisMonth[0] && (
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{
+                        backgroundColor:
+                          studentData.attendance.thisMonth[0].status ===
+                          "present"
+                            ? isDarkMode
+                              ? "rgba(34, 197, 94, 0.2)"
+                              : "rgba(34, 197, 94, 0.15)"
+                            : isDarkMode
+                            ? "rgba(239, 68, 68, 0.2)"
+                            : "rgba(239, 68, 68, 0.15)",
+                      }}
+                    >
+                      <Calendar
+                        className="w-5 h-5"
+                        style={{
+                          color:
+                            studentData.attendance.thisMonth[0].status ===
+                            "present"
+                              ? isDarkMode
+                                ? "#22c55e"
+                                : "#16a34a"
+                              : isDarkMode
+                              ? "#ef4444"
+                              : "#dc2626",
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="text-sm font-semibold"
+                        style={{
+                          color:
+                            themeParams.text_color ||
+                            (isDarkMode ? "#ffffff" : "#111827"),
+                        }}
+                      >
+                        Attendance:{" "}
+                        {studentData.attendance.thisMonth[0].status ===
+                        "present"
+                          ? "Present"
+                          : "Absent"}
+                      </p>
+                      <p
+                        className="text-xs"
+                        style={{
+                          color:
+                            themeParams.hint_color ||
+                            (isDarkMode ? "#9ca3af" : "#6b7280"),
+                        }}
+                      >
+                        {formatDate(studentData.attendance.thisMonth[0].date)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Teacher & Class Info Card */}
+            <div
+              className="p-5 rounded-2xl shadow-md border"
+              style={{
+                backgroundColor:
+                  themeParams.section_bg_color ||
+                  themeParams.secondary_bg_color ||
+                  (isDarkMode ? "#1f2937" : "#ffffff"),
+                borderColor:
+                  themeParams.section_separator_color ||
+                  (isDarkMode
+                    ? "rgba(55, 65, 81, 0.3)"
+                    : "rgba(229, 231, 235, 0.5)"),
+              }}
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg"
+                  style={{
+                    backgroundColor:
+                      themeParams.button_color ||
+                      themeParams.accent_text_color ||
+                      "rgba(139, 92, 246, 0.2)",
+                    color:
+                      themeParams.button_color ||
+                      themeParams.accent_text_color ||
+                      "#8b5cf6",
+                  }}
+                >
+                  <User className="w-7 h-7" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-xs font-medium mb-0.5"
+                    style={{
+                      color:
+                        themeParams.hint_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    }}
+                  >
+                    Your Teacher
+                  </p>
+                  <h3
+                    className="text-base font-bold truncate"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {studentData.student.teacher}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div
+                  className="p-3 rounded-xl"
+                  style={{
+                    backgroundColor:
+                      themeParams.secondary_bg_color ||
+                      (isDarkMode
+                        ? "rgba(255, 255, 255, 0.05)"
+                        : "rgba(0, 0, 0, 0.02)"),
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar
+                      className="w-4 h-4"
+                      style={{
+                        color:
+                          themeParams.accent_text_color ||
+                          (isDarkMode ? "#3b82f6" : "#2563eb"),
+                      }}
+                    />
+                    <p
+                      className="text-[10px] font-medium"
+                      style={{
+                        color:
+                          themeParams.hint_color ||
+                          (isDarkMode ? "#9ca3af" : "#6b7280"),
+                      }}
+                    >
+                      Schedule
+                    </p>
+                  </div>
+                  <p
+                    className="text-sm font-bold"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {studentData.student.daypackages}
+                  </p>
+                </div>
+
+                <div
+                  className="p-3 rounded-xl"
+                  style={{
+                    backgroundColor:
+                      themeParams.secondary_bg_color ||
+                      (isDarkMode
+                        ? "rgba(255, 255, 255, 0.05)"
+                        : "rgba(0, 0, 0, 0.02)"),
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <BookOpen
+                      className="w-4 h-4"
+                      style={{
+                        color:
+                          themeParams.accent_text_color ||
+                          (isDarkMode ? "#f97316" : "#ea580c"),
+                      }}
+                    />
+                    <p
+                      className="text-[10px] font-medium"
+                      style={{
+                        color:
+                          themeParams.hint_color ||
+                          (isDarkMode ? "#9ca3af" : "#6b7280"),
+                      }}
+                    >
+                      Package
+                    </p>
+                  </div>
+                  <p
+                    className="text-sm font-bold truncate"
+                    style={{
+                      color:
+                        themeParams.text_color ||
+                        (isDarkMode ? "#ffffff" : "#111827"),
+                    }}
+                  >
+                    {studentData.student.package}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1348,7 +1836,7 @@ function StudentMiniAppInner({
                 borderColor:
                   themeParams.section_separator_color ||
                   (isDarkMode
-                    ? "rgba(55, 65, 81, 0.3)"
+                    ? "rgba(249, 115, 22, 0.4)"
                     : "rgba(249, 115, 22, 0.3)"),
               }}
             >
@@ -2811,6 +3299,7 @@ function StudentSelectionScreen({
   isDarkMode,
   safeAreaInset,
   contentSafeAreaInset,
+  tgWebApp,
 }: {
   students: StudentListItem[];
   onSelectStudent: (id: number) => void;
@@ -2823,6 +3312,7 @@ function StudentSelectionScreen({
     left: number;
     right: number;
   };
+  tgWebApp: TelegramWebApp | null;
 }) {
   const headerPaddingTop = safeAreaInset.top > 0 ? safeAreaInset.top + 16 : 16;
 
@@ -2910,141 +3400,190 @@ function StudentSelectionScreen({
             </p>
           </div>
 
-          {/* Student Cards - Vertical list */}
+          {/* Student Cards - Vertical list with circular avatars */}
           <div className="space-y-3 max-w-md mx-auto">
-            {students.map((student, index) => (
-              <button
-                key={student.id}
-                onClick={() => onSelectStudent(student.id)}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl shadow-md border-2 transition-all active:scale-98 hover:shadow-lg"
-                style={{
-                  backgroundColor:
-                    themeParams.section_bg_color ||
-                    themeParams.secondary_bg_color ||
-                    (isDarkMode ? "#1f2937" : "#ffffff"),
-                  borderColor: getAvatarBorderColor(index),
-                }}
-              >
-                {/* Avatar */}
-                <div className="relative">
+            {students.map((student, index) => {
+              const avatarColor = getAvatarBorderColor(index);
+              return (
+                <motion.button
+                  key={student.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  onClick={() => {
+                    if (tgWebApp?.HapticFeedback?.impactOccurred) {
+                      tgWebApp.HapticFeedback.impactOccurred("medium");
+                    }
+                    onSelectStudent(student.id);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl shadow-md border-2 transition-all active:scale-98 hover:shadow-lg"
+                  style={{
+                    backgroundColor:
+                      themeParams.section_bg_color ||
+                      themeParams.secondary_bg_color ||
+                      (isDarkMode ? "#1f2937" : "#ffffff"),
+                    borderColor:
+                      themeParams.section_separator_color ||
+                      (isDarkMode
+                        ? "rgba(55, 65, 81, 0.5)"
+                        : "rgba(229, 231, 235, 0.5)"),
+                  }}
+                >
+                  {/* Circular Avatar */}
+                  <div className="relative flex-shrink-0">
+                    <div
+                      className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold shadow-lg relative overflow-hidden"
+                      style={{
+                        backgroundColor: `${avatarColor}30`,
+                        border: `3px solid ${avatarColor}`,
+                        color: avatarColor,
+                      }}
+                    >
+                      <span className="relative z-10 font-extrabold">
+                        {student.name.charAt(0).toUpperCase()}
+                      </span>
+                      {/* Gradient shimmer */}
+                      <div
+                        className="absolute inset-0 opacity-10"
+                        style={{
+                          background: `radial-gradient(circle at 30% 30%, ${avatarColor} 0%, transparent 70%)`,
+                        }}
+                      />
+                    </div>
+                    {/* Active indicator for first student */}
+                    {index === 0 && (
+                      <div
+                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center shadow-lg border-2 animate-pulse"
+                        style={{
+                          backgroundColor:
+                            themeParams.accent_text_color || "#10b981",
+                          borderColor:
+                            themeParams.section_bg_color ||
+                            (isDarkMode ? "#1f2937" : "#ffffff"),
+                        }}
+                      >
+                        <Star className="w-3.5 h-3.5 text-white fill-white" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Student Info */}
+                  <div className="flex-1 text-left min-w-0">
+                    <h3
+                      className="text-base font-bold mb-1 truncate"
+                      style={{
+                        color:
+                          themeParams.text_color ||
+                          (isDarkMode ? "#ffffff" : "#111827"),
+                      }}
+                    >
+                      {student.name}
+                    </h3>
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <div
+                        className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                        style={{
+                          backgroundColor: `${avatarColor}20`,
+                          color: avatarColor,
+                        }}
+                      >
+                        {student.package}
+                      </div>
+                      {index === 0 && (
+                        <div
+                          className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                          style={{
+                            backgroundColor: themeParams.accent_text_color
+                              ? `${themeParams.accent_text_color}20`
+                              : "rgba(16, 185, 129, 0.2)",
+                            color: themeParams.accent_text_color || "#10b981",
+                          }}
+                        >
+                          Active
+                        </div>
+                      )}
+                    </div>
+                    <p
+                      className="text-xs flex items-center gap-1.5 mb-1"
+                      style={{
+                        color:
+                          themeParams.hint_color ||
+                          themeParams.subtitle_text_color ||
+                          (isDarkMode ? "#9ca3af" : "#6b7280"),
+                      }}
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      <span className="truncate">{student.subject}</span>
+                    </p>
+                    <p
+                      className="text-xs flex items-center gap-1.5"
+                      style={{
+                        color:
+                          themeParams.hint_color ||
+                          themeParams.subtitle_text_color ||
+                          (isDarkMode ? "#9ca3af" : "#6b7280"),
+                      }}
+                    >
+                      <User className="w-3.5 h-3.5" />
+                      <span className="truncate">{student.teacher}</span>
+                    </p>
+                  </div>
+
+                  {/* Arrow indicator with color */}
                   <div
-                    className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold shadow-lg relative overflow-hidden"
+                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{
-                      backgroundColor: getAvatarColor(index),
-                      border: `3px solid ${getAvatarBorderColor(index)}`,
-                      color: getAvatarBorderColor(index),
+                      backgroundColor: `${avatarColor}15`,
                     }}
                   >
-                    <span className="relative z-10">
-                      {student.name.charAt(0).toUpperCase()}
-                    </span>
-                    {/* Gradient overlay */}
-                    <div
-                      className="absolute inset-0 opacity-20"
+                    <ChevronRight
+                      className="w-5 h-5"
                       style={{
-                        background: `linear-gradient(135deg, transparent 0%, ${getAvatarBorderColor(
-                          index
-                        )} 100%)`,
+                        color: avatarColor,
                       }}
                     />
                   </div>
-                  {/* Active indicator for first student */}
-                  {index === 0 && (
-                    <div
-                      className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center shadow-lg border-2"
-                      style={{
-                        backgroundColor: "#10b981",
-                        borderColor:
-                          themeParams.bg_color ||
-                          (isDarkMode ? "#1f2937" : "#ffffff"),
-                      }}
-                    >
-                      <CheckCircle className="w-4 h-4 text-white" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Student Info */}
-                <div className="flex-1 text-left min-w-0">
-                  <h3
-                    className="text-base font-bold mb-1 truncate"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    {student.name}
-                  </h3>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div
-                      className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                      style={{
-                        backgroundColor: `${getAvatarBorderColor(index)}20`,
-                        color: getAvatarBorderColor(index),
-                      }}
-                    >
-                      {student.package}
-                    </div>
-                  </div>
-                  <p
-                    className="text-xs flex items-center gap-1"
-                    style={{
-                      color:
-                        themeParams.hint_color ||
-                        themeParams.subtitle_text_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  >
-                    <BookOpen className="w-3 h-3" />
-                    {student.subject}
-                  </p>
-                  <p
-                    className="text-xs flex items-center gap-1 mt-0.5"
-                    style={{
-                      color:
-                        themeParams.hint_color ||
-                        themeParams.subtitle_text_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  >
-                    <User className="w-3 h-3" />
-                    {student.teacher}
-                  </p>
-                </div>
-
-                {/* Arrow indicator */}
-                <ChevronRight
-                  className="w-5 h-5 flex-shrink-0"
-                  style={{
-                    color:
-                      themeParams.hint_color ||
-                      (isDarkMode ? "#6b7280" : "#9ca3af"),
-                  }}
-                />
-              </button>
-            ))}
+                </motion.button>
+              );
+            })}
           </div>
 
-          {/* Back button at bottom */}
-          <div className="mt-8 text-center">
-            <button
-              onClick={() => window.history.back()}
-              className="px-6 py-3 rounded-xl font-semibold transition-all active:scale-95 shadow-md border"
+          {/* Helpful tip */}
+          <div
+            className="mt-6 p-4 rounded-2xl border text-center"
+            style={{
+              backgroundColor:
+                themeParams.section_bg_color ||
+                (isDarkMode
+                  ? "rgba(59, 130, 246, 0.1)"
+                  : "rgba(59, 130, 246, 0.05)"),
+              borderColor:
+                themeParams.section_separator_color ||
+                (isDarkMode
+                  ? "rgba(59, 130, 246, 0.3)"
+                  : "rgba(59, 130, 246, 0.2)"),
+            }}
+          >
+            <HelpCircle
+              className="w-8 h-8 mx-auto mb-2"
               style={{
-                backgroundColor:
-                  themeParams.secondary_bg_color ||
-                  (isDarkMode ? "#374151" : "#f3f4f6"),
                 color:
-                  themeParams.text_color ||
-                  (isDarkMode ? "#ffffff" : "#111827"),
-                borderColor:
-                  themeParams.section_separator_color ||
-                  (isDarkMode ? "#4b5563" : "#d1d5db"),
+                  themeParams.button_color ||
+                  themeParams.accent_text_color ||
+                  "#3b82f6",
+              }}
+            />
+            <p
+              className="text-xs"
+              style={{
+                color:
+                  themeParams.hint_color ||
+                  themeParams.subtitle_text_color ||
+                  (isDarkMode ? "#9ca3af" : "#6b7280"),
               }}
             >
-              Go Back
-            </button>
+              Tap on any student card to view their progress
+            </p>
           </div>
         </div>
       </div>
