@@ -820,17 +820,12 @@ function StudentMiniAppInner({
     );
   }
 
-  // Calculate header padding using safe area insets - increased for better spacing
-  const headerPaddingTop =
-    safeAreaInset.top > 0
-      ? safeAreaInset.top + (tgWebApp?.isExpanded ? 16 : 56)
-      : tgWebApp?.isExpanded
-      ? 16
-      : 56;
+  // Calculate header padding using safe area insets - compact for more content space
+  const headerPaddingTop = safeAreaInset.top > 0 ? safeAreaInset.top + 8 : 8;
 
   return (
     <div
-      className="min-h-screen transition-all duration-300 pb-24"
+      className="min-h-screen transition-all duration-300 pb-20"
       style={{
         backgroundColor:
           themeParams.bg_color || (isDarkMode ? "#111827" : "#f9fafb"),
@@ -839,26 +834,28 @@ function StudentMiniAppInner({
         paddingRight: `${contentSafeAreaInset.right || 0}px`,
       }}
     >
-      {/* Mobile App Header */}
+      {/* Compact Mobile Header */}
       <div
-        className="sticky top-0 z-50 border-b transition-all duration-300"
+        className="sticky top-0 z-50 backdrop-blur-lg border-b"
         style={{
           backgroundColor:
             themeParams.header_bg_color ||
             themeParams.bg_color ||
-            (isDarkMode ? "#1f2937" : "#ffffff"),
+            (isDarkMode
+              ? "rgba(31, 41, 55, 0.95)"
+              : "rgba(255, 255, 255, 0.95)"),
           borderColor:
             themeParams.section_separator_color ||
-            (isDarkMode ? "#374151" : "#e5e7eb"),
+            (isDarkMode ? "rgba(55, 65, 81, 0.5)" : "rgba(229, 231, 235, 0.5)"),
           paddingTop: `${headerPaddingTop}px`,
           paddingLeft: `${safeAreaInset.left || 0}px`,
           paddingRight: `${safeAreaInset.right || 0}px`,
         }}
       >
-        <div className="px-4 py-3">
-          {/* Top Navigation */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3 flex-1">
+        <div className="px-3 py-2.5">
+          {/* Compact Top Navigation */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
               <button
                 onClick={() => {
                   if (students.length > 1) {
@@ -867,7 +864,7 @@ function StudentMiniAppInner({
                     window.history.back();
                   }
                 }}
-                className="p-1"
+                className="p-1.5 rounded-lg active:scale-95 transition-transform"
                 style={{
                   color:
                     themeParams.text_color ||
@@ -876,9 +873,9 @@ function StudentMiniAppInner({
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h1
-                  className="text-xl font-bold"
+                  className="text-base font-bold truncate"
                   style={{
                     color:
                       themeParams.text_color ||
@@ -887,10 +884,21 @@ function StudentMiniAppInner({
                 >
                   {studentData?.student?.name || "Dashboard"}
                 </h1>
+                <p
+                  className="text-[10px] truncate"
+                  style={{
+                    color:
+                      themeParams.hint_color ||
+                      themeParams.subtitle_text_color ||
+                      (isDarkMode ? "#9ca3af" : "#6b7280"),
+                  }}
+                >
+                  {studentData?.student?.subject || "Student Portal"}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-1.5">
               {/* Fullscreen toggle button */}
               {tgWebApp && (
                 <button
@@ -899,11 +907,13 @@ function StudentMiniAppInner({
                       ? handleExitFullscreen
                       : handleRequestFullscreen
                   }
-                  className="p-2 rounded-full transition-all duration-200"
+                  className="p-1.5 rounded-lg transition-all active:scale-95"
                   style={{
                     backgroundColor:
                       themeParams.secondary_bg_color ||
-                      (isDarkMode ? "#374151" : "#f3f4f6"),
+                      (isDarkMode
+                        ? "rgba(55, 65, 81, 0.6)"
+                        : "rgba(243, 244, 246, 0.8)"),
                     color:
                       themeParams.text_color ||
                       (isDarkMode ? "#ffffff" : "#374151"),
@@ -911,9 +921,9 @@ function StudentMiniAppInner({
                   title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
                 >
                   {isFullscreen ? (
-                    <Minimize2 className="w-4 h-4" />
+                    <Minimize2 className="w-3.5 h-3.5" />
                   ) : (
-                    <Maximize2 className="w-4 h-4" />
+                    <Maximize2 className="w-3.5 h-3.5" />
                   )}
                 </button>
               )}
@@ -922,31 +932,34 @@ function StudentMiniAppInner({
                 onClick={() =>
                   setLang ? setLang((lang === "en" ? "am" : "en") as any) : null
                 }
-                className="px-3 py-1.5 rounded text-xs border"
+                className="px-2 py-1 rounded-lg text-[10px] font-semibold transition-all active:scale-95"
                 style={{
-                  borderColor:
-                    themeParams.section_separator_color ||
-                    (isDarkMode ? "#374151" : "#d1d5db"),
+                  backgroundColor:
+                    themeParams.secondary_bg_color ||
+                    (isDarkMode
+                      ? "rgba(55, 65, 81, 0.6)"
+                      : "rgba(243, 244, 246, 0.8)"),
                   color:
                     themeParams.text_color ||
                     (isDarkMode ? "#e5e7eb" : "#374151"),
                 }}
               >
-                {lang === "en" ? "አማርኛ" : "EN"}
+                {lang === "en" ? "አማ" : "EN"}
               </button>
             </div>
           </div>
 
-          {/* Student Info Card */}
-          {studentData && (
+          {/* Compact Student Info - Only essential data */}
+          {studentData && currentTab === "overview" && (
             <div
-              className="rounded-2xl p-4 mb-4 shadow-sm"
+              className="mt-2 rounded-xl p-2.5 shadow-sm"
               style={{
                 backgroundColor:
                   themeParams.section_bg_color ||
                   themeParams.secondary_bg_color ||
-                  themeParams.bg_color ||
-                  (isDarkMode ? "#1f2937" : "#ffffff"),
+                  (isDarkMode
+                    ? "rgba(31, 41, 55, 0.5)"
+                    : "rgba(249, 250, 251, 0.8)"),
                 border: `1px solid ${
                   themeParams.section_separator_color ||
                   (isDarkMode
@@ -955,19 +968,10 @@ function StudentMiniAppInner({
                 }`,
               }}
             >
-              <div className="grid grid-cols-2 gap-3">
-                <div
-                  className="p-3 rounded-xl"
-                  style={{
-                    backgroundColor:
-                      themeParams.secondary_bg_color ||
-                      (isDarkMode
-                        ? "rgba(255, 255, 255, 0.05)"
-                        : "rgba(59, 130, 246, 0.05)"),
-                  }}
-                >
-                  <p
-                    className="text-xs font-medium mb-1"
+              <div className="flex items-center justify-between gap-2 text-[10px]">
+                <div className="flex items-center gap-1">
+                  <BookOpen className="w-3 h-3 opacity-60" />
+                  <span
                     style={{
                       color:
                         themeParams.hint_color ||
@@ -975,32 +979,12 @@ function StudentMiniAppInner({
                         (isDarkMode ? "#9ca3af" : "#6b7280"),
                     }}
                   >
-                    Subject
-                  </p>
-                  <p
-                    className="text-sm font-semibold"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    {studentData.student.subject || "N/A"}
-                  </p>
+                    {studentData.student.subject}
+                  </span>
                 </div>
-
-                <div
-                  className="p-3 rounded-xl"
-                  style={{
-                    backgroundColor:
-                      themeParams.secondary_bg_color ||
-                      (isDarkMode
-                        ? "rgba(255, 255, 255, 0.05)"
-                        : "rgba(34, 197, 94, 0.05)"),
-                  }}
-                >
-                  <p
-                    className="text-xs font-medium mb-1"
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3 opacity-60" />
+                  <span
                     style={{
                       color:
                         themeParams.hint_color ||
@@ -1008,84 +992,20 @@ function StudentMiniAppInner({
                         (isDarkMode ? "#9ca3af" : "#6b7280"),
                     }}
                   >
-                    Class Fee
-                  </p>
-                  <p
-                    className="text-sm font-semibold"
+                    {studentData.student.daypackages}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span
+                    className="font-semibold"
                     style={{
                       color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
+                        themeParams.accent_text_color ||
+                        (isDarkMode ? "#10b981" : "#059669"),
                     }}
                   >
                     ETB {studentData.student.classfee?.toLocaleString() || 0}
-                  </p>
-                </div>
-
-                <div
-                  className="p-3 rounded-xl"
-                  style={{
-                    backgroundColor:
-                      themeParams.secondary_bg_color ||
-                      (isDarkMode
-                        ? "rgba(255, 255, 255, 0.05)"
-                        : "rgba(168, 85, 247, 0.05)"),
-                  }}
-                >
-                  <p
-                    className="text-xs font-medium mb-1"
-                    style={{
-                      color:
-                        themeParams.hint_color ||
-                        themeParams.subtitle_text_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  >
-                    Days
-                  </p>
-                  <p
-                    className="text-sm font-semibold"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    {studentData.student.daypackages || "N/A"}
-                  </p>
-                </div>
-
-                <div
-                  className="p-3 rounded-xl"
-                  style={{
-                    backgroundColor:
-                      themeParams.secondary_bg_color ||
-                      (isDarkMode
-                        ? "rgba(255, 255, 255, 0.05)"
-                        : "rgba(249, 115, 22, 0.05)"),
-                  }}
-                >
-                  <p
-                    className="text-xs font-medium mb-1"
-                    style={{
-                      color:
-                        themeParams.hint_color ||
-                        themeParams.subtitle_text_color ||
-                        (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  >
-                    Teacher
-                  </p>
-                  <p
-                    className="text-sm font-semibold truncate"
-                    style={{
-                      color:
-                        themeParams.text_color ||
-                        (isDarkMode ? "#ffffff" : "#111827"),
-                    }}
-                  >
-                    {studentData.student.teacher || "N/A"}
-                  </p>
+                  </span>
                 </div>
               </div>
             </div>
@@ -1095,9 +1015,9 @@ function StudentMiniAppInner({
 
       {/* Tab Content - Scrollable */}
       <div
-        className="px-4 py-4"
+        className="px-3 py-3"
         style={{
-          paddingBottom: `${(contentSafeAreaInset.bottom || 0) + 140}px`,
+          paddingBottom: `${(contentSafeAreaInset.bottom || 0) + 80}px`,
         }}
       >
         {/* Content Section Header with Back Button - Show for all tabs except default overview */}
@@ -2742,27 +2662,29 @@ function StudentMiniAppInner({
         )}
       </div>
 
-      {/* Floating Exit Fullscreen Button - Only visible in fullscreen mode */}
+      {/* Floating Exit Fullscreen Button - Compact version for fullscreen */}
       {isFullscreen && tgWebApp && (
         <button
           onClick={handleExitFullscreen}
-          className="fixed bottom-24 right-4 z-50 p-3 rounded-full shadow-lg transition-all duration-200 border"
+          className="fixed top-20 right-2 z-40 p-1.5 rounded-full shadow-md transition-all duration-200 border backdrop-blur-sm"
           style={{
-            backgroundColor:
-              themeParams.secondary_bg_color ||
-              themeParams.section_bg_color ||
-              (isDarkMode ? "#1f2937" : "#ffffff"),
+            backgroundColor: themeParams.destructive_text_color
+              ? `${themeParams.destructive_text_color}20`
+              : isDarkMode
+              ? "rgba(239, 68, 68, 0.2)"
+              : "rgba(239, 68, 68, 0.15)",
             color:
-              themeParams.text_color || (isDarkMode ? "#ffffff" : "#111827"),
+              themeParams.destructive_text_color ||
+              (isDarkMode ? "#f87171" : "#dc2626"),
             borderColor:
-              themeParams.section_separator_color ||
-              (isDarkMode ? "#4b5563" : "#e5e7eb"),
-            bottom: `${(safeAreaInset.bottom || 0) + 80}px`,
-            right: `${(safeAreaInset.right || 0) + 16}px`,
+              themeParams.destructive_text_color ||
+              (isDarkMode ? "#ef4444" : "#dc2626"),
+            top: `${(safeAreaInset.top || 0) + 80}px`,
+            right: `${(safeAreaInset.right || 0) + 8}px`,
           }}
           title="Exit Fullscreen"
         >
-          <X className="w-5 h-5" />
+          <X className="w-3.5 h-3.5" />
         </button>
       )}
     </div>
@@ -3097,26 +3019,26 @@ function ProfileSettingsNav() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden backdrop-blur-xl"
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden backdrop-blur-lg"
       style={{
         backgroundColor:
           themeParams.bottom_bar_bg_color ||
           themeParams.section_bg_color ||
-          (isDarkMode ? "rgba(31, 41, 55, 0.95)" : "rgba(255, 255, 255, 0.95)"),
+          (isDarkMode ? "rgba(31, 41, 55, 0.98)" : "rgba(255, 255, 255, 0.98)"),
         borderTop: `1px solid ${
           themeParams.section_separator_color ||
           (isDarkMode ? "rgba(55, 65, 81, 0.5)" : "rgba(229, 231, 235, 0.5)")
         }`,
-        paddingBottom: `${safeAreaInset.bottom || 8}px`,
+        paddingBottom: `${safeAreaInset.bottom || 4}px`,
         paddingLeft: `${safeAreaInset.left || 0}px`,
         paddingRight: `${safeAreaInset.right || 0}px`,
-        paddingTop: "8px",
+        paddingTop: "6px",
         boxShadow: isDarkMode
-          ? "0 -4px 24px rgba(0, 0, 0, 0.3)"
-          : "0 -4px 24px rgba(0, 0, 0, 0.08)",
+          ? "0 -2px 16px rgba(0, 0, 0, 0.2)"
+          : "0 -2px 16px rgba(0, 0, 0, 0.06)",
       }}
     >
-      <div className="grid grid-cols-3 gap-2 px-3">
+      <div className="grid grid-cols-3 gap-1.5 px-2">
         {navItems.map((item) => {
           const isActive = active === item.id;
           const activeColor =
@@ -3129,57 +3051,30 @@ function ProfileSettingsNav() {
             <button
               key={item.id}
               onClick={() => setTab(item.id)}
-              className="flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all active:scale-95"
+              className="flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg transition-all active:scale-95"
               style={{
                 backgroundColor: isActive
                   ? themeParams.button_color
-                    ? `${themeParams.button_color}20`
-                    : `${item.color}20`
+                    ? `${themeParams.button_color}15`
+                    : `${item.color}15`
                   : "transparent",
               }}
             >
-              <div
-                className="relative flex items-center justify-center"
-                style={{
-                  transform: isActive ? "scale(1.15)" : "scale(1)",
-                  transition: "transform 0.2s ease",
-                }}
-              >
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center shadow-sm"
+              <div className="relative flex items-center justify-center">
+                <item.icon
+                  className="w-5 h-5 transition-all"
                   style={{
-                    backgroundColor: isActive
-                      ? themeParams.button_color
-                        ? `${themeParams.button_color}30`
-                        : `${item.color}30`
-                      : themeParams.secondary_bg_color ||
-                        (isDarkMode
-                          ? "rgba(55, 65, 81, 0.6)"
-                          : "rgba(243, 244, 246, 0.9)"),
-                    border: isActive
-                      ? `2px solid ${activeColor}`
-                      : `1px solid ${
-                          themeParams.section_separator_color ||
-                          (isDarkMode
-                            ? "rgba(55, 65, 81, 0.3)"
-                            : "rgba(229, 231, 235, 0.5)")
-                        }`,
+                    color: isActive
+                      ? activeColor
+                      : themeParams.hint_color ||
+                        themeParams.subtitle_text_color ||
+                        (isDarkMode ? "#9ca3af" : "#6b7280"),
+                    strokeWidth: isActive ? 2.5 : 2,
                   }}
-                >
-                  <item.icon
-                    className="w-5 h-5 transition-colors"
-                    style={{
-                      color: isActive
-                        ? activeColor
-                        : themeParams.hint_color ||
-                          themeParams.subtitle_text_color ||
-                          (isDarkMode ? "#9ca3af" : "#6b7280"),
-                    }}
-                  />
-                </div>
+                />
                 {isActive && (
                   <div
-                    className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full shadow-sm"
+                    className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
                     style={{
                       backgroundColor: activeColor,
                     }}
@@ -3187,7 +3082,7 @@ function ProfileSettingsNav() {
                 )}
               </div>
               <span
-                className="text-[11px] font-semibold text-center leading-tight max-w-full truncate px-1"
+                className="text-[9px] font-semibold text-center leading-tight max-w-full truncate"
                 style={{
                   color: isActive
                     ? activeColor
