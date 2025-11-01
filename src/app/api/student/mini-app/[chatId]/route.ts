@@ -317,6 +317,7 @@ export async function GET(
     // Prepare response
     const studentData = {
       student: {
+        wdt_ID: student.wdt_ID,
         name: student.name,
         package: student.package,
         subject: student.subject,
