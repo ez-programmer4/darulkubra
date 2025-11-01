@@ -1702,10 +1702,6 @@ function StudentMiniAppInner({
                 <div
                   className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg"
                   style={{
-                    backgroundColor:
-                      themeParams.button_color ||
-                      themeParams.accent_text_color ||
-                      "rgba(139, 92, 246, 0.2)",
                     color:
                       themeParams.button_color ||
                       themeParams.accent_text_color ||
@@ -1975,10 +1971,6 @@ function StudentMiniAppInner({
                       <div
                         className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"
                         style={{
-                          backgroundColor:
-                            themeParams.button_color ||
-                            themeParams.accent_text_color ||
-                            "rgba(249, 115, 22, 0.15)",
                           color:
                             themeParams.button_color ||
                             themeParams.accent_text_color ||
