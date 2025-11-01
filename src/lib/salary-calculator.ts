@@ -2164,25 +2164,22 @@ Teacher Change Period: ${student.teacherChangePeriod ? "Yes" : "No"}`;
 
         periodZoomLinks.forEach((link: any) => {
           if (link.sent_time) {
-            // Ensure sent_time is a Date object
-            const sentTime =
-              link.sent_time instanceof Date
-                ? link.sent_time
-                : new Date(link.sent_time);
+            const linkDate = new Date(link.sent_time);
 
-            // CRITICAL FIX: Convert to Riyadh timezone to get correct date (fixes 31st day issue)
-            const zonedDateTime = toZonedTime(sentTime, TZ);
-
-            // Debug Sunday inclusion - check using Riyadh timezone
-            const isSunday = zonedDateTime.getDay() === 0;
+            // Debug Sunday inclusion
+            const isSunday = linkDate.getDay() === 0;
             const shouldInclude = this.config.includeSundays || !isSunday;
 
             if (!shouldInclude) {
               return;
             }
 
-            // Extract date string in Riyadh timezone (fixes 31st showing as 1st of next month)
-            const dateStr = format(zonedDateTime, "yyyy-MM-dd");
+            // Ensure sent_time is a Date object
+            const sentTime =
+              link.sent_time instanceof Date
+                ? link.sent_time
+                : new Date(link.sent_time);
+            const dateStr = sentTime.toISOString().split("T")[0];
 
             if (
               !dailyLinks.has(dateStr) ||
@@ -2884,17 +2881,12 @@ Day Package: ${studentDaypackage} (from teacher change period)
       // Calculate working days for this period
       const workingDays = this.calculateWorkingDays(fromDate, effectiveToDate);
 
-      // Safe date iteration to include all days including 31st
+      // Safe date iteration to avoid invalid dates like Sept 31st
       const safeDateIterator = (startDate: Date, endDate: Date) => {
         const dates: Date[] = [];
         const current = new Date(startDate);
-        current.setHours(0, 0, 0, 0);
 
-        const end = new Date(endDate);
-        end.setHours(0, 0, 0, 0);
-
-        // Use date-only comparison to ensure we include the last day (31st)
-        while (current.getTime() <= end.getTime()) {
+        while (current <= endDate) {
           // Validate the date to avoid invalid dates like Sept 31st
           const year = current.getFullYear();
           const month = current.getMonth();
@@ -3024,9 +3016,7 @@ Day Package: ${studentDaypackage} (from teacher change period)
           // Check if student has zoom link for this date
           const hasZoomLink = student.zoom_links?.some((link: any) => {
             if (!link.sent_time) return false;
-            // CRITICAL FIX: Convert to Riyadh timezone for accurate date comparison (fixes 31st day issue)
-            const linkZonedDate = toZonedTime(new Date(link.sent_time), TZ);
-            const linkDate = format(linkZonedDate, "yyyy-MM-dd");
+            const linkDate = format(new Date(link.sent_time), "yyyy-MM-dd");
             return linkDate === dateStr;
           });
 
